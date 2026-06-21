@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Esencia" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <title>Esencia de Bienestar</title>
+    <meta name="description" content="&quot;Tu espacio de nutrición inteligente, retos y bienestar para tu día a día">
+    <meta property="og:title" content="Esencia de Bienestar">
+  <meta name="twitter:title" content="Esencia de Bienestar">
+  <meta property="og:description" content="&quot;Tu espacio de nutrición inteligente, retos y bienestar para tu día a día">
+  <meta name="twitter:description" content="&quot;Tu espacio de nutrición inteligente, retos y bienestar para tu día a día">
+  <meta property="og:image" content="/og-image.jpg">
+  <meta name="twitter:image" content="/og-image.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:type" content="website">
+</head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Welcome screen (renders before React mounts, dismissed by user) -->
+    <div id="esencia-splash" aria-hidden="true">
+      <div class="esencia-splash-halo"></div>
+      <img src="/splash-logo.png" alt="" class="esencia-splash-logo" />
+      <button id="esencia-splash-btn" type="button">Entrar</button>
+    </div>
+    <style>
+      #esencia-splash {
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.5rem;
+        background: radial-gradient(circle at 50% 45%, hsl(285 40% 8%) 0%, hsl(280 45% 4%) 55%, #000 100%);
+        opacity: 1;
+        transition: opacity .6s ease;
+      }
+      #esencia-splash.esencia-splash-leaving { opacity: 0; pointer-events: none; }
+      #esencia-splash > .esencia-splash-halo {
+        position: absolute; width: 420px; height: 420px; border-radius: 9999px;
+        filter: blur(60px); opacity: .8;
+        background: radial-gradient(circle, hsl(325 95% 60% / .45) 0%, hsl(110 80% 55% / .18) 45%, transparent 72%);
+        animation: esenciaSplashPulse 2.4s ease-in-out infinite;
+      }
+      #esencia-splash > .esencia-splash-logo {
+        position: relative; width: min(78vw, 320px); height: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 0 40px rgba(255,90,200,.55));
+        animation: esenciaSplashFade 1.2s ease-out both;
+      }
+      #esencia-splash > #esencia-splash-btn {
+        position: relative;
+        appearance: none; border: none; cursor: pointer;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-weight: 700; font-size: 1.05rem; letter-spacing: 0.04em;
+        color: #fff;
+        padding: 0.9rem 3.2rem;
+        border-radius: 9999px;
+        background: linear-gradient(135deg, hsl(325 78% 62%), hsl(280 60% 55%));
+        box-shadow: 0 14px 32px -10px hsl(320 75% 50% / 0.55), 0 0 30px hsl(325 95% 60% / 0.35);
+        text-transform: uppercase;
+        animation: esenciaSplashFade 1.2s ease-out 0.4s both;
+        transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+      }
+      #esencia-splash > #esencia-splash-btn:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+        box-shadow: 0 18px 40px -10px hsl(320 75% 50% / 0.65), 0 0 40px hsl(325 95% 60% / 0.45);
+      }
+      #esencia-splash > #esencia-splash-btn:active {
+        transform: translateY(0) scale(0.97);
+      }
+      @keyframes esenciaSplashFade {
+        0% { opacity: 0; transform: scale(.92); filter: blur(8px) drop-shadow(0 0 40px rgba(255,90,200,.55)); }
+        100% { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 0 40px rgba(255,90,200,.55)); }
+      }
+      @keyframes esenciaSplashPulse {
+        0%, 100% { opacity: .55; transform: scale(1); }
+        50% { opacity: .9; transform: scale(1.06); }
+      }
+    </style>
+    <script>
+      (function () {
+        var dismissed = false;
+        function dismiss() {
+          if (dismissed) return;
+          dismissed = true;
+          var el = document.getElementById('esencia-splash');
+          if (!el) return;
+          el.classList.add('esencia-splash-leaving');
+          setTimeout(function () { el && el.parentNode && el.parentNode.removeChild(el); }, 600);
+        }
+        var btn = document.getElementById('esencia-splash-btn');
+        if (btn) btn.addEventListener('click', dismiss);
+        // Auto-dismiss once the app is ready so the splash never re-blocks
+        // navigation after a reload / bfcache restore / PWA resume.
+        window.addEventListener('load', function () { setTimeout(dismiss, 800); });
+        setTimeout(dismiss, 2500);
+        window.addEventListener('pageshow', function (e) { if (e.persisted) dismiss(); });
+      })();
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

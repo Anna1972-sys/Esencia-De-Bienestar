@@ -1,0 +1,1 @@
+CREATE POLICY "shopping_items_admin_delete" ON public.shopping_list_items FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));

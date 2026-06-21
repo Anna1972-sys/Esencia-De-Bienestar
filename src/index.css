@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Esencia de Bienestar — rosa empolvado, fucsia, lavanda, morado ciruela, blanco crema */
+    --background: 320 50% 97%;
+    --foreground: 285 15% 25%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 285 15% 25%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 285 15% 25%;
+
+    --primary: 325 70% 58%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 320 80% 72%;
+
+    --secondary: 275 50% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    --tertiary: 290 55% 88%;
+    --tertiary-foreground: 280 45% 28%;
+
+    --muted: 310 35% 94%;
+    --muted-foreground: 290 18% 42%;
+
+    --accent: 295 60% 92%;
+    --accent-foreground: 285 45% 25%;
+
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 305 35% 88%;
+    --input: 305 35% 90%;
+    --ring: 325 70% 58%;
+
+    /* Ciruela oscuro para encabezados */
+    --plum: 285 18% 26%;
+
+    --radius: 1.5rem;
+
+    /* Premium gradients - más profundos */
+    --gradient-primary: linear-gradient(135deg, hsl(325 78% 62%), hsl(280 60% 55%));
+    --gradient-soft: linear-gradient(160deg, hsl(330 70% 96%), hsl(300 65% 95%) 55%, hsl(280 60% 94%));
+    --gradient-purple: linear-gradient(135deg, hsl(285 65% 68%), hsl(265 55% 58%));
+    --gradient-lavender: linear-gradient(135deg, hsl(290 65% 90%), hsl(320 70% 93%));
+    --gradient-hero: linear-gradient(140deg, hsl(330 75% 92%), hsl(300 65% 92%) 50%, hsl(275 60% 90%));
+
+    /* Sombras con más presencia */
+    --shadow-soft: 0 10px 30px -10px hsl(315 55% 45% / 0.20);
+    --shadow-elegant: 0 28px 70px -22px hsl(310 60% 40% / 0.32);
+    --shadow-glow: 0 0 50px hsl(320 80% 72% / 0.45);
+    --shadow-nav: 0 -8px 30px -10px hsl(310 55% 45% / 0.22);
+  }
+
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(at 0% 0%, hsl(335 80% 94%) 0px, transparent 55%),
+      radial-gradient(at 100% 10%, hsl(285 70% 94%) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsl(310 70% 95%) 0px, transparent 55%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  h1, h2, h3 { @apply font-serif; letter-spacing: -0.015em; color: hsl(var(--plum)); }
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto w-full max-w-md min-h-[100dvh] pb-28;
+  }
+  .card-soft {
+    @apply bg-card/90 backdrop-blur-sm rounded-3xl border border-border/50;
+    box-shadow: var(--shadow-soft);
+  }
+  .card-elegant {
+    @apply bg-card rounded-3xl border border-border/50;
+    box-shadow: var(--shadow-elegant);
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold text-primary-foreground;
+    background-image: var(--gradient-primary);
+    box-shadow: 0 14px 32px -10px hsl(320 75% 50% / 0.55);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 18px 40px -10px hsl(320 75% 50% / 0.65); }
+  .btn-primary:disabled { @apply opacity-60 cursor-not-allowed; transform: none; }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-medium border border-border bg-card/80 backdrop-blur-sm hover:bg-muted transition;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-accent text-accent-foreground;
+  }
+  .chip-lavender {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold;
+    background: linear-gradient(135deg, hsl(290 70% 92%), hsl(320 70% 94%));
+    color: hsl(280 50% 32%);
+    border: 1px solid hsl(290 50% 85%);
+  }
+  .divider-soft { height: 1px; background: linear-gradient(90deg, transparent, hsl(310 50% 80%), transparent); }
+  .field {
+    @apply w-full rounded-2xl border border-input bg-white px-4 py-3 text-foreground placeholder:text-muted-foreground/70 outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary transition;
+  }
+  .label { @apply text-sm font-medium text-foreground/80 mb-1.5 block; }
+  .heading-xl { @apply font-serif text-4xl leading-tight; }
+  .heading-lg { @apply font-serif text-3xl leading-tight; }
+  .heading-md { @apply font-serif text-2xl leading-tight; }
+  .muted { @apply text-muted-foreground; }
+}
