@@ -20,6 +20,7 @@ export default function Nutrition() {
       title="Nutrición deportiva"
       subtitle="Rendimiento, hidratación y energía. Explora por categoría."
       categories={categories}
+      variant="nutrition"
     />
   );
 }

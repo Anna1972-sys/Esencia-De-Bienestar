@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Esencia de Bienestar — rosa empolvado, fucsia, lavanda, morado ciruela, blanco crema */
+    /* Premium Wellness — rosa empolvado, fucsia vibrante, antracita y lima elegante */
     --background: 320 50% 97%;
     --foreground: 285 15% 25%;
 
@@ -14,12 +14,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 285 15% 25%;
 
-    --primary: 325 70% 58%;
+    --primary: 326 94% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 320 80% 72%;
+    --primary-glow: 326 100% 68%;
 
-    --secondary: 275 50% 60%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 83 78% 48%;
+    --secondary-foreground: 0 0% 12%;
 
     --tertiary: 290 55% 88%;
     --tertiary-foreground: 280 45% 28%;
@@ -35,7 +35,10 @@
 
     --border: 305 35% 88%;
     --input: 305 35% 90%;
-    --ring: 325 70% 58%;
+    --ring: 326 94% 55%;
+
+    --anthracite: 0 0% 10%;
+    --lime: 83 78% 48%;
 
     /* Ciruela oscuro para encabezados */
     --plum: 285 18% 26%;
@@ -43,7 +46,7 @@
     --radius: 1.5rem;
 
     /* Premium gradients - más profundos */
-    --gradient-primary: linear-gradient(135deg, hsl(325 78% 62%), hsl(280 60% 55%));
+    --gradient-primary: linear-gradient(135deg, hsl(326 94% 55%), hsl(316 95% 62%));
     --gradient-soft: linear-gradient(160deg, hsl(330 70% 96%), hsl(300 65% 95%) 55%, hsl(280 60% 94%));
     --gradient-purple: linear-gradient(135deg, hsl(285 65% 68%), hsl(265 55% 58%));
     --gradient-lavender: linear-gradient(135deg, hsl(290 65% 90%), hsl(320 70% 93%));
@@ -52,7 +55,7 @@
     /* Sombras con más presencia */
     --shadow-soft: 0 10px 30px -10px hsl(315 55% 45% / 0.20);
     --shadow-elegant: 0 28px 70px -22px hsl(310 60% 40% / 0.32);
-    --shadow-glow: 0 0 50px hsl(320 80% 72% / 0.45);
+    --shadow-glow: 0 0 38px hsl(326 94% 55% / 0.20);
     --shadow-nav: 0 -8px 30px -10px hsl(310 55% 45% / 0.22);
   }
 
@@ -75,12 +78,14 @@
     @apply mx-auto w-full max-w-md min-h-[100dvh] pb-28;
   }
   .card-soft {
-    @apply bg-card/90 backdrop-blur-sm rounded-3xl border border-border/50;
-    box-shadow: var(--shadow-soft);
+    @apply bg-card/90 backdrop-blur-sm rounded-3xl;
+    border: 1px solid hsl(var(--anthracite) / 0.82);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.82), var(--shadow-soft);
   }
   .card-elegant {
-    @apply bg-card rounded-3xl border border-border/50;
-    box-shadow: var(--shadow-elegant);
+    @apply bg-card rounded-3xl;
+    border: 1px solid hsl(var(--anthracite) / 0.82);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.82), var(--shadow-elegant);
   }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold text-primary-foreground;
@@ -111,4 +116,39 @@
   .heading-lg { @apply font-serif text-3xl leading-tight; }
   .heading-md { @apply font-serif text-2xl leading-tight; }
   .muted { @apply text-muted-foreground; }
+
+  .wellness-generator {
+    background: hsl(var(--anthracite));
+    color: hsl(0 0% 98%);
+    border-color: hsl(0 0% 4%);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.9), 0 20px 44px -24px hsl(0 0% 8% / 0.72);
+  }
+  .wellness-generator .label,
+  .wellness-generator .muted { color: hsl(0 0% 88%); }
+  .wellness-generator .field {
+    background: hsl(0 0% 100% / 0.96);
+    border-color: hsl(var(--primary) / 0.45);
+  }
+
+  .wellness-nutrition {
+    background: linear-gradient(145deg, hsl(var(--anthracite)), hsl(0 0% 15%));
+    color: hsl(0 0% 96%);
+    border: 1px solid hsl(0 0% 5%);
+    border-radius: 1.5rem;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.86), 0 22px 46px -28px hsl(0 0% 8% / 0.8);
+  }
+  .wellness-nutrition h1,
+  .wellness-nutrition h2,
+  .wellness-nutrition h3,
+  .wellness-nutrition .muted { color: hsl(0 0% 95%); }
+  .wellness-nutrition .card-soft {
+    background: hsl(0 0% 13% / 0.96);
+    color: hsl(0 0% 96%);
+    border-color: hsl(0 0% 4%);
+    box-shadow: 0 0 0 1.5px hsl(var(--primary) / 0.75), 0 12px 28px -20px hsl(0 0% 0% / 0.85);
+  }
+  .wellness-nutrition .field {
+    background: hsl(0 0% 98%);
+    color: hsl(0 0% 10%);
+  }
 }

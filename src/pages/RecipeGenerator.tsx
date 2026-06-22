@@ -115,7 +115,7 @@ export default function RecipeGenerator() {
         ))}
       </div>
 
-      <div className="card-soft p-5 mb-5">
+      <div className="card-soft wellness-generator p-5 mb-5">
         <label className="label">Ingredientes disponibles</label>
         <div className="flex gap-2">
           <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addIng())} className="field flex-1" placeholder="Escribe ingredientes separados por comas…" />

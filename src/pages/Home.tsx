@@ -55,16 +55,16 @@ export default function Home() {
       <Link
         to="/app/generar"
         className="block card-elegant p-7 overflow-hidden relative group"
-        style={{ background: "linear-gradient(135deg, hsl(335 80% 97%), hsl(295 70% 96%) 55%, hsl(275 65% 96%))" }}
+        style={{ background: "hsl(var(--anthracite))", color: "hsl(0 0% 98%)" }}
       >
         <div className="absolute -top-10 -right-10 h-44 w-44 rounded-full opacity-50 blur-3xl"
-             style={{ background: "radial-gradient(circle, hsl(320 90% 80%), transparent 70%)" }} />
+             style={{ background: "radial-gradient(circle, hsl(326 94% 55% / 0.42), transparent 70%)" }} />
         <div className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full opacity-45 blur-3xl"
-             style={{ background: "radial-gradient(circle, hsl(280 70% 82%), transparent 70%)" }} />
+             style={{ background: "radial-gradient(circle, hsl(83 78% 48% / 0.2), transparent 70%)" }} />
         <div className="relative">
-          <span className="chip mb-3"><Sparkles className="h-3 w-3" /> Generador IA</span>
-          <h2 className="heading-md">Crea una receta con lo que tienes en casa</h2>
-          <p className="text-sm muted mt-2 leading-relaxed">Alta en proteína, según tus preferencias o un plan mensual completo.</p>
+          <span className="chip mb-3" style={{ background: "hsl(var(--primary))", color: "white" }}><Sparkles className="h-3 w-3" /> Generador IA</span>
+          <h2 className="heading-md" style={{ color: "hsl(0 0% 98%)" }}>Crea una receta con lo que tienes en casa</h2>
+          <p className="text-sm mt-2 leading-relaxed" style={{ color: "hsl(0 0% 82%)" }}>Alta en proteína, según tus preferencias o un plan mensual completo.</p>
           <div className="btn-primary mt-5 w-max group-hover:scale-[1.02] transition-transform">Crear receta</div>
         </div>
       </Link>
@@ -103,10 +103,11 @@ function Tile({
   return (
     <Link
       to={to}
-      className="relative rounded-[28px] border border-white/80 transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+      className="relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
       style={{
         background: `linear-gradient(160deg, hsl(0 0% 100% / 0.96), ${tint ?? "hsl(320 60% 98%)"} 100%)`,
-        boxShadow: "0 12px 36px -16px hsl(315 55% 45% / 0.22), inset 0 1px 0 hsl(0 0% 100% / 0.85)",
+        border: "1px solid hsl(0 0% 12% / 0.86)",
+        boxShadow: "0 0 0 2px hsl(326 94% 55% / 0.82), 0 12px 36px -16px hsl(315 55% 45% / 0.22), inset 0 1px 0 hsl(0 0% 100% / 0.85)",
       }}
     >
       <div

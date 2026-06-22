@@ -11,6 +11,7 @@ type Props = {
   title: string;
   subtitle: string;
   categories: readonly LibraryCategory[];
+  variant?: "default" | "nutrition";
 };
 
 function blocksToText(blocks: any): string {
@@ -27,7 +28,7 @@ function blocksToText(blocks: any): string {
     .toLowerCase();
 }
 
-export default function LibraryPage({ table, basePath, title, subtitle, categories }: Props) {
+export default function LibraryPage({ table, basePath, title, subtitle, categories, variant = "default" }: Props) {
   const [items, setItems] = useState<any[]>([]);
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -109,7 +110,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
   );
 
   return (
-    <div className="pb-8">
+    <div className={`pb-8 ${variant === "nutrition" ? "wellness-nutrition p-5 -mx-1" : ""}`}>
       {cat ? (
         <>
           <button onClick={() => setCat(null)} className="text-sm muted inline-flex items-center gap-1 mb-3">
