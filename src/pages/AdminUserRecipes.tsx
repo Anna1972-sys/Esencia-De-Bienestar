@@ -1,0 +1,330 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowLeft, Eye, Globe, Lock, Star, Trash2, Upload, X, Save } from "lucide-react";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import { toast } from "sonner";
+import { LIBRARY_CATEGORIES } from "@/lib/libraryCategories";
+
+type Visibility = "private" | "community" | "featured";
+
+type Recipe = {
+  id: string;
+  user_id: string | null;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  ingredients: any;
+  steps: any;
+  macros: any;
+  category: string | null;
+  categories: string[] | null;
+  visibility: Visibility;
+  is_library: boolean;
+  is_featured: boolean;
+  created_at: string;
+};
+
+const VISIBILITY_LABEL: Record<Visibility, string> = {
+  private: "Privada",
+  community: "Comunidad",
+  featured: "Destacada",
+};
+
+const ingredientsToText = (ing: any) =>
+  Array.isArray(ing)
+    ? ing.map((i: any) => typeof i === "string" ? i : `${i.name ?? ""}${i.quantity ? ` — ${i.quantity}` : ""}`).join("\n")
+    : "";
+
+const stepsToText = (steps: any) =>
+  Array.isArray(steps) ? steps.map((s: any) => typeof s === "string" ? s : s?.text ?? "").join("\n") : "";
+
+export default function AdminUserRecipes() {
+  const { user } = useAuth();
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [filterUser, setFilterUser] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<Recipe | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    const { data: recs } = await supabase.from("recipes").select("*").eq("is_library", false).order("created_at", { ascending: false });
+    const list = (recs ?? []) as Recipe[];
+    setRecipes(list);
+    const ids = Array.from(new Set(list.map(r => r.user_id).filter(Boolean))) as string[];
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { map[p.id] = p.display_name || "Sin nombre"; });
+      setProfiles(map);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const visible = useMemo(() => {
+    return recipes.filter(r =>
+      (!filterUser || r.user_id === filterUser) &&
+      (!search || r.title.toLowerCase().includes(search.toLowerCase()))
+    );
+  }, [recipes, filterUser, search]);
+
+  const userOptions = useMemo(() => Object.entries(profiles), [profiles]);
+
+  const updateVisibility = async (r: Recipe, v: Visibility) => {
+    const { error } = await supabase.from("recipes").update({ visibility: v }).eq("id", r.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Visibilidad actualizada"); load(); }
+  };
+
+  const del = async (r: Recipe) => {
+    if (!confirm("¿Eliminar esta receta?")) return;
+    const { error } = await supabase.from("recipes").delete().eq("id", r.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Eliminada"); load(); }
+  };
+
+  const publishToLibrary = async (r: Recipe, payload: Partial<Recipe>) => {
+    if (!user) return;
+    setBusy(true);
+    const ingredients = String((payload as any).ingredientsText ?? "")
+      .split("\n").map(s => s.trim()).filter(Boolean);
+    const steps = String((payload as any).stepsText ?? "")
+      .split("\n").map(s => s.trim()).filter(Boolean);
+    const insert = {
+      user_id: user.id,
+      source_user_id: r.user_id,
+      title: payload.title ?? r.title,
+      description: payload.description ?? r.description,
+      image_url: payload.image_url ?? r.image_url,
+      macros: r.macros,
+      ingredients: ingredients.length ? ingredients : r.ingredients,
+      steps: steps.length ? steps : r.steps,
+      category: payload.category ?? r.category,
+      categories: payload.categories ?? r.categories ?? [],
+      is_library: true,
+      is_featured: true,
+      visibility: "featured" as Visibility,
+      is_high_protein: Number(r.macros?.protein || 0) >= 25,
+    };
+    const { error } = await supabase.from("recipes").insert(insert as any);
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Publicada en la biblioteca");
+    setEditing(null);
+    load();
+  };
+
+  const saveInline = async (r: Recipe, payload: Partial<Recipe> & { ingredientsText?: string; stepsText?: string }) => {
+    setBusy(true);
+    const ingredients = payload.ingredientsText !== undefined
+      ? payload.ingredientsText.split("\n").map(s => s.trim()).filter(Boolean)
+      : r.ingredients;
+    const steps = payload.stepsText !== undefined
+      ? payload.stepsText.split("\n").map(s => s.trim()).filter(Boolean)
+      : r.steps;
+    const { error } = await supabase.from("recipes").update({
+      title: payload.title ?? r.title,
+      description: payload.description ?? r.description,
+      ingredients,
+      steps,
+      category: payload.category ?? r.category,
+      categories: payload.categories ?? r.categories ?? [],
+      visibility: (payload.visibility ?? r.visibility) as Visibility,
+    } as any).eq("id", r.id);
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Cambios guardados");
+    setEditing(null);
+    load();
+  };
+
+  return (
+    <div className="pb-28">
+      <AdminPageHeader title="Recetas de usuarias" subtitle="Revisa, edita y publica recetas creadas por las clientas." />
+
+
+      <div className="card-soft p-3 mb-4 space-y-2">
+        <input className="field" placeholder="Buscar por título…" value={search} onChange={e => setSearch(e.target.value)} />
+        <select className="field" value={filterUser} onChange={e => setFilterUser(e.target.value)}>
+          <option value="">Todas las usuarias</option>
+          {userOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        {visible.map(r => (
+          <div key={r.id} className="card-soft p-3">
+            <div className="flex items-center gap-3">
+              {r.image_url
+                ? <img src={r.image_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                : <div className="h-12 w-12 rounded-lg bg-secondary shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm truncate">{r.title}</div>
+                <div className="text-xs muted truncate">
+                  {profiles[r.user_id || ""] || "Anónima"} · {new Date(r.created_at).toLocaleDateString()}
+                </div>
+                <div className="text-[10px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary">
+                  {r.visibility === "private" && <Lock className="h-3 w-3" />}
+                  {r.visibility === "community" && <Globe className="h-3 w-3" />}
+                  {r.visibility === "featured" && <Star className="h-3 w-3" />}
+                  {VISIBILITY_LABEL[r.visibility]}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => setEditing(r)} className="p-2 text-primary" aria-label="Ver/editar"><Eye className="h-4 w-4" /></button>
+                <button onClick={() => del(r)} className="p-2 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+
+            <div className="flex gap-1 mt-2">
+              {(["private", "community", "featured"] as Visibility[]).map(v => (
+                <button
+                  key={v}
+                  onClick={() => updateVisibility(r, v)}
+                  className={`flex-1 text-xs px-2 py-1 rounded-lg border ${r.visibility === v ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                >
+                  {VISIBILITY_LABEL[v]}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {visible.length === 0 && <div className="card-soft p-6 text-center muted">No hay recetas.</div>}
+      </div>
+
+      {editing && (
+        <EditorModal
+          recipe={editing}
+          onClose={() => setEditing(null)}
+          onSave={(p) => saveInline(editing, p)}
+          onPublish={(p) => publishToLibrary(editing, p)}
+          busy={busy}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
+  recipe: Recipe;
+  onClose: () => void;
+  onSave: (p: any) => void;
+  onPublish: (p: any) => void;
+  busy: boolean;
+}) {
+  const [title, setTitle] = useState(recipe.title);
+  const [description, setDescription] = useState(recipe.description ?? "");
+  const [ingredientsText, setIngredientsText] = useState(ingredientsToText(recipe.ingredients));
+  const [stepsText, setStepsText] = useState(stepsToText(recipe.steps));
+  const [category, setCategory] = useState(recipe.category ?? LIBRARY_CATEGORIES[0].id);
+  const [categories, setCategories] = useState<string[]>(recipe.categories ?? []);
+  const [visibility, setVisibility] = useState<Visibility>(recipe.visibility);
+  const [imageUrl, setImageUrl] = useState(recipe.image_url ?? "");
+  const [uploading, setUploading] = useState(false);
+
+  const toggleCat = (id: string) =>
+    setCategories(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("recipe-images").upload(path, file);
+      if (error) throw error;
+      const { data: signed } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
+      setImageUrl(signed?.signedUrl ?? "");
+      toast.success("Imagen subida");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const payload = { title, description, ingredientsText, stepsText, category, categories, visibility, image_url: imageUrl };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-end sm:place-items-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background border-b px-4 py-3 flex items-center justify-between">
+          <div className="font-medium">Editar receta</div>
+          <button onClick={onClose} className="p-1"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          {imageUrl && (
+            <div className="relative rounded-xl overflow-hidden aspect-video bg-muted">
+              <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+              <button onClick={() => setImageUrl("")} className="absolute top-2 right-2 bg-white/90 rounded-full p-1"><X className="h-3.5 w-3.5" /></button>
+            </div>
+          )}
+          <label className="btn-ghost w-full cursor-pointer">
+            <Upload className="h-4 w-4" /> {uploading ? "Subiendo…" : (imageUrl ? "Cambiar imagen" : "Subir imagen")}
+            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+          </label>
+
+          <div>
+            <label className="text-xs muted">Título</label>
+            <input className="field" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs muted">Descripción</label>
+            <input className="field" value={description} onChange={e => setDescription(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs muted">Categoría principal</label>
+            <select className="field" value={category} onChange={e => setCategory(e.target.value)}>
+              {LIBRARY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs muted">Etiquetas adicionales</label>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {LIBRARY_CATEGORIES.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCat(c.id)}
+                  className={`text-xs px-2 py-1 rounded-full border ${categories.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs muted">Visibilidad</label>
+            <select className="field" value={visibility} onChange={e => setVisibility(e.target.value as Visibility)}>
+              <option value="private">Privada (solo la creadora)</option>
+              <option value="community">Comunidad</option>
+              <option value="featured">Destacada por admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs muted">Ingredientes (uno por línea)</label>
+            <textarea className="field min-h-28" value={ingredientsText} onChange={e => setIngredientsText(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs muted">Preparación (un paso por línea)</label>
+            <textarea className="field min-h-28" value={stepsText} onChange={e => setStepsText(e.target.value)} />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => onSave(payload)} disabled={busy} className="btn-secondary flex-1">
+              <Save className="h-4 w-4" /> Guardar cambios
+            </button>
+            <button onClick={() => onPublish(payload)} disabled={busy} className="btn-primary flex-1">
+              <Star className="h-4 w-4" /> Publicar en biblioteca
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
