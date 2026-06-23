@@ -137,7 +137,7 @@
   .wellness-avatar { background: var(--gradient-primary); box-shadow: 0 10px 24px -12px hsl(var(--primary) / 0.75); }
   .wellness-hero { background: #1F1F1F; color: white; box-shadow: inset 0 0 0 2px #FF2D95, 0 22px 48px -28px hsl(0 0% 8% / 0.72); }
   .wellness-tile { background: linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(343 45% 97%) 100%); border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-soft); }
-  .wellness-nutrition-tile { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #050505; box-shadow: inset 0 0 0 2px #FF2D95, 0 18px 34px -24px hsl(0 0% 8% / .8); }
+  .wellness-nutrition-tile { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #FF2D95; box-shadow: 0 18px 34px -24px hsl(0 0% 8% / .8); }
   .nutrition-stat { border-radius: 10px; padding: .4rem .2rem; color: white; background: #FF2D95; box-shadow: 0 8px 18px -13px hsl(325 100% 45% / .8); }
   .nutrition-stat .muted { color: hsl(0 0% 100% / .82); }
   .recipe-premium { overflow: hidden; border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 2px #FF2D95, 0 16px 30px -22px hsl(0 0% 8% / .45); }

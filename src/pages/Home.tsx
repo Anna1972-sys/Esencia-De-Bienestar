@@ -121,14 +121,14 @@ function NutritionTile() {
   return (
     <Link
       to="/app/nutricion"
-      className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+      className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex items-start text-left p-5 min-h-[240px]"
     >
-      <div className="relative grid place-items-center h-36 w-full" aria-hidden="true">
-        <img src={imgNutritionPremium} alt="" className="h-36 w-36 object-contain transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-2" />
+      <div className="absolute right-[-8px] bottom-1 h-28 w-28 overflow-hidden pointer-events-none" aria-hidden="true">
+        <img src={imgNutritionPremium} alt="" className="h-full w-full object-cover scale-[1.55] object-center transition-transform duration-500 group-hover:scale-[1.67] group-hover:-rotate-2" />
       </div>
-      <div className="relative mt-4">
+      <div className="relative z-10 max-w-[68%] self-end pb-1">
         <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Nutrición deportiva</div>
-        <p className="text-[10.5px] mt-1.5 tracking-wide text-white/70">Rendimiento y energía</p>
+        <p className="text-xs mt-2 leading-relaxed text-white/75">Rendimiento y energía</p>
       </div>
     </Link>
   );
