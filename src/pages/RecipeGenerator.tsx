@@ -204,5 +204,5 @@ function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-muted/60 py-2"><div className="font-semibold">{value}</div><div className="muted text-[10px] uppercase tracking-wide">{label}</div></div>;
+  return <div className="nutrition-stat"><div className="font-semibold">{value}</div><div className="muted text-[10px] uppercase tracking-wide">{label}</div></div>;
 }

@@ -105,10 +105,10 @@ export default function RecipeDetail() {
       {r.description && <p className="muted text-sm mb-3">{r.description}</p>}
       {hasMacros && (
         <div className="card-soft p-3 mb-4 grid grid-cols-4 gap-2 text-center text-xs">
-          <div><div className="font-semibold">{macros.protein ?? 0}g</div><div className="muted">Proteínas</div></div>
-          <div><div className="font-semibold">{macros.carbs ?? 0}g</div><div className="muted">Carbohidratos</div></div>
-          <div><div className="font-semibold">{macros.fat ?? 0}g</div><div className="muted">Grasas</div></div>
-          <div><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Calorías</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.protein ?? 0}g</div><div className="muted">Proteínas</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.carbs ?? 0}g</div><div className="muted">Carbohidratos</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.fat ?? 0}g</div><div className="muted">Grasas</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Kcal</div></div>
         </div>
       )}
       {ing.length > 0 && (

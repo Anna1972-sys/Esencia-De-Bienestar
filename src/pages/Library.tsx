@@ -149,11 +149,11 @@ export default function Library() {
                   <button
                     key={r.id}
                     onClick={() => navigate(`/app/biblioteca/${r.id}`)}
-                    className="card-soft w-full text-left hover:shadow-md transition overflow-hidden flex"
+                    className="recipe-premium rounded-[22px] bg-white/90 w-full text-left transition overflow-hidden flex"
                   >
                     {cover && (
-                      <div className="w-24 h-24 shrink-0 bg-muted">
-                        <img src={cover} alt={r.title} loading="lazy" className="w-full h-full object-cover" />
+                      <div className="w-28 h-28 shrink-0 bg-muted">
+                        <img src={cover} alt={r.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                       </div>
                     )}
                     <div className="p-3 flex-1 min-w-0">
@@ -162,10 +162,10 @@ export default function Library() {
                         <div className="font-medium truncate">{r.title}</div>
                       </div>
                       <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10px] text-center">
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.calories ?? 0}</div><div className="muted">kcal</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
                       </div>
                       {r.category && !selectedCat && (
                         <div className="text-[10px] muted mt-1 truncate">{getCategoryLabel(r.category)}</div>

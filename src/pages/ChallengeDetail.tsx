@@ -55,18 +55,9 @@ export default function ChallengeDetail() {
           const done = progress.has(d.day);
           return (
             <Link key={d.day} to={`/app/retos/${id}/dia/${d.day}`} className="block">
-              <div className={`rounded-[24px] p-5 border transition relative overflow-hidden hover:-translate-y-0.5 ${done ? "border-primary/30" : "border-white/80"}`}
-                style={{
-                  background: done
-                    ? "linear-gradient(135deg, hsl(330 70% 96%), hsl(290 65% 96%))"
-                    : "linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(320 60% 97%) 100%)",
-                  boxShadow: "0 12px 36px -16px hsl(315 55% 45% / 0.18), inset 0 1px 0 hsl(0 0% 100% / 0.85)",
-                }}>
+              <div className="challenge-premium rounded-[24px] p-5 relative overflow-hidden bg-white/90">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl grid place-items-center font-serif text-lg shrink-0"
-                    style={done
-                      ? { backgroundImage: "var(--gradient-primary)", color: "white" }
-                      : { background: "hsl(320 50% 95%)", color: "hsl(var(--plum))" }}>
+                  <div className="h-12 w-12 rounded-2xl grid place-items-center font-sans font-bold text-lg shrink-0 bg-[#FF2D95] text-white shadow-soft">
                     {d.day}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -87,14 +78,10 @@ export default function ChallengeDetail() {
         <div className="text-xs muted uppercase tracking-wider px-1">Contenido del reto</div>
         {EXTRAS.map(e => (
           <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
-            className="block rounded-[24px] p-5 border border-white/80 transition hover:-translate-y-0.5"
-            style={{
-              background: "linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(330 70% 97%) 100%)",
-              boxShadow: "0 12px 36px -16px hsl(315 55% 45% / 0.18), inset 0 1px 0 hsl(0 0% 100% / 0.85)",
-            }}>
+            className="challenge-premium block rounded-[24px] p-5 bg-white/90">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-2xl grid place-items-center text-2xl shrink-0"
-                style={{ background: "linear-gradient(135deg, hsl(330 70% 94%), hsl(280 60% 94%))" }}>
+                style={{ background: "#FF2D95" }}>
                 {e.icon}
               </div>
               <div className="min-w-0 flex-1">

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Dumbbell, FlaskConical, Sparkles, Flower2, Settings } from "lucide-react";
+import { Sparkles, Flower2, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import imgMovimiento from "@/assets/home-movimiento.png";
 import imgDiario from "@/assets/home-diario.png";
 import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
+import imgNutritionPremium from "@/assets/home-nutrition-premium.png";
 
 const QUOTES = [
   "Cuidarte es el primer acto de amor.",
@@ -123,14 +124,7 @@ function NutritionTile() {
       className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
       <div className="relative grid place-items-center h-36 w-full" aria-hidden="true">
-        <div className="wellness-nutrition-orbit wellness-nutrition-orbit-one" />
-        <div className="wellness-nutrition-orbit wellness-nutrition-orbit-two" />
-        <div className="wellness-nutrition-dumbbell">
-          <Dumbbell className="h-12 w-12" strokeWidth={1.6} />
-        </div>
-        <div className="wellness-nutrition-bottle">
-          <FlaskConical className="h-6 w-6" strokeWidth={1.8} />
-        </div>
+        <img src={imgNutritionPremium} alt="" className="h-36 w-36 object-contain transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-2" />
       </div>
       <div className="relative mt-4">
         <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Nutrición deportiva</div>
