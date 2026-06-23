@@ -13,6 +13,7 @@ import imgMovimiento from "@/assets/home-movimiento.png";
 import imgDiario from "@/assets/home-diario.png";
 import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
+import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/home-nutrition-premium.png";
 
 const QUOTES = [
@@ -56,7 +57,7 @@ export default function Home() {
         to="/app/generar"
         className="wellness-hero block rounded-[28px] p-7 overflow-hidden relative group"
       >
-        <img src={imgRecetas} alt="Plato saludable" className="absolute right-0 bottom-0 h-44 w-44 object-contain opacity-90 pointer-events-none" />
+        <img src={imgRecipeGenerator} alt="Plato saludable" className="absolute right-0 bottom-0 h-44 w-44 object-contain opacity-90 pointer-events-none" />
         <div className="relative max-w-[68%]">
           <span className="chip mb-3 bg-primary text-white"><Sparkles className="h-3 w-3" /> Generador IA</span>
           <h2 className="heading-md text-white">Crea una receta con lo que tienes en casa</h2>
