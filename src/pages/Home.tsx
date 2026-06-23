@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Sparkles, Flower2, Settings } from "lucide-react";
+import { Dumbbell, FlaskConical, Sparkles, Flower2, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,6 @@ import imgRecetario from "@/assets/home-recetario.png";
 import imgRetos from "@/assets/home-retos.png";
 import imgVideos from "@/assets/home-videos.png";
 import imgCompra from "@/assets/home-compra.png";
-import imgNutricion from "@/assets/home-nutricion.png";
 import imgMovimiento from "@/assets/home-movimiento.png";
 import imgDiario from "@/assets/home-diario.png";
 import imgProgreso from "@/assets/home-progreso.png";
@@ -78,10 +77,10 @@ export default function Home() {
           <Tile to="/app/retos" image={imgRetos} title="Retos 5 días" subtitle="Acepta el reto" />
           <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
           <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
-          <Tile to="/app/nutricion" image={imgNutricion} title="Nutrición deportiva" subtitle="Rendimiento y energía" scale="scale-110" />
+          <NutritionTile />
           <Tile to="/app/movimiento" image={imgMovimiento} title="Movimiento y ejercicio" subtitle="Actívate cada día" scale="scale-110" />
           <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" />
-          <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" scale="scale-110" progress />
+          <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" scale="scale-110" />
           {isAdmin && (
             <Tile to="/app/admin" image={imgAdmin} title="Administración" subtitle="Gestiona" />
           )}
@@ -92,14 +91,14 @@ export default function Home() {
 }
 
 function Tile({
-  to, image, title, subtitle, scale = "scale-100", progress = false,
+  to, image, title, subtitle, scale = "scale-100",
 }: {
-  to: string; image: string; title: string; subtitle?: string; scale?: string; progress?: boolean;
+  to: string; image: string; title: string; subtitle?: string; scale?: string;
 }) {
   return (
     <Link
       to={to}
-      className={`wellness-tile ${progress ? "wellness-tile-progress" : ""} relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]`}
+      className="wellness-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
       <div className="relative grid place-items-center h-36 w-full">
         <img
@@ -112,6 +111,30 @@ function Tile({
       <div className="relative mt-4">
         <div className="font-sans font-bold text-lg leading-tight text-foreground">{title}</div>
         {subtitle && <p className="text-[10.5px] mt-1.5 tracking-wide text-muted-foreground">{subtitle}</p>}
+      </div>
+    </Link>
+  );
+}
+
+function NutritionTile() {
+  return (
+    <Link
+      to="/app/nutricion"
+      className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+    >
+      <div className="relative grid place-items-center h-36 w-full" aria-hidden="true">
+        <div className="wellness-nutrition-orbit wellness-nutrition-orbit-one" />
+        <div className="wellness-nutrition-orbit wellness-nutrition-orbit-two" />
+        <div className="wellness-nutrition-dumbbell">
+          <Dumbbell className="h-12 w-12" strokeWidth={1.6} />
+        </div>
+        <div className="wellness-nutrition-bottle">
+          <FlaskConical className="h-6 w-6" strokeWidth={1.8} />
+        </div>
+      </div>
+      <div className="relative mt-4">
+        <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Nutrición deportiva</div>
+        <p className="text-[10.5px] mt-1.5 tracking-wide text-white/70">Rendimiento y energía</p>
       </div>
     </Link>
   );
