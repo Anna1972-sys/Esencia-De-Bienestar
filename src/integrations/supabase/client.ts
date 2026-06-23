@@ -5,6 +5,14 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const isPreview = typeof window !== "undefined" && window.location.hostname.includes("-git-");
+if (import.meta.env.DEV || isPreview) {
+  console.info("[Supabase configuration]", {
+    urlUsesHttps: /^https:\/\//.test(SUPABASE_URL ?? ""),
+    publishableKeyPresent: Boolean(SUPABASE_PUBLISHABLE_KEY),
+  });
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
