@@ -63,15 +63,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // 2) Then hydrate from storage
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (cancelled) return;
-      // eslint-disable-next-line no-console
-      console.log("[Auth] getSession resolved", { hasSession: !!data.session, userId: data.session?.user?.id, error });
-      hydratedRef.current = true;
-      setSession(data.session);
-      if (data.session?.user) loadRole(data.session.user.id);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.log("[Auth] getSession resolved", { hasSession: !!data.session, userId: data.session?.user?.id, error });
+        hydratedRef.current = true;
+        setSession(data.session);
+        if (data.session?.user) loadRole(data.session.user.id);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.error("[Auth] getSession failed", { message: error instanceof Error ? error.message : String(error) });
+        hydratedRef.current = true;
+        setSession(null);
+        setIsAdmin(false);
+        setLoading(false);
+      });
 
     return () => {
       cancelled = true;

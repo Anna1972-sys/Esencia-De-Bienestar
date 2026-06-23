@@ -4,19 +4,28 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const isConfigured = /^https:\/\//.test(SUPABASE_URL ?? "") && Boolean(SUPABASE_PUBLISHABLE_KEY);
 
 const isPreview = typeof window !== "undefined" && window.location.hostname.includes("-git-");
 if (import.meta.env.DEV || isPreview) {
   console.info("[Supabase configuration]", {
     urlUsesHttps: /^https:\/\//.test(SUPABASE_URL ?? ""),
     publishableKeyPresent: Boolean(SUPABASE_PUBLISHABLE_KEY),
+    isConfigured,
   });
 }
+
+export const supabaseConfig = { isConfigured };
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+// A syntactically valid fallback keeps React renderable when a deployment misses
+// its VITE variables. AuthContext then resolves to the login screen instead of a blank page.
+export const supabase = createClient<Database>(
+  isConfigured ? SUPABASE_URL : "https://invalid.supabase.co",
+  isConfigured ? SUPABASE_PUBLISHABLE_KEY : "invalid-publishable-key",
+  {
   auth: {
     storage: localStorage,
     persistSession: true,
