@@ -2,8 +2,16 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleHelp, FolderDown, Play, ShoppingBasket, Utensils } from "lucide-react";
 import { EXTRAS } from "@/lib/challengeExtras";
+
+const EXTRA_ICONS = {
+  menu: Utensils,
+  shopping: ShoppingBasket,
+  videos: Play,
+  downloads: FolderDown,
+  faq: CircleHelp,
+};
 
 export default function ChallengeDetail() {
   const { id } = useParams();
@@ -76,21 +84,23 @@ export default function ChallengeDetail() {
 
       <div className="pt-2 space-y-3">
         <div className="text-xs muted uppercase tracking-wider px-1">Contenido del reto</div>
-        {EXTRAS.map(e => (
-          <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
-            className="challenge-premium block rounded-[24px] p-5 bg-white/90">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl grid place-items-center text-2xl shrink-0"
-                style={{ background: "#FF2D95" }}>
-                {e.icon}
+        {EXTRAS.map(e => {
+          const Icon = EXTRA_ICONS[e.key];
+          return (
+            <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
+              className="challenge-premium block rounded-[24px] p-5 bg-white/90">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-full grid place-items-center shrink-0 bg-[#FF2D95] text-white shadow-soft">
+                  <Icon className="h-7 w-7" strokeWidth={2.15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-sans font-semibold text-base leading-tight text-foreground">{e.label}</div>
+                </div>
+                <ChevronRight className="h-5 w-5 muted shrink-0" />
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-serif text-base leading-tight" style={{ color: "hsl(var(--plum))" }}>{e.label}</div>
-              </div>
-              <ChevronRight className="h-5 w-5 muted shrink-0" />
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
