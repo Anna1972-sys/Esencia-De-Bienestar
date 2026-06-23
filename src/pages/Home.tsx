@@ -79,7 +79,7 @@ export default function Home() {
           <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
           <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
           <NutritionTile />
-          <Tile to="/app/movimiento" image={imgMovimiento} title="Movimiento y ejercicio" subtitle="Actívate cada día" scale="scale-110" />
+          <MovementTile />
           <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" />
           <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" scale="scale-110" />
           {isAdmin && (
@@ -129,6 +129,23 @@ function NutritionTile() {
       <div className="relative mt-4">
         <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Nutrición deportiva</div>
         <p className="text-[10.5px] mt-1.5 tracking-wide text-white/75">Rendimiento y energía</p>
+      </div>
+    </Link>
+  );
+}
+
+function MovementTile() {
+  return (
+    <Link
+      to="/app/movimiento"
+      className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+    >
+      <div className="relative grid place-items-center h-36 w-full overflow-hidden" aria-hidden="true">
+        <img src={imgMovimiento} alt="" className="h-32 w-32 object-contain transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
+      </div>
+      <div className="relative mt-4">
+        <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Movimiento y ejercicio</div>
+        <p className="text-[10.5px] mt-1.5 tracking-wide text-white/75">Actívate cada día</p>
       </div>
     </Link>
   );
