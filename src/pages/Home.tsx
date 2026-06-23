@@ -123,8 +123,8 @@ function NutritionTile() {
       to="/app/nutricion"
       className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
-      <div className="relative grid place-items-center h-36 w-full" aria-hidden="true">
-        <div className="h-36 w-36 overflow-hidden rounded-2xl border border-[#FF2D95]">
+      <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
+        <div className="h-[152px] w-[152px] overflow-hidden rounded-2xl border border-[#FF2D95]">
           <img src={imgNutritionPremium} alt="" className="h-full w-full object-cover scale-[1.08] transition-transform duration-500 group-hover:scale-[1.16] group-hover:-rotate-2" />
         </div>
       </div>
@@ -142,8 +142,8 @@ function MovementTile() {
       to="/app/movimiento"
       className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
-      <div className="relative grid place-items-center h-36 w-full" aria-hidden="true">
-        <div className="h-36 w-36 overflow-hidden rounded-2xl border border-[#FF2D95] bg-black/30">
+      <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
+        <div className="h-[152px] w-[152px] overflow-hidden rounded-2xl border border-[#FF2D95] bg-black/30">
           <img src={imgMovimiento} alt="" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
         </div>
       </div>
