@@ -40,13 +40,13 @@ export default function Home() {
     <div className="space-y-8">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="heading-lg">{name ? `Hola, ${name}` : "Bienvenida"}</h1>
-          <p className="muted text-sm italic mt-2 leading-relaxed pr-2">"{quote}"</p>
+          <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary mb-1">Bienestar</p>
+          <h1 className="heading-lg">Hola, {name || "ANNA MARI"}</h1>
+          <p className="muted text-sm mt-2 leading-relaxed pr-2">{quote}</p>
         </div>
         <Link
           to="/app/perfil"
-          className="shrink-0 h-12 w-12 rounded-full text-white grid place-items-center font-semibold shadow-soft ring-2 ring-white"
-          style={{ backgroundImage: "var(--gradient-primary)" }}
+          className="wellness-avatar shrink-0 h-12 w-12 rounded-full text-white grid place-items-center font-semibold ring-2 ring-white"
         >
           {(name || "E").charAt(0).toUpperCase()}
         </Link>
@@ -54,40 +54,36 @@ export default function Home() {
 
       <Link
         to="/app/generar"
-        className="block card-elegant p-7 overflow-hidden relative group"
-        style={{ background: "hsl(var(--anthracite))", color: "hsl(0 0% 98%)" }}
+        className="wellness-hero block rounded-[28px] p-7 overflow-hidden relative group"
       >
-        <div className="absolute -top-10 -right-10 h-44 w-44 rounded-full opacity-50 blur-3xl"
-             style={{ background: "radial-gradient(circle, hsl(326 94% 55% / 0.42), transparent 70%)" }} />
-        <div className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full opacity-45 blur-3xl"
-             style={{ background: "radial-gradient(circle, hsl(83 78% 48% / 0.2), transparent 70%)" }} />
-        <div className="relative">
-          <span className="chip mb-3" style={{ background: "hsl(var(--primary))", color: "white" }}><Sparkles className="h-3 w-3" /> Generador IA</span>
-          <h2 className="heading-md" style={{ color: "hsl(0 0% 98%)" }}>Crea una receta con lo que tienes en casa</h2>
-          <p className="text-sm mt-2 leading-relaxed" style={{ color: "hsl(0 0% 82%)" }}>Alta en proteína, según tus preferencias o un plan mensual completo.</p>
+        <img src={imgRecetas} alt="Plato saludable" className="absolute right-0 bottom-0 h-44 w-44 object-contain opacity-90 pointer-events-none" />
+        <div className="relative max-w-[68%]">
+          <span className="chip mb-3 bg-primary text-white"><Sparkles className="h-3 w-3" /> Generador IA</span>
+          <h2 className="heading-md text-white">Crea una receta con lo que tienes en casa</h2>
+          <p className="text-sm text-white/80 mt-2 leading-relaxed">Alta en proteína, según tus preferencias o un plan mensual completo.</p>
           <div className="btn-primary mt-5 w-max group-hover:scale-[1.02] transition-transform">Crear receta</div>
         </div>
       </Link>
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-serif text-xl">Tu espacio</h3>
+          <h3 className="font-sans font-bold text-xl">Tu espacio</h3>
           <span className="chip-lavender"><Flower2 className="h-3.5 w-3.5" /> bienestar</span>
         </div>
         <div className="divider-soft mb-5" />
 
         <div className="grid grid-cols-2 gap-5">
-          <Tile to="/app/mis-recetas" image={imgRecetas} title="Recetas" subtitle="Tus creaciones" tint="hsl(330 75% 96%)" />
-          <Tile to="/app/biblioteca" image={imgRecetario} title="Tu recetario" subtitle="Tus desayunos, comidas y cenas favoritas" tint="hsl(310 70% 97%)" imageScale={0.82} />
-          <Tile to="/app/retos" image={imgRetos} title="Retos 5 días" subtitle="Acepta el reto" tint="hsl(290 65% 96%)" />
-          <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" tint="hsl(275 60% 96%)" />
-          <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" tint="hsl(335 70% 97%)" />
-          <Tile to="/app/nutricion" image={imgNutricion} title="Nutrición deportiva" subtitle="Rendimiento y energía" tint="hsl(335 70% 97%)" imageScale={1.15} />
-          <Tile to="/app/movimiento" image={imgMovimiento} title="Movimiento y ejercicio" subtitle="Actívate cada día" tint="hsl(300 60% 96%)" imageScale={1.1} />
-          <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" tint="hsl(285 65% 96%)" />
-          <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" tint="hsl(320 70% 96%)" imageScale={1.18} />
+          <Tile to="/app/mis-recetas" image={imgRecetas} title="Recetas" subtitle="Tus creaciones" />
+          <Tile to="/app/biblioteca" image={imgRecetario} title="Tu recetario" subtitle="Tus desayunos, comidas y cenas favoritas" scale="scale-[.82]" />
+          <Tile to="/app/retos" image={imgRetos} title="Retos 5 días" subtitle="Acepta el reto" />
+          <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
+          <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
+          <Tile to="/app/nutricion" image={imgNutricion} title="Nutrición deportiva" subtitle="Rendimiento y energía" scale="scale-110" />
+          <Tile to="/app/movimiento" image={imgMovimiento} title="Movimiento y ejercicio" subtitle="Actívate cada día" scale="scale-110" />
+          <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" />
+          <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" scale="scale-110" progress />
           {isAdmin && (
-            <Tile to="/app/admin" image={imgAdmin} title="Administración" subtitle="Gestiona" tint="hsl(300 50% 96%)" />
+            <Tile to="/app/admin" image={imgAdmin} title="Administración" subtitle="Gestiona" />
           )}
         </div>
       </section>
@@ -96,36 +92,26 @@ export default function Home() {
 }
 
 function Tile({
-  to, image, title, subtitle, tint, imageScale = 1,
+  to, image, title, subtitle, scale = "scale-100", progress = false,
 }: {
-  to: string; image: string; title: string; subtitle?: string; tint?: string; imageScale?: number;
+  to: string; image: string; title: string; subtitle?: string; scale?: string; progress?: boolean;
 }) {
   return (
     <Link
       to={to}
-      className="relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
-      style={{
-        background: `linear-gradient(160deg, hsl(0 0% 100% / 0.96), ${tint ?? "hsl(320 60% 98%)"} 100%)`,
-        border: "1px solid hsl(0 0% 12% / 0.86)",
-        boxShadow: "0 0 0 2px hsl(326 94% 55% / 0.82), 0 12px 36px -16px hsl(315 55% 45% / 0.22), inset 0 1px 0 hsl(0 0% 100% / 0.85)",
-      }}
+      className={`wellness-tile ${progress ? "wellness-tile-progress" : ""} relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]`}
     >
-      <div
-        className="absolute -top-10 -right-10 h-32 w-32 rounded-full opacity-30 blur-2xl pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${tint ?? "hsl(320 80% 90%)"}, transparent 70%)` }}
-      />
       <div className="relative grid place-items-center h-36 w-full">
         <img
           src={image}
           alt={title}
           loading="lazy"
-          style={{ transform: `scale(${imageScale})` }}
-          className="h-36 w-36 object-contain group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-500 drop-shadow-[0_4px_12px_hsl(315_55%_60%/0.15)]"
+          className={`h-36 w-36 object-contain ${scale} group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-500 drop-shadow-[0_4px_12px_hsl(315_55%_60%/0.15)]`}
         />
       </div>
       <div className="relative mt-4">
-        <div className="font-serif text-lg leading-tight" style={{ color: "hsl(var(--plum))" }}>{title}</div>
-        {subtitle && <p className="text-[10.5px] mt-1.5 tracking-wide" style={{ color: "hsl(285 25% 65%)" }}>{subtitle}</p>}
+        <div className="font-sans font-bold text-lg leading-tight text-foreground">{title}</div>
+        {subtitle && <p className="text-[10.5px] mt-1.5 tracking-wide text-muted-foreground">{subtitle}</p>}
       </div>
     </Link>
   );

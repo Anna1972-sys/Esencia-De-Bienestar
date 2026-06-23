@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, BookOpen, Search, X } from "lucide-react";
+import type { ReactNode } from "react";
 
 export type LibraryCategory = { key: string; label: string; emoji: string };
 
@@ -12,6 +13,7 @@ type Props = {
   subtitle: string;
   categories: readonly LibraryCategory[];
   variant?: "default" | "nutrition";
+  hero?: ReactNode;
 };
 
 function blocksToText(blocks: any): string {
@@ -28,7 +30,7 @@ function blocksToText(blocks: any): string {
     .toLowerCase();
 }
 
-export default function LibraryPage({ table, basePath, title, subtitle, categories, variant = "default" }: Props) {
+export default function LibraryPage({ table, basePath, title, subtitle, categories, variant = "default", hero }: Props) {
   const [items, setItems] = useState<any[]>([]);
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -140,6 +142,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
           <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
             <ArrowLeft className="h-4 w-4" /> Volver
           </Link>
+          {hero}
           <h1 className="heading-lg mb-1">{title}</h1>
           <p className="text-sm muted mb-4">{subtitle}</p>
           {SearchBar}

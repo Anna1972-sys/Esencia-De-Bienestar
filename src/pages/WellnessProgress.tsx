@@ -153,7 +153,7 @@ export default function WellnessProgress() {
   };
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="progress-page space-y-6 pb-6">
       <Link to="/app/diario" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
         <ArrowLeft className="h-4 w-4" /> Volver al diario
       </Link>
@@ -161,7 +161,7 @@ export default function WellnessProgress() {
       <header>
         <p className="muted text-xs tracking-[0.18em] uppercase">Mi progreso</p>
         <h1 className="heading-lg mt-1">Tu evolución</h1>
-        <p className="muted text-sm italic mt-1.5">"Lo que se mide, se transforma."</p>
+        <p className="muted text-sm mt-1.5">Pequeños hábitos, cambios visibles.</p>
       </header>
 
       {/* Selector de métrica */}
@@ -190,7 +190,7 @@ export default function WellnessProgress() {
       <section className="card-elegant p-5">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>{m.label}</h2>
+            <h2 className="font-sans font-bold text-lg">{m.label}</h2>
             <p className="text-xs muted">Evolución en {period === "week" ? "7 días" : period === "month" ? "30 días" : "total"}</p>
           </div>
           <div className="flex gap-1 bg-muted rounded-full p-1">
@@ -213,7 +213,7 @@ export default function WellnessProgress() {
 
       {/* Antes y después con fotos */}
       <section className="card-elegant p-5">
-        <h2 className="font-serif text-lg mb-3" style={{ color: "hsl(var(--plum))" }}>Antes y después</h2>
+        <h2 className="font-sans font-bold text-lg mb-3">Antes y después</h2>
         <div className="grid grid-cols-2 gap-3">
           <PhotoCard
             label="Antes"
@@ -241,7 +241,7 @@ export default function WellnessProgress() {
 
       {/* Historial semanal y mensual */}
       <section className="card-elegant p-5">
-        <h2 className="font-serif text-lg mb-3" style={{ color: "hsl(var(--plum))" }}>Historial</h2>
+        <h2 className="font-sans font-bold text-lg mb-3">Historial</h2>
         <div className="grid grid-cols-2 gap-3">
           <HistoryCard label="Esta semana" entries={lastN(metricMeas, 7)} unit={m.unit} />
           <HistoryCard label="Este mes" entries={lastN(metricMeas, 30)} unit={m.unit} />
@@ -265,7 +265,7 @@ export default function WellnessProgress() {
       <section className="card-elegant p-5">
         <div className="flex items-center gap-2 mb-3">
           <Target className="h-4 w-4 text-primary" />
-          <h2 className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>Mis objetivos</h2>
+          <h2 className="font-sans font-bold text-lg">Mis objetivos</h2>
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           <select className="field flex-1 min-w-[120px]" value={newGoal.metric} onChange={e => setNewGoal({ ...newGoal, metric: e.target.value as MetricKey })}>
@@ -318,7 +318,7 @@ export default function WellnessProgress() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setShowRegister(false)}>
           <div className="card-elegant p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>Registrar {m.label}</h3>
+              <h3 className="font-sans font-bold text-lg">Registrar {m.label}</h3>
               <button onClick={() => setShowRegister(false)} className="h-8 w-8 grid place-items-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
@@ -390,7 +390,7 @@ function HistoryCard({ label, entries, unit }: { label: string; entries: Measure
   return (
     <div className="rounded-2xl p-4 bg-muted/60">
       <p className="text-[10px] uppercase tracking-wider muted">{label}</p>
-      <p className="font-serif text-xl mt-1" style={{ color: "hsl(var(--plum))" }}>
+      <p className="font-sans font-bold text-xl mt-1">
         {diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`} <span className="text-xs muted">{unit}</span>
       </p>
       <p className="text-[10px] muted mt-0.5">{entries.length} registros</p>
@@ -404,7 +404,7 @@ function Stat({ label, value, unit, trend }: { label: string; value: number | nu
     <div>
       <p className="text-[10px] uppercase tracking-wider muted">{label}</p>
       <div className="flex items-baseline gap-1 mt-0.5">
-        <p className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>
+        <p className={`font-sans font-bold text-lg ${trend != null && trend < 0 ? "trend-positive" : ""}`}>
           {value == null ? "—" : (trend != null && value > 0 ? `+${value}` : value)}
         </p>
         <span className="text-xs muted">{unit}</span>

@@ -4,19 +4,19 @@
 
 @layer base {
   :root {
-    /* Premium Wellness — rosa empolvado, fucsia vibrante, antracita y lima elegante */
-    --background: 320 50% 97%;
-    --foreground: 285 15% 25%;
+    /* Premium Wellness — rosa polvo, grafito, fucsia y lima */
+    --background: 343 29% 95%;
+    --foreground: 0 0% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 285 15% 25%;
+    --card-foreground: 0 0% 12%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 285 15% 25%;
 
-    --primary: 326 94% 55%;
+    --primary: 326 100% 59%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 326 100% 68%;
+    --primary-glow: 326 100% 67%;
 
     --secondary: 83 78% 48%;
     --secondary-foreground: 0 0% 12%;
@@ -24,8 +24,8 @@
     --tertiary: 290 55% 88%;
     --tertiary-foreground: 280 45% 28%;
 
-    --muted: 310 35% 94%;
-    --muted-foreground: 290 18% 42%;
+    --muted: 340 23% 91%;
+    --muted-foreground: 0 0% 36%;
 
     --accent: 295 60% 92%;
     --accent-foreground: 285 45% 25%;
@@ -33,29 +33,29 @@
     --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 305 35% 88%;
-    --input: 305 35% 90%;
+    --border: 342 22% 84%;
+    --input: 342 22% 88%;
     --ring: 326 94% 55%;
 
     --anthracite: 0 0% 10%;
     --lime: 83 78% 48%;
 
     /* Ciruela oscuro para encabezados */
-    --plum: 285 18% 26%;
+    --plum: 0 0% 12%;
 
     --radius: 1.5rem;
 
     /* Premium gradients - más profundos */
-    --gradient-primary: linear-gradient(135deg, hsl(326 94% 55%), hsl(316 95% 62%));
+    --gradient-primary: linear-gradient(135deg, #FF2D95, #E81D7F);
     --gradient-soft: linear-gradient(160deg, hsl(330 70% 96%), hsl(300 65% 95%) 55%, hsl(280 60% 94%));
     --gradient-purple: linear-gradient(135deg, hsl(285 65% 68%), hsl(265 55% 58%));
     --gradient-lavender: linear-gradient(135deg, hsl(290 65% 90%), hsl(320 70% 93%));
     --gradient-hero: linear-gradient(140deg, hsl(330 75% 92%), hsl(300 65% 92%) 50%, hsl(275 60% 90%));
 
     /* Sombras con más presencia */
-    --shadow-soft: 0 10px 30px -10px hsl(315 55% 45% / 0.20);
-    --shadow-elegant: 0 28px 70px -22px hsl(310 60% 40% / 0.32);
-    --shadow-glow: 0 0 38px hsl(326 94% 55% / 0.20);
+    --shadow-soft: 0 12px 28px -18px hsl(0 0% 12% / 0.28);
+    --shadow-elegant: 0 22px 52px -28px hsl(0 0% 12% / 0.32);
+    --shadow-glow: 0 0 30px hsl(326 100% 59% / 0.22);
     --shadow-nav: 0 -8px 30px -10px hsl(310 55% 45% / 0.22);
   }
 
@@ -70,7 +70,7 @@
     background-attachment: fixed;
     min-height: 100vh;
   }
-  h1, h2, h3 { @apply font-serif; letter-spacing: -0.015em; color: hsl(var(--plum)); }
+  h1, h2, h3 { @apply font-sans; letter-spacing: -0.025em; color: hsl(var(--plum)); }
 }
 
 @layer components {
@@ -79,13 +79,13 @@
   }
   .card-soft {
     @apply bg-card/90 backdrop-blur-sm rounded-3xl;
-    border: 1px solid hsl(var(--anthracite) / 0.82);
-    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.82), var(--shadow-soft);
+    border: 1px solid #1F1F1F;
+    box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-soft);
   }
   .card-elegant {
     @apply bg-card rounded-3xl;
-    border: 1px solid hsl(var(--anthracite) / 0.82);
-    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.82), var(--shadow-elegant);
+    border: 1px solid #1F1F1F;
+    box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-elegant);
   }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold text-primary-foreground;
@@ -98,6 +98,14 @@
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-medium border border-border bg-card/80 backdrop-blur-sm hover:bg-muted transition;
   }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-semibold border transition;
+    color: #1F1F1F;
+    background: hsl(0 0% 100% / 0.72);
+    border-color: hsl(var(--primary) / 0.65);
+    box-shadow: inset 0 0 0 1px hsl(0 0% 12% / 0.7), 0 8px 20px -14px hsl(0 0% 12% / 0.35);
+  }
+  .btn-secondary:hover { background: hsl(var(--primary) / 0.1); transform: translateY(-1px); }
   .chip {
     @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-accent text-accent-foreground;
   }
@@ -116,6 +124,21 @@
   .heading-lg { @apply font-serif text-3xl leading-tight; }
   .heading-md { @apply font-serif text-2xl leading-tight; }
   .muted { @apply text-muted-foreground; }
+
+  .wellness-bottom-nav {
+    background: linear-gradient(135deg, hsl(0 0% 12% / 0.98), hsl(0 0% 17% / 0.98));
+    border: 1px solid #1F1F1F;
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.82), 0 18px 42px -18px hsl(0 0% 8% / 0.45);
+  }
+  .wellness-nav-link { @apply flex flex-col items-center gap-0.5 px-3.5 py-2 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 text-white/60 hover:text-white; }
+  .wellness-nav-link-active { background: #FF2D95; color: white; box-shadow: 0 10px 22px -8px hsl(var(--primary) / 0.75); }
+  .wellness-avatar { background: var(--gradient-primary); box-shadow: 0 10px 24px -12px hsl(var(--primary) / 0.75); }
+  .wellness-hero { background: #1F1F1F; color: white; box-shadow: inset 0 0 0 2px #FF2D95, 0 22px 48px -28px hsl(0 0% 8% / 0.72); }
+  .wellness-tile { background: linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(343 45% 97%) 100%); border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-soft); }
+  .wellness-tile-progress::after { content: ""; position: absolute; right: 18px; bottom: 18px; width: 42px; height: 23px; opacity: .76; background: linear-gradient(to top, #9DFF00 0 48%, transparent 48% 100%); clip-path: polygon(0 100%, 0 67%, 22% 67%, 22% 35%, 48% 35%, 48% 54%, 73% 54%, 73% 0, 100% 0, 100% 100%); }
+  .nutrition-hero { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #050505; box-shadow: inset 0 0 0 2px #FF2D95; }
+  .progress-page .card-elegant { background: hsl(0 0% 100% / .78); }
+  .progress-page .trend-positive { color: #56A600; }
 
   .wellness-generator {
     background: hsl(var(--anthracite));
