@@ -96,26 +96,25 @@ export default function Admin() {
 
       <section className="challenge-premium rounded-[28px] overflow-hidden mb-7 relative text-white">
         <img src={welcomeImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/45" />
         <div className="relative p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
               <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/75">Bienvenida</div>
               <div className="font-serif text-2xl mt-1 text-white">Tu espacio de acompañamiento</div>
-              <p className="text-xs text-white/80 mt-1">Cuida el contenido que acompaña a tu comunidad.</p>
+              <p className="text-xs text-white/70 mt-1">Cuida el contenido que acompaña a tu comunidad.</p>
             </div>
             <div className="h-11 w-11 rounded-2xl grid place-items-center text-2xl bg-white/20 border border-white/30 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]">✦</div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {[
-              ["🍽️", stats.recipes, "Recetas"],
-              ["👥", stats.users, "Usuarias"],
-              ["✉️", stats.pendingInvites, "Invitaciones"],
-              ["🔥", stats.activeChallenges, "Retos activos"],
-            ].map(([emoji, value, label]) => (
-              <div key={label as string} className="rounded-2xl bg-black/25 border border-white/20 backdrop-blur-sm p-2.5 shadow-[0_8px_18px_-16px_rgba(0,0,0,0.35)]">
-                <div className="text-2xl leading-none">{emoji}</div>
-                <div className="font-serif text-xl leading-none mt-1.5 text-white">{value ?? "—"}</div>
+              [stats.recipes, "Recetas"],
+              [stats.users, "Usuarias"],
+              [stats.pendingInvites, "Invitaciones"],
+              [stats.activeChallenges, "Retos activos"],
+            ].map(([value, label]) => (
+              <div key={label as string} className="rounded-2xl bg-black/20 border border-white/15 backdrop-blur-sm p-2.5 shadow-[0_8px_18px_-16px_rgba(0,0,0,0.35)]">
+                <div className="font-serif text-xl leading-none text-white">{value ?? "—"}</div>
                 <div className="text-[10px] text-white/70 mt-1">{label}</div>
               </div>
             ))}
