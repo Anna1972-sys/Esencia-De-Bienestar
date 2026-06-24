@@ -2,21 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, ChevronRight, CircleHelp, FolderDown, Play, ShoppingBasket, Utensils } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { EXTRAS } from "@/lib/challengeExtras";
 import menuImage from "@/assets/challenge-menu.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
 import videosImage from "@/assets/challenge-videos.png";
 import downloadsImage from "@/assets/challenge-downloads.png";
 import faqImage from "@/assets/challenge-faq.png";
-
-const EXTRA_ICONS = {
-  menu: Utensils,
-  shopping: ShoppingBasket,
-  videos: Play,
-  downloads: FolderDown,
-  faq: CircleHelp,
-};
 
 const EXTRA_DETAILS = {
   menu: { image: menuImage, subtitle: "Plan completo" },
@@ -78,14 +70,15 @@ export default function ChallengeDetail() {
             <Link key={d.day} to={`/app/retos/${id}/dia/${d.day}`} className="block">
               <div className="challenge-premium rounded-[24px] p-5 relative overflow-hidden bg-white/90">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl grid place-items-center font-sans font-bold text-lg shrink-0 bg-[#FF2D95] text-white shadow-soft">
-                    {d.day}
+                  <div className="h-14 w-14 rounded-full grid place-items-center shrink-0 bg-[linear-gradient(145deg,#fff,#fde8f4)] border border-[#FF2D95] shadow-[0_10px_22px_rgba(255,45,149,0.16)]">
+                    <span className="font-serif text-xl leading-none text-[#FF2D95]">{String(d.day).padStart(2, "0")}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-serif text-base leading-tight" style={{ color: "hsl(var(--plum))" }}>
-                      Día {d.day}{d.title ? ` · ${d.title}` : ""}
+                    <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#FF2D95] mb-1">Día {d.day} de 5</div>
+                    <div className="font-serif text-lg leading-tight" style={{ color: "hsl(var(--plum))" }}>
+                      {d.title || "Tu momento de bienestar"}
                     </div>
-                    {done && <div className="text-[10px] uppercase tracking-wider muted mt-0.5">Completado</div>}
+                    <div className="text-[11px] muted mt-1">{done ? "Completado ✨" : "Un paso más hacia ti"}</div>
                   </div>
                   <ChevronRight className="h-5 w-5 muted shrink-0" />
                 </div>
@@ -100,16 +93,10 @@ export default function ChallengeDetail() {
         <div className="grid grid-cols-2 gap-4 mt-3">
         {EXTRAS.map(e => {
           const detail = EXTRA_DETAILS[e.key];
-          const Icon = EXTRA_ICONS[e.key];
           return (
             <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
               className="challenge-premium overflow-hidden block rounded-[24px] bg-white/90 transition hover:-translate-y-1">
-              <div className="relative">
-                <img src={detail.image} alt="" className="w-full aspect-square object-cover" />
-                <div className="absolute right-3 bottom-3 h-11 w-11 rounded-full bg-white/95 border border-[#FF2D95] shadow-[0_8px_20px_rgba(255,45,149,0.2)] grid place-items-center">
-                  <Icon className="h-5 w-5 text-[#FF2D95]" strokeWidth={1.6} />
-                </div>
-              </div>
+              <img src={detail.image} alt="" className="w-full aspect-square object-cover" />
               <div className="p-3">
                 <div className="font-sans font-bold text-sm leading-tight text-foreground">{e.label}</div>
                 <p className="text-[10.5px] mt-1 text-muted-foreground">{detail.subtitle}</p>
