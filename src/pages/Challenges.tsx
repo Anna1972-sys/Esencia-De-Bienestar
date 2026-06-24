@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft } from "lucide-react";
+import challengeHero from "@/assets/home-retos.png";
 
 export default function Challenges() {
   const { user } = useAuth();
@@ -42,37 +43,29 @@ export default function Challenges() {
           const pct = Math.round((done / total) * 100);
           return (
             <Link key={c.id} to={`/app/retos/${c.id}`}
-              className="block rounded-[28px] p-5 border border-white/80 transition hover:-translate-y-0.5"
-              style={{
-                background: "linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(330 70% 96%) 100%)",
-                boxShadow: "0 12px 36px -16px hsl(315 55% 45% / 0.22), inset 0 1px 0 hsl(0 0% 100% / 0.85)",
-              }}
+              className="challenge-premium block overflow-hidden rounded-[28px] bg-white/90 transition hover:-translate-y-0.5"
             >
-              <div className="flex items-start gap-4">
-                <div className="h-14 w-14 rounded-2xl grid place-items-center text-2xl shrink-0"
-                  style={{ background: "linear-gradient(135deg, hsl(330 70% 94%), hsl(280 60% 94%))" }}>
-                  {c.icon ?? "🌸"}
+              <div className="relative h-48 overflow-hidden">
+                <img src={challengeHero} alt="" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                  <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/70">Reto de 5 días</p>
+                  <div className="font-serif text-2xl leading-tight mt-1">{c.title}</div>
+                  {c.description && <p className="text-xs text-white/80 mt-1 line-clamp-2">{c.description}</p>}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-serif text-lg leading-tight" style={{ color: "hsl(var(--plum))" }}>{c.title}</div>
-                      {c.description && <p className="text-xs muted mt-1 line-clamp-2">{c.description}</p>}
-                    </div>
-                    <ChevronRight className="h-5 w-5 muted shrink-0 mt-1" />
-                  </div>
-                  <div className="mt-3">
+              </div>
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1">
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundImage: "var(--gradient-primary)" }} />
                     </div>
-                    <div className="flex justify-between text-[10px] muted mt-1">
-                      <span>{done} de {total} días</span><span>{pct}%</span>
-                    </div>
+                    <div className="text-[10px] muted mt-1">{done} de {total} días completados</div>
                   </div>
-                  <div className="mt-3 inline-flex items-center gap-1 text-xs font-medium" style={{ color: "hsl(var(--plum))" }}>
-                    {done === 0 ? "Pulsa para comenzar" : done === total ? "Repasar reto" : "Continuar reto"}
+                  <span className="btn-primary shrink-0 px-4 py-2 text-xs">
+                    {done === 0 ? "Comenzar" : done === total ? "Repasar" : "Continuar"}
                     <ChevronRight className="h-3.5 w-3.5" />
-                  </div>
+                  </span>
                 </div>
               </div>
             </Link>
