@@ -25,7 +25,7 @@ const groups: { title: string; items: Item[] }[] = [
     ],
   },
   {
-    title: "Herramientas de usuario",
+    title: "Herramientas",
     items: [
       { to: "/app/admin/lista-compra",       label: "Lista de compra",         desc: "Productos y categorías",                    emoji: "🛒", gradient: "from-rose-100 via-pink-100 to-fuchsia-100" },
       { to: "/app/admin/diario",             label: "Diario",                  desc: "Preguntas del diario",                      emoji: "📔", gradient: "from-violet-100 via-purple-100 to-fuchsia-100" },
@@ -49,18 +49,6 @@ type Stats = {
   activeChallenges: number | null;
 };
 
-function StatCard({ label, value, emoji, gradient }: { label: string; value: number | null; emoji: string; gradient: string }) {
-  return (
-    <div className={`rounded-2xl bg-gradient-to-br ${gradient} border border-white/60 p-4 shadow-[0_4px_18px_-8px_hsl(320_60%_50%/0.18)]`}>
-      <div className="text-2xl mb-1.5 leading-none">{emoji}</div>
-      <div className="text-2xl font-serif font-medium leading-none" style={{ color: "hsl(var(--plum))" }}>
-        {value ?? "—"}
-      </div>
-      <div className="text-[11px] muted mt-1.5 leading-tight">{label}</div>
-    </div>
-  );
-}
-
 export default function Admin() {
   const [stats, setStats] = useState<Stats>({ recipes: null, users: null, pendingInvites: null, activeChallenges: null });
 
@@ -83,41 +71,55 @@ export default function Admin() {
 
   return (
     <div className="pb-28 max-w-3xl mx-auto">
-      <Link to="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-4 hover:text-foreground transition-colors">
+      <Link to="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Volver
       </Link>
 
-      <header className="mb-7">
+      <header className="mb-5">
+        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary mb-1">Esencia de Bienestar</p>
         <h1 className="heading-lg tracking-tight">Panel de administración</h1>
-        <p className="muted text-sm mt-1">Tu centro de control de Esencia de Bienestar.</p>
+        <p className="muted text-sm mt-1">Tu centro de control, contenido y acompañamiento.</p>
       </header>
 
-      {/* Resumen */}
-      <section className="mb-9">
-        <div className="text-[11px] font-semibold muted uppercase tracking-[0.14em] mb-3 px-1">Resumen</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Recetas"               value={stats.recipes}          emoji="🍽️" gradient="from-rose-50 via-pink-50 to-fuchsia-50" />
-          <StatCard label="Usuarias registradas"  value={stats.users}            emoji="👥" gradient="from-pink-50 via-fuchsia-50 to-purple-50" />
-          <StatCard label="Invitaciones pendientes" value={stats.pendingInvites} emoji="✉️" gradient="from-fuchsia-50 via-purple-50 to-violet-50" />
-          <StatCard label="Retos activos"         value={stats.activeChallenges} emoji="🔥" gradient="from-purple-50 via-pink-50 to-rose-50" />
+      <section className="challenge-premium rounded-[28px] overflow-hidden mb-8" style={{ background: "linear-gradient(140deg, #fff 0%, #fff2f8 54%, #f8f0ff 100%)" }}>
+        <div className="p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-primary">Resumen del espacio</div>
+              <div className="font-serif text-2xl mt-1" style={{ color: "hsl(var(--plum))" }}>Todo en equilibrio</div>
+              <p className="text-xs muted mt-1">Una vista rápida de tu comunidad y contenidos.</p>
+            </div>
+            <div className="h-14 w-14 rounded-2xl grid place-items-center text-3xl bg-white/75 shadow-[0_10px_22px_-16px_rgba(45,25,37,0.45)]">✦</div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              ["🍽️", stats.recipes, "Recetas"],
+              ["👥", stats.users, "Usuarias"],
+              ["✉️", stats.pendingInvites, "Invitaciones"],
+              ["🔥", stats.activeChallenges, "Retos activos"],
+            ].map(([emoji, value, label]) => (
+              <div key={label as string} className="rounded-2xl bg-white/70 border border-white p-3.5 shadow-[0_8px_18px_-16px_rgba(45,25,37,0.35)]">
+                <div className="text-2xl leading-none">{emoji}</div>
+                <div className="font-serif text-2xl leading-none mt-2" style={{ color: "hsl(var(--plum))" }}>{value ?? "—"}</div>
+                <div className="text-[10px] muted mt-1">{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Secciones */}
-      <div className="space-y-10">
+      <div className="space-y-8">
         {groups.map((g) => (
           <section key={g.title}>
-            <div className="text-[11px] font-semibold muted uppercase tracking-[0.14em] mb-3 px-1">
-              {g.title}
-            </div>
+            <div className="flex items-center gap-3 mb-3 px-1"><div className="h-px flex-1 bg-gradient-to-r from-primary/40 to-transparent" /><div className="text-[11px] font-bold muted uppercase tracking-[0.16em]">{g.title}</div><div className="h-px flex-1 bg-gradient-to-l from-primary/40 to-transparent" /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {g.items.map((s) => (
                 <Link
                   key={s.to}
                   to={s.to}
-                  className="group relative flex items-center gap-4 px-4 py-4 rounded-2xl bg-card border border-border/50 shadow-[0_2px_10px_-4px_hsl(315_55%_45%/0.10)] hover:shadow-[0_14px_36px_-14px_hsl(320_70%_50%/0.28)] hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-200"
+                  className="challenge-premium group relative flex items-center gap-4 px-4 py-4 rounded-[22px] bg-white/90 hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${s.gradient} grid place-items-center shrink-0 text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]`}>
+                  <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${s.gradient} grid place-items-center shrink-0 text-[34px] shadow-[0_12px_22px_-16px_rgba(45,25,37,0.38)]`}>
                     <span className="leading-none">{s.emoji}</span>
                   </div>
                   <div className="min-w-0 flex-1">
