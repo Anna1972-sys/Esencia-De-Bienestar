@@ -100,10 +100,16 @@ export default function ChallengeDetail() {
         <div className="grid grid-cols-2 gap-4 mt-3">
         {EXTRAS.map(e => {
           const detail = EXTRA_DETAILS[e.key];
+          const Icon = EXTRA_ICONS[e.key];
           return (
             <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
               className="challenge-premium overflow-hidden block rounded-[24px] bg-white/90 transition hover:-translate-y-1">
-              <img src={detail.image} alt="" className="w-full aspect-square object-cover" />
+              <div className="relative">
+                <img src={detail.image} alt="" className="w-full aspect-square object-cover" />
+                <div className="absolute right-3 bottom-3 h-11 w-11 rounded-full bg-white/95 border border-[#FF2D95] shadow-[0_8px_20px_rgba(255,45,149,0.2)] grid place-items-center">
+                  <Icon className="h-5 w-5 text-[#FF2D95]" strokeWidth={1.6} />
+                </div>
+              </div>
               <div className="p-3">
                 <div className="font-sans font-bold text-sm leading-tight text-foreground">{e.label}</div>
                 <p className="text-[10.5px] mt-1 text-muted-foreground">{detail.subtitle}</p>
