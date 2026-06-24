@@ -18,6 +18,14 @@ const EXTRA_DETAILS = {
   faq: { image: faqImage, subtitle: "Resuelve tus dudas" },
 };
 
+const DAY_SUBTITLES = [
+  "Comienza tu cambio",
+  "Construye el hábito",
+  "Más energía",
+  "Consolidando resultados",
+  "Final del reto",
+];
+
 export default function ChallengeDetail() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -66,19 +74,16 @@ export default function ChallengeDetail() {
       <div className="space-y-3">
         {days.map((d: any) => {
           const done = progress.has(d.day);
+          const subtitle = DAY_SUBTITLES[d.day - 1];
           return (
             <Link key={d.day} to={`/app/retos/${id}/dia/${d.day}`} className="block">
-              <div className="challenge-premium rounded-[24px] p-5 relative overflow-hidden bg-white/90">
+              <div className={`challenge-premium rounded-[24px] p-5 relative overflow-hidden ${done ? "bg-[#fff7fb]" : "bg-white/90"}`}>
+                <div className="absolute inset-y-0 left-0 w-1" style={{ background: done ? "var(--gradient-primary)" : "#f4c7dc" }} />
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-full grid place-items-center shrink-0 bg-[linear-gradient(145deg,#fff,#fde8f4)] border border-[#FF2D95] shadow-[0_10px_22px_rgba(255,45,149,0.16)]">
-                    <span className="font-serif text-xl leading-none text-[#FF2D95]">{String(d.day).padStart(2, "0")}</span>
-                  </div>
+                  <div className="h-11 w-1 shrink-0 rounded-full" style={{ background: done ? "var(--gradient-primary)" : "#f6bfd9" }} />
                   <div className="min-w-0 flex-1">
-                    <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#FF2D95] mb-1">Día {d.day} de 5</div>
-                    <div className="font-serif text-lg leading-tight" style={{ color: "hsl(var(--plum))" }}>
-                      {d.title || "Tu momento de bienestar"}
-                    </div>
-                    <div className="text-[11px] muted mt-1">{done ? "Completado ✨" : "Un paso más hacia ti"}</div>
+                    <div className="font-serif text-lg leading-tight" style={{ color: "hsl(var(--plum))" }}>Día {d.day}</div>
+                    <div className="text-sm muted mt-1">{subtitle}</div>
                   </div>
                   <ChevronRight className="h-5 w-5 muted shrink-0" />
                 </div>
@@ -96,8 +101,8 @@ export default function ChallengeDetail() {
           return (
             <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
               className="challenge-premium overflow-hidden block rounded-[24px] bg-white/90 transition hover:-translate-y-1">
-              <img src={detail.image} alt="" className="w-full aspect-square object-cover" />
-              <div className="p-3">
+              <img src={detail.image} alt={e.label} className="w-full aspect-[4/3] object-cover" />
+              <div className="p-3.5">
                 <div className="font-sans font-bold text-sm leading-tight text-foreground">{e.label}</div>
                 <p className="text-[10.5px] mt-1 text-muted-foreground">{detail.subtitle}</p>
               </div>
