@@ -14,6 +14,8 @@ import progressImage from "@/assets/home-progreso.png";
 import usersImage from "@/assets/home-admin.png";
 import invitationsImage from "@/assets/home-compra.png";
 import settingsImage from "@/assets/home-biblioteca.png";
+import welcomeImage from "@/assets/home-admin.png";
+import settingsDeskImage from "@/assets/home-diario.png";
 
 type Item = {
   to: string;
@@ -48,7 +50,7 @@ const groups: { title: string; items: Item[] }[] = [
     items: [
       { to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos", image: usersImage },
       { to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones", image: invitationsImage },
-      { to: "/app/admin/configuracion",      label: "Configuración",           desc: "Apariencia y textos", image: settingsImage },
+      { to: "/app/admin/configuracion",      label: "Configuración",           desc: "Apariencia y textos", image: settingsDeskImage },
     ],
   },
 ];
@@ -92,14 +94,17 @@ export default function Admin() {
         <p className="muted text-sm mt-1">Tu centro de control, contenido y acompañamiento.</p>
       </header>
 
-      <section className="challenge-premium rounded-[28px] overflow-hidden mb-8" style={{ background: "linear-gradient(140deg, #fff 0%, #fff2f8 54%, #f8f0ff 100%)" }}>
-        <div className="p-4 sm:p-4">
+      <section className="challenge-premium rounded-[28px] overflow-hidden mb-7 relative text-white">
+        <img src={welcomeImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/20" />
+        <div className="relative p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
-              <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-primary">Resumen del espacio</div>
-              <div className="font-serif text-xl mt-1" style={{ color: "hsl(var(--plum))" }}>Todo en equilibrio</div>
+              <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/75">Bienvenida</div>
+              <div className="font-serif text-2xl mt-1 text-white">Tu espacio de acompañamiento</div>
+              <p className="text-xs text-white/80 mt-1">Cuida el contenido que acompaña a tu comunidad.</p>
             </div>
-            <div className="h-11 w-11 rounded-2xl grid place-items-center text-2xl bg-white/75 shadow-[0_10px_22px_-16px_rgba(45,25,37,0.45)]">✦</div>
+            <div className="h-11 w-11 rounded-2xl grid place-items-center text-2xl bg-white/20 border border-white/30 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]">✦</div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {[
@@ -108,10 +113,10 @@ export default function Admin() {
               ["✉️", stats.pendingInvites, "Invitaciones"],
               ["🔥", stats.activeChallenges, "Retos activos"],
             ].map(([emoji, value, label]) => (
-              <div key={label as string} className="rounded-2xl bg-white/70 border border-white p-3.5 shadow-[0_8px_18px_-16px_rgba(45,25,37,0.35)]">
+              <div key={label as string} className="rounded-2xl bg-black/25 border border-white/20 backdrop-blur-sm p-2.5 shadow-[0_8px_18px_-16px_rgba(0,0,0,0.35)]">
                 <div className="text-2xl leading-none">{emoji}</div>
-                <div className="font-serif text-2xl leading-none mt-2" style={{ color: "hsl(var(--plum))" }}>{value ?? "—"}</div>
-                <div className="text-[10px] muted mt-1">{label}</div>
+                <div className="font-serif text-xl leading-none mt-1.5 text-white">{value ?? "—"}</div>
+                <div className="text-[10px] text-white/70 mt-1">{label}</div>
               </div>
             ))}
           </div>
