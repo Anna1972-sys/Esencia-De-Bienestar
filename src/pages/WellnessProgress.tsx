@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X } from "lucide-react";
@@ -26,6 +26,7 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
 ];
 
 export default function WellnessProgress() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -154,9 +155,12 @@ export default function WellnessProgress() {
 
   return (
     <div className="progress-page space-y-6 pb-6">
-      <Link to="/app/diario" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
-        <ArrowLeft className="h-4 w-4" /> Volver al diario
-      </Link>
+      <button
+        onClick={() => window.history.length > 1 ? navigate(-1) : navigate("/app")}
+        className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Volver
+      </button>
 
       <header>
         <p className="muted text-xs tracking-[0.18em] uppercase">Mi progreso</p>
