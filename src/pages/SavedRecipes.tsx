@@ -55,7 +55,7 @@ export default function SavedRecipes() {
             const nutritionVerified = r.macros?.nutrition_status === "verified" && Boolean(r.macros?.nutrition_reference?.trim());
             return <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
               <summary className="cursor-pointer">
-                <div className="grid grid-cols-[116px_1fr] min-h-[124px]">
+                <div className="grid grid-cols-[42%_1fr] min-h-[142px]">
                   <div className="recipe-premium-image overflow-hidden">
                     <img
                       src={r.image_url || getCategoryImage(r.category) || fallbackRecipeImage}
@@ -65,12 +65,14 @@ export default function SavedRecipes() {
                       onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = fallbackRecipeImage; }}
                     />
                   </div>
-                  <div className="p-4 flex flex-col justify-center min-w-0">
+                  <div className="p-5 flex flex-col justify-center min-w-0">
                     <div className="flex justify-between items-start gap-2">
-                      <div className="font-semibold text-base leading-tight">{r.title}</div>
+                      <div className="font-semibold text-lg leading-tight">{r.title}</div>
                       {nutritionVerified && r.is_high_protein && <span className="chip shrink-0">Alta proteína</span>}
                     </div>
-                    <div className="text-xs muted mt-2">{nutritionVerified ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal · ` : "Nutrición pendiente de fuente oficial · "}{r.prep_time ?? "—"} min</div>
+                    <div className="text-[11px] leading-relaxed muted mt-2.5">
+                      {r.prep_time ?? "—"} min · {nutritionVerified ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal` : "Nutrición pendiente de fuente oficial"}
+                    </div>
                   </div>
                 </div>
               </summary>

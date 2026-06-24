@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, BookOpen, Pin, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
+import imgImprescindibles from "@/assets/resource-imprescindibles.png";
+import imgEducacion from "@/assets/resource-educacion.png";
+import imgAlimentacion from "@/assets/resource-alimentacion.png";
+import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
+import imgMentalidad from "@/assets/resource-mentalidad.png";
+import imgVideos from "@/assets/resource-videos.png";
+import imgGuias from "@/assets/resource-guias.png";
 
 type Category = {
   id: string;
@@ -11,6 +18,33 @@ type Category = {
   parent_id: string | null;
   sort_order: number;
 };
+
+const CATEGORY_CARDS = {
+  imprescindibles: { image: imgImprescindibles, subtitle: "Empieza por aquí." },
+  educacion: { image: imgEducacion, subtitle: "Aprende a elegir mejor." },
+  alimentacion: { image: imgAlimentacion, subtitle: "Ideas para cada día." },
+  "perdida-peso": { image: imgPerdidaPeso, subtitle: "Resultados sostenibles." },
+  mentalidad: { image: imgMentalidad, subtitle: "Pequeños cambios, grandes resultados." },
+  videos: { image: imgVideos, subtitle: "Aprende en pocos minutos." },
+  guias: { image: imgGuias, subtitle: "Herramientas para avanzar." },
+} as const;
+
+function getCategoryCard(category: Category) {
+  const value = (category.slug || category.name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  if (value.includes("imprescindible")) return CATEGORY_CARDS.imprescindibles;
+  if (value.includes("educacion")) return CATEGORY_CARDS.educacion;
+  if (value.includes("alimentacion")) return CATEGORY_CARDS.alimentacion;
+  if (value.includes("perdida") || value.includes("peso")) return CATEGORY_CARDS["perdida-peso"];
+  if (value.includes("mentalidad") || value.includes("habito")) return CATEGORY_CARDS.mentalidad;
+  if (value.includes("video")) return CATEGORY_CARDS.videos;
+  return CATEGORY_CARDS.guias;
+}
 
 export default function Resources() {
   const [items, setItems] = useState<any[]>([]);
@@ -35,15 +69,6 @@ export default function Resources() {
 
   // Map descendant ids for a top-level cat (itself + its subs)
   const descIds = (id: string) => new Set<string>([id, ...subsOf(id).map(s => s.id)]);
-
-  const counts = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const t of tops) {
-      const ids = descIds(t.id);
-      m[t.id] = items.filter(i => i.category_id && ids.has(i.category_id)).length;
-    }
-    return m;
-  }, [items, cats]);
 
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
@@ -142,16 +167,25 @@ export default function Resources() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {tops.map(c => (
-              <button key={c.id} onClick={() => setActiveTop(c.id)} className="card-soft p-4 text-left hover:shadow-glow transition">
-                <div className="text-2xl mb-1">{c.icon ?? "📁"}</div>
-                <div className="font-medium text-sm">{c.name}</div>
-                <div className="text-xs muted mt-1 inline-flex items-center gap-1">
-                  <BookOpen className="h-3 w-3" /> {counts[c.id] ?? 0}
-                </div>
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-5">
+            {tops.map(c => {
+              const card = getCategoryCard(c);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveTop(c.id)}
+                  className="wellness-tile group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div className="h-44 w-full overflow-hidden bg-black">
+                    <img src={card.image} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  </div>
+                  <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
+                    <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
+                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </>
       )}

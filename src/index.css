@@ -141,7 +141,7 @@
   .nutrition-stat { border-radius: 10px; padding: .4rem .2rem; color: white; background: #FF2D95; box-shadow: 0 8px 18px -13px hsl(325 100% 45% / .8); }
   .nutrition-stat .muted { color: hsl(0 0% 100% / .82); }
   .recipe-premium { overflow: hidden; border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 2px #FF2D95, 0 16px 30px -22px hsl(0 0% 8% / .45); }
-  .recipe-premium-image { min-height: 124px; background: #1F1F1F; }
+  .recipe-premium-image { min-height: 142px; background: #1F1F1F; }
   .challenge-premium { border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 1px #FF2D95, 0 16px 32px -22px hsl(0 0% 8% / .38); transition: transform .25s ease, box-shadow .25s ease; }
   .challenge-premium:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px #FF2D95, 0 22px 36px -20px hsl(325 100% 45% / .28); }
   .nutrition-hero { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #050505; box-shadow: inset 0 0 0 2px #FF2D95; }
