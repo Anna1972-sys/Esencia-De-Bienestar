@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel, getCategoryImage } from "@/lib/libraryCategories";
@@ -16,11 +16,19 @@ type Recipe = {
   is_featured: boolean | null;
 };
 
+type LibraryContext = {
+  selectedCat: string | null;
+  query: string;
+  scrollY: number;
+};
+
 export default function Library() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnContext = (location.state as { libraryContext?: LibraryContext } | null)?.libraryContext;
   const [items, setItems] = useState<Recipe[]>([]);
-  const [selectedCat, setSelectedCat] = useState<string | null>(null);
-  const [q, setQ] = useState("");
+  const [selectedCat, setSelectedCat] = useState<string | null>(() => returnContext?.selectedCat ?? null);
+  const [q, setQ] = useState(() => returnContext?.query ?? "");
 
   const load = () =>
     supabase
@@ -63,6 +71,24 @@ export default function Library() {
     }
     return list;
   }, [items, selectedCat, q]);
+
+  useEffect(() => {
+    if (returnContext?.scrollY == null || items.length === 0) return;
+    const frame = requestAnimationFrame(() => window.scrollTo(0, returnContext.scrollY));
+    return () => cancelAnimationFrame(frame);
+  }, [items.length, returnContext?.scrollY]);
+
+  const openRecipe = (id: string) => {
+    navigate(`/app/biblioteca/${id}`, {
+      state: {
+        libraryContext: {
+          selectedCat,
+          query: q,
+          scrollY: window.scrollY,
+        } satisfies LibraryContext,
+      },
+    });
+  };
 
 
   return (
@@ -148,7 +174,7 @@ export default function Library() {
                 return (
                   <button
                     key={r.id}
-                    onClick={() => navigate(`/app/biblioteca/${r.id}`)}
+                    onClick={() => openRecipe(r.id)}
                     className="recipe-premium rounded-[22px] bg-white/90 w-full text-left transition overflow-hidden flex"
                   >
                     {cover && (
