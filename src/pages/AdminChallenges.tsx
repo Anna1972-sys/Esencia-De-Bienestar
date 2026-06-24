@@ -10,6 +10,7 @@ import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
+const DAY_NAMES = ["Despertar", "Enraizar", "Activar", "Florecer", "Celebrar"];
 
 type DayForm = ContentBlock & { day: number };
 type ExtrasMap = Record<ExtraKey, ContentBlock>;
@@ -108,7 +109,7 @@ export default function AdminChallenges() {
   };
 
   const tabs = [
-    ...f.days.map(d => ({ id: `d${d.day}`, label: `📅 Día ${d.day}` })),
+    ...f.days.map(d => ({ id: `d${d.day}`, label: `Día ${d.day} · ${DAY_NAMES[d.day - 1]}` })),
     ...EXTRAS.map(e => ({ id: `x-${e.key}`, label: `${e.icon} ${e.short}` })),
   ];
 
@@ -150,7 +151,7 @@ export default function AdminChallenges() {
           {f.days.map((d, idx) => (
             openTab === `d${d.day}` ? (
               <div key={d.day}>
-                <div className="text-xs font-semibold tracking-wide mb-1" style={{ color: "hsl(var(--plum))" }}>📅 Día {d.day}</div>
+                <div className="text-xs font-semibold tracking-wide mb-1" style={{ color: "hsl(var(--plum))" }}>Día {d.day} · {DAY_NAMES[d.day - 1]}</div>
                 <p className="text-xs muted mb-3">Organiza tantos bloques como necesites y cambia su orden con las flechas.</p>
                 <ChallengeBlockEditor
                   block={d}
