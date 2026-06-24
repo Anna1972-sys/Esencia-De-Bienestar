@@ -4,6 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, ChevronRight, CircleHelp, FolderDown, Play, ShoppingBasket, Utensils } from "lucide-react";
 import { EXTRAS } from "@/lib/challengeExtras";
+import menuImage from "@/assets/challenge-menu.png";
+import shoppingImage from "@/assets/challenge-shopping.png";
+import videosImage from "@/assets/challenge-videos.png";
+import downloadsImage from "@/assets/challenge-downloads.png";
+import faqImage from "@/assets/challenge-faq.png";
 
 const EXTRA_ICONS = {
   menu: Utensils,
@@ -11,6 +16,14 @@ const EXTRA_ICONS = {
   videos: Play,
   downloads: FolderDown,
   faq: CircleHelp,
+};
+
+const EXTRA_DETAILS = {
+  menu: { image: menuImage, subtitle: "Plan completo" },
+  shopping: { image: shoppingImage, subtitle: "Todo lo necesario" },
+  videos: { image: videosImage, subtitle: "Aprende paso a paso" },
+  downloads: { image: downloadsImage, subtitle: "Guías y recursos" },
+  faq: { image: faqImage, subtitle: "Resuelve tus dudas" },
 };
 
 export default function ChallengeDetail() {
@@ -82,25 +95,23 @@ export default function ChallengeDetail() {
         })}
       </div>
 
-      <div className="pt-2 space-y-3">
+      <div className="pt-2">
         <div className="text-xs muted uppercase tracking-wider px-1">Contenido del reto</div>
+        <div className="grid grid-cols-2 gap-4 mt-3">
         {EXTRAS.map(e => {
-          const Icon = EXTRA_ICONS[e.key];
+          const detail = EXTRA_DETAILS[e.key];
           return (
             <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
-              className="challenge-premium block rounded-[24px] p-5 bg-white/90">
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-full grid place-items-center shrink-0 bg-[#FF2D95] text-white shadow-soft">
-                  <Icon className="h-7 w-7" strokeWidth={2.15} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-sans font-semibold text-base leading-tight text-foreground">{e.label}</div>
-                </div>
-                <ChevronRight className="h-5 w-5 muted shrink-0" />
+              className="challenge-premium overflow-hidden block rounded-[24px] bg-white/90 transition hover:-translate-y-1">
+              <img src={detail.image} alt="" className="w-full aspect-square object-cover" />
+              <div className="p-3">
+                <div className="font-sans font-bold text-sm leading-tight text-foreground">{e.label}</div>
+                <p className="text-[10.5px] mt-1 text-muted-foreground">{detail.subtitle}</p>
               </div>
             </Link>
           );
         })}
+        </div>
       </div>
     </div>
   );
