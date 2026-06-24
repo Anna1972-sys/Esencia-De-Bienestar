@@ -1,8 +1,8 @@
-import desayunoHerbalife from "@/assets/cat-desayuno-herbalife.jpg";
-import desayunoSin from "@/assets/cat-desayuno-sin.jpg";
+import desayunoHerbalife from "@/assets/cat-desayuno-herbalife-premium.png";
+import desayunoSin from "@/assets/cat-desayuno-sin-premium.png";
 import snacks from "@/assets/cat-snacks.jpg";
 import comidas from "@/assets/cat-comidas.jpg";
-import meriendas from "@/assets/cat-meriendas.jpg";
+import meriendas from "@/assets/cat-meriendas-premium.png";
 import cenaHerbalife from "@/assets/cat-cena-herbalife.jpg";
 import cenaSin from "@/assets/cat-cena-sin.jpg";
 
