@@ -1,7 +1,10 @@
-import { Download, Film, Play } from "lucide-react";
-import { ContentBlock, embedUrl } from "@/lib/challengeExtras";
+import { Download, ExternalLink, Film, Play } from "lucide-react";
+import { ContentBlock, ContentItem, embedUrl, legacyItems } from "@/lib/challengeExtras";
 
 export default function ChallengeContentView({ block }: { block: ContentBlock }) {
+  const ordered = block.blocks?.length ? block.blocks : legacyItems(block);
+  if (ordered.length) return <div className="space-y-4">{ordered.map((item) => <ContentCard key={item.id} item={item} />)}</div>;
+
   const sections = block.sections ?? [];
   const images = block.images ?? [];
   const videos = block.videos ?? [];
@@ -80,5 +83,46 @@ export default function ChallengeContentView({ block }: { block: ContentBlock })
         </section>
       )}
     </div>
+  );
+}
+
+function ContentCard({ item }: { item: ContentItem }) {
+  const cardStyle = { background: "linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(320 60% 97%) 100%)", boxShadow: "0 12px 36px -16px hsl(315 55% 45% / 0.18)" };
+  if (item.type === "image") return (
+    <section className="overflow-hidden rounded-[24px] border border-white/80" style={cardStyle}>
+      <img src={item.url} alt={item.title ?? ""} className="w-full max-h-[420px] object-cover" loading="lazy" />
+      {item.title && <p className="px-4 py-3 text-sm muted">{item.title}</p>}
+    </section>
+  );
+  if (item.type === "video") {
+    const emb = embedUrl(item.video);
+    return <section className="rounded-[24px] overflow-hidden border border-white/80" style={cardStyle}>
+      {item.title && <h2 className="font-serif text-lg px-5 pt-5" style={{ color: "hsl(var(--plum))" }}>{item.title}</h2>}
+      <div className={`bg-black/5 aspect-video ${item.title ? "mt-4" : ""}`}>
+        {item.video.kind === "upload" ? <video src={item.video.url} controls className="w-full h-full" />
+          : emb ? <iframe src={emb} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" />
+            : <a href={item.video.url} target="_blank" rel="noreferrer" className="grid place-items-center h-full text-sm muted"><Film className="h-5 w-5 mr-2" /> Abrir vídeo</a>}
+      </div>
+    </section>;
+  }
+  if (item.type === "file") return (
+    <a href={item.file.url} target="_blank" rel="noreferrer" download className="card-elegant p-5 flex items-center gap-4 hover:-translate-y-0.5 transition">
+      <div className="h-11 w-11 rounded-2xl grid place-items-center bg-primary/10 text-primary"><Download className="h-5 w-5" /></div>
+      <div className="min-w-0 flex-1"><div className="font-serif text-base" style={{ color: "hsl(var(--plum))" }}>{item.title || item.file.name}</div><div className="text-xs muted mt-1 truncate">{item.file.name}</div></div>
+      <Download className="h-4 w-4 muted" />
+    </a>
+  );
+  if (item.type === "link") return (
+    <a href={item.url} target="_blank" rel="noreferrer" className="card-elegant p-5 flex items-center gap-4 hover:-translate-y-0.5 transition">
+      <div className="h-11 w-11 rounded-2xl grid place-items-center bg-primary/10 text-primary"><ExternalLink className="h-5 w-5" /></div>
+      <div className="min-w-0 flex-1"><div className="font-serif text-base" style={{ color: "hsl(var(--plum))" }}>{item.title || "Abrir enlace"}</div>{item.description && <div className="text-xs muted mt-1">{item.description}</div>}</div>
+      <ExternalLink className="h-4 w-4 muted" />
+    </a>
+  );
+  return (
+    <section className="rounded-[24px] p-5 border border-white/80" style={cardStyle}>
+      {item.title && <h2 className="font-serif text-lg mb-2" style={{ color: "hsl(var(--plum))" }}>{item.title}</h2>}
+      {item.body && <p className="whitespace-pre-wrap text-sm leading-relaxed">{item.body}</p>}
+    </section>
   );
 }
