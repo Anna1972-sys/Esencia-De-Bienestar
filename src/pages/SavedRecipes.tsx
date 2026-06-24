@@ -51,8 +51,9 @@ export default function SavedRecipes() {
         <div className="card-soft p-6 text-center muted">Aún no tienes recetas. Crea una con el generador IA.</div>
       ) : (
         <div className="space-y-4">
-          {filtered.map(r => (
-            <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
+          {filtered.map(r => {
+            const nutritionVerified = r.macros?.nutrition_status === "verified" && Boolean(r.macros?.nutrition_reference?.trim());
+            return <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
               <summary className="cursor-pointer">
                 <div className="grid grid-cols-[116px_1fr] min-h-[124px]">
                   <div className="recipe-premium-image overflow-hidden">
@@ -67,9 +68,9 @@ export default function SavedRecipes() {
                   <div className="p-4 flex flex-col justify-center min-w-0">
                     <div className="flex justify-between items-start gap-2">
                       <div className="font-semibold text-base leading-tight">{r.title}</div>
-                      {r.is_high_protein && <span className="chip shrink-0">Alta proteína</span>}
+                      {nutritionVerified && r.is_high_protein && <span className="chip shrink-0">Alta proteína</span>}
                     </div>
-                    <div className="text-xs muted mt-2">{r.macros?.protein ?? 0}g prot · {r.macros?.calories ?? 0} kcal · {r.prep_time ?? "—"} min</div>
+                    <div className="text-xs muted mt-2">{nutritionVerified ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal · ` : "Nutrición pendiente de fuente oficial · "}{r.prep_time ?? "—"} min</div>
                   </div>
                 </div>
               </summary>
@@ -88,8 +89,8 @@ export default function SavedRecipes() {
                   <button onClick={() => remove(r.id)} className="btn-ghost text-xs text-destructive"><Trash2 className="h-3 w-3" /> Eliminar</button>
                 </div>
               </div>
-            </details>
-          ))}
+            </details>;
+          })}
         </div>
       )}
     </div>

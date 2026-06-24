@@ -86,7 +86,7 @@ export default function RecipeGenerator() {
       ingredients: r.ingredients ?? [],
       steps: r.steps ?? [],
       tags: r.tags ?? [],
-      is_high_protein: (r.macros?.protein ?? 0) >= 25,
+      is_high_protein: r.nutrition_status === "verified" && (r.macros?.protein ?? 0) >= 25,
     }).select().single();
     if (error) return toast.error(error.message);
     toast.success("Guardada en Mis recetas");
@@ -164,7 +164,7 @@ export default function RecipeGenerator() {
             <details key={i} className="card-soft p-4">
               <summary className="cursor-pointer font-medium flex justify-between items-center">
                 <span>{r.title}</span>
-                <span className="text-xs muted">{r.macros?.protein ?? 0}g prot · {r.macros?.calories ?? 0} kcal</span>
+                <span className="text-xs muted">{r.nutrition_status === "verified" ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal` : "Nutrición pendiente de verificación"}</span>
               </summary>
               <div className="mt-3 text-sm space-y-2">
                 <p className="muted">{r.description}</p>
@@ -181,7 +181,7 @@ export default function RecipeGenerator() {
 function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
   const perServing = recipe.macros ?? {};
   const total = recipe.total_macros ?? recipe.macros_total ?? null;
-  const nutritionAvailable = recipe.nutrition_status !== "unavailable" && (Number(perServing.protein) > 0 || Number(perServing.carbs) > 0 || Number(perServing.fat) > 0 || Number(perServing.calories) > 0);
+  const nutritionAvailable = recipe.nutrition_status === "verified" && Boolean(recipe.nutrition_reference?.trim()) && (Number(perServing.protein) > 0 || Number(perServing.carbs) > 0 || Number(perServing.fat) > 0 || Number(perServing.calories) > 0);
   return (
     <div className="card-soft p-5 animate-fade-in">
       <h2 className="heading-md mb-1">{recipe.title}</h2>
