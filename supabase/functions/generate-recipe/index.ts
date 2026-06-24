@@ -9,6 +9,7 @@ const corsHeaders = {
 interface ReqBody {
   mode: "ingredients" | "preferences" | "monthly";
   ingredients: string[];
+  servings?: number;
   preferences?: {
     highProtein?: boolean;
     lowCalorie?: boolean;
@@ -31,6 +32,12 @@ function buildPrompt(body: ReqBody): string {
   if (p.maxTime) prefs.push(`máximo ${p.maxTime} minutos de preparación`);
 
   const base = `Eres nutricionista especializada en bienestar y pérdida de grasa saludable, dirigida tanto a hombres como a mujeres. Usa lenguaje inclusivo y neutro. Crea recetas claras, prácticas, deliciosas, altas en proteína y bajas en calorías y grasas cuando se indique.
+
+REGLAS DE RACIONES Y CANTIDADES (OBLIGATORIAS):
+- Genera SIEMPRE exactamente 2 raciones. "servings" DEBE ser 2.
+- Usa únicamente las cantidades explícitas aportadas por la persona usuaria. No inventes pesos, volúmenes, unidades ni ingredientes.
+- Si falta una cantidad necesaria para calcular la receta o su nutrición, devuelve {"error":"missing_quantities"} como JSON y no continúes.
+- Cada ingrediente debe conservar una cantidad exacta en g, ml o unidades cuando corresponda.
 
 REGLAS DE INGREDIENTES OBLIGATORIAS:
 - La receta DEBE utilizar EXCLUSIVAMENTE los ingredientes proporcionados por la usuaria.
@@ -56,6 +63,10 @@ REGLAS DE INGREDIENTES OBLIGATORIAS:
 - NO inventes ingredientes nuevos salvo los permitidos arriba.
 
 REGLAS NUTRICIONALES OBLIGATORIAS (calcula macros con RIGOR usando bases de datos nutricionales estándar tipo USDA/BEDCA):
+- Usa solo datos trazables de USDA FoodData Central o AESAN/BEDCA. Declara la fuente concreta en "nutrition_reference".
+- Calcula fibra, además de calorías, proteínas, carbohidratos y grasas.
+- "macros" contiene valores POR RACIÓN (1 persona); "total_macros" contiene la suma de las 2 raciones.
+- Si no puedes verificar todos los ingredientes con una fuente real, devuelve "nutrition_status":"unavailable", deja "macros" y "total_macros" vacíos y explica el motivo en "nutrition_note". Nunca inventes valores.
 - Calcula proteína, carbohidratos y grasa de CADA ingrediente según su cantidad real, y luego SUMA todos los valores para obtener los macros totales por porción (dividiendo por el número de porciones).
 - Las referencias nutricionales que siguen son SOLO para calcular cuando esos ingredientes aparezcan en la lista del usuario; NO los añadas si no los ha proporcionado:
   · Huevo entero (1 ud ≈ 50 g): 6 g proteína, 0 g carbo, 5 g grasa, 70 kcal.
@@ -78,7 +89,7 @@ REGLAS NUTRICIONALES OBLIGATORIAS (calcula macros con RIGOR usando bases de dato
 - Los macros del JSON son POR PORCIÓN (divide el total entre "servings").
 - Etiqueta "alta proteína" SOLO si la proteína TOTAL de la receta es ≥ 25 g. Etiqueta "baja en calorías" SOLO si ≤ 450 kcal por porción. No mezcles etiquetas que no se cumplan.`;
 
-  const jsonShape = `{"title":"","description":"","servings":2,"prep_time":20,"macros":{"protein":0,"carbs":0,"fat":0,"calories":0},"ingredients":[{"name":"","quantity":""}],"steps":["paso..."],"tags":["alta proteína"]}`;
+  const jsonShape = `{"title":"","description":"","servings":2,"prep_time":20,"nutrition_status":"verified","nutrition_reference":"USDA FoodData Central — alimento genérico y FDC ID","nutrition_note":"","macros":{"protein":0,"carbs":0,"fat":0,"fiber":0,"calories":0},"total_macros":{"protein":0,"carbs":0,"fat":0,"fiber":0,"calories":0},"ingredients":[{"name":"","quantity":""}],"steps":["paso..."],"tags":["alta proteína"]}`;
 
   if (body.mode === "monthly") {
     return `${base}
@@ -108,10 +119,10 @@ ${jsonShape}
 
 Requisitos OBLIGATORIOS del JSON:
 - "ingredients": array de objetos {"name","quantity"}; SOLO los ingredientes de la lista (más condimentos básicos permitidos).
-- "quantity": cantidad concreta en sistema métrico (g, ml, unidades). Si el usuario no indicó cantidad, usa porciones estándar saludables para una persona.
+- "quantity": cantidad concreta en sistema métrico (g, ml, unidades), tomada de la lista de la persona usuaria. Si falta, devuelve "missing_quantities".
 - "steps": pasos claros y numerables de preparación.
-- "macros": protein, carbs, fat y calories en NÚMEROS por porción, calculados de forma realista a partir de los ingredientes y cantidades.
-- "calories" debe ser el resultado matemático exacto de round(protein*4 + carbs*4 + fat*9).
+- "macros" y "total_macros": protein, carbs, fat, fiber y calories en números, con fuente declarada. Si no hay fuente verificable, usa nutrition_status="unavailable" y no inventes valores.
+- "calories" debe ser coherente con la energía declarada por la fuente y con los macronutrientes.
 - Sin texto fuera del JSON.`;
   }
 
@@ -174,6 +185,18 @@ Deno.serve(async (req) => {
       const m = content.match(/\{[\s\S]*\}/);
       parsed = m ? JSON.parse(m[0]) : {};
     }
+
+    const enforceTwoServings = (recipe: any) => ({
+      ...recipe,
+      servings: 2,
+      nutrition_status: "unavailable",
+      nutrition_reference: "",
+      nutrition_note: "No se muestran valores nutricionales hasta calcularlos contra una base de datos verificable (USDA FoodData Central o AESAN/BEDCA).",
+      macros: {},
+      total_macros: {},
+    });
+    if (Array.isArray(parsed?.recipes)) parsed.recipes = parsed.recipes.map(enforceTwoServings);
+    else parsed = enforceTwoServings(parsed);
 
     return new Response(JSON.stringify({ result: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
