@@ -142,18 +142,18 @@ export default function Wellness() {
       </div>
 
       {/* Calendario */}
-      <section className="card-elegant p-5">
-        <div className="mb-5 flex items-center justify-between rounded-[22px] bg-[#1F1F1F] px-3 py-3 shadow-[0_14px_28px_-24px_hsl(0_0%_8%/.75)]">
-          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="h-10 w-10 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronLeft className="h-4 w-4" /></button>
+      <section className="card-elegant p-4">
+        <div className="mb-3 flex items-center justify-between rounded-[22px] bg-[#1F1F1F] px-3 py-2 shadow-[0_14px_28px_-24px_hsl(0_0%_8%/.75)]">
+          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="h-9 w-9 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronLeft className="h-4 w-4" /></button>
           <div className="font-sans text-lg font-bold capitalize text-white">
             {month.toLocaleDateString("es", { month: "long", year: "numeric" })}
           </div>
-          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="h-10 w-10 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronRight className="h-4 w-4" /></button>
+          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="h-9 w-9 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-primary mb-2">
+        <div className="grid grid-cols-7 gap-x-1.5 gap-y-0.5 text-center text-[10px] font-bold text-primary mb-1.5">
           {["L","M","X","J","V","S","D"].map(d => <div key={d}>{d}</div>)}
         </div>
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-7 gap-x-1.5 gap-y-0.5">
           {days.map((d, i) => {
             if (!d) return <div key={i} />;
             const key = fmt(d);
@@ -164,10 +164,14 @@ export default function Wellness() {
               <button
                 key={i}
                 onClick={() => setSelected(key)}
-                className={`aspect-square rounded-2xl text-sm font-semibold transition relative ${isSel ? "text-white shadow-soft" : has ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground/80"} ${isToday && !isSel ? "ring-1 ring-primary/40" : ""}`}
-                style={isSel ? { backgroundImage: "var(--gradient-primary)" } : undefined}
+                className={`relative grid h-8 place-items-center rounded-2xl text-sm font-semibold transition ${isSel ? "text-white" : has ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground/80"} ${isToday && !isSel ? "ring-1 ring-primary/40" : ""}`}
               >
-                {d.getDate()}
+                <span
+                  className={`grid h-8 w-8 place-items-center rounded-2xl ${isSel ? "shadow-soft" : ""}`}
+                  style={isSel ? { backgroundImage: "var(--gradient-primary)" } : undefined}
+                >
+                  {d.getDate()}
+                </span>
                 {has && !isSel && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />}
               </button>
             );
