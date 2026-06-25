@@ -233,13 +233,13 @@ export default function WellnessProgress() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {METRICS.map(x => {
           const active = metric === x.key;
+          const darkFrame = x.key === "weight" || x.key === "chest" || x.key === "arm";
           return (
             <button key={x.key} onClick={() => setMetric(x.key)}
-              className={`wellness-progress-metric flex min-h-[168px] flex-col items-center justify-center gap-3 rounded-[26px] border p-5 transition ${active ? "is-active shadow-soft border-transparent" : "hover:border-primary/45"}`}
-              style={active ? { background: "linear-gradient(135deg, hsl(330 70% 96%), hsl(290 65% 96%))" } : undefined}
+              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} flex min-h-[168px] flex-col items-center justify-center gap-3 rounded-[26px] border p-5 transition ${active ? "is-active shadow-soft" : "hover:border-primary/45"}`}
             >
               <img src={x.image} alt={x.label} loading="lazy" width={512} height={512}
-                className={`h-28 w-28 object-contain transition sm:h-24 sm:w-24 ${active ? "scale-105" : ""}`} />
+                className={`h-32 w-32 object-contain transition duration-300 sm:h-28 sm:w-28 ${active ? "-translate-y-1 scale-110" : ""}`} />
               <span className={`text-[13px] font-semibold ${active ? "text-foreground" : "text-foreground/75"}`}>{x.label}</span>
             </button>
           );
@@ -338,10 +338,10 @@ export default function WellnessProgress() {
         </div>
         <p className="mb-4 text-xs muted">Define pequeños objetivos y sigue tu avance.</p>
         <div className="flex flex-wrap gap-2 mb-4">
-          <select className="field flex-1 min-w-[120px]" value={newGoal.metric} onChange={e => setNewGoal({ ...newGoal, metric: e.target.value as MetricKey })}>
+          <select className="field goal-select flex-1 min-w-[120px]" value={newGoal.metric} onChange={e => setNewGoal({ ...newGoal, metric: e.target.value as MetricKey })}>
             {METRICS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
           </select>
-          <select className="field w-28" value={newGoal.direction} onChange={e => setNewGoal({ ...newGoal, direction: e.target.value as "lose" | "gain" })}>
+          <select className="field goal-select w-28" value={newGoal.direction} onChange={e => setNewGoal({ ...newGoal, direction: e.target.value as "lose" | "gain" })}>
             <option value="lose">Perder</option>
             <option value="gain">Aumentar</option>
           </select>
