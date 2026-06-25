@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, BookOpen, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type LibraryCategory = { key: string; label: string; emoji: string };
+export type LibraryCategory = { key: string; label: string; emoji: string; image?: string };
 
 type Props = {
   table: string;
@@ -119,7 +119,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
             <ArrowLeft className="h-4 w-4" /> Categorías
           </button>
           <h1 className="heading-lg mb-1">
-            {current?.emoji} {current?.label}
+            {variant === "nutrition" && current?.image ? current.label : `${current?.emoji ?? ""} ${current?.label ?? ""}`}
           </h1>
           <p className="text-sm muted mb-4">
             {filtered.length} publicación{filtered.length === 1 ? "" : "es"}
@@ -164,7 +164,13 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                   onClick={() => setCat(c.key)}
                   className="card-soft p-4 text-left hover:shadow-glow transition"
                 >
-                  <div className="text-2xl mb-1">{c.emoji}</div>
+                  {variant === "nutrition" && c.image ? (
+                    <div className="mb-3 overflow-hidden rounded-2xl border border-[#FF2D95]">
+                      <img src={c.image} alt="" loading="lazy" className="h-28 w-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="text-2xl mb-1">{c.emoji}</div>
+                  )}
                   <div className="font-medium text-sm">{c.label}</div>
                   <div className="text-xs muted mt-1 inline-flex items-center gap-1">
                     <BookOpen className="h-3 w-3" /> {counts[c.key] ?? 0}

@@ -14,7 +14,7 @@ import imgDiario from "@/assets/home-diario.png";
 import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
-import imgNutritionPremium from "@/assets/home-nutrition-premium-light.png";
+import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
 
 const QUOTES = [
   "Cuidarte es el primer acto de amor.",
@@ -126,7 +126,7 @@ function NutritionTile() {
     >
       <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
         <div className="h-[152px] w-[152px] overflow-hidden rounded-2xl border border-[#FF2D95]">
-          <img src={imgNutritionPremium} alt="" className="h-full w-full object-cover scale-[1.08] transition-transform duration-500 group-hover:scale-[1.16] group-hover:-rotate-2" />
+          <img src={imgNutritionPremium} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
         </div>
       </div>
       <div className="relative mt-4">
