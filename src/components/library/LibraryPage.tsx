@@ -12,7 +12,7 @@ type Props = {
   title: string;
   subtitle: string;
   categories: readonly LibraryCategory[];
-  variant?: "default" | "nutrition";
+  variant?: "default" | "nutrition" | "movement";
   hero?: ReactNode;
 };
 
@@ -119,7 +119,9 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
             <ArrowLeft className="h-4 w-4" /> Categorías
           </button>
           <h1 className="heading-lg mb-1">
-            {variant === "nutrition" && current?.image ? current.label : `${current?.emoji ?? ""} ${current?.label ?? ""}`}
+            {(variant === "nutrition" || variant === "movement") && current?.image
+              ? current.label
+              : `${current?.emoji ?? ""} ${current?.label ?? ""}`}
           </h1>
           <p className="text-sm muted mb-4">
             {filtered.length} publicación{filtered.length === 1 ? "" : "es"}
@@ -164,7 +166,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                   onClick={() => setCat(c.key)}
                   className="card-soft p-4 text-left hover:shadow-glow transition"
                 >
-                  {variant === "nutrition" && c.image ? (
+                  {(variant === "nutrition" || variant === "movement") && c.image ? (
                     <div className="mb-3 overflow-hidden rounded-2xl border border-[#FF2D95]">
                       <img src={c.image} alt="" loading="lazy" className="h-28 w-full object-cover" />
                     </div>
