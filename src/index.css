@@ -106,6 +106,18 @@
   .field {
     @apply w-full rounded-2xl border border-input bg-white px-4 py-3 text-foreground placeholder:text-muted-foreground/70 outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary transition;
   }
+  .progress-page .wellness-progress-metric {
+    background: linear-gradient(160deg, hsl(0 0% 100% / .98), hsl(336 68% 97%));
+    border-color: hsl(var(--primary) / .46);
+    box-shadow: inset 0 0 0 1px hsl(0 0% 100% / .74), 0 16px 28px -22px hsl(0 0% 8% / .5);
+  }
+  .progress-page .wellness-progress-metric img {
+    filter: saturate(1.16) contrast(1.08) drop-shadow(0 10px 14px hsl(var(--primary) / .13));
+  }
+  .progress-page .wellness-progress-metric.is-active {
+    border-color: hsl(var(--primary) / .76);
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / .45), 0 18px 32px -22px hsl(var(--primary) / .48);
+  }
   .label { @apply text-sm font-medium text-foreground/80 mb-1.5 block; }
   .heading-xl { @apply font-serif text-4xl leading-tight; }
   .heading-lg { @apply font-serif text-3xl leading-tight; }
