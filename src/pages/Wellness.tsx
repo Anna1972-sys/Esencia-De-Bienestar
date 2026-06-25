@@ -114,9 +114,10 @@ export default function Wellness() {
   const progress = (value: number | null | undefined, target: number) => Math.max(0, Math.min(100, ((value ?? 0) / target) * 100));
   const waterCups = Math.round((entry.water_ml ?? 0) / 250);
   const moodLabel = entry.mood ? MOODS[(entry.mood ?? 1) - 1]?.label ?? "Sin registrar" : "Sin registrar";
+  const hasExercise = Boolean(entry.exercise?.trim());
 
   return (
-    <div className="wellness-diary space-y-5 pb-6">
+    <div className="wellness-diary space-y-6 pb-6">
       <div className="flex items-center justify-between">
         <Link to="/app" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
           <ArrowLeft className="h-4 w-4" /> Volver
@@ -176,11 +177,47 @@ export default function Wellness() {
 
       <Section title="Resumen de hoy">
         <div className="grid grid-cols-2 gap-3">
-          <SummaryMetric icon={Droplets} label="Agua" value={`${waterCups} / 8 vasos`} percent={progress(entry.water_ml, 2000)} />
-          <SummaryMetric icon={Moon} label="Sueño" value={entry.sleep_hours ? `${entry.sleep_hours} h` : "Sin registrar"} percent={progress(entry.sleep_hours, 8)} />
-          <SummaryMetric icon={Footprints} label="Pasos" value={entry.steps ? entry.steps.toLocaleString("es") : "Sin registrar"} percent={progress(entry.steps, 10000)} />
-          <SummaryMetric icon={Activity} label="Estado general" value={moodLabel} percent={entry.mood ? (entry.mood / 5) * 100 : 0} />
-          <SummaryMetric icon={Activity} label="Ejercicio" value={entry.exercise ? "Registrado" : "Sin registrar"} percent={entry.exercise ? 100 : 0} />
+          <SummaryMetric
+            icon={Droplets}
+            iconClassName="text-sky-500"
+            label="Agua"
+            value={`${waterCups} / 8 vasos`}
+            status={entry.water_ml ? "Hidratación registrada" : "Objetivo diario"}
+            percent={progress(entry.water_ml, 2000)}
+          />
+          <SummaryMetric
+            icon={Moon}
+            iconClassName="text-amber-500"
+            label="Sueño"
+            value={entry.sleep_hours ? `${entry.sleep_hours} h` : "Sin registrar"}
+            status={entry.sleep_hours ? "Descanso registrado" : "Pendiente"}
+            percent={progress(entry.sleep_hours, 8)}
+          />
+          <SummaryMetric
+            icon={Footprints}
+            iconClassName="text-neutral-800"
+            label="Pasos"
+            value={entry.steps ? entry.steps.toLocaleString("es") : "Sin registrar"}
+            status={entry.steps ? "Actividad registrada" : "Pendiente"}
+            percent={progress(entry.steps, 10000)}
+          />
+          <SummaryMetric
+            icon={Heart}
+            iconClassName="text-red-500"
+            label="Estado general"
+            value={moodLabel}
+            status={entry.mood ? "Estado registrado" : "Sin valorar"}
+            percent={entry.mood ? (entry.mood / 5) * 100 : 0}
+          />
+          <SummaryMetric
+            icon={Activity}
+            iconClassName="text-emerald-600"
+            label="Ejercicio"
+            value={hasExercise ? "Registrado" : "Sin registrar"}
+            status={hasExercise ? "Movimiento completado" : "Pendiente"}
+            percent={hasExercise ? 100 : 0}
+            className="col-span-2"
+          />
         </div>
       </Section>
 
@@ -203,9 +240,17 @@ export default function Wellness() {
           <Field icon={Moon} label="Sueño (h)" value={entry.sleep_hours} onChange={(v) => update("sleep_hours", v)} step="0.5" />
           <Field icon={Footprints} label="Pasos" value={entry.steps} onChange={(v) => update("steps", v)} step="100" />
         </div>
-        <div className="mt-3">
-          <label className="label flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-primary" /> Ejercicio realizado</label>
-          <input className="field" placeholder="Yoga 30 min, caminata..." value={entry.exercise ?? ""} onChange={(e) => update("exercise", e.target.value)} />
+        <div className={`mt-3 rounded-[22px] border p-4 transition duration-300 ${hasExercise ? "border-primary/65 bg-primary/5 shadow-[0_14px_28px_-24px_hsl(var(--primary)/.55)]" : "border-border bg-white shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
+          <label className="label flex items-center gap-2 text-xs">
+            <Activity className={`h-4 w-4 transition-colors duration-300 ${hasExercise ? "text-emerald-600" : "text-foreground/45"}`} />
+            Ejercicio realizado
+          </label>
+          <input
+            className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 text-sm outline-none transition duration-300 placeholder:text-muted-foreground/65 focus:border-transparent focus:ring-0 ${hasExercise ? "font-semibold text-foreground" : "text-foreground"}`}
+            placeholder="Yoga 30 min, caminata..."
+            value={entry.exercise ?? ""}
+            onChange={(e) => update("exercise", e.target.value)}
+          />
         </div>
       </Section>
 
@@ -219,10 +264,10 @@ export default function Wellness() {
                 key={i}
                 onClick={() => update("mood", i + 1)}
                 title={m.label}
-                className={`flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-2xl border px-1.5 py-3 transition duration-200 ${selected ? "scale-[1.03] border-primary bg-primary/10 shadow-soft ring-1 ring-primary/20" : "border-border/80 bg-white hover:border-primary/40 hover:bg-muted/45"}`}
+                className={`flex min-h-[104px] flex-col items-center justify-center gap-3 rounded-2xl border px-1.5 py-3 transition duration-300 ${selected ? "scale-[1.03] border-primary bg-primary text-white shadow-soft ring-1 ring-primary/20" : "border-border bg-white text-foreground hover:border-primary/45 hover:bg-muted/45"}`}
               >
                 <MoodBars level={i + 1} active={selected} />
-                <span className={`text-[9px] font-semibold leading-tight tracking-wide ${selected ? "text-foreground" : "text-foreground/60"}`}>{m.label}</span>
+                <span className={`text-[10px] font-semibold leading-tight tracking-wide ${selected ? "text-white" : "text-foreground/70"}`}>{m.label}</span>
               </button>
             );
           })}
@@ -231,7 +276,7 @@ export default function Wellness() {
 
       {/* Notas */}
       <Section title="Notas personales">
-        <textarea className="field min-h-[120px] resize-y leading-relaxed" placeholder="Escribe lo que quieras recordar de hoy..." value={entry.notes ?? ""} onChange={(e) => update("notes", e.target.value)} maxLength={2000} />
+        <textarea className="field min-h-[145px] resize-y px-5 py-4 leading-relaxed" placeholder="Escribe lo que quieras recordar de hoy..." value={entry.notes ?? ""} onChange={(e) => update("notes", e.target.value)} maxLength={2000} />
       </Section>
 
       <div className="flex gap-2">
@@ -273,16 +318,40 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function SummaryMetric({ icon: Icon, label, value, percent }: { icon: any; label: string; value: string; percent: number }) {
+function SummaryMetric({
+  icon: Icon,
+  iconClassName,
+  label,
+  value,
+  status,
+  percent,
+  className = "",
+}: {
+  icon: any;
+  iconClassName: string;
+  label: string;
+  value: string;
+  status: string;
+  percent: number;
+  className?: string;
+}) {
+  const hasValue = percent > 0 || value !== "Sin registrar";
   return (
-    <div className="rounded-2xl border border-border/70 bg-white/80 p-3 shadow-[0_10px_24px_-22px_hsl(0_0%_8%/.45)]">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-primary" />
-        <span className="text-xs font-semibold text-foreground/80">{label}</span>
+    <div className={`rounded-[22px] border p-3.5 shadow-[0_12px_28px_-24px_hsl(0_0%_8%/.45)] transition duration-300 ${hasValue ? "border-primary/55 bg-primary/5" : "border-border bg-white"} ${className}`}>
+      <div className="flex items-center gap-2.5">
+        <div className="grid h-9 w-9 place-items-center rounded-2xl bg-white shadow-[0_10px_22px_-20px_hsl(0_0%_8%/.45)]">
+          <Icon className={`h-5 w-5 ${iconClassName}`} />
+        </div>
+        <div className="min-w-0">
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground/55">{label}</span>
+          <span className="block text-base font-bold leading-tight text-foreground">{value}</span>
+        </div>
       </div>
-      <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary/14">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+      <div className="mt-3 flex items-center gap-3">
+        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground">{status}</span>
+        <div className="h-2 w-20 overflow-hidden rounded-full bg-primary/14">
+          <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${percent}%` }} />
+        </div>
       </div>
     </div>
   );
@@ -290,12 +359,12 @@ function SummaryMetric({ icon: Icon, label, value, percent }: { icon: any; label
 
 function MoodBars({ level, active }: { level: number; active: boolean }) {
   return (
-    <div className="flex h-8 items-end justify-center gap-1">
+    <div className="flex h-9 items-end justify-center gap-1.5">
       {[1, 2, 3, 4, 5].map((bar) => (
         <span
           key={bar}
-          className={`w-1.5 rounded-full transition-all ${bar <= level ? "bg-primary" : "bg-muted"} ${active && bar <= level ? "shadow-[0_0_10px_hsl(var(--primary)/.35)]" : ""}`}
-          style={{ height: `${8 + bar * 4}px` }}
+          className={`w-2 rounded-full transition-all duration-300 ${active ? "bg-white" : bar <= level ? "bg-primary" : "bg-muted"} ${active && bar <= level ? "shadow-[0_0_12px_hsl(0_0%_100%/.35)]" : ""}`}
+          style={{ height: `${9 + bar * 4}px` }}
         />
       ))}
     </div>
@@ -316,16 +385,16 @@ function MiniTrend() {
 function Field({ label, value, onChange, step, icon: Icon }: { label: string; value: number | null; onChange: (v: string) => void; step?: string; icon?: any }) {
   const hasValue = value !== null && value !== undefined;
   return (
-    <div className="rounded-2xl border border-border/60 bg-white/70 p-3">
-      <label className="label text-xs flex items-center gap-1.5">
-        {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
+    <div className={`rounded-[22px] border p-3.5 transition duration-300 ${hasValue ? "border-primary/65 bg-primary/5 shadow-[0_14px_28px_-24px_hsl(var(--primary)/.55)]" : "border-border bg-white shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
+      <label className="label text-xs flex items-center gap-2">
+        {Icon && <Icon className={`h-4 w-4 transition-colors duration-300 ${hasValue ? "text-primary" : "text-foreground/45"}`} />}
         {label}
       </label>
       <input
         type="number"
         inputMode="decimal"
         step={step ?? "1"}
-        className={`field ${hasValue ? "text-lg font-semibold text-foreground" : ""}`}
+        className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 outline-none transition duration-300 placeholder:text-muted-foreground/65 focus:border-transparent focus:ring-0 ${hasValue ? "text-lg font-bold text-foreground" : "text-sm text-foreground"}`}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
       />
