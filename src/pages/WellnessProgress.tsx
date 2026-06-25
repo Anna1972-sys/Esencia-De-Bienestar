@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays } from "lucide-react";
+import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays, Scale, Ruler, Heart, Dumbbell } from "lucide-react";
 import { toast } from "sonner";
 import imgWeight from "@/assets/metric-weight.png";
 import imgWaist from "@/assets/metric-waist.png";
@@ -25,6 +25,16 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
   { key: "arm", label: "Brazos", unit: "cm", color: "hsl(310 60% 65%)", image: imgArm },
   { key: "thigh", label: "Muslos", unit: "cm", color: "hsl(260 55% 68%)", image: imgThigh },
 ];
+
+const DISPLAY_METRIC_ORDER: MetricKey[] = ["weight", "waist", "chest", "hip", "thigh", "arm"];
+const METRIC_ICONS: Record<MetricKey, typeof Scale> = {
+  weight: Scale,
+  waist: Ruler,
+  hip: Ruler,
+  chest: Heart,
+  arm: Dumbbell,
+  thigh: Ruler,
+};
 
 export default function WellnessProgress() {
   const navigate = useNavigate();
@@ -231,16 +241,21 @@ export default function WellnessProgress() {
 
       {/* Selector de métrica */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {METRICS.map(x => {
+        {DISPLAY_METRIC_ORDER.map(key => METRICS.find(item => item.key === key)!).map(x => {
           const active = metric === x.key;
           const darkFrame = x.key === "weight" || x.key === "chest" || x.key === "arm";
+          const Icon = METRIC_ICONS[x.key];
           return (
             <button key={x.key} onClick={() => setMetric(x.key)}
-              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} flex min-h-[168px] flex-col items-center justify-center gap-3 rounded-[26px] border p-5 transition ${active ? "is-active shadow-soft" : "hover:border-primary/45"}`}
+              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} group relative flex min-h-[168px] overflow-hidden rounded-[26px] border p-0 transition ${active ? "is-active shadow-soft" : "hover:border-primary/45"}`}
             >
               <img src={x.image} alt={x.label} loading="lazy" width={512} height={512}
-                className={`h-32 w-32 object-contain transition duration-300 sm:h-28 sm:w-28 ${active ? "-translate-y-1 scale-[1.32]" : "scale-[1.22]"}`} />
-              <span className={`text-[13px] font-semibold ${active ? "text-foreground" : "text-foreground/75"}`}>{x.label}</span>
+                className={`absolute inset-0 h-full w-full object-cover transition duration-300 ${active ? "scale-110" : "scale-105 group-hover:scale-110"}`} />
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/86 to-transparent" />
+              <span className={`relative mt-auto flex w-full items-center justify-center gap-1.5 px-3 pb-3 text-[13px] font-bold ${active ? "text-foreground" : "text-foreground/80"}`}>
+                <Icon className={`h-3.5 w-3.5 ${active ? "text-primary" : "text-foreground/70"}`} />
+                {x.label}
+              </span>
             </button>
           );
         })}
