@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, ChevronLeft, ChevronRight, LineChart, Save, Sparkles, Droplets, Moon, Footprints, Activity, Scale, Ruler, Heart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import diaryHeroImage from "@/assets/diary/diary-hero.png";
 
 type Entry = {
   id?: string;
@@ -30,11 +31,11 @@ const empty = (date: string): Entry => ({
 });
 
 const MOODS = [
-  { emoji: "🌧️", label: "Muy mal", color: "from-purple-300 to-fuchsia-300" },
-  { emoji: "☁️", label: "Regular", color: "from-pink-200 to-purple-300" },
-  { emoji: "🌸", label: "Bien", color: "from-pink-300 to-rose-300" },
-  { emoji: "🌷", label: "Muy bien", color: "from-fuchsia-300 to-pink-400" },
-  { emoji: "💮", label: "Excelente", color: "from-pink-400 to-fuchsia-500" },
+  { label: "Muy mal" },
+  { label: "Regular" },
+  { label: "Bien" },
+  { label: "Muy bien" },
+  { label: "Excelente" },
 ];
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -96,7 +97,7 @@ export default function Wellness() {
     const { error } = await supabase.from("wellness_entries")
       .upsert(payload, { onConflict: "user_id,entry_date" });
     setSaving(false);
-    if (error) toast.error("No se pudo guardar"); else { toast.success("Registro guardado ✨"); setMarks(new Set([...marks, selected])); }
+    if (error) toast.error("No se pudo guardar"); else { toast.success("Registro guardado"); setMarks(new Set([...marks, selected])); }
   };
 
   const remove = async () => {
@@ -110,9 +111,12 @@ export default function Wellness() {
   };
 
   const update = (k: keyof Entry, v: any) => setEntry({ ...entry, [k]: v });
+  const progress = (value: number | null | undefined, target: number) => Math.max(0, Math.min(100, ((value ?? 0) / target) * 100));
+  const waterCups = Math.round((entry.water_ml ?? 0) / 250);
+  const moodLabel = entry.mood ? MOODS[(entry.mood ?? 1) - 1]?.label ?? "Sin registrar" : "Sin registrar";
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="wellness-diary space-y-5 pb-6">
       <div className="flex items-center justify-between">
         <Link to="/app" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
           <ArrowLeft className="h-4 w-4" /> Volver
@@ -123,24 +127,32 @@ export default function Wellness() {
       </div>
 
       <header>
-        <p className="muted text-xs tracking-[0.18em] uppercase">Diario de Bienestar</p>
-        <h1 className="heading-lg mt-1">Tu jornada</h1>
+        <p className="text-primary text-xs font-bold tracking-[0.28em] uppercase">Diario de Bienestar</p>
+        <h1 className="heading-lg mt-1">Tu bienestar de hoy</h1>
         <p className="muted text-sm italic mt-1.5">"Cada día es una nueva oportunidad para cuidarte."</p>
       </header>
 
+      <div className="card-elegant overflow-hidden p-0">
+        <img
+          src={diaryHeroImage}
+          alt=""
+          className="h-44 w-full object-cover"
+        />
+      </div>
+
       {/* Calendario */}
       <section className="card-elegant p-5">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted transition"><ChevronLeft className="h-4 w-4" /></button>
-          <div className="font-serif text-lg capitalize" style={{ color: "hsl(var(--plum))" }}>
+        <div className="mb-5 flex items-center justify-between rounded-[22px] bg-[#1F1F1F] px-3 py-3 shadow-[0_14px_28px_-24px_hsl(0_0%_8%/.75)]">
+          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="h-10 w-10 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronLeft className="h-4 w-4" /></button>
+          <div className="font-sans text-lg font-bold capitalize text-white">
             {month.toLocaleDateString("es", { month: "long", year: "numeric" })}
           </div>
-          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted transition"><ChevronRight className="h-4 w-4" /></button>
+          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="h-10 w-10 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] muted mb-1">
+        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-primary mb-2">
           {["L","M","X","J","V","S","D"].map(d => <div key={d}>{d}</div>)}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1.5">
           {days.map((d, i) => {
             if (!d) return <div key={i} />;
             const key = fmt(d);
@@ -151,7 +163,7 @@ export default function Wellness() {
               <button
                 key={i}
                 onClick={() => setSelected(key)}
-                className={`aspect-square rounded-xl text-sm font-medium transition relative ${isSel ? "text-white shadow-soft" : has ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground/80"} ${isToday && !isSel ? "ring-1 ring-primary/40" : ""}`}
+                className={`aspect-square rounded-2xl text-sm font-semibold transition relative ${isSel ? "text-white shadow-soft" : has ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground/80"} ${isToday && !isSel ? "ring-1 ring-primary/40" : ""}`}
                 style={isSel ? { backgroundImage: "var(--gradient-primary)" } : undefined}
               >
                 {d.getDate()}
@@ -161,6 +173,16 @@ export default function Wellness() {
           })}
         </div>
       </section>
+
+      <Section title="Resumen de hoy">
+        <div className="grid grid-cols-2 gap-3">
+          <SummaryMetric icon={Droplets} label="Agua" value={`${waterCups} / 8 vasos`} percent={progress(entry.water_ml, 2000)} />
+          <SummaryMetric icon={Moon} label="Sueño" value={entry.sleep_hours ? `${entry.sleep_hours} h` : "Sin registrar"} percent={progress(entry.sleep_hours, 8)} />
+          <SummaryMetric icon={Footprints} label="Pasos" value={entry.steps ? entry.steps.toLocaleString("es") : "Sin registrar"} percent={progress(entry.steps, 10000)} />
+          <SummaryMetric icon={Activity} label="Estado general" value={moodLabel} percent={entry.mood ? (entry.mood / 5) * 100 : 0} />
+          <SummaryMetric icon={Activity} label="Ejercicio" value={entry.exercise ? "Registrado" : "Sin registrar"} percent={entry.exercise ? 100 : 0} />
+        </div>
+      </Section>
 
       {/* Medidas corporales */}
       <Section title="Medidas">
@@ -189,7 +211,7 @@ export default function Wellness() {
 
       {/* Estado de ánimo */}
       <Section title="¿Cómo te sientes?">
-        <div className="flex justify-between gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {MOODS.map((m, i) => {
             const selected = entry.mood === i + 1;
             return (
@@ -197,11 +219,10 @@ export default function Wellness() {
                 key={i}
                 onClick={() => update("mood", i + 1)}
                 title={m.label}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 px-1 rounded-2xl transition border ${selected ? "shadow-soft scale-105 border-primary/40 text-white" : "border-border bg-card/80 hover:bg-muted"}`}
-                style={selected ? { backgroundImage: `linear-gradient(135deg, var(--tw-gradient-stops))` , background: `linear-gradient(135deg, hsl(330 75% 75%), hsl(290 65% 70%))`} : undefined}
+                className={`flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-2xl border px-1.5 py-3 transition duration-200 ${selected ? "scale-[1.03] border-primary bg-primary/10 shadow-soft ring-1 ring-primary/20" : "border-border/80 bg-white hover:border-primary/40 hover:bg-muted/45"}`}
               >
-                <span className="text-2xl leading-none">{m.emoji}</span>
-                <span className={`text-[9px] font-semibold tracking-wide ${selected ? "text-white/95" : "text-foreground/60"}`}>{m.label}</span>
+                <MoodBars level={i + 1} active={selected} />
+                <span className={`text-[9px] font-semibold leading-tight tracking-wide ${selected ? "text-foreground" : "text-foreground/60"}`}>{m.label}</span>
               </button>
             );
           })}
@@ -210,7 +231,7 @@ export default function Wellness() {
 
       {/* Notas */}
       <Section title="Notas personales">
-        <textarea className="field min-h-[110px] resize-y" placeholder="Lo que quieras recordar de hoy..." value={entry.notes ?? ""} onChange={(e) => update("notes", e.target.value)} maxLength={2000} />
+        <textarea className="field min-h-[120px] resize-y leading-relaxed" placeholder="Escribe lo que quieras recordar de hoy..." value={entry.notes ?? ""} onChange={(e) => update("notes", e.target.value)} maxLength={2000} />
       </Section>
 
       <div className="flex gap-2">
@@ -228,15 +249,16 @@ export default function Wellness() {
         )}
       </div>
 
-      <Link to="/app/progreso" className="card-soft p-5 flex items-center gap-4 hover:shadow-elegant transition">
-        <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-soft" style={{ backgroundImage: "var(--gradient-primary)" }}>
+      <Link to="/app/progreso" className="card-soft bg-[#1F1F1F] p-5 flex items-center gap-4 text-white hover:shadow-elegant transition">
+        <div className="h-12 w-12 rounded-2xl grid place-items-center text-primary shadow-soft shrink-0 bg-white/8 border border-white/10">
           <Sparkles className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <div className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>Mi progreso</div>
-          <p className="text-xs muted">Evolución, gráficos y objetivos</p>
+          <div className="font-sans text-lg font-bold text-white">Mi progreso</div>
+          <p className="text-xs text-white/65">Evolución, gráficos y objetivos</p>
         </div>
-        <ChevronRight className="h-5 w-5 muted" />
+        <MiniTrend />
+        <ChevronRight className="h-5 w-5 text-white/55" />
       </Link>
     </div>
   );
@@ -245,15 +267,56 @@ export default function Wellness() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="card-elegant p-5">
-      <h2 className="font-serif text-lg mb-3" style={{ color: "hsl(var(--plum))" }}>{title}</h2>
+      <h2 className="font-sans text-lg font-bold mb-4" style={{ color: "hsl(var(--plum))" }}>{title}</h2>
       {children}
     </section>
   );
 }
 
-function Field({ label, value, onChange, step, icon: Icon }: { label: string; value: number | null; onChange: (v: string) => void; step?: string; icon?: any }) {
+function SummaryMetric({ icon: Icon, label, value, percent }: { icon: any; label: string; value: string; percent: number }) {
   return (
-    <div>
+    <div className="rounded-2xl border border-border/70 bg-white/80 p-3 shadow-[0_10px_24px_-22px_hsl(0_0%_8%/.45)]">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-primary" />
+        <span className="text-xs font-semibold text-foreground/80">{label}</span>
+      </div>
+      <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary/14">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MoodBars({ level, active }: { level: number; active: boolean }) {
+  return (
+    <div className="flex h-8 items-end justify-center gap-1">
+      {[1, 2, 3, 4, 5].map((bar) => (
+        <span
+          key={bar}
+          className={`w-1.5 rounded-full transition-all ${bar <= level ? "bg-primary" : "bg-muted"} ${active && bar <= level ? "shadow-[0_0_10px_hsl(var(--primary)/.35)]" : ""}`}
+          style={{ height: `${8 + bar * 4}px` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MiniTrend() {
+  return (
+    <div className="flex h-10 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-white/5">
+      <svg viewBox="0 0 56 28" className="h-7 w-12" aria-hidden="true">
+        <path d="M4 22 C12 18 15 20 22 13 S34 8 40 11 S48 8 52 5" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="52" cy="5" r="2.5" fill="hsl(var(--primary))" />
+      </svg>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, step, icon: Icon }: { label: string; value: number | null; onChange: (v: string) => void; step?: string; icon?: any }) {
+  const hasValue = value !== null && value !== undefined;
+  return (
+    <div className="rounded-2xl border border-border/60 bg-white/70 p-3">
       <label className="label text-xs flex items-center gap-1.5">
         {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
         {label}
@@ -262,7 +325,7 @@ function Field({ label, value, onChange, step, icon: Icon }: { label: string; va
         type="number"
         inputMode="decimal"
         step={step ?? "1"}
-        className="field"
+        className={`field ${hasValue ? "text-lg font-semibold text-foreground" : ""}`}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
       />
