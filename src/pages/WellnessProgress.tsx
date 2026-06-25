@@ -230,17 +230,17 @@ export default function WellnessProgress() {
       </header>
 
       {/* Selector de métrica */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {METRICS.map(x => {
           const active = metric === x.key;
           return (
             <button key={x.key} onClick={() => setMetric(x.key)}
-              className={`wellness-progress-metric flex flex-col items-center gap-2 rounded-2xl border p-4 transition ${active ? "shadow-soft border-transparent" : "hover:border-primary/30"}`}
+              className={`wellness-progress-metric flex min-h-[148px] flex-col items-center justify-center gap-2.5 rounded-[24px] border p-4 transition ${active ? "is-active shadow-soft border-transparent" : "hover:border-primary/45"}`}
               style={active ? { background: "linear-gradient(135deg, hsl(330 70% 96%), hsl(290 65% 96%))" } : undefined}
             >
               <img src={x.image} alt={x.label} loading="lazy" width={512} height={512}
-                className={`h-16 w-16 object-contain transition ${active ? "scale-105" : "opacity-80"}`} />
-              <span className={`text-[11px] font-semibold ${active ? "text-foreground" : "text-foreground/60"}`}>{x.label}</span>
+                className={`h-24 w-24 object-contain transition sm:h-20 sm:w-20 ${active ? "scale-105" : ""}`} />
+              <span className={`text-xs font-semibold ${active ? "text-foreground" : "text-foreground/70"}`}>{x.label}</span>
             </button>
           );
         })}
