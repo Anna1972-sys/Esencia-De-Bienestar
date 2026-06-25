@@ -239,7 +239,7 @@ export default function WellnessProgress() {
               className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} flex min-h-[168px] flex-col items-center justify-center gap-3 rounded-[26px] border p-5 transition ${active ? "is-active shadow-soft" : "hover:border-primary/45"}`}
             >
               <img src={x.image} alt={x.label} loading="lazy" width={512} height={512}
-                className={`h-32 w-32 object-contain transition duration-300 sm:h-28 sm:w-28 ${active ? "-translate-y-1 scale-110" : ""}`} />
+                className={`h-32 w-32 object-contain transition duration-300 sm:h-28 sm:w-28 ${active ? "-translate-y-1 scale-[1.32]" : "scale-[1.22]"}`} />
               <span className={`text-[13px] font-semibold ${active ? "text-foreground" : "text-foreground/75"}`}>{x.label}</span>
             </button>
           );
