@@ -146,6 +146,37 @@
   .challenge-premium:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px #FF2D95, 0 22px 36px -20px hsl(325 100% 45% / .28); }
   .nutrition-hero { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #050505; box-shadow: inset 0 0 0 2px #FF2D95; }
   .progress-page .card-elegant { background: hsl(0 0% 100% / .78); }
+  .progress-page .wellness-hero h1 { color: white; }
+  .progress-page .wellness-progress-metric {
+    background: linear-gradient(160deg, hsl(0 0% 100% / .98), hsl(343 45% 97%));
+    border-color: hsl(0 0% 12% / .88);
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / .68), 0 14px 24px -19px hsl(0 0% 8% / .42);
+  }
+  .progress-page .wellness-progress-evolution {
+    background: linear-gradient(160deg, hsl(0 0% 100% / .96), hsl(330 65% 97% / .9));
+    box-shadow: inset 0 0 0 2px hsl(var(--primary) / .9), 0 22px 38px -25px hsl(0 0% 8% / .48);
+  }
+  .progress-page .wellness-progress-photos {
+    background: linear-gradient(145deg, hsl(0 0% 100% / .96), hsl(290 50% 96% / .88));
+  }
+  .progress-page .wellness-progress-history { background: linear-gradient(145deg, hsl(0 0% 100% / .96), hsl(340 50% 97% / .9)); }
+  .progress-page .wellness-history-card {
+    background: linear-gradient(145deg, hsl(0 0% 100% / .9), hsl(330 60% 96% / .95));
+    border: 1px solid hsl(var(--primary) / .28);
+  }
+  .progress-page .wellness-progress-goals {
+    background: linear-gradient(145deg, hsl(0 0% 12%), hsl(0 0% 18%));
+    border-color: hsl(0 0% 5%);
+    box-shadow: inset 0 0 0 2px hsl(var(--primary) / .9), 0 22px 42px -26px hsl(0 0% 8% / .75);
+  }
+  .progress-page .wellness-progress-goals h2,
+  .progress-page .wellness-progress-goals .muted { color: hsl(0 0% 96% / .88); }
+  .progress-page .wellness-progress-goals .field { background: hsl(0 0% 100% / .96); }
+  .progress-page .wellness-chart-empty {
+    border: 1px dashed hsl(var(--primary) / .45);
+    border-radius: 1rem;
+    background: hsl(0 0% 100% / .55);
+  }
   .progress-page .trend-positive { color: #56A600; }
 
   .wellness-generator {
