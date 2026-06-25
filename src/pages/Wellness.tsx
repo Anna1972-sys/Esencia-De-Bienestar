@@ -179,7 +179,7 @@ export default function Wellness() {
         </div>
       </section>
 
-      <Section title="Resumen de hoy">
+      <Section title="Resumen de hoy" variant="dark">
         <div className="grid grid-cols-2 gap-3">
           <SummaryMetric
             icon={Droplets}
@@ -226,31 +226,31 @@ export default function Wellness() {
       </Section>
 
       {/* Medidas corporales */}
-      <Section title="Medidas">
+      <Section title="Medidas" variant="light">
         <div className="grid grid-cols-2 gap-3">
-          <Field icon={Scale} label="Peso (kg)" value={entry.weight_kg} onChange={(v) => update("weight_kg", v)} step="0.1" />
-          <Field icon={Ruler} label="Cintura (cm)" value={entry.waist_cm} onChange={(v) => update("waist_cm", v)} step="0.1" />
-          <Field icon={Ruler} label="Cadera (cm)" value={entry.hip_cm} onChange={(v) => update("hip_cm", v)} step="0.1" />
-          <Field icon={Heart} label="Pecho (cm)" value={entry.chest_cm} onChange={(v) => update("chest_cm", v)} step="0.1" />
-          <Field icon={Ruler} label="Brazos (cm)" value={entry.arm_cm} onChange={(v) => update("arm_cm", v)} step="0.1" />
-          <Field icon={Ruler} label="Muslos (cm)" value={entry.thigh_cm} onChange={(v) => update("thigh_cm", v)} step="0.1" />
+          <Field variant="measure" icon={Scale} label="Peso (kg)" value={entry.weight_kg} onChange={(v) => update("weight_kg", v)} step="0.1" />
+          <Field variant="measure" icon={Ruler} label="Cintura (cm)" value={entry.waist_cm} onChange={(v) => update("waist_cm", v)} step="0.1" />
+          <Field variant="measure" icon={Ruler} label="Cadera (cm)" value={entry.hip_cm} onChange={(v) => update("hip_cm", v)} step="0.1" />
+          <Field variant="measure" icon={Heart} label="Pecho (cm)" value={entry.chest_cm} onChange={(v) => update("chest_cm", v)} step="0.1" />
+          <Field variant="measure" icon={Ruler} label="Brazos (cm)" value={entry.arm_cm} onChange={(v) => update("arm_cm", v)} step="0.1" />
+          <Field variant="measure" icon={Ruler} label="Muslos (cm)" value={entry.thigh_cm} onChange={(v) => update("thigh_cm", v)} step="0.1" />
         </div>
       </Section>
 
       {/* Hábitos */}
-      <Section title="Hábitos del día">
+      <Section title="Hábitos del día" variant="dark">
         <div className="grid grid-cols-2 gap-3">
-          <Field icon={Droplets} label="Agua (ml)" value={entry.water_ml} onChange={(v) => update("water_ml", v)} step="50" />
-          <Field icon={Moon} label="Sueño (h)" value={entry.sleep_hours} onChange={(v) => update("sleep_hours", v)} step="0.5" />
-          <Field icon={Footprints} label="Pasos" value={entry.steps} onChange={(v) => update("steps", v)} step="100" />
+          <Field variant="habit" icon={Droplets} label="Agua (ml)" value={entry.water_ml} onChange={(v) => update("water_ml", v)} step="50" />
+          <Field variant="habit" icon={Moon} label="Sueño (h)" value={entry.sleep_hours} onChange={(v) => update("sleep_hours", v)} step="0.5" />
+          <Field variant="habit" icon={Footprints} label="Pasos" value={entry.steps} onChange={(v) => update("steps", v)} step="100" />
         </div>
-        <div className={`mt-3 rounded-[22px] border p-4 transition duration-300 ${hasExercise ? "border-primary/65 bg-primary/5 shadow-[0_14px_28px_-24px_hsl(var(--primary)/.55)]" : "border-border bg-white shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
-          <label className="label flex items-center gap-2 text-xs">
-            <Activity className={`h-4 w-4 transition-colors duration-300 ${hasExercise ? "text-emerald-600" : "text-foreground/45"}`} />
+        <div className={`mt-3 rounded-[22px] border p-4 transition duration-300 ${hasExercise ? "border-primary bg-primary text-white shadow-[0_16px_30px_-22px_hsl(var(--primary)/.75)]" : "border-border bg-white text-foreground shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
+          <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] ${hasExercise ? "text-white/88" : "text-foreground/80"}`}>
+            <Activity className={`h-4 w-4 transition-colors duration-300 ${hasExercise ? "text-white" : "text-foreground/45"}`} />
             Ejercicio realizado
           </label>
           <input
-            className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 text-sm outline-none transition duration-300 placeholder:text-muted-foreground/65 focus:border-transparent focus:ring-0 ${hasExercise ? "font-semibold text-foreground" : "text-foreground"}`}
+            className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 text-sm outline-none transition duration-300 focus:border-transparent focus:ring-0 ${hasExercise ? "font-semibold text-white placeholder:text-white/65" : "text-foreground placeholder:text-muted-foreground/65"}`}
             placeholder="Yoga 30 min, caminata..."
             value={entry.exercise ?? ""}
             onChange={(e) => update("exercise", e.target.value)}
@@ -279,8 +279,8 @@ export default function Wellness() {
       </Section>
 
       {/* Notas */}
-      <Section title="Notas personales">
-        <textarea className="field min-h-[145px] resize-y px-5 py-4 leading-relaxed" placeholder="Escribe lo que quieras recordar de hoy..." value={entry.notes ?? ""} onChange={(e) => update("notes", e.target.value)} maxLength={2000} />
+      <Section title="Notas personales" variant="dark">
+        <textarea className="field min-h-[145px] resize-y border-primary/35 bg-white px-5 py-4 leading-relaxed" placeholder="Escribe lo que quieras recordar de hoy..." value={entry.notes ?? ""} onChange={(e) => update("notes", e.target.value)} maxLength={2000} />
       </Section>
 
       <div className="flex gap-2">
@@ -313,10 +313,11 @@ export default function Wellness() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, variant = "default" }: { title: string; children: React.ReactNode; variant?: "default" | "dark" | "light" }) {
+  const isDark = variant === "dark";
   return (
-    <section className="card-elegant p-5">
-      <h2 className="font-sans text-lg font-bold mb-4" style={{ color: "hsl(var(--plum))" }}>{title}</h2>
+    <section className={`card-elegant p-5 ${isDark ? "border-[#1F1F1F] bg-[#1F1F1F] text-white shadow-[0_20px_40px_-26px_hsl(0_0%_8%/.75)]" : ""}`}>
+      <h2 className={`font-sans text-lg font-bold mb-4 ${isDark ? "text-primary" : ""}`} style={isDark ? undefined : { color: "hsl(var(--plum))" }}>{title}</h2>
       {children}
     </section>
   );
@@ -341,20 +342,20 @@ function SummaryMetric({
 }) {
   const hasValue = percent > 0 || value !== "Sin registrar";
   return (
-    <div className={`rounded-[22px] border p-3.5 shadow-[0_12px_28px_-24px_hsl(0_0%_8%/.45)] transition duration-300 ${hasValue ? "border-primary/55 bg-primary/5" : "border-border bg-white"} ${className}`}>
+    <div className={`rounded-[22px] border p-3.5 shadow-[0_12px_28px_-24px_hsl(0_0%_8%/.45)] transition duration-300 ${hasValue ? "border-primary bg-primary text-white" : "border-border bg-white text-foreground"} ${className}`}>
       <div className="flex items-center gap-2.5">
-        <div className="grid h-9 w-9 place-items-center rounded-2xl bg-white shadow-[0_10px_22px_-20px_hsl(0_0%_8%/.45)]">
-          <Icon className={`h-5 w-5 ${iconClassName}`} />
+        <div className={`grid h-9 w-9 place-items-center rounded-2xl shadow-[0_10px_22px_-20px_hsl(0_0%_8%/.45)] ${hasValue ? "bg-white/16" : "bg-white"}`}>
+          <Icon className={`h-5 w-5 ${hasValue ? "text-white" : iconClassName}`} />
         </div>
         <div className="min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground/55">{label}</span>
-          <span className="block text-base font-bold leading-tight text-foreground">{value}</span>
+          <span className={`block text-[11px] font-semibold uppercase tracking-[0.08em] ${hasValue ? "text-white/76" : "text-foreground/55"}`}>{label}</span>
+          <span className={`block text-base font-bold leading-tight ${hasValue ? "text-white" : "text-foreground"}`}>{value}</span>
         </div>
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground">{status}</span>
-        <div className="h-2 w-20 overflow-hidden rounded-full bg-primary/14">
-          <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${percent}%` }} />
+        <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${hasValue ? "text-white/72" : "text-muted-foreground"}`}>{status}</span>
+        <div className={`h-2 w-20 overflow-hidden rounded-full ${hasValue ? "bg-white/20" : "bg-primary/14"}`}>
+          <div className={`h-full rounded-full transition-all duration-300 ${hasValue ? "bg-white" : "bg-primary"}`} style={{ width: `${percent}%` }} />
         </div>
       </div>
     </div>
@@ -386,8 +387,44 @@ function MiniTrend() {
   );
 }
 
-function Field({ label, value, onChange, step, icon: Icon }: { label: string; value: number | null; onChange: (v: string) => void; step?: string; icon?: any }) {
+function Field({ label, value, onChange, step, icon: Icon, variant = "default" }: { label: string; value: number | null; onChange: (v: string) => void; step?: string; icon?: any; variant?: "default" | "measure" | "habit" }) {
   const hasValue = value !== null && value !== undefined;
+  if (variant === "measure") {
+    return (
+      <div className="rounded-[22px] border border-[#1F1F1F] bg-[#1F1F1F] p-3.5 shadow-[0_14px_28px_-24px_hsl(0_0%_8%/.75)] transition duration-300">
+        <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary">
+          {Icon && <Icon className="h-4 w-4 text-primary" />}
+          {label}
+        </label>
+        <input
+          type="number"
+          inputMode="decimal"
+          step={step ?? "1"}
+          className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 outline-none transition duration-300 placeholder:text-white/45 focus:border-transparent focus:ring-0 ${hasValue ? "text-lg font-bold text-white" : "text-sm text-white"}`}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  if (variant === "habit") {
+    return (
+      <div className={`rounded-[22px] border p-3.5 transition duration-300 ${hasValue ? "border-primary bg-primary text-white shadow-[0_14px_28px_-24px_hsl(var(--primary)/.75)]" : "border-border bg-white text-foreground shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
+        <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] ${hasValue ? "text-white/88" : "text-foreground/80"}`}>
+          {Icon && <Icon className={`h-4 w-4 transition-colors duration-300 ${hasValue ? "text-white" : "text-foreground/45"}`} />}
+          {label}
+        </label>
+        <input
+          type="number"
+          inputMode="decimal"
+          step={step ?? "1"}
+          className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 outline-none transition duration-300 focus:border-transparent focus:ring-0 ${hasValue ? "text-lg font-bold text-white placeholder:text-white/65" : "text-sm text-foreground placeholder:text-muted-foreground/65"}`}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
   return (
     <div className={`rounded-[22px] border p-3.5 transition duration-300 ${hasValue ? "border-primary/65 bg-primary/5 shadow-[0_14px_28px_-24px_hsl(var(--primary)/.55)]" : "border-border bg-white shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
       <label className="label text-xs flex items-center gap-2">
