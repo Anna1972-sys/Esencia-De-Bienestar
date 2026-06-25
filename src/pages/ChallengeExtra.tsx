@@ -4,6 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import { EXTRAS, ExtraKey, ContentBlock } from "@/lib/challengeExtras";
 import ChallengeContentView from "@/components/ChallengeContentView";
+import menuImage from "@/assets/challenge-menu.png";
+import shoppingImage from "@/assets/challenge-shopping.png";
+import videosImage from "@/assets/challenge-videos.png";
+import downloadsImage from "@/assets/challenge-downloads.png";
+import faqImage from "@/assets/challenge-faq.png";
+
+const EXTRA_HERO = {
+  menu: { image: menuImage, subtitle: "Plan completo para los cinco días" },
+  shopping: { image: shoppingImage, subtitle: "Todo lo necesario, en un solo lugar" },
+  videos: { image: videosImage, subtitle: "Aprende paso a paso" },
+  downloads: { image: downloadsImage, subtitle: "Guías y recursos para acompañarte" },
+  faq: { image: faqImage, subtitle: "Resuelve tus dudas con calma" },
+};
 
 export default function ChallengeExtra() {
   const { id, key } = useParams();
@@ -20,6 +33,7 @@ export default function ChallengeExtra() {
 
   const extras = (c.extras ?? {}) as Record<ExtraKey, ContentBlock | undefined>;
   const block: ContentBlock = extras[meta.key] ?? {};
+  const hero = EXTRA_HERO[meta.key];
 
   return (
     <div className="space-y-5 pb-10">
@@ -27,16 +41,13 @@ export default function ChallengeExtra() {
         <ArrowLeft className="h-4 w-4" /> {c.title}
       </Link>
 
-      <header className="rounded-[28px] p-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, hsl(335 80% 96%), hsl(295 70% 95%) 55%, hsl(275 65% 95%))" }}>
-        <div className="absolute -top-10 -right-10 h-44 w-44 rounded-full opacity-50 blur-3xl"
-          style={{ background: "radial-gradient(circle, hsl(320 90% 80%), transparent 70%)" }} />
-        <div className="relative flex items-center gap-3">
-          <div className="text-3xl">{meta.icon}</div>
-          <div>
-            <p className="muted text-xs tracking-[0.2em] uppercase">Reto</p>
-            <h1 className="heading-lg mt-0.5">{block.title || meta.label}</h1>
-          </div>
+      <header className="challenge-premium rounded-[28px] relative min-h-[250px] overflow-hidden text-white">
+        <img src={hero.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        <div className="relative min-h-[250px] p-6 flex flex-col justify-end">
+          <p className="text-xs tracking-[0.2em] uppercase text-white/75">Reto de 5 días</p>
+          <h1 className="font-serif text-3xl leading-tight text-white mt-1">{block.title || meta.label}</h1>
+          <p className="text-sm text-white/80 mt-2">{hero.subtitle}</p>
         </div>
       </header>
 

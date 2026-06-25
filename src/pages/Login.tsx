@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseConfig } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -18,22 +19,42 @@ export default function Login() {
 
   const onLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabaseConfig.isConfigured) {
+      toast.error("La conexión con Supabase no está configurada en este despliegue.");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Te damos la bienvenida ✨");
-    nav("/app", { replace: true });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return toast.error(error.message);
+      toast.success("Te damos la bienvenida ✨");
+      nav("/app", { replace: true });
+    } catch (error) {
+      console.error("[Login] signInWithPassword failed", { message: error instanceof Error ? error.message : String(error) });
+      toast.error("No se pudo conectar con el servicio de acceso. Revisa la configuración de Supabase.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onForgot = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabaseConfig.isConfigured) {
+      toast.error("La conexión con Supabase no está configurada en este despliegue.");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Te enviamos un correo para restablecer la contraseña.");
-    setMode("login");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+      if (error) return toast.error(error.message);
+      toast.success("Te enviamos un correo para restablecer la contraseña.");
+      setMode("login");
+    } catch (error) {
+      console.error("[Login] resetPasswordForEmail failed", { message: error instanceof Error ? error.message : String(error) });
+      toast.error("No se pudo conectar con el servicio de acceso.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

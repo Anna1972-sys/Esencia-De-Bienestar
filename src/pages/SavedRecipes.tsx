@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { getCategoryImage } from "@/lib/libraryCategories";
+import fallbackRecipeImage from "@/assets/home-recetas.png";
 
 export default function SavedRecipes() {
   const { user } = useAuth();
@@ -48,19 +50,33 @@ export default function SavedRecipes() {
       {loading ? <p className="muted">Cargando…</p> : filtered.length === 0 ? (
         <div className="card-soft p-6 text-center muted">Aún no tienes recetas. Crea una con el generador IA.</div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(r => (
-            <details key={r.id} className="card-soft p-4">
+        <div className="space-y-4">
+          {filtered.map(r => {
+            const nutritionVerified = r.macros?.nutrition_status === "verified" && Boolean(r.macros?.nutrition_reference?.trim());
+            return <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
               <summary className="cursor-pointer">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-medium">{r.title}</div>
-                    <div className="text-xs muted mt-0.5">{r.macros?.protein ?? 0}g prot · {r.macros?.calories ?? 0} kcal · {r.prep_time ?? "—"} min</div>
+                <div className="grid grid-cols-[42%_1fr] min-h-[142px]">
+                  <div className="recipe-premium-image overflow-hidden">
+                    <img
+                      src={r.image_url || getCategoryImage(r.category) || fallbackRecipeImage}
+                      alt={r.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = fallbackRecipeImage; }}
+                    />
                   </div>
-                  {r.is_high_protein && <span className="chip">Alta proteína</span>}
+                  <div className="p-5 flex flex-col justify-center min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="font-semibold text-lg leading-tight">{r.title}</div>
+                      {nutritionVerified && r.is_high_protein && <span className="chip shrink-0">Alta proteína</span>}
+                    </div>
+                    <div className="text-[11px] leading-relaxed muted mt-2.5">
+                      {r.prep_time ?? "—"} min · {nutritionVerified ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal` : "Nutrición pendiente de fuente oficial"}
+                    </div>
+                  </div>
                 </div>
               </summary>
-              <div className="text-sm mt-3 space-y-3">
+              <div className="text-sm px-4 pb-4 space-y-3">
                 <p className="muted">{r.description}</p>
                 <div>
                   <div className="font-medium mb-1">Ingredientes</div>
@@ -75,8 +91,8 @@ export default function SavedRecipes() {
                   <button onClick={() => remove(r.id)} className="btn-ghost text-xs text-destructive"><Trash2 className="h-3 w-3" /> Eliminar</button>
                 </div>
               </div>
-            </details>
-          ))}
+            </details>;
+          })}
         </div>
       )}
     </div>

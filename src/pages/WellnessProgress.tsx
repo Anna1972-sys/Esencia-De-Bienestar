@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays } from "lucide-react";
@@ -15,6 +15,7 @@ type MetricKey = "weight" | "waist" | "hip" | "chest" | "arm" | "thigh";
 type Measurement = { id: string; metric: MetricKey; value: number; unit: string; measured_at: string };
 type Goal = { id: string; metric: MetricKey; target_value: number; start_value: number | null; achieved: boolean };
 type PhotoRow = { id: string; metric: MetricKey; kind: "before" | "after"; image_path: string };
+type MeasurementForm = { value: string; unit: "kg" | "cm"; date: string };
 
 const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string; image: string }[] = [
   { key: "weight", label: "Peso", unit: "kg", color: "hsl(325 70% 65%)", image: imgWeight },
@@ -26,6 +27,7 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
 ];
 
 export default function WellnessProgress() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -35,13 +37,17 @@ export default function WellnessProgress() {
   const [metric, setMetric] = useState<MetricKey>("weight");
   const [newGoal, setNewGoal] = useState<{ metric: MetricKey; direction: "lose" | "gain"; amount: string }>({ metric: "weight", direction: "lose", amount: "" });
   const [showRegister, setShowRegister] = useState(false);
-  const [reg, setReg] = useState({ value: "", unit: "kg", date: new Date().toISOString().slice(0, 10) });
+  const [editingMeasurement, setEditingMeasurement] = useState<Measurement | null>(null);
+  const [isSavingMeasurement, setIsSavingMeasurement] = useState(false);
+  const [reg, setReg] = useState<MeasurementForm>({ value: "", unit: "kg", date: localDateKey(new Date()) });
   const beforeInputRef = useRef<HTMLInputElement>(null);
   const afterInputRef = useRef<HTMLInputElement>(null);
 
   const m = METRICS.find(x => x.key === metric)!;
 
-  useEffect(() => { setReg(r => ({ ...r, unit: m.unit })); }, [m.unit]);
+  useEffect(() => {
+    if (!editingMeasurement) setReg(r => ({ ...r, unit: m.unit }));
+  }, [m.unit, editingMeasurement]);
 
   const reload = async () => {
     if (!user) return;
@@ -55,6 +61,21 @@ export default function WellnessProgress() {
     setPhotos((phs.data as any) ?? []);
   };
   useEffect(() => { reload(); }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`wellness-measurements:${user.id}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "wellness_measurements",
+        filter: `user_id=eq.${user.id}`,
+      }, reload)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   // Sign photo URLs
   useEffect(() => {
@@ -73,7 +94,9 @@ export default function WellnessProgress() {
   const filtered = useMemo(() => {
     if (period === "all") return metricMeas;
     const days = period === "week" ? 7 : 30;
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - (days - 1));
     return metricMeas.filter(e => new Date(e.measured_at) >= cutoff);
   }, [metricMeas, period]);
 
@@ -84,24 +107,60 @@ export default function WellnessProgress() {
   const beforePhoto = photos.find(p => p.metric === metric && p.kind === "before");
   const afterPhoto = photos.find(p => p.metric === metric && p.kind === "after");
 
-  const addMeasurement = async () => {
-    if (!user || !reg.value) { toast.error("Introduce un valor"); return; }
-    const v = Number(reg.value);
-    if (Number.isNaN(v)) { toast.error("Valor no válido"); return; }
-    const measuredAt = new Date(reg.date + "T12:00:00").toISOString();
-    const { error } = await supabase.from("wellness_measurements" as any).insert({
-      user_id: user.id, metric, value: v, unit: reg.unit, measured_at: measuredAt,
-    });
-    if (error) { toast.error("No se pudo guardar"); return; }
-    toast.success("Medida registrada ✨");
+  const openRegister = () => {
+    setEditingMeasurement(null);
+    setReg({ value: "", unit: m.unit, date: localDateKey(new Date()) });
+    setShowRegister(true);
+  };
+
+  const openEdit = (measurement: Measurement) => {
+    setEditingMeasurement(measurement);
+    setReg({ value: String(measurement.value), unit: measurement.unit as "kg" | "cm", date: localDateKey(new Date(measurement.measured_at)) });
+    setShowRegister(true);
+  };
+
+  const closeMeasurementForm = () => {
+    if (isSavingMeasurement) return;
     setShowRegister(false);
-    setReg({ value: "", unit: m.unit, date: new Date().toISOString().slice(0, 10) });
-    reload();
+    setEditingMeasurement(null);
+  };
+
+  const saveMeasurement = async () => {
+    if (!user || reg.value.trim() === "") { toast.error("Introduce un valor"); return; }
+    const v = Number(reg.value);
+    if (!Number.isFinite(v) || v <= 0) { toast.error("Introduce un valor mayor que cero"); return; }
+    if (!reg.date) { toast.error("Selecciona una fecha"); return; }
+    const measuredAt = new Date(reg.date + "T12:00:00").toISOString();
+    setIsSavingMeasurement(true);
+    try {
+      if (editingMeasurement) {
+        const { data, error } = await supabase.from("wellness_measurements").update({ value: v, unit: reg.unit, measured_at: measuredAt }).eq("id", editingMeasurement.id).eq("user_id", user.id).select().single();
+        if (error) throw error;
+        setMeasurements(current => current.map(item => item.id === data.id ? data as Measurement : item).sort(compareMeasurements));
+        toast.success("Medida actualizada");
+      } else {
+        const { data, error } = await supabase.from("wellness_measurements").insert({
+          user_id: user.id, metric, value: v, unit: m.unit, measured_at: measuredAt,
+        }).select().single();
+        if (error) throw error;
+        setMeasurements(current => [...current, data as Measurement].sort(compareMeasurements));
+        toast.success("Medida registrada ✨");
+      }
+      setShowRegister(false);
+      setEditingMeasurement(null);
+    } catch (error) {
+      console.error("Unable to save wellness measurement", error);
+      toast.error("No se pudo guardar la medida. Inténtalo de nuevo.");
+    } finally {
+      setIsSavingMeasurement(false);
+    }
   };
 
   const deleteMeasurement = async (id: string) => {
-    await supabase.from("wellness_measurements" as any).delete().eq("id", id);
-    setMeasurements(measurements.filter(x => x.id !== id));
+    const { error } = await supabase.from("wellness_measurements").delete().eq("id", id).eq("user_id", user?.id ?? "");
+    if (error) { toast.error("No se pudo eliminar la medida"); return; }
+    setMeasurements(current => current.filter(x => x.id !== id));
+    toast.success("Medida eliminada");
   };
 
   const uploadPhoto = async (kind: "before" | "after", file: File) => {
@@ -154,9 +213,12 @@ export default function WellnessProgress() {
 
   return (
     <div className="progress-page space-y-6 pb-6">
-      <Link to="/app/diario" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
-        <ArrowLeft className="h-4 w-4" /> Volver al diario
-      </Link>
+      <button
+        onClick={() => window.history.length > 1 ? navigate(-1) : navigate("/app")}
+        className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Volver
+      </button>
 
       <header className="wellness-hero relative overflow-hidden rounded-[28px] px-6 py-7">
         <div className="absolute -right-7 -top-8 h-32 w-32 rounded-full bg-primary/25 blur-2xl" />
@@ -185,7 +247,7 @@ export default function WellnessProgress() {
       </div>
 
       {/* Botón registrar */}
-      <button onClick={() => setShowRegister(true)} className="btn-primary w-full flex items-center justify-center gap-2">
+      <button onClick={openRegister} className="btn-primary w-full flex items-center justify-center gap-2">
         <Plus className="h-4 w-4" /> Registrar medida
       </button>
 
@@ -250,12 +312,13 @@ export default function WellnessProgress() {
           <HistoryCard label="Esta semana" entries={lastN(metricMeas, 7)} unit={m.unit} />
           <HistoryCard label="Este mes" entries={lastN(metricMeas, 30)} unit={m.unit} />
         </div>
-        {metricMeas.length > 0 && (
+        {filtered.length > 0 && (
           <ul className="mt-4 space-y-1.5 max-h-48 overflow-auto">
-            {[...metricMeas].reverse().map(e => (
+            {[...filtered].reverse().map(e => (
               <li key={e.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-muted/50">
                 <span className="muted">{new Date(e.measured_at).toLocaleDateString()}</span>
                 <span className="font-semibold">{e.value} {e.unit}</span>
+                <button onClick={() => openEdit(e)} aria-label={`Editar medida del ${new Date(e.measured_at).toLocaleDateString()}`} className="text-muted-foreground hover:text-foreground">Editar</button>
                 <button onClick={() => deleteMeasurement(e.id)} className="text-muted-foreground hover:text-foreground">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -263,6 +326,7 @@ export default function WellnessProgress() {
             ))}
           </ul>
         )}
+        {metricMeas.length > 0 && filtered.length === 0 && <p className="mt-4 text-xs muted text-center">No hay registros en este periodo.</p>}
         {metricMeas.length === 0 && <p className="mt-4 rounded-2xl bg-white/65 px-3 py-3 text-center text-xs muted">Aún no hay medidas registradas para esta categoría.</p>}
       </section>
 
@@ -321,35 +385,40 @@ export default function WellnessProgress() {
 
       {/* Modal de registro */}
       {showRegister && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setShowRegister(false)}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={closeMeasurementForm}>
           <div className="card-elegant p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>Registrar {m.label}</h3>
-              <button onClick={() => setShowRegister(false)} className="h-8 w-8 grid place-items-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
+              <h3 className="font-sans font-bold text-lg">{editingMeasurement ? "Editar" : "Registrar"} {m.label}</h3>
+              <button onClick={closeMeasurementForm} disabled={isSavingMeasurement} className="h-8 w-8 grid place-items-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] uppercase tracking-wider muted">Valor</label>
                 <input type="number" step="0.1" autoFocus className="field w-full" value={reg.value} onChange={e => setReg({ ...reg, value: e.target.value })} />
               </div>
-              <div>
-                <label className="text-[11px] uppercase tracking-wider muted">Unidad</label>
-                <select className="field w-full" value={reg.unit} onChange={e => setReg({ ...reg, unit: e.target.value })}>
-                  <option value="kg">kg</option>
-                  <option value="cm">cm</option>
-                </select>
-              </div>
+              <p className="text-xs muted">Unidad: {reg.unit}</p>
               <div>
                 <label className="text-[11px] uppercase tracking-wider muted">Fecha</label>
                 <input type="date" className="field w-full" value={reg.date} onChange={e => setReg({ ...reg, date: e.target.value })} />
               </div>
-              <button onClick={addMeasurement} className="btn-primary w-full">Guardar</button>
+              <button onClick={saveMeasurement} disabled={isSavingMeasurement} className="btn-primary w-full">{isSavingMeasurement ? "Guardando…" : "Guardar"}</button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function compareMeasurements(a: Measurement, b: Measurement) {
+  return new Date(a.measured_at).getTime() - new Date(b.measured_at).getTime();
 }
 
 function PhotoCard({ label, photo, url, gradient, dark, onPick, onRemove }: {
@@ -399,7 +468,7 @@ function HistoryCard({ label, entries, unit }: { label: string; entries: Measure
         <CalendarDays className="h-3.5 w-3.5 text-primary" />
         <p className="text-[10px] uppercase tracking-wider muted">{label}</p>
       </div>
-      <p className="font-serif text-xl mt-1" style={{ color: "hsl(var(--plum))" }}>
+      <p className="font-sans font-bold text-xl mt-1">
         {diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`} <span className="text-xs muted">{unit}</span>
       </p>
       <p className="text-[10px] muted mt-0.5">{entries.length} registros</p>
@@ -413,7 +482,7 @@ function Stat({ label, value, unit, trend }: { label: string; value: number | nu
     <div>
       <p className="text-[10px] uppercase tracking-wider muted">{label}</p>
       <div className="flex items-baseline gap-1 mt-0.5">
-        <p className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>
+        <p className={`font-sans font-bold text-lg ${trend != null && trend < 0 ? "trend-positive" : ""}`}>
           {value == null ? "—" : (trend != null && value > 0 ? `+${value}` : value)}
         </p>
         <span className="text-xs muted">{unit}</span>

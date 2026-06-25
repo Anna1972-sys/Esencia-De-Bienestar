@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel, getCategoryImage } from "@/lib/libraryCategories";
@@ -16,11 +16,19 @@ type Recipe = {
   is_featured: boolean | null;
 };
 
+type LibraryContext = {
+  selectedCat: string | null;
+  query: string;
+  scrollY: number;
+};
+
 export default function Library() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnContext = (location.state as { libraryContext?: LibraryContext } | null)?.libraryContext;
   const [items, setItems] = useState<Recipe[]>([]);
-  const [selectedCat, setSelectedCat] = useState<string | null>(null);
-  const [q, setQ] = useState("");
+  const [selectedCat, setSelectedCat] = useState<string | null>(() => returnContext?.selectedCat ?? null);
+  const [q, setQ] = useState(() => returnContext?.query ?? "");
 
   const load = () =>
     supabase
@@ -63,6 +71,24 @@ export default function Library() {
     }
     return list;
   }, [items, selectedCat, q]);
+
+  useEffect(() => {
+    if (returnContext?.scrollY == null || items.length === 0) return;
+    const frame = requestAnimationFrame(() => window.scrollTo(0, returnContext.scrollY));
+    return () => cancelAnimationFrame(frame);
+  }, [items.length, returnContext?.scrollY]);
+
+  const openRecipe = (id: string) => {
+    navigate(`/app/biblioteca/${id}`, {
+      state: {
+        libraryContext: {
+          selectedCat,
+          query: q,
+          scrollY: window.scrollY,
+        } satisfies LibraryContext,
+      },
+    });
+  };
 
 
   return (
@@ -148,12 +174,12 @@ export default function Library() {
                 return (
                   <button
                     key={r.id}
-                    onClick={() => navigate(`/app/biblioteca/${r.id}`)}
-                    className="card-soft w-full text-left hover:shadow-md transition overflow-hidden flex"
+                    onClick={() => openRecipe(r.id)}
+                    className="recipe-premium rounded-[22px] bg-white/90 w-full text-left transition overflow-hidden flex"
                   >
                     {cover && (
-                      <div className="w-24 h-24 shrink-0 bg-muted">
-                        <img src={cover} alt={r.title} loading="lazy" className="w-full h-full object-cover" />
+                      <div className="w-28 h-28 shrink-0 bg-muted">
+                        <img src={cover} alt={r.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                       </div>
                     )}
                     <div className="p-3 flex-1 min-w-0">
@@ -162,10 +188,10 @@ export default function Library() {
                         <div className="font-medium truncate">{r.title}</div>
                       </div>
                       <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10px] text-center">
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
-                        <div className="rounded-md bg-muted/60 py-0.5"><div className="font-semibold text-foreground">{r.macros?.calories ?? 0}</div><div className="muted">kcal</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
                       </div>
                       {r.category && !selectedCat && (
                         <div className="text-[10px] muted mt-1 truncate">{getCategoryLabel(r.category)}</div>

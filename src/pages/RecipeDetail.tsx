@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -24,11 +24,21 @@ type Recipe = {
 export default function RecipeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [r, setR] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [adding, setAdding] = useState(false);
+  const libraryContext = (location.state as { libraryContext?: { selectedCat: string | null; query: string; scrollY: number } } | null)?.libraryContext;
+
+  const returnToLibrary = () => {
+    if (libraryContext) {
+      navigate("/app/biblioteca", { replace: true, state: { libraryContext } });
+      return;
+    }
+    navigate(-1);
+  };
 
   const addAllToShopping = async () => {
     if (!r || !user) return;
@@ -58,7 +68,7 @@ export default function RecipeDetail() {
   if (notFound || !r) {
     return (
       <div className="pb-28">
-        <button onClick={() => navigate(-1)} className="text-sm muted inline-flex items-center gap-1 mb-3">
+        <button onClick={returnToLibrary} className="text-sm muted inline-flex items-center gap-1 mb-3">
           <ArrowLeft className="h-4 w-4" /> Volver
         </button>
         <div className="card-soft p-8 text-center">
@@ -78,7 +88,7 @@ export default function RecipeDetail() {
 
   return (
     <div className="pb-28">
-      <button onClick={() => navigate(-1)} className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <button onClick={returnToLibrary} className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </button>
       {r.video_url ? (
@@ -105,10 +115,10 @@ export default function RecipeDetail() {
       {r.description && <p className="muted text-sm mb-3">{r.description}</p>}
       {hasMacros && (
         <div className="card-soft p-3 mb-4 grid grid-cols-4 gap-2 text-center text-xs">
-          <div><div className="font-semibold">{macros.protein ?? 0}g</div><div className="muted">Proteínas</div></div>
-          <div><div className="font-semibold">{macros.carbs ?? 0}g</div><div className="muted">Carbohidratos</div></div>
-          <div><div className="font-semibold">{macros.fat ?? 0}g</div><div className="muted">Grasas</div></div>
-          <div><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Calorías</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.protein ?? 0}g</div><div className="muted">Proteínas</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.carbs ?? 0}g</div><div className="muted">Carbohidratos</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.fat ?? 0}g</div><div className="muted">Grasas</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Kcal</div></div>
         </div>
       )}
       {ing.length > 0 && (

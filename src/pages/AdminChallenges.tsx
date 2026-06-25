@@ -5,11 +5,12 @@ import { ArrowLeft, Plus, Trash2, Pencil, X } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import ChallengeBlockEditor from "@/components/ChallengeBlockEditor";
-import { EXTRAS, ExtraKey, ContentBlock, emptyBlock } from "@/lib/challengeExtras";
+import { EXTRAS, ExtraKey, ContentBlock, emptyBlock, legacyItems } from "@/lib/challengeExtras";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
+const DAY_NAMES = ["Despertar", "Enraizar", "Activar", "Florecer", "Celebrar"];
 
 type DayForm = ContentBlock & { day: number };
 type ExtrasMap = Record<ExtraKey, ContentBlock>;
@@ -45,12 +46,11 @@ export default function AdminChallenges() {
 
   const normalizeBlock = (b: ContentBlock): ContentBlock => ({
     title: b.title?.trim() || undefined,
-    sections: (b.sections ?? [])
-      .map(s => ({ heading: (s.heading ?? "").trim(), body: (s.body ?? "").trim() }))
-      .filter(s => s.heading || s.body),
-    images: b.images ?? [],
-    videos: b.videos ?? [],
-    files: b.files ?? [],
+    blocks: (b.blocks ?? []).filter(item => {
+      if (item.type === "text") return Boolean(item.title?.trim() || item.body?.trim());
+      if (item.type === "link") return Boolean(item.url?.trim());
+      return true;
+    }),
   });
 
   const submit = async (e: React.FormEvent) => {
@@ -77,10 +77,7 @@ export default function AdminChallenges() {
       return {
         day: n,
         title: d.title ?? "",
-        sections: Array.isArray(d.sections) ? d.sections.map((s: any) => ({ heading: s.heading ?? "", body: s.body ?? "" })) : [],
-        images: Array.isArray(d.images) ? d.images : [],
-        videos: Array.isArray(d.videos) ? d.videos : [],
-        files: Array.isArray(d.files) ? d.files : [],
+        blocks: Array.isArray(d.blocks) ? d.blocks : legacyItems(d),
       };
     });
     const rawExtras = (c.extras ?? {}) as Record<string, any>;
@@ -88,10 +85,7 @@ export default function AdminChallenges() {
       const x = rawExtras[m.key] ?? {};
       acc[m.key] = {
         title: x.title ?? "",
-        sections: Array.isArray(x.sections) ? x.sections.map((s: any) => ({ heading: s.heading ?? "", body: s.body ?? "" })) : [],
-        images: Array.isArray(x.images) ? x.images : [],
-        videos: Array.isArray(x.videos) ? x.videos : [],
-        files: Array.isArray(x.files) ? x.files : [],
+        blocks: Array.isArray(x.blocks) ? x.blocks : legacyItems(x),
       };
       return acc;
     }, {} as ExtrasMap);
@@ -115,7 +109,7 @@ export default function AdminChallenges() {
   };
 
   const tabs = [
-    ...f.days.map(d => ({ id: `d${d.day}`, label: `📅 Día ${d.day}` })),
+    ...f.days.map(d => ({ id: `d${d.day}`, label: `Día ${d.day} · ${DAY_NAMES[d.day - 1]}` })),
     ...EXTRAS.map(e => ({ id: `x-${e.key}`, label: `${e.icon} ${e.short}` })),
   ];
 
@@ -157,7 +151,8 @@ export default function AdminChallenges() {
           {f.days.map((d, idx) => (
             openTab === `d${d.day}` ? (
               <div key={d.day}>
-                <div className="text-xs font-semibold tracking-wide mb-2" style={{ color: "hsl(var(--plum))" }}>📅 Día {d.day}</div>
+                <div className="text-xs font-semibold tracking-wide mb-1" style={{ color: "hsl(var(--plum))" }}>Día {d.day} · {DAY_NAMES[d.day - 1]}</div>
+                <p className="text-xs muted mb-3">Organiza tantos bloques como necesites y cambia su orden con las flechas.</p>
                 <ChallengeBlockEditor
                   block={d}
                   onChange={(patch) => updateDay(idx, patch)}

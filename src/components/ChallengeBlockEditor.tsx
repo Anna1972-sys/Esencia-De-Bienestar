@@ -1,200 +1,108 @@
 import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ImagePlus, Film, FileUp, Youtube, Link2, ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, FileUp, Film, ImagePlus, Link2, Trash2, Type } from "lucide-react";
 import { toast } from "sonner";
-import { ContentBlock, FileItem, Section, VideoItem } from "@/lib/challengeExtras";
+import { ContentBlock, ContentItem, FileItem, VideoItem } from "@/lib/challengeExtras";
 
-const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
+const SIGNED_TTL = 60 * 60 * 24 * 7;
 
 async function uploadToBucket(file: File, prefix: string): Promise<string> {
   const ext = file.name.split(".").pop() ?? "bin";
   const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from("challenge-media").upload(path, file);
   if (error) throw error;
-  const { data, error: sErr } = await supabase.storage.from("challenge-media").createSignedUrl(path, SIGNED_TTL);
-  if (sErr || !data) throw sErr ?? new Error("No se pudo firmar el archivo");
+  const { data, error: signError } = await supabase.storage.from("challenge-media").createSignedUrl(path, SIGNED_TTL);
+  if (signError || !data) throw signError ?? new Error("No se pudo preparar el archivo");
   return data.signedUrl;
 }
 
-type Props = {
-  block: ContentBlock;
-  onChange: (patch: Partial<ContentBlock>) => void;
-  pathKey: string;
-  titleLabel?: string;
-  showTitle?: boolean;
-};
+type Props = { block: ContentBlock; onChange: (patch: Partial<ContentBlock>) => void; pathKey: string; titleLabel?: string; showTitle?: boolean };
+const newId = () => crypto.randomUUID();
 
 export default function ChallengeBlockEditor({ block, onChange, pathKey, titleLabel, showTitle = true }: Props) {
-  const imgInput = useRef<HTMLInputElement>(null);
-  const vidInput = useRef<HTMLInputElement>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const [linkUrl, setLinkUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const blocks = block.blocks ?? [];
 
-  const sections = block.sections ?? [];
-  const images = block.images ?? [];
-  const videos = block.videos ?? [];
-  const files = block.files ?? [];
+  const setBlocks = (next: ContentItem[]) => onChange({ blocks: next });
+  const add = (item: ContentItem) => setBlocks([...blocks, item]);
+  const update = (id: string, patch: Record<string, unknown>) => setBlocks(blocks.map(item => item.id === id ? { ...item, ...patch } as ContentItem : item));
+  const remove = (id: string) => setBlocks(blocks.filter(item => item.id !== id));
+  const move = (index: number, direction: -1 | 1) => {
+    const next = [...blocks]; const target = index + direction;
+    if (!next[target]) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setBlocks(next);
+  };
 
-  const addImages = async (fl: FileList | null) => {
-    if (!fl || !fl.length) return;
+  const upload = async (files: FileList | null, kind: "image" | "video" | "file") => {
+    if (!files?.length) return;
     setBusy(true);
     try {
-      const urls: string[] = [];
-      for (const file of Array.from(fl)) urls.push(await uploadToBucket(file, `images/${pathKey}`));
-      onChange({ images: [...images, ...urls] });
-      toast.success("Imágenes añadidas");
-    } catch (e: any) { toast.error(e.message ?? "Error al subir"); }
-    finally { setBusy(false); if (imgInput.current) imgInput.current.value = ""; }
-  };
-  const removeImage = (i: number) => onChange({ images: images.filter((_, j) => j !== i) });
-  const moveImage = (i: number, dir: -1 | 1) => {
-    const arr = [...images]; const t = arr[i + dir]; if (t === undefined) return;
-    arr[i + dir] = arr[i]; arr[i] = t; onChange({ images: arr });
+      const items: ContentItem[] = [];
+      for (const file of Array.from(files)) {
+        const url = await uploadToBucket(file, `${kind}s/${pathKey}`);
+        if (kind === "image") items.push({ id: newId(), type: "image", url, title: "" });
+        if (kind === "video") items.push({ id: newId(), type: "video", video: { kind: "upload", url }, title: file.name.replace(/\.[^.]+$/, "") });
+        if (kind === "file") items.push({ id: newId(), type: "file", file: { name: file.name, url }, title: "" });
+      }
+      setBlocks([...blocks, ...items]);
+      toast.success("Bloque añadido");
+    } catch (error: any) { toast.error(error.message ?? "No se pudo subir el archivo"); }
+    finally { setBusy(false); if (imageInput.current) imageInput.current.value = ""; if (videoInput.current) videoInput.current.value = ""; if (fileInput.current) fileInput.current.value = ""; }
   };
 
-  const addUploadVideo = async (fl: FileList | null) => {
-    if (!fl || !fl.length) return;
-    setBusy(true);
-    try {
-      const items: VideoItem[] = [];
-      for (const file of Array.from(fl)) items.push({ kind: "upload", url: await uploadToBucket(file, `videos/${pathKey}`) });
-      onChange({ videos: [...videos, ...items] });
-      toast.success("Vídeo subido");
-    } catch (e: any) { toast.error(e.message ?? "Error al subir"); }
-    finally { setBusy(false); if (vidInput.current) vidInput.current.value = ""; }
-  };
   const addVideoLink = () => {
-    const url = linkUrl.trim(); if (!url) return;
+    const url = videoUrl.trim(); if (!url) return;
     const kind: VideoItem["kind"] = /vimeo/i.test(url) ? "vimeo" : "youtube";
-    onChange({ videos: [...videos, { kind, url }] });
-    setLinkUrl("");
+    add({ id: newId(), type: "video", video: { kind, url }, title: "" }); setVideoUrl("");
   };
-  const removeVideo = (i: number) => onChange({ videos: videos.filter((_, j) => j !== i) });
+  const addExternalLink = () => { const url = externalUrl.trim(); if (!url) return; add({ id: newId(), type: "link", url, title: "", description: "" }); setExternalUrl(""); };
 
-  const addFiles = async (fl: FileList | null) => {
-    if (!fl || !fl.length) return;
-    setBusy(true);
-    try {
-      const items: FileItem[] = [];
-      for (const file of Array.from(fl)) items.push({ name: file.name, url: await uploadToBucket(file, `files/${pathKey}`) });
-      onChange({ files: [...files, ...items] });
-      toast.success("Archivos añadidos");
-    } catch (e: any) { toast.error(e.message ?? "Error al subir"); }
-    finally { setBusy(false); if (fileInput.current) fileInput.current.value = ""; }
-  };
-  const removeFile = (i: number) => onChange({ files: files.filter((_, j) => j !== i) });
+  const sectionItems = (type: ContentItem["type"]) => blocks.map((item, index) => ({ item, index })).filter(entry => entry.item.type === type);
 
-  const addSection = () => onChange({ sections: [...sections, { heading: "", body: "" }] });
-  const updateSection = (i: number, patch: Partial<Section>) =>
-    onChange({ sections: sections.map((s, j) => j === i ? { ...s, ...patch } : s) });
-  const removeSection = (i: number) => onChange({ sections: sections.filter((_, j) => j !== i) });
-  const moveSection = (i: number, dir: -1 | 1) => {
-    const arr = [...sections]; const t = arr[i + dir]; if (t === undefined) return;
-    arr[i + dir] = arr[i]; arr[i] = t; onChange({ sections: arr });
-  };
+  return <div className="space-y-4">
+    {showTitle && <input className="field" placeholder={titleLabel ?? "Título (opcional)"} value={block.title ?? ""} onChange={e => onChange({ title: e.target.value })} />}
 
-  return (
-    <div className="space-y-2">
-      {showTitle && (
-        <input
-          className="field"
-          placeholder={titleLabel ?? "Título (opcional)"}
-          value={block.title ?? ""}
-          onChange={e => onChange({ title: e.target.value })}
-        />
-      )}
+    <ContentSection title="Bloque de textos" description="Títulos, subtítulos, párrafos y listas." count={sectionItems("text").length} action={<button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => add({ id: newId(), type: "text", title: "", body: "" })}><Type className="h-3.5 w-3.5" /> Añadir texto</button>}>
+      {sectionItems("text").map(({ item, index }) => <EditorCard key={item.id} item={item} index={index} total={blocks.length} onUpdate={update} onMove={move} onRemove={remove} />)}
+    </ContentSection>
+    <ContentSection title="Bloque de vídeos" description="Sube vídeos o añade enlaces de YouTube y Vimeo." count={sectionItems("video").length} action={<button type="button" className="btn-ghost px-3 py-2 text-xs" disabled={busy} onClick={() => videoInput.current?.click()}><Film className="h-3.5 w-3.5" /> Subir vídeo</button>}>
+      <div className="flex gap-1"><input className="field text-xs" placeholder="Enlace de YouTube o Vimeo" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} /><button type="button" onClick={addVideoLink} className="btn-secondary px-3"><Film className="h-3.5 w-3.5" /></button></div>
+      {sectionItems("video").map(({ item, index }) => <EditorCard key={item.id} item={item} index={index} total={blocks.length} onUpdate={update} onMove={move} onRemove={remove} />)}
+    </ContentSection>
+    <ContentSection title="Bloque de imágenes" description="Añade imágenes y edita su pie de foto." count={sectionItems("image").length} action={<button type="button" className="btn-ghost px-3 py-2 text-xs" disabled={busy} onClick={() => imageInput.current?.click()}><ImagePlus className="h-3.5 w-3.5" /> Añadir imagen</button>}>
+      {sectionItems("image").map(({ item, index }) => <EditorCard key={item.id} item={item} index={index} total={blocks.length} onUpdate={update} onMove={move} onRemove={remove} />)}
+    </ContentSection>
+    <ContentSection title="Bloque de PDFs descargables" description="Sube documentos PDF para descargar." count={sectionItems("file").length} action={<button type="button" className="btn-ghost px-3 py-2 text-xs" disabled={busy} onClick={() => fileInput.current?.click()}><FileUp className="h-3.5 w-3.5" /> Añadir PDF</button>}>
+      {sectionItems("file").map(({ item, index }) => <EditorCard key={item.id} item={item} index={index} total={blocks.length} onUpdate={update} onMove={move} onRemove={remove} />)}
+    </ContentSection>
+    <ContentSection title="Bloque de enlaces externos" description="Comparte recursos externos de confianza." count={sectionItems("link").length} action={null}>
+      <div className="flex gap-1"><input className="field text-xs" placeholder="https://..." value={externalUrl} onChange={e => setExternalUrl(e.target.value)} /><button type="button" onClick={addExternalLink} className="btn-secondary px-3"><Link2 className="h-3.5 w-3.5" /></button></div>
+      {sectionItems("link").map(({ item, index }) => <EditorCard key={item.id} item={item} index={index} total={blocks.length} onUpdate={update} onMove={move} onRemove={remove} />)}
+    </ContentSection>
+    <input ref={imageInput} type="file" accept="image/*" multiple hidden onChange={e => upload(e.target.files, "image")} />
+    <input ref={videoInput} type="file" accept="video/*" multiple hidden onChange={e => upload(e.target.files, "video")} />
+    <input ref={fileInput} type="file" accept="application/pdf" multiple hidden onChange={e => upload(e.target.files, "file")} />
+  </div>;
+}
 
-      <div className="space-y-2">
-        {sections.map((s, i) => (
-          <div key={i} className="rounded-xl border border-border/60 p-2 space-y-1.5 bg-background/60">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-wider muted">Sección {i + 1}</div>
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={() => moveSection(i, -1)} className="muted"><ArrowUp className="h-3.5 w-3.5" /></button>
-                <button type="button" onClick={() => moveSection(i, 1)} className="muted"><ArrowDown className="h-3.5 w-3.5" /></button>
-                <button type="button" onClick={() => removeSection(i)} className="text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            </div>
-            <input className="field" placeholder="Título de la sección (opcional)" value={s.heading ?? ""} onChange={e => updateSection(i, { heading: e.target.value })} />
-            <textarea className="field min-h-24" placeholder="Texto libre" value={s.body ?? ""} onChange={e => updateSection(i, { body: e.target.value })} />
-          </div>
-        ))}
-        <button type="button" onClick={addSection}
-          className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70">
-          <Plus className="h-3.5 w-3.5" /> Añadir sección de texto
-        </button>
-      </div>
+function ContentSection({ title, description, count, action, children }: { title: string; description: string; count: number; action: React.ReactNode; children: React.ReactNode }) {
+  return <section className="rounded-2xl border border-border/70 bg-card/60 p-3 space-y-3"><div className="flex items-start justify-between gap-3"><div><div className="font-serif text-base" style={{ color: "hsl(var(--plum))" }}>{title}</div><p className="text-xs muted mt-0.5">{description}</p></div><span className="text-[10px] rounded-full bg-muted px-2 py-1 shrink-0">{count}</span></div>{action && <div>{action}</div>}{count === 0 && <p className="text-xs muted border-t border-border/50 pt-3">Aún no hay contenido en esta sección.</p>}{children}</section>;
+}
 
-      <div className="pt-1">
-        <div className="flex items-center gap-2 mb-2">
-          <button type="button" onClick={() => imgInput.current?.click()} disabled={busy}
-            className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70">
-            <ImagePlus className="h-3.5 w-3.5" /> Añadir imágenes
-          </button>
-          <input ref={imgInput} type="file" accept="image/*" multiple hidden onChange={e => addImages(e.target.files)} />
-        </div>
-        {images.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            {images.map((u, i) => (
-              <div key={i} className="relative group rounded-xl overflow-hidden border border-border">
-                <img src={u} className="w-full h-20 object-cover" />
-                <div className="absolute inset-x-0 bottom-0 flex justify-between p-1 bg-black/40 opacity-0 group-hover:opacity-100 transition">
-                  <button type="button" onClick={() => moveImage(i, -1)} className="text-white"><ArrowUp className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => moveImage(i, 1)} className="text-white"><ArrowDown className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => removeImage(i)} className="text-white"><Trash2 className="h-3.5 w-3.5" /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="pt-1">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <button type="button" onClick={() => vidInput.current?.click()} disabled={busy}
-            className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70">
-            <Film className="h-3.5 w-3.5" /> Subir vídeo
-          </button>
-          <input ref={vidInput} type="file" accept="video/*" hidden onChange={e => addUploadVideo(e.target.files)} />
-          <div className="flex-1 flex gap-1">
-            <input className="field flex-1 text-xs" placeholder="Pega enlace YouTube/Vimeo" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} />
-            <button type="button" onClick={addVideoLink} className="px-3 rounded-full bg-muted text-xs inline-flex items-center gap-1"><Link2 className="h-3 w-3" /></button>
-          </div>
-        </div>
-        {videos.length > 0 && (
-          <ul className="space-y-1">
-            {videos.map((v, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs bg-muted/60 rounded-lg px-2 py-1.5">
-                {v.kind === "upload" ? <Film className="h-3.5 w-3.5 shrink-0" /> : <Youtube className="h-3.5 w-3.5 shrink-0" />}
-                <span className="truncate flex-1">{v.url}</span>
-                <button type="button" onClick={() => removeVideo(i)} className="text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="pt-1">
-        <div className="flex items-center gap-2 mb-2">
-          <button type="button" onClick={() => fileInput.current?.click()} disabled={busy}
-            className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-muted/70">
-            <FileUp className="h-3.5 w-3.5" /> Añadir archivo (PDF, menú…)
-          </button>
-          <input ref={fileInput} type="file" multiple hidden onChange={e => addFiles(e.target.files)} />
-        </div>
-        {files.length > 0 && (
-          <ul className="space-y-1">
-            {files.map((file, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs bg-muted/60 rounded-lg px-2 py-1.5">
-                <FileUp className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate flex-1">{file.name}</span>
-                <button type="button" onClick={() => removeFile(i)} className="text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
+function EditorCard({ item, index, total, onUpdate, onMove, onRemove }: { item: ContentItem; index: number; total: number; onUpdate: (id: string, patch: Record<string, unknown>) => void; onMove: (index: number, direction: -1 | 1) => void; onRemove: (id: string) => void }) {
+  const labels = { text: "Texto", image: "Imagen", video: "Vídeo", file: "PDF descargable", link: "Enlace externo" };
+  return <div className="rounded-2xl border border-border/70 bg-card/70 p-3 space-y-2">
+    <div className="flex items-center justify-between"><span className="text-[10px] font-bold tracking-wider uppercase muted">{labels[item.type]} · bloque {index + 1}</span><div className="flex gap-1"><button type="button" disabled={!index} onClick={() => onMove(index, -1)} className="muted disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" disabled={index === total - 1} onClick={() => onMove(index, 1)} className="muted disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button><button type="button" onClick={() => onRemove(item.id)} className="text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></div></div>
+    {item.type === "text" && <><input className="field" placeholder="Título o subtítulo" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><textarea className="field min-h-28" placeholder="Párrafos y listas (una línea por punto)" value={item.body ?? ""} onChange={e => onUpdate(item.id, { body: e.target.value })} /></>}
+    {item.type === "image" && <><img src={item.url} alt="" className="h-32 w-full object-cover rounded-xl" /><input className="field" placeholder="Pie de imagen (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /></>}
+    {item.type === "video" && <><input className="field" placeholder="Título del vídeo (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><div className="text-xs muted truncate">{item.video.url}</div></>}
+    {item.type === "file" && <><input className="field" placeholder="Título del PDF (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><div className="text-xs muted truncate">{item.file.name}</div></>}
+    {item.type === "link" && <><input className="field" placeholder="Título del enlace" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><input className="field" placeholder="Descripción breve (opcional)" value={item.description ?? ""} onChange={e => onUpdate(item.id, { description: e.target.value })} /><div className="text-xs muted truncate inline-flex gap-1 items-center"><ExternalLink className="h-3 w-3" /> {item.url}</div></>}
+  </div>;
 }

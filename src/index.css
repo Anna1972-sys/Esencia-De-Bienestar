@@ -4,28 +4,28 @@
 
 @layer base {
   :root {
-    /* Esencia de Bienestar — rosa empolvado, fucsia, lavanda, morado ciruela, blanco crema */
-    --background: 320 50% 97%;
-    --foreground: 285 15% 25%;
+    /* Premium Wellness — rosa polvo, grafito, fucsia y lima */
+    --background: 343 29% 95%;
+    --foreground: 0 0% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 285 15% 25%;
+    --card-foreground: 0 0% 12%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 285 15% 25%;
 
-    --primary: 325 70% 58%;
+    --primary: 326 100% 59%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 320 80% 72%;
+    --primary-glow: 326 100% 67%;
 
-    --secondary: 275 50% 60%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 83 78% 48%;
+    --secondary-foreground: 0 0% 12%;
 
     --tertiary: 290 55% 88%;
     --tertiary-foreground: 280 45% 28%;
 
-    --muted: 310 35% 94%;
-    --muted-foreground: 290 18% 42%;
+    --muted: 340 23% 91%;
+    --muted-foreground: 0 0% 36%;
 
     --accent: 295 60% 92%;
     --accent-foreground: 285 45% 25%;
@@ -33,26 +33,29 @@
     --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 305 35% 88%;
-    --input: 305 35% 90%;
-    --ring: 325 70% 58%;
+    --border: 342 22% 84%;
+    --input: 342 22% 88%;
+    --ring: 326 94% 55%;
+
+    --anthracite: 0 0% 10%;
+    --lime: 83 78% 48%;
 
     /* Ciruela oscuro para encabezados */
-    --plum: 285 18% 26%;
+    --plum: 0 0% 12%;
 
     --radius: 1.5rem;
 
     /* Premium gradients - más profundos */
-    --gradient-primary: linear-gradient(135deg, hsl(325 78% 62%), hsl(280 60% 55%));
+    --gradient-primary: linear-gradient(135deg, #FF2D95, #E81D7F);
     --gradient-soft: linear-gradient(160deg, hsl(330 70% 96%), hsl(300 65% 95%) 55%, hsl(280 60% 94%));
     --gradient-purple: linear-gradient(135deg, hsl(285 65% 68%), hsl(265 55% 58%));
     --gradient-lavender: linear-gradient(135deg, hsl(290 65% 90%), hsl(320 70% 93%));
     --gradient-hero: linear-gradient(140deg, hsl(330 75% 92%), hsl(300 65% 92%) 50%, hsl(275 60% 90%));
 
     /* Sombras con más presencia */
-    --shadow-soft: 0 10px 30px -10px hsl(315 55% 45% / 0.20);
-    --shadow-elegant: 0 28px 70px -22px hsl(310 60% 40% / 0.32);
-    --shadow-glow: 0 0 50px hsl(320 80% 72% / 0.45);
+    --shadow-soft: 0 12px 28px -18px hsl(0 0% 12% / 0.28);
+    --shadow-elegant: 0 22px 52px -28px hsl(0 0% 12% / 0.32);
+    --shadow-glow: 0 0 30px hsl(326 100% 59% / 0.22);
     --shadow-nav: 0 -8px 30px -10px hsl(310 55% 45% / 0.22);
   }
 
@@ -67,7 +70,7 @@
     background-attachment: fixed;
     min-height: 100vh;
   }
-  h1, h2, h3 { @apply font-serif; letter-spacing: -0.015em; color: hsl(var(--plum)); }
+  h1, h2, h3 { @apply font-sans; letter-spacing: -0.025em; color: hsl(var(--plum)); }
 }
 
 @layer components {
@@ -75,12 +78,14 @@
     @apply mx-auto w-full max-w-md min-h-[100dvh] pb-28;
   }
   .card-soft {
-    @apply bg-card/90 backdrop-blur-sm rounded-3xl border border-border/50;
-    box-shadow: var(--shadow-soft);
+    @apply bg-card/90 backdrop-blur-sm rounded-3xl;
+    border: 1px solid #1F1F1F;
+    box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-soft);
   }
   .card-elegant {
-    @apply bg-card rounded-3xl border border-border/50;
-    box-shadow: var(--shadow-elegant);
+    @apply bg-card rounded-3xl;
+    border: 1px solid #1F1F1F;
+    box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-elegant);
   }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold text-primary-foreground;
@@ -93,8 +98,18 @@
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-medium border border-border bg-card/80 backdrop-blur-sm hover:bg-muted transition;
   }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-semibold border transition;
+    color: #1F1F1F;
+    background: hsl(0 0% 100% / 0.72);
+    border-color: hsl(var(--primary) / 0.65);
+    box-shadow: inset 0 0 0 1px hsl(0 0% 12% / 0.7), 0 8px 20px -14px hsl(0 0% 12% / 0.35);
+  }
+  .btn-secondary:hover { background: hsl(var(--primary) / 0.1); transform: translateY(-1px); }
   .chip {
-    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-accent text-accent-foreground;
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold text-white;
+    background: #FF2D95;
+    box-shadow: 0 8px 18px -12px hsl(325 100% 45% / .8);
   }
   .chip-lavender {
     @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold;
@@ -157,4 +172,98 @@
   .heading-lg { @apply font-serif text-3xl leading-tight; }
   .heading-md { @apply font-serif text-2xl leading-tight; }
   .muted { @apply text-muted-foreground; }
+
+  .wellness-bottom-nav {
+    background: linear-gradient(135deg, hsl(0 0% 12% / 0.98), hsl(0 0% 17% / 0.98));
+    border: 1px solid #1F1F1F;
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.82), 0 18px 42px -18px hsl(0 0% 8% / 0.45);
+  }
+  .wellness-nav-link { @apply flex flex-col items-center gap-0.5 px-3.5 py-2 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 text-white/60 hover:text-white; }
+  .wellness-nav-link-active { background: #FF2D95; color: white; box-shadow: 0 10px 22px -8px hsl(var(--primary) / 0.75); }
+  .wellness-avatar { background: var(--gradient-primary); box-shadow: 0 10px 24px -12px hsl(var(--primary) / 0.75); }
+  .wellness-hero { background: #1F1F1F; color: white; box-shadow: inset 0 0 0 2px #FF2D95, 0 22px 48px -28px hsl(0 0% 8% / 0.72); }
+  .wellness-tile { background: linear-gradient(160deg, hsl(0 0% 100% / 0.96), hsl(343 45% 97%) 100%); border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 2px #FF2D95, var(--shadow-soft); }
+  .wellness-nutrition-tile { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #FF2D95; box-shadow: 0 18px 34px -24px hsl(0 0% 8% / .8); }
+  .nutrition-stat { border-radius: 10px; padding: .4rem .2rem; color: white; background: #FF2D95; box-shadow: 0 8px 18px -13px hsl(325 100% 45% / .8); }
+  .nutrition-stat .muted { color: hsl(0 0% 100% / .82); }
+  .recipe-premium { overflow: hidden; border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 2px #FF2D95, 0 16px 30px -22px hsl(0 0% 8% / .45); }
+  .recipe-premium-image { min-height: 142px; background: #1F1F1F; }
+  .challenge-premium { border: 1px solid #1F1F1F; box-shadow: inset 0 0 0 1px #FF2D95, 0 16px 32px -22px hsl(0 0% 8% / .38); transition: transform .25s ease, box-shadow .25s ease; }
+  .challenge-premium:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px #FF2D95, 0 22px 36px -20px hsl(325 100% 45% / .28); }
+  .nutrition-hero { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #050505; box-shadow: inset 0 0 0 2px #FF2D95; }
+  .progress-page .card-elegant { background: hsl(0 0% 100% / .78); }
+  .progress-page .wellness-hero h1 { color: white; }
+  .progress-page .wellness-progress-metric {
+    background: linear-gradient(160deg, hsl(0 0% 100% / .98), hsl(336 68% 97%));
+    border-color: hsl(var(--primary) / .46);
+    box-shadow: inset 0 0 0 1px hsl(0 0% 100% / .74), 0 16px 28px -22px hsl(0 0% 8% / .5);
+  }
+  .progress-page .wellness-progress-metric img {
+    filter: saturate(1.16) contrast(1.08) drop-shadow(0 10px 14px hsl(var(--primary) / .13));
+  }
+  .progress-page .wellness-progress-metric.is-active {
+    border-color: hsl(var(--primary) / .76);
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / .45), 0 18px 32px -22px hsl(var(--primary) / .48);
+  }
+  .progress-page .wellness-progress-evolution {
+    background: linear-gradient(160deg, hsl(0 0% 100% / .96), hsl(330 65% 97% / .9));
+    box-shadow: inset 0 0 0 2px hsl(var(--primary) / .9), 0 22px 38px -25px hsl(0 0% 8% / .48);
+  }
+  .progress-page .wellness-progress-photos {
+    background: linear-gradient(145deg, hsl(0 0% 100% / .96), hsl(290 50% 96% / .88));
+  }
+  .progress-page .wellness-progress-history { background: linear-gradient(145deg, hsl(0 0% 100% / .96), hsl(340 50% 97% / .9)); }
+  .progress-page .wellness-history-card {
+    background: linear-gradient(145deg, hsl(0 0% 100% / .9), hsl(330 60% 96% / .95));
+    border: 1px solid hsl(var(--primary) / .28);
+  }
+  .progress-page .wellness-progress-goals {
+    background: linear-gradient(145deg, hsl(0 0% 12%), hsl(0 0% 18%));
+    border-color: hsl(0 0% 5%);
+    box-shadow: inset 0 0 0 2px hsl(var(--primary) / .9), 0 22px 42px -26px hsl(0 0% 8% / .75);
+  }
+  .progress-page .wellness-progress-goals h2,
+  .progress-page .wellness-progress-goals .muted { color: hsl(0 0% 96% / .88); }
+  .progress-page .wellness-progress-goals .field { background: hsl(0 0% 100% / .96); }
+  .progress-page .wellness-chart-empty {
+    border: 1px dashed hsl(var(--primary) / .45);
+    border-radius: 1rem;
+    background: hsl(0 0% 100% / .55);
+  }
+  .progress-page .trend-positive { color: #56A600; }
+
+  .wellness-generator {
+    background: hsl(var(--anthracite));
+    color: hsl(0 0% 98%);
+    border-color: hsl(0 0% 4%);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.9), 0 20px 44px -24px hsl(0 0% 8% / 0.72);
+  }
+  .wellness-generator .label,
+  .wellness-generator .muted { color: hsl(0 0% 88%); }
+  .wellness-generator .field {
+    background: hsl(0 0% 100% / 0.96);
+    border-color: hsl(var(--primary) / 0.45);
+  }
+
+  .wellness-nutrition {
+    background: linear-gradient(145deg, hsl(var(--anthracite)), hsl(0 0% 15%));
+    color: hsl(0 0% 96%);
+    border: 1px solid hsl(0 0% 5%);
+    border-radius: 1.5rem;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.86), 0 22px 46px -28px hsl(0 0% 8% / 0.8);
+  }
+  .wellness-nutrition h1,
+  .wellness-nutrition h2,
+  .wellness-nutrition h3,
+  .wellness-nutrition .muted { color: hsl(0 0% 95%); }
+  .wellness-nutrition .card-soft {
+    background: hsl(0 0% 13% / 0.96);
+    color: hsl(0 0% 96%);
+    border-color: hsl(0 0% 4%);
+    box-shadow: 0 0 0 1.5px hsl(var(--primary) / 0.75), 0 12px 28px -20px hsl(0 0% 0% / 0.85);
+  }
+  .wellness-nutrition .field {
+    background: hsl(0 0% 98%);
+    color: hsl(0 0% 10%);
+  }
 }

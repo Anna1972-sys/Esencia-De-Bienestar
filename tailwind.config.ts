@@ -7,8 +7,8 @@ export default {
     container: { center: true, padding: "1rem", screens: { "2xl": "1200px" } },
     extend: {
       fontFamily: {
-        serif: ["Playfair Display", "Cormorant Garamond", "Georgia", "serif"],
-        sans: ["Plus Jakarta Sans", "Karla", "system-ui", "sans-serif"],
+        serif: ["Inter", "Plus Jakarta Sans", "Montserrat", "system-ui", "sans-serif"],
+        sans: ["Inter", "Plus Jakarta Sans", "Montserrat", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

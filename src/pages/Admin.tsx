@@ -2,42 +2,55 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import recipesImage from "@/assets/home-recetas.png";
+import userRecipesImage from "@/assets/cat-comidas.jpg";
+import videosImage from "@/assets/challenge-videos.png";
+import movementImage from "@/assets/home-movimiento.png";
+import nutritionImage from "@/assets/home-nutrition-premium-light.png";
+import challengesImage from "@/assets/home-retos.png";
+import shoppingImage from "@/assets/challenge-shopping.png";
+import diaryImage from "@/assets/home-diario.png";
+import progressImage from "@/assets/home-progreso.png";
+import usersImage from "@/assets/home-admin.png";
+import invitationsImage from "@/assets/home-compra.png";
+import settingsImage from "@/assets/home-biblioteca.png";
+import welcomeImage from "@/assets/home-admin.png";
+import settingsDeskImage from "@/assets/home-diario.png";
 
 type Item = {
   to: string;
   label: string;
   desc: string;
-  emoji: string;
-  gradient: string;
+  image: string;
 };
 
 const groups: { title: string; items: Item[] }[] = [
   {
     title: "Contenido",
     items: [
-      { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas",                    emoji: "🍽️", gradient: "from-rose-100 via-pink-100 to-fuchsia-100" },
-      { to: "/app/admin/recetas-usuarias",   label: "Recetas de usuarias",     desc: "Revisar recetas de clientas",               emoji: "✨", gradient: "from-pink-100 via-fuchsia-100 to-purple-100" },
+      { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas", image: recipesImage },
+      { to: "/app/admin/recetas-usuarias",   label: "Recetas de usuarias",     desc: "Revisar recetas de clientas", image: userRecipesImage },
       
-      { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo",                        emoji: "🎥", gradient: "from-purple-100 via-violet-100 to-pink-100" },
-      { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas",                  emoji: "💪", gradient: "from-rose-100 via-pink-100 to-purple-100" },
-      { to: "/app/admin/nutricion",          label: "Nutrición deportiva",     desc: "Alimentación y batidos",                    emoji: "🍎", gradient: "from-pink-100 via-rose-100 to-fuchsia-100" },
-      { to: "/app/admin/retos",              label: "Retos de 5 días",         desc: "Crear y editar retos",                      emoji: "🔥", gradient: "from-fuchsia-100 via-pink-100 to-rose-100" },
+      { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
+      { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
+      { to: "/app/admin/nutricion",          label: "Nutrición deportiva",     desc: "Alimentación y batidos", image: nutritionImage },
+      { to: "/app/admin/retos",              label: "Retos de 5 días",         desc: "Crear y editar retos", image: challengesImage },
     ],
   },
   {
-    title: "Herramientas de usuario",
+    title: "Herramientas",
     items: [
-      { to: "/app/admin/lista-compra",       label: "Lista de compra",         desc: "Productos y categorías",                    emoji: "🛒", gradient: "from-rose-100 via-pink-100 to-fuchsia-100" },
-      { to: "/app/admin/diario",             label: "Diario",                  desc: "Preguntas del diario",                      emoji: "📔", gradient: "from-violet-100 via-purple-100 to-fuchsia-100" },
-      { to: "/app/admin/progreso",           label: "Progreso",                desc: "Métricas y objetivos",                      emoji: "📈", gradient: "from-pink-100 via-fuchsia-100 to-violet-100" },
+      { to: "/app/admin/lista-compra",       label: "Lista de compra",         desc: "Productos y categorías", image: shoppingImage },
+      { to: "/app/admin/diario",             label: "Diario",                  desc: "Preguntas del diario", image: diaryImage },
+      { to: "/app/admin/progreso",           label: "Progreso",                desc: "Métricas y objetivos", image: progressImage },
     ],
   },
   {
     title: "Sistema",
     items: [
-      { to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos",                   emoji: "👥", gradient: "from-purple-100 via-fuchsia-100 to-pink-100" },
-      { to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones",              emoji: "✉️", gradient: "from-fuchsia-100 via-pink-100 to-rose-100" },
-      { to: "/app/admin/configuracion",      label: "Configuración",           desc: "Apariencia y textos",                       emoji: "🪷", gradient: "from-violet-100 via-purple-100 to-pink-100" },
+      { to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos", image: usersImage },
+      { to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones", image: invitationsImage },
+      { to: "/app/admin/configuracion",      label: "Configuración",           desc: "Apariencia y textos", image: settingsDeskImage },
     ],
   },
 ];
@@ -48,18 +61,6 @@ type Stats = {
   pendingInvites: number | null;
   activeChallenges: number | null;
 };
-
-function StatCard({ label, value, emoji, gradient }: { label: string; value: number | null; emoji: string; gradient: string }) {
-  return (
-    <div className={`rounded-2xl bg-gradient-to-br ${gradient} border border-white/60 p-4 shadow-[0_4px_18px_-8px_hsl(320_60%_50%/0.18)]`}>
-      <div className="text-2xl mb-1.5 leading-none">{emoji}</div>
-      <div className="text-2xl font-serif font-medium leading-none" style={{ color: "hsl(var(--plum))" }}>
-        {value ?? "—"}
-      </div>
-      <div className="text-[11px] muted mt-1.5 leading-tight">{label}</div>
-    </div>
-  );
-}
 
 export default function Admin() {
   const [stats, setStats] = useState<Stats>({ recipes: null, users: null, pendingInvites: null, activeChallenges: null });
@@ -83,48 +84,63 @@ export default function Admin() {
 
   return (
     <div className="pb-28 max-w-3xl mx-auto">
-      <Link to="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-4 hover:text-foreground transition-colors">
+      <Link to="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Volver
       </Link>
 
-      <header className="mb-7">
+      <header className="mb-5">
+        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary mb-1">Esencia de Bienestar</p>
         <h1 className="heading-lg tracking-tight">Panel de administración</h1>
-        <p className="muted text-sm mt-1">Tu centro de control de Esencia de Bienestar.</p>
+        <p className="muted text-sm mt-1">Tu centro de control, contenido y acompañamiento.</p>
       </header>
 
-      {/* Resumen */}
-      <section className="mb-9">
-        <div className="text-[11px] font-semibold muted uppercase tracking-[0.14em] mb-3 px-1">Resumen</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Recetas"               value={stats.recipes}          emoji="🍽️" gradient="from-rose-50 via-pink-50 to-fuchsia-50" />
-          <StatCard label="Usuarias registradas"  value={stats.users}            emoji="👥" gradient="from-pink-50 via-fuchsia-50 to-purple-50" />
-          <StatCard label="Invitaciones pendientes" value={stats.pendingInvites} emoji="✉️" gradient="from-fuchsia-50 via-purple-50 to-violet-50" />
-          <StatCard label="Retos activos"         value={stats.activeChallenges} emoji="🔥" gradient="from-purple-50 via-pink-50 to-rose-50" />
+      <section className="challenge-premium rounded-[28px] overflow-hidden mb-7 relative text-white">
+        <img src={welcomeImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/45" />
+        <div className="relative p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div>
+              <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/75">Bienvenida</div>
+              <div className="font-serif text-2xl mt-1 text-white">Tu espacio de acompañamiento</div>
+              <p className="text-xs text-white/70 mt-1">Cuida el contenido que acompaña a tu comunidad.</p>
+            </div>
+            <div className="h-11 w-11 rounded-2xl grid place-items-center text-2xl bg-white/20 border border-white/30 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]">✦</div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              [stats.recipes, "Recetas"],
+              [stats.users, "Usuarias"],
+              [stats.pendingInvites, "Invitaciones"],
+              [stats.activeChallenges, "Retos activos"],
+            ].map(([value, label]) => (
+              <div key={label as string} className="rounded-2xl bg-black/20 border border-white/15 backdrop-blur-sm p-2.5 shadow-[0_8px_18px_-16px_rgba(0,0,0,0.35)]">
+                <div className="font-serif text-xl leading-none text-white">{value ?? "—"}</div>
+                <div className="text-[10px] text-white/70 mt-1">{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Secciones */}
-      <div className="space-y-10">
+      <div className="space-y-8">
         {groups.map((g) => (
           <section key={g.title}>
-            <div className="text-[11px] font-semibold muted uppercase tracking-[0.14em] mb-3 px-1">
-              {g.title}
-            </div>
+            <div className="flex items-center gap-3 mb-3 px-1"><div className="h-px flex-1 bg-gradient-to-r from-primary/40 to-transparent" /><div className="text-[11px] font-bold muted uppercase tracking-[0.16em]">{g.title}</div><div className="h-px flex-1 bg-gradient-to-l from-primary/40 to-transparent" /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {g.items.map((s) => (
                 <Link
                   key={s.to}
                   to={s.to}
-                  className="group relative flex items-center gap-4 px-4 py-4 rounded-2xl bg-card border border-border/50 shadow-[0_2px_10px_-4px_hsl(315_55%_45%/0.10)] hover:shadow-[0_14px_36px_-14px_hsl(320_70%_50%/0.28)] hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-200"
+                  className="challenge-premium group relative overflow-hidden rounded-[22px] bg-white/90 hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${s.gradient} grid place-items-center shrink-0 text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]`}>
-                    <span className="leading-none">{s.emoji}</span>
-                  </div>
+                  <img src={s.image} alt="" className="h-32 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="flex items-center gap-3 px-4 py-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[15px] leading-tight text-foreground">{s.label}</div>
                     <div className="text-xs muted mt-1 truncate">{s.desc}</div>
                   </div>
                   <ChevronRight className="h-4 w-4 muted shrink-0 group-hover:translate-x-0.5 group-hover:text-primary transition-all" />
+                  </div>
                 </Link>
               ))}
             </div>

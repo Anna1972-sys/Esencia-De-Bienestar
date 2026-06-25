@@ -40,8 +40,8 @@ export default function RecipeGenerator() {
       ? [...ingredients, ...parseIngredients(draft)]
       : ingredients;
 
-    if (mode === "ingredients" && finalIngredients.length === 0) {
-      return toast.error("Añade al menos un ingrediente");
+    if (finalIngredients.length === 0) {
+      return toast.error("Añade ingredientes con sus cantidades exactas para 2 personas");
     }
     setLoading(true);
     setDraft("");
@@ -54,7 +54,7 @@ export default function RecipeGenerator() {
       mealType,
       maxTime: maxTime ? Number(maxTime) : undefined,
     };
-    const { data, error } = await supabase.functions.invoke("generate-recipe", { body: { mode, ingredients: finalIngredients, preferences } });
+    const { data, error } = await supabase.functions.invoke("generate-recipe", { body: { mode, ingredients: finalIngredients, preferences, servings: 2 } });
     setLoading(false);
     if (error) return toast.error(error.message || "Error generando receta");
     if (data?.error) return toast.error(data.error);
@@ -80,13 +80,13 @@ export default function RecipeGenerator() {
       user_id: user.id,
       title: r.title,
       description: r.description,
-      servings: r.servings ?? 1,
+      servings: 2,
       prep_time: r.prep_time,
       macros: r.macros ?? {},
       ingredients: r.ingredients ?? [],
       steps: r.steps ?? [],
       tags: r.tags ?? [],
-      is_high_protein: (r.macros?.protein ?? 0) >= 25,
+      is_high_protein: r.nutrition_status === "verified" && (r.macros?.protein ?? 0) >= 25,
     }).select().single();
     if (error) return toast.error(error.message);
     toast.success("Guardada en Mis recetas");
@@ -107,7 +107,7 @@ export default function RecipeGenerator() {
         <ArrowLeft className="h-4 w-4" /> Volver
       </Link>
       <h1 className="heading-lg mb-1">Generador IA</h1>
-      <p className="muted text-sm mb-5">Recetas a tu medida con lo que tienes en casa.</p>
+      <p className="muted text-sm mb-5">Recetas para 2 personas, con cantidades y nutrición desglosada por ración.</p>
 
       <div className="grid grid-cols-3 gap-1.5 bg-muted/60 p-1 rounded-full mb-5 text-xs">
         {([["ingredients","Ingredientes"],["preferences","+ Preferencias"],["monthly","Plan mensual"]] as [Mode,string][]).map(([k,l]) => (
@@ -115,13 +115,13 @@ export default function RecipeGenerator() {
         ))}
       </div>
 
-      <div className="card-soft p-5 mb-5">
-        <label className="label">Ingredientes disponibles</label>
+      <div className="card-soft wellness-generator p-5 mb-5">
+        <label className="label">Ingredientes para 2 personas</label>
         <div className="flex gap-2">
-          <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addIng())} className="field flex-1" placeholder="Escribe ingredientes separados por comas…" />
+          <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addIng())} className="field flex-1" placeholder="Ej. 300 g de pollo, 160 g de arroz…" />
           <button onClick={addIng} className="btn-ghost px-3" title="Añadir"><Plus className="h-4 w-4" /></button>
         </div>
-        <p className="text-[11px] muted mt-1.5">Ejemplo: pollo, huevos, queso, espinacas</p>
+        <p className="text-[11px] muted mt-1.5">Indica siempre las cantidades reales. No se calculan macros sin una referencia verificable.</p>
         {ingredients.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
             {ingredients.map((i, idx) => (
@@ -164,7 +164,7 @@ export default function RecipeGenerator() {
             <details key={i} className="card-soft p-4">
               <summary className="cursor-pointer font-medium flex justify-between items-center">
                 <span>{r.title}</span>
-                <span className="text-xs muted">{r.macros?.protein ?? 0}g prot · {r.macros?.calories ?? 0} kcal</span>
+                <span className="text-xs muted">{r.nutrition_status === "verified" ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal` : "Nutrición pendiente de verificación"}</span>
               </summary>
               <div className="mt-3 text-sm space-y-2">
                 <p className="muted">{r.description}</p>
@@ -179,6 +179,9 @@ export default function RecipeGenerator() {
 }
 
 function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
+  const perServing = recipe.macros ?? {};
+  const total = recipe.total_macros ?? recipe.macros_total ?? null;
+  const nutritionAvailable = recipe.nutrition_status === "verified" && Boolean(recipe.nutrition_reference?.trim()) && (Number(perServing.protein) > 0 || Number(perServing.carbs) > 0 || Number(perServing.fat) > 0 || Number(perServing.calories) > 0);
   return (
     <div className="card-soft p-5 animate-fade-in">
       <h2 className="heading-md mb-1">{recipe.title}</h2>
@@ -186,13 +189,18 @@ function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
       </div>
-      <div className="grid grid-cols-4 gap-2 text-center my-3 text-xs">
-        <Stat label="Prot" value={`${recipe.macros?.protein ?? 0}g`} />
-        <Stat label="Carb" value={`${recipe.macros?.carbs ?? 0}g`} />
-        <Stat label="Grasa" value={`${recipe.macros?.fat ?? 0}g`} />
-        <Stat label="Kcal" value={`${recipe.macros?.calories ?? 0}`} />
-      </div>
-      <h3 className="font-serif text-base mt-4 mb-1">Ingredientes</h3>
+      <div className="text-sm font-medium mt-4">Raciones: 2 personas</div>
+      <div className="text-sm muted mt-1">Tiempo de preparación: {recipe.prep_time ?? "No indicado"} min</div>
+      {nutritionAvailable ? <>
+        <h3 className="font-serif text-base mt-4 mb-2">Información nutricional por ración (1 persona)</h3>
+        <NutritionStats values={perServing} />
+        {total && <>
+          <h3 className="font-serif text-base mt-4 mb-2">Información nutricional total (2 personas)</h3>
+          <NutritionStats values={total} />
+        </>}
+        {recipe.nutrition_reference && <p className="text-[11px] muted mt-2">Referencia nutricional: {recipe.nutrition_reference}</p>}
+      </> : <p className="card-soft p-3 text-sm muted mt-4">No se muestran valores nutricionales porque no se pudo verificar una referencia nutricional suficiente para todos los ingredientes.</p>}
+      <h3 className="font-serif text-base mt-4 mb-1">Ingredientes (2 personas)</h3>
       <ul className="text-sm space-y-1 list-disc pl-5 muted">
         {(recipe.ingredients ?? []).map((i: any, k: number) => <li key={k}>{typeof i === "string" ? i : `${i.quantity ?? ""} ${i.name ?? ""}`}</li>)}
       </ul>
@@ -203,6 +211,16 @@ function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
   );
 }
 
+function NutritionStats({ values }: { values: any }) {
+  return <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
+    <Stat label="Prot" value={`${values.protein ?? 0}g`} />
+    <Stat label="Carb" value={`${values.carbs ?? 0}g`} />
+    <Stat label="Grasa" value={`${values.fat ?? 0}g`} />
+    <Stat label="Fibra" value={`${values.fiber ?? 0}g`} />
+    <Stat label="Kcal" value={`${values.calories ?? 0}`} />
+  </div>;
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-muted/60 py-2"><div className="font-semibold">{value}</div><div className="muted text-[10px] uppercase tracking-wide">{label}</div></div>;
+  return <div className="nutrition-stat"><div className="font-semibold">{value}</div><div className="muted text-[10px] uppercase tracking-wide">{label}</div></div>;
 }

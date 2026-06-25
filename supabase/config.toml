@@ -1,0 +1,22 @@
+project_id = "agoycljrrfcfauguavng"
+
+[functions.generate-recipe]
+verify_jwt = true
+
+[functions.validate-invitation]
+verify_jwt = false
+
+[functions.accept-invitation]
+verify_jwt = false
+
+[functions.calculate-macros]
+verify_jwt = true
+
+[functions.admin-delete-user]
+verify_jwt = true
+
+[functions.admin-list-users]
+verify_jwt = true
+
+[functions.admin-update-user]
+verify_jwt = true

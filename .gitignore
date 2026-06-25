@@ -1,2 +1,8 @@
 node_modules/
 dist/
+.pnpm-store/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
