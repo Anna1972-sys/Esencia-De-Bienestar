@@ -26,7 +26,7 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
   { key: "thigh", label: "Muslos", unit: "cm", color: "hsl(260 55% 68%)", image: imgThigh },
 ];
 
-const DISPLAY_METRIC_ORDER: MetricKey[] = ["weight", "waist", "chest", "hip", "thigh", "arm"];
+const DISPLAY_METRIC_ORDER: MetricKey[] = ["weight", "waist", "chest", "hip", "arm", "thigh"];
 
 export default function WellnessProgress() {
   const navigate = useNavigate();
@@ -238,12 +238,12 @@ export default function WellnessProgress() {
           const darkFrame = x.key === "weight" || x.key === "chest" || x.key === "arm";
           return (
             <button key={x.key} onClick={() => setMetric(x.key)}
-              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} group relative flex min-h-[168px] overflow-hidden rounded-[26px] border p-0 transition duration-300 ${active ? "is-active shadow-soft scale-[1.025]" : "hover:border-primary/45"}`}
+              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} group relative flex min-h-[168px] overflow-hidden rounded-[26px] border p-0 transition duration-300 ${active ? "is-active shadow-soft scale-[1.035] ring-4 ring-primary/28" : "hover:border-primary/45"}`}
             >
               <img src={x.image} alt={x.label} loading="lazy" width={512} height={512}
-                className={`absolute inset-0 h-full w-full object-cover transition duration-500 ease-out ${active ? "-translate-y-1 scale-[1.18]" : "scale-105 group-hover:-translate-y-0.5 group-hover:scale-[1.12]"}`} />
+                className={`absolute inset-0 h-full w-full object-cover transition duration-500 ease-out ${active ? "-translate-y-2 scale-[1.24]" : "scale-105 group-hover:-translate-y-0.5 group-hover:scale-[1.12]"}`} />
               <span className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white via-white/90 to-transparent" />
-              <span className={`relative mt-auto flex w-full items-center justify-center px-3 pb-3.5 text-[15px] font-extrabold tracking-wide drop-shadow-[0_1px_2px_hsl(0_0%_100%/.9)] ${active ? "text-primary" : "text-foreground"}`}>
+              <span className="relative mt-auto flex w-full items-center justify-center px-3 pb-3.5 text-[15px] font-extrabold tracking-wide text-foreground drop-shadow-[0_1px_2px_hsl(0_0%_100%/.9)]">
                 {x.label}
               </span>
             </button>
