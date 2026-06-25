@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X } from "lucide-react";
+import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import imgWeight from "@/assets/metric-weight.png";
 import imgWaist from "@/assets/metric-waist.png";
@@ -153,15 +153,18 @@ export default function WellnessProgress() {
   };
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="progress-page space-y-6 pb-6">
       <Link to="/app/diario" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
         <ArrowLeft className="h-4 w-4" /> Volver al diario
       </Link>
 
-      <header>
-        <p className="muted text-xs tracking-[0.18em] uppercase">Mi progreso</p>
-        <h1 className="heading-lg mt-1">Tu evolución</h1>
-        <p className="muted text-sm italic mt-1.5">"Lo que se mide, se transforma."</p>
+      <header className="wellness-hero relative overflow-hidden rounded-[28px] px-6 py-7">
+        <div className="absolute -right-7 -top-8 h-32 w-32 rounded-full bg-primary/25 blur-2xl" />
+        <div className="relative">
+          <p className="text-xs tracking-[0.18em] uppercase text-white/65">Mi progreso</p>
+          <h1 className="heading-lg mt-1 text-white">Tu evolución</h1>
+          <p className="mt-2 text-sm text-white/80">Pequeños hábitos, cambios visibles.</p>
+        </div>
       </header>
 
       {/* Selector de métrica */}
@@ -187,10 +190,10 @@ export default function WellnessProgress() {
       </button>
 
       {/* Gráfico */}
-      <section className="card-elegant p-5">
+      <section className="card-elegant wellness-progress-evolution p-5">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>{m.label}</h2>
+            <h2 className="font-sans font-bold text-lg">{m.label}</h2>
             <p className="text-xs muted">Evolución en {period === "week" ? "7 días" : period === "month" ? "30 días" : "total"}</p>
           </div>
           <div className="flex gap-1 bg-muted rounded-full p-1">
@@ -212,8 +215,9 @@ export default function WellnessProgress() {
       </section>
 
       {/* Antes y después con fotos */}
-      <section className="card-elegant p-5">
-        <h2 className="font-serif text-lg mb-3" style={{ color: "hsl(var(--plum))" }}>Antes y después</h2>
+      <section className="card-elegant wellness-progress-photos p-5">
+        <h2 className="font-sans font-bold text-lg">Antes y después</h2>
+        <p className="mt-1 mb-4 text-xs muted">Guarda tus fotos para ver tu transformación con el tiempo.</p>
         <div className="grid grid-cols-2 gap-3">
           <PhotoCard
             label="Antes"
@@ -240,8 +244,8 @@ export default function WellnessProgress() {
       </section>
 
       {/* Historial semanal y mensual */}
-      <section className="card-elegant p-5">
-        <h2 className="font-serif text-lg mb-3" style={{ color: "hsl(var(--plum))" }}>Historial</h2>
+      <section className="card-elegant wellness-progress-history p-5">
+        <h2 className="font-sans font-bold text-lg mb-3">Historial</h2>
         <div className="grid grid-cols-2 gap-3">
           <HistoryCard label="Esta semana" entries={lastN(metricMeas, 7)} unit={m.unit} />
           <HistoryCard label="Este mes" entries={lastN(metricMeas, 30)} unit={m.unit} />
@@ -259,14 +263,16 @@ export default function WellnessProgress() {
             ))}
           </ul>
         )}
+        {metricMeas.length === 0 && <p className="mt-4 rounded-2xl bg-white/65 px-3 py-3 text-center text-xs muted">Aún no hay medidas registradas para esta categoría.</p>}
       </section>
 
       {/* Objetivos */}
-      <section className="card-elegant p-5">
+      <section className="card-elegant wellness-progress-goals p-5">
         <div className="flex items-center gap-2 mb-3">
           <Target className="h-4 w-4 text-primary" />
-          <h2 className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>Mis objetivos</h2>
+          <h2 className="font-sans font-bold text-lg">Mis objetivos</h2>
         </div>
+        <p className="mb-4 text-xs muted">Define pequeños objetivos y sigue tu avance.</p>
         <div className="flex flex-wrap gap-2 mb-4">
           <select className="field flex-1 min-w-[120px]" value={newGoal.metric} onChange={e => setNewGoal({ ...newGoal, metric: e.target.value as MetricKey })}>
             {METRICS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
@@ -388,8 +394,11 @@ function HistoryCard({ label, entries, unit }: { label: string; entries: Measure
   const last = entries[entries.length - 1]?.value ?? null;
   const diff = entries.length >= 2 && first != null && last != null ? +(last - first).toFixed(2) : null;
   return (
-    <div className="rounded-2xl p-4 bg-muted/60">
-      <p className="text-[10px] uppercase tracking-wider muted">{label}</p>
+    <div className="wellness-history-card rounded-2xl p-4">
+      <div className="flex items-center gap-1.5">
+        <CalendarDays className="h-3.5 w-3.5 text-primary" />
+        <p className="text-[10px] uppercase tracking-wider muted">{label}</p>
+      </div>
       <p className="font-serif text-xl mt-1" style={{ color: "hsl(var(--plum))" }}>
         {diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`} <span className="text-xs muted">{unit}</span>
       </p>
@@ -416,7 +425,7 @@ function Stat({ label, value, unit, trend }: { label: string; value: number | nu
 
 function LineChart({ points, color, unit }: { points: number[]; color: string; unit: string }) {
   if (points.length < 2) {
-    return <div className="h-40 grid place-items-center text-sm muted">Añade al menos 2 registros para ver tu evolución.</div>;
+    return <div className="wellness-chart-empty h-40 grid place-items-center px-6 text-center text-sm muted">Añade tus primeros registros para empezar a ver tu evolución.</div>;
   }
   const W = 320, H = 140, P = 16;
   const min = Math.min(...points), max = Math.max(...points);
