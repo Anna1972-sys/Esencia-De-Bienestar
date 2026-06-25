@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays, Scale, Ruler, Heart, Dumbbell } from "lucide-react";
+import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import imgWeight from "@/assets/metric-weight.png";
 import imgWaist from "@/assets/metric-waist.png";
@@ -27,14 +27,6 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
 ];
 
 const DISPLAY_METRIC_ORDER: MetricKey[] = ["weight", "waist", "chest", "hip", "thigh", "arm"];
-const METRIC_ICONS: Record<MetricKey, typeof Scale> = {
-  weight: Scale,
-  waist: Ruler,
-  hip: Ruler,
-  chest: Heart,
-  arm: Dumbbell,
-  thigh: Ruler,
-};
 
 export default function WellnessProgress() {
   const navigate = useNavigate();
@@ -244,16 +236,14 @@ export default function WellnessProgress() {
         {DISPLAY_METRIC_ORDER.map(key => METRICS.find(item => item.key === key)!).map(x => {
           const active = metric === x.key;
           const darkFrame = x.key === "weight" || x.key === "chest" || x.key === "arm";
-          const Icon = METRIC_ICONS[x.key];
           return (
             <button key={x.key} onClick={() => setMetric(x.key)}
-              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} group relative flex min-h-[168px] overflow-hidden rounded-[26px] border p-0 transition ${active ? "is-active shadow-soft" : "hover:border-primary/45"}`}
+              className={`wellness-progress-metric ${darkFrame ? "metric-frame-dark" : "metric-frame-pink"} group relative flex min-h-[168px] overflow-hidden rounded-[26px] border p-0 transition duration-300 ${active ? "is-active shadow-soft scale-[1.025]" : "hover:border-primary/45"}`}
             >
               <img src={x.image} alt={x.label} loading="lazy" width={512} height={512}
-                className={`absolute inset-0 h-full w-full object-cover transition duration-300 ${active ? "scale-110" : "scale-105 group-hover:scale-110"}`} />
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/86 to-transparent" />
-              <span className={`relative mt-auto flex w-full items-center justify-center gap-1.5 px-3 pb-3 text-[13px] font-bold ${active ? "text-foreground" : "text-foreground/80"}`}>
-                <Icon className={`h-3.5 w-3.5 ${active ? "text-primary" : "text-foreground/70"}`} />
+                className={`absolute inset-0 h-full w-full object-cover transition duration-500 ease-out ${active ? "-translate-y-1 scale-[1.18]" : "scale-105 group-hover:-translate-y-0.5 group-hover:scale-[1.12]"}`} />
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white via-white/90 to-transparent" />
+              <span className={`relative mt-auto flex w-full items-center justify-center px-3 pb-3.5 text-[15px] font-extrabold tracking-wide drop-shadow-[0_1px_2px_hsl(0_0%_100%/.9)] ${active ? "text-primary" : "text-foreground"}`}>
                 {x.label}
               </span>
             </button>
