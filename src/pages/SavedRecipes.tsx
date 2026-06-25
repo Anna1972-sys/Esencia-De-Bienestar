@@ -54,9 +54,9 @@ export default function SavedRecipes() {
           {filtered.map(r => {
             const nutritionVerified = r.macros?.nutrition_status === "verified" && Boolean(r.macros?.nutrition_reference?.trim());
             return <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
-              <summary className="cursor-pointer">
-                <div className="grid grid-cols-[42%_1fr] min-h-[142px]">
-                  <div className="recipe-premium-image overflow-hidden">
+              <summary className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                <div className="grid grid-cols-[42%_1fr] min-h-[142px] items-stretch">
+                  <div className="recipe-premium-image h-full min-h-[142px] overflow-hidden">
                     <img
                       src={r.image_url || getCategoryImage(r.category) || fallbackRecipeImage}
                       alt={r.title}
