@@ -29,6 +29,7 @@ export default function AdminSettings() {
   const [s, setS] = useState<Settings>(empty);
   const [busy, setBusy] = useState(false);
   const [refreshingMedia, setRefreshingMedia] = useState(false);
+  const [fixingBreakfasts, setFixingBreakfasts] = useState(false);
 
   useEffect(() => {
     (supabase as any)
@@ -80,6 +81,29 @@ export default function AdminSettings() {
     }
   };
 
+  const fixBreakfasts = async () => {
+    if (fixingBreakfasts) return;
+    setFixingBreakfasts(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch("/api/fix-breakfasts-sin-herbalife", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "No se pudieron corregir los desayunos");
+      console.log("[Desayunos sin Herbalife corregidos]", data);
+      toast.success(`Desayunos sin Herbalife corregidos: ${data?.updated ?? 0}`);
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudieron corregir los desayunos");
+    } finally {
+      setFixingBreakfasts(false);
+    }
+  };
+
   return (
     <div className="pb-28">
       <AdminPageHeader title="Ajustes generales" subtitle="Personaliza la apariencia y los textos principales." />
@@ -94,6 +118,10 @@ export default function AdminSettings() {
         <button type="button" onClick={refreshMediaLinks} disabled={refreshingMedia} className="btn-secondary w-full">
           <RefreshCw className={`h-4 w-4 ${refreshingMedia ? "animate-spin" : ""}`} />
           {refreshingMedia ? "Refrescando enlaces…" : "Refrescar enlaces de medios"}
+        </button>
+        <button type="button" onClick={fixBreakfasts} disabled={fixingBreakfasts} className="btn-secondary w-full">
+          <RefreshCw className={`h-4 w-4 ${fixingBreakfasts ? "animate-spin" : ""}`} />
+          {fixingBreakfasts ? "Corrigiendo desayunos…" : "Corregir Desayunos sin Herbalife"}
         </button>
       </section>
 
