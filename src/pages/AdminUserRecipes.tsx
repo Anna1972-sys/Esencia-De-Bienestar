@@ -54,17 +54,12 @@ const DEFAULT_LIBRARY_CATEGORY: Record<string, string> = {
 const displayCategory = (category?: string | null) =>
   category ? GENERATED_CATEGORY_LABEL[category] ?? LIBRARY_CATEGORIES.find(c => c.id === category)?.label ?? category : "Sin categoría";
 
-const QTY_RE = /\d/;
 const parseEditableIngredients = (text: string) =>
   text.split("\n").map(s => s.trim()).filter(Boolean);
 
 const calculateRecipeMacros = async (ingredientsText: string, servings: number, category?: string | null, fallbackMacros: any = {}) => {
   const ingredients = parseEditableIngredients(ingredientsText);
   if (!ingredients.length) return fallbackMacros ?? {};
-  const missingQty = ingredients.filter(i => !QTY_RE.test(i));
-  if (missingQty.length > 0) {
-    throw new Error(`Cada ingrediente debe incluir una cantidad. Revisa: ${missingQty[0]}`);
-  }
   const data = await calculateWithMacroSpecialist({
     ingredientsText,
     servings: Number(servings) || 1,
@@ -131,9 +126,12 @@ export default function AdminUserRecipes() {
       macros = await calculateRecipeMacros(ingredientsText, servings, payload.category ?? r.category, macros);
       macros.servings = macros.servings ?? servings;
     } catch (err: any) {
-      setBusy(false);
-      toast.error(err.message || "No se pudieron calcular los macros");
-      return;
+      macros = {
+        ...(macros ?? {}),
+        nutrition_status: macros?.nutrition_status ?? "pending_review",
+        nutrition_note: macros?.nutrition_note ?? "pendiente de revisión",
+      };
+      toast.warning(err.message || "No se pudieron recalcular los macros. Se conserva la receta con revisión pendiente.");
     }
     const insert = {
       user_id: user.id,
@@ -175,9 +173,12 @@ export default function AdminUserRecipes() {
       macros = await calculateRecipeMacros(ingredientsText, servings, payload.category ?? r.category, macros);
       macros.servings = macros.servings ?? servings;
     } catch (err: any) {
-      setBusy(false);
-      toast.error(err.message || "No se pudieron calcular los macros");
-      return;
+      macros = {
+        ...(macros ?? {}),
+        nutrition_status: macros?.nutrition_status ?? "pending_review",
+        nutrition_note: macros?.nutrition_note ?? "pendiente de revisión",
+      };
+      toast.warning(err.message || "No se pudieron recalcular los macros. Se conserva la receta con revisión pendiente.");
     }
     const { error } = await supabase.from("recipes").update({
       title: payload.title ?? r.title,

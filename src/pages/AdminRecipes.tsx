@@ -69,7 +69,7 @@ export default function AdminRecipes() {
     const ingredients = parseIngredients(f.ingredients);
     if (ingredients.length === 0) { toast.error("Añade al menos un ingrediente"); return null; }
     const missingQty = ingredients.filter(i => !QTY_RE.test(i));
-    if (missingQty.length > 0) { toast.error(`Cada ingrediente debe incluir una cantidad. Revisa: ${missingQty[0]}`); return null; }
+    if (missingQty.length > 0) toast.warning(`Hay ingredientes sin cantidad. Se guardarán con revisión pendiente: ${missingQty[0]}`);
     setCalculating(true);
     try {
       const data = await calculateWithMacroSpecialist({
@@ -105,8 +105,7 @@ export default function AdminRecipes() {
     if (ingredients.length > 0) {
       const missingQty = ingredients.filter(i => !QTY_RE.test(i));
       if (missingQty.length > 0) {
-        toast.error(`Cada ingrediente debe incluir una cantidad (ej: "100 g de pollo"). Revisa: ${missingQty[0]}`);
-        return;
+        toast.warning(`Hay ingredientes sin cantidad. Se guardarán con revisión pendiente: ${missingQty[0]}`);
       }
     }
     let calculatedMacros: any = null;
@@ -124,8 +123,7 @@ export default function AdminRecipes() {
         }
       } catch (err: any) {
         setCalculating(false);
-        toast.error(err.message || "No se pudieron calcular los macros");
-        return;
+        toast.warning(err.message || "No se pudieron calcular los macros. La receta se guardará con revisión pendiente.");
       } finally {
         setCalculating(false);
       }
