@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowLeft, ChefHat } from "lucide-react";
 import { toast } from "sonner";
-import { getCategoryImage } from "@/lib/libraryCategories";
-import fallbackRecipeImage from "@/assets/home-recetas.png";
+
+const macroValue = (macros: any, key: string) => Number(macros?.[key] ?? 0);
+const hasNutrition = (macros: any) =>
+  ["calories", "protein", "carbs", "fat", "fiber"].some(key => macroValue(macros, key) > 0);
+const nutritionLabel = (macros: any) =>
+  macros?.nutrition_status === "verified" ? "Valores verificados" : "Valores estimados";
 
 export default function SavedRecipes() {
   const { user } = useAuth();
@@ -52,33 +56,63 @@ export default function SavedRecipes() {
       ) : (
         <div className="space-y-4">
           {filtered.map(r => {
-            const nutritionVerified = r.macros?.nutrition_status === "verified" && Boolean(r.macros?.nutrition_reference?.trim());
+            const macros = r.macros ?? {};
+            const nutritionAvailable = hasNutrition(macros);
+            const isHighProtein = macroValue(macros, "protein") >= 25 || r.is_high_protein;
             return <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
               <summary className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <div className="grid grid-cols-[42%_1fr] min-h-[142px] items-stretch">
-                  <div className="recipe-premium-image h-full min-h-[142px] overflow-hidden">
-                    <img
-                      src={r.image_url || getCategoryImage(r.category) || fallbackRecipeImage}
-                      alt={r.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = fallbackRecipeImage; }}
-                    />
+                  <div className="recipe-premium-image relative h-full min-h-[142px] overflow-hidden bg-gradient-to-br from-white via-primary/10 to-primary/20">
+                    <div className="absolute inset-0 grid place-items-center text-primary/70">
+                      <div className="h-14 w-14 rounded-2xl bg-white/80 border border-primary/20 grid place-items-center shadow-sm">
+                        <ChefHat className="h-7 w-7" />
+                      </div>
+                    </div>
+                    {r.image_url && (
+                      <img
+                        src={r.image_url}
+                        alt={r.title}
+                        loading="lazy"
+                        className="relative h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    )}
                   </div>
                   <div className="p-5 flex flex-col justify-center min-w-0">
                     <div className="flex justify-between items-start gap-2">
                       <div className="font-semibold text-lg leading-tight">{r.title}</div>
-                      {nutritionVerified && r.is_high_protein && <span className="chip shrink-0">Alta proteína</span>}
+                      {nutritionAvailable && isHighProtein && <span className="chip shrink-0">Alta proteína</span>}
                     </div>
                     <div className="text-[11px] leading-relaxed muted mt-2.5">
-                      {r.prep_time ?? "—"} min · {nutritionVerified ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal` : "Nutrición pendiente de fuente oficial"}
+                      {r.prep_time ?? "—"} min · {nutritionAvailable ? nutritionLabel(macros) : "Nutrición no registrada"}
                     </div>
+                    {nutritionAvailable && (
+                      <div className="grid grid-cols-5 gap-1.5 mt-3 text-center text-[10px]">
+                        <Macro label="Kcal" value={macroValue(macros, "calories")} />
+                        <Macro label="Prot" value={`${macroValue(macros, "protein")}g`} />
+                        <Macro label="Hidr" value={`${macroValue(macros, "carbs")}g`} />
+                        <Macro label="Grasa" value={`${macroValue(macros, "fat")}g`} />
+                        <Macro label="Fibra" value={`${macroValue(macros, "fiber")}g`} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </summary>
               <div className="text-sm px-4 pb-4 space-y-3">
                 <p className="muted">{r.description}</p>
                 <div>
+                  {nutritionAvailable && (
+                    <div className="mb-3">
+                      <div className="font-medium mb-1">Información nutricional por ración</div>
+                      <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
+                        <Macro label="Kcal" value={macroValue(macros, "calories")} />
+                        <Macro label="Prot" value={`${macroValue(macros, "protein")}g`} />
+                        <Macro label="Hidr" value={`${macroValue(macros, "carbs")}g`} />
+                        <Macro label="Grasa" value={`${macroValue(macros, "fat")}g`} />
+                        <Macro label="Fibra" value={`${macroValue(macros, "fiber")}g`} />
+                      </div>
+                    </div>
+                  )}
                   <div className="font-medium mb-1">Ingredientes</div>
                   <ul className="list-disc pl-5 muted">{(r.ingredients ?? []).map((i: any, k: number) => <li key={k}>{typeof i === "string" ? i : `${i.quantity ?? ""} ${i.name ?? ""}`}</li>)}</ul>
                 </div>
@@ -95,6 +129,15 @@ export default function SavedRecipes() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function Macro({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl bg-secondary px-1 py-2">
+      <div className="font-semibold text-foreground">{value || "—"}</div>
+      <div className="muted uppercase tracking-wide text-[9px] mt-0.5">{label}</div>
     </div>
   );
 }
