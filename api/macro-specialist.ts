@@ -287,6 +287,36 @@ function isBadLowFatMilkMatch(query: string, matchedName: string, macros: MacroV
   return (normalizedMatch === "leche" || normalizedMatch === "milk") && macros.fat > maxExpectedFat;
 }
 
+function requiresExactFatSecretMatch(query: string) {
+  return ["aceite oliva", "olive oil", "extra virgin olive oil"].includes(normalizeName(query));
+}
+
+function isAllowedExactOliveOilName(foodName: string) {
+  const normalized = normalizeName(foodName);
+  return [
+    "olive oil",
+    "aceite oliva",
+    "extra virgin olive oil",
+  ].includes(normalized);
+}
+
+function filterAllowedExactFoods(foods: any[], query: string, attempts?: any[], provider?: string) {
+  if (!requiresExactFatSecretMatch(query)) return foods;
+  const exactFoods = foods.filter(food => isAllowedExactOliveOilName(food?.food_name ?? ""));
+  attempts?.push({
+    provider,
+    query,
+    exactRule: "solo_aceite_de_oliva_simple",
+    acceptedNames: ["Olive Oil", "Aceite de oliva", "Extra Virgin Olive Oil"],
+    acceptedCount: exactFoods.length,
+    rejected: foods
+      .filter(food => !isAllowedExactOliveOilName(food?.food_name ?? ""))
+      .slice(0, 8)
+      .map(food => ({ foodId: food?.food_id, name: food?.food_name })),
+  });
+  return exactFoods;
+}
+
 function asArray<T>(value: T | T[] | undefined | null): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
@@ -350,7 +380,7 @@ async function searchFatSecretV3(name: string, amount: number) {
     region: "ES",
     language: "es",
   });
-  const foods = asArray(searchPayload?.foods_search?.results?.food);
+  const foods = filterAllowedExactFoods(asArray(searchPayload?.foods_search?.results?.food), query, undefined, "fatsecret-v3");
   if (!foods.length) return null;
 
   const best = pickBestFoodWithScore(foods, query);
@@ -380,7 +410,7 @@ async function searchFatSecretLegacy(name: string, amount: number) {
     format: "json",
     max_results: "8",
   });
-  const foods = asArray(searchPayload?.foods?.food);
+  const foods = filterAllowedExactFoods(asArray(searchPayload?.foods?.food), query, undefined, "fatsecret-legacy");
   if (!foods.length) return null;
   const best = pickBestFoodWithScore(foods, query);
   if (!best || best.score < 20) return null;
@@ -459,7 +489,7 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
     format: "json",
     max_results: "8",
   });
-  const foods = asArray(searchPayload?.foods?.food);
+  const foods = filterAllowedExactFoods(asArray(searchPayload?.foods?.food), query, attempts, "fatsecret-oauth1");
   attempts?.push({ provider: "fatsecret-oauth1", query, resultCount: foods.length, results: foods.slice(0, 5).map(food => ({ foodId: food?.food_id, name: food?.food_name, score: scoreFood(food, query) })) });
   if (!foods.length) return null;
   const best = pickBestFoodWithScore(foods, query);
@@ -497,11 +527,14 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
 async function calculateWithFatSecret(name: string, grams: number, attempts?: any[]) {
   if (!getFatSecretCredentials()) return null;
   const internalMatch = findFood(name);
-  const candidates = Array.from(new Set([
-    name,
-    internalMatch?.key,
-    ...(internalMatch?.food.aliases ?? []),
-  ].filter(Boolean).map(String)));
+  const exactOnly = requiresExactFatSecretMatch(name);
+  const candidates = exactOnly
+    ? ["aceite de oliva", "olive oil", "extra virgin olive oil"]
+    : Array.from(new Set([
+      name,
+      internalMatch?.key,
+      ...(internalMatch?.food.aliases ?? []),
+    ].filter(Boolean).map(String)));
 
   for (const candidate of candidates) {
     try {
@@ -512,6 +545,17 @@ async function calculateWithFatSecret(name: string, grams: number, attempts?: an
       // Si las credenciales son OAuth 2.0 en lugar de Consumer Key/Secret, probamos el flujo Bearer.
       break;
     }
+  }
+
+  if (exactOnly) {
+    attempts?.push({
+      provider: "fatsecret",
+      query: name,
+      rejected: true,
+      reason: "sin_coincidencia_exacta_para_aceite_de_oliva",
+      message: "No se usará ningún alimento compuesto ni coincidencia aproximada para aceite de oliva.",
+    });
+    return null;
   }
 
   try {
@@ -623,6 +667,16 @@ export default async function handler(req: any, res: any) {
         foodId: fatSecretMatch.foodId,
         macros: roundMacros(fatSecretMatch.macros),
       });
+      debug.push(debugEntry);
+      continue;
+    }
+
+    if (externalApisConfigured.fatSecret && requiresExactFatSecretMatch(name)) {
+      notFound.push({ name, grams, raw: ingredient.raw ?? name, reason: "Sin coincidencia exacta simple en FatSecret" });
+      fatSecretErrors.push(name);
+      debugEntry.status = "no_encontrado";
+      debugEntry.source = "fatsecret";
+      debugEntry.matchedAs = "Sin coincidencia exacta simple";
       debug.push(debugEntry);
       continue;
     }
