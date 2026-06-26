@@ -38,8 +38,17 @@ export default function AdminRecipes() {
   const [filterCat, setFilterCat] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const load = () => supabase.from("recipes").select("*").eq("is_library", true).order("created_at", { ascending: false }).then(({ data }) => setItems(data ?? []));
+  const load = async () => {
+    const { data, error } = await supabase.from("recipes").select("*").eq("is_library", true).order("created_at", { ascending: false });
+    if (error) {
+      toast.error(error.message || "No se pudieron cargar las recetas");
+      return [];
+    }
+    setItems(data ?? []);
+    return data ?? [];
+  };
   useEffect(() => { load(); }, []);
 
   const resetForm = () => { setF(emptyForm); setEditingId(null); clearDraft(); };
@@ -53,7 +62,8 @@ export default function AdminRecipes() {
       const path = `${crypto.randomUUID()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("recipe-images").upload(path, file, { upsert: false });
       if (upErr) throw upErr;
-      const { data: signed } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
+      const { data: signed, error: signErr } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("No se pudo preparar la imagen");
       const url = signed?.signedUrl ?? "";
       setF(prev => ({ ...prev, image_url: url }));
       toast.success("Imagen subida");
@@ -99,65 +109,84 @@ export default function AdminRecipes() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!f.title.trim()) { toast.error("El título es obligatorio"); return; }
     if (!f.category) { toast.error("La categoría es obligatoria"); return; }
+    setSaving(true);
     const ingredients = parseIngredients(f.ingredients);
-    if (ingredients.length > 0) {
-      const missingQty = ingredients.filter(i => !QTY_RE.test(i));
-      if (missingQty.length > 0) {
-        toast.warning(`Hay ingredientes sin cantidad. Se guardarán con revisión pendiente: ${missingQty[0]}`);
-      }
-    }
-    let calculatedMacros: any = null;
-    if (ingredients.length > 0) {
-      setCalculating(true);
-      try {
-        const data = await calculateWithMacroSpecialist({
-          ingredientsText: f.ingredients,
-          servings: Number(f.servings) || 1,
-          category: f.category,
-        });
-        calculatedMacros = macrosFromSpecialist(data);
-        if (data.notFound?.length || data.missingGrams?.length) {
-          toast.warning("Receta guardada con macros pendientes de revisión para algunos ingredientes");
+    try {
+      if (ingredients.length > 0) {
+        const missingQty = ingredients.filter(i => !QTY_RE.test(i));
+        if (missingQty.length > 0) {
+          toast.warning(`Hay ingredientes sin cantidad. Se guardarán con revisión pendiente: ${missingQty[0]}`);
         }
-      } catch (err: any) {
-        setCalculating(false);
-        toast.warning(err.message || "No se pudieron calcular los macros. La receta se guardará con revisión pendiente.");
-      } finally {
-        setCalculating(false);
       }
-    }
-    const macros: any = calculatedMacros ?? {
-      protein: f.protein || 0,
-      carbs: f.carbs || 0,
-      fat: f.fat || 0,
-      calories: f.calories || 0,
-      fiber: f.fiber || 0,
-      nutrition_status: "pending_review",
-      nutrition_note: "pendiente de revisión",
-    };
-    if (f.prep_time.trim()) macros.prep_time = f.prep_time.trim();
-    if (f.servings.trim()) macros.servings = f.servings.trim();
+      let calculatedMacros: any = null;
+      if (ingredients.length > 0) {
+        setCalculating(true);
+        try {
+          const data = await calculateWithMacroSpecialist({
+            ingredientsText: f.ingredients,
+            servings: Number(f.servings) || 1,
+            category: f.category,
+          });
+          calculatedMacros = macrosFromSpecialist(data);
+          if (data.notFound?.length || data.missingGrams?.length) {
+            toast.warning("Receta guardada con macros pendientes de revisión para algunos ingredientes");
+          }
+        } catch (err: any) {
+          toast.warning(err.message || "No se pudieron calcular los macros. La receta se guardará con revisión pendiente.");
+        } finally {
+          setCalculating(false);
+        }
+      }
+      const macros: any = calculatedMacros ?? {
+        protein: f.protein || 0,
+        carbs: f.carbs || 0,
+        fat: f.fat || 0,
+        calories: f.calories || 0,
+        fiber: f.fiber || 0,
+        nutrition_status: "pending_review",
+        nutrition_note: "pendiente de revisión",
+      };
+      if (f.prep_time.trim()) macros.prep_time = f.prep_time.trim();
+      if (f.servings.trim()) macros.servings = f.servings.trim();
 
-    const payload = {
-      title: f.title.trim(),
-      description: f.description.trim() || null,
-      category: f.category,
-      is_library: true,
-      is_featured: f.is_featured,
-      image_url: f.image_url || null,
-      video_url: f.video_url || null,
-      is_high_protein: Number(macros.protein || 0) >= 25,
-      macros,
-      ingredients,
-      steps: f.steps.split("\n").map(s => s.trim()).filter(Boolean),
-    };
-    const { error } = editingId
-      ? await supabase.from("recipes").update(payload).eq("id", editingId)
-      : await supabase.from("recipes").insert(payload);
-    if (error) toast.error(error.message);
-    else { resetForm(); load(); toast.success(editingId ? "Receta actualizada" : "Receta añadida"); }
+      const prepTime = f.prep_time.trim() ? Number.parseInt(f.prep_time, 10) : null;
+      const servings = f.servings.trim() ? Number.parseInt(f.servings, 10) : null;
+
+      const payload = {
+        title: f.title.trim(),
+        description: f.description.trim() || null,
+        category: f.category,
+        is_library: true,
+        is_featured: f.is_featured,
+        image_url: f.image_url || null,
+        video_url: f.video_url || null,
+        is_high_protein: Number(macros.protein || 0) >= 25,
+        macros,
+        ingredients,
+        steps: f.steps.split("\n").map(s => s.trim()).filter(Boolean),
+        prep_time: Number.isFinite(prepTime) ? prepTime : null,
+        servings: Number.isFinite(servings) ? servings : null,
+      };
+
+      const result = editingId
+        ? await supabase.from("recipes").update(payload).eq("id", editingId).select("*").maybeSingle()
+        : await supabase.from("recipes").insert(payload).select("*").single();
+
+      if (result.error) throw result.error;
+      if (editingId && !result.data) throw new Error("No se encontró la receta para actualizar. Vuelve a abrirla e inténtalo de nuevo.");
+
+      resetForm();
+      await load();
+      toast.success(editingId ? "Receta actualizada" : "Receta añadida");
+    } catch (err: any) {
+      toast.error(err.message || "No se pudieron guardar los cambios");
+    } finally {
+      setCalculating(false);
+      setSaving(false);
+    }
   };
 
   const startEdit = (r: any) => {
@@ -254,7 +283,7 @@ export default function AdminRecipes() {
         />
         <textarea className="field min-h-24" placeholder="Preparación paso a paso (opcional, uno por línea)" value={f.steps} onChange={e => setF({ ...f, steps: e.target.value })} />
 
-        <button type="button" onClick={calculateMacros} disabled={calculating || uploading || !parseIngredients(f.ingredients).length} className="btn-ghost w-full">
+        <button type="button" onClick={calculateMacros} disabled={calculating || uploading || saving || !parseIngredients(f.ingredients).length} className="btn-ghost w-full">
           <Sparkles className="h-4 w-4" /> {calculating ? "Calculando macros…" : "Calcular macros"}
         </button>
 
@@ -266,8 +295,8 @@ export default function AdminRecipes() {
           <div className="card-soft p-2"><div className="font-semibold">{f.fiber}g</div><div className="muted">Fibra</div></div>
         </div>
 
-        <button className="btn-primary w-full" disabled={uploading || calculating}>
-          <Plus className="h-4 w-4" /> {editingId ? "Guardar cambios" : "Añadir receta"}
+        <button className="btn-primary w-full" disabled={uploading || calculating || saving}>
+          <Plus className="h-4 w-4" /> {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Añadir receta"}
         </button>
       </form>
 
