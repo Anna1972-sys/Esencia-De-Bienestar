@@ -201,6 +201,7 @@ function isBadLowFatMilkMatch(query: string, matchedName: string, macros: MacroV
   const normalizedMatch = normalizeName(matchedName);
   const asksForLowFatMilk = /\b(leche desnatada|leche descremada|leche sin grasa|skim milk|nonfat milk)\b/.test(normalizedQuery);
   if (!asksForLowFatMilk) return false;
+  if (!/\b(leche|milk)\b/.test(normalizedMatch)) return true;
   const maxExpectedFat = Math.max(0.5, amount * 0.005);
   return (normalizedMatch === "leche" || normalizedMatch === "milk") && macros.fat > maxExpectedFat;
 }
