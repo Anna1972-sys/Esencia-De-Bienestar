@@ -8,7 +8,7 @@ const EXAMPLE = "pollo 200 g\narroz 120 g\ncalabacín 150 g\ntomate 100 g\naceit
 
 export default function AdminMacroSpecialist() {
   const [ingredientsText, setIngredientsText] = useState(EXAMPLE);
-  const [servings, setServings] = useState("2");
+  const [servings, setServings] = useState("1");
   const [category, setCategory] = useState("comidas_saludables");
   const [containsHerbalife, setContainsHerbalife] = useState(false);
   const [preferences, setPreferences] = useState("");

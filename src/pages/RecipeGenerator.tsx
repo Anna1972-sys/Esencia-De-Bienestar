@@ -30,7 +30,7 @@ const ingredientsToMacroText = (ingredients: any[] = []) =>
     .join("\n");
 
 const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategory, preferences?: string, restrictions?: string) => {
-  const servings = Number(recipe?.servings) || 2;
+  const servings = Number(recipe?.servings) || 1;
   const ingredientsText = ingredientsToMacroText(recipe?.ingredients ?? []);
   if (!ingredientsText) return recipe;
   const macroResult = await calculateWithMacroSpecialist({
@@ -109,7 +109,7 @@ export default function RecipeGenerator() {
           preferences: preferences.trim() || undefined,
           dislikes: dislikes.trim() || undefined,
           avoid: avoid.trim() || undefined,
-          servings: 2,
+          servings: 1,
         }),
       });
 
@@ -138,7 +138,7 @@ export default function RecipeGenerator() {
 
   const saveRecipe = async (r: any) => {
     if (!user) return;
-    const servings = Number(r.servings) || 2;
+    const servings = Number(r.servings) || 1;
     let enrichedRecipe = r;
     try {
       enrichedRecipe = await withSpecialistMacros(
@@ -189,7 +189,7 @@ export default function RecipeGenerator() {
         <ArrowLeft className="h-4 w-4" /> Volver
       </Link>
       <h1 className="heading-lg mb-1">Generador IA</h1>
-      <p className="muted text-sm mb-5">Recetas para 2 personas. Los valores nutricionales (calorías, proteínas, hidratos de carbono, grasas y fibra) están calculados por persona.</p>
+      <p className="muted text-sm mb-5">Recetas para 1 persona. Todos los valores nutricionales (calorías, proteínas, hidratos de carbono, grasas y fibra) están calculados para 1 persona.</p>
 
       <div className="card-soft wellness-generator p-5 mb-5">
         <label className="label">Tipo de receta</label>
@@ -281,7 +281,7 @@ function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-sm mt-4">
-        <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.servings ?? 2}</div><div className="muted text-[10px] uppercase tracking-wide">Raciones</div></div>
+        <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.servings ?? 1}</div><div className="muted text-[10px] uppercase tracking-wide">Raciones</div></div>
         <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.prep_time ?? "—"} min</div><div className="muted text-[10px] uppercase tracking-wide">Preparación</div></div>
       </div>
 

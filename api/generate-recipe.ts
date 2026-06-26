@@ -65,7 +65,7 @@ Debes responder SIEMPRE con JSON válido, sin markdown y sin texto adicional.
 La receta debe usar como base los ingredientes disponibles del usuario. Puedes añadir básicos de despensa solo si son mínimos: agua, sal, pimienta, especias, limón o una cantidad pequeña de aceite.
 No inventes valores exactos como verificados si no hay una referencia nutricional suficiente. En ese caso usa nutrition_status="estimated" y nutrition_note="Valores nutricionales estimados".
 Si usas una referencia nutricional general fiable, indica nutrition_status="verified", nutrition_note="Valores nutricionales verificados" y una referencia breve.
-Los macros son por ración, no totales.
+Los macros son siempre para 1 persona / 1 ración, no totales de la receta.
 Todos los ingredientes deben incluir gramos exactos.
 Estructura obligatoria:
 {
@@ -171,7 +171,7 @@ function buildUserPrompt(body: Required<Pick<GenerateBody, "category" | "ingredi
     instrucciones: [
       "Devuelve solo JSON válido con la estructura obligatoria.",
       "Ajusta gramos y cantidades antes de responder para cumplir las reglas.",
-      "Calcula macros por ración.",
+      "Calcula macros siempre para 1 persona / 1 ración.",
       "Nunca presentes valores estimados como exactos.",
       "Si no hay referencia nutricional suficiente, usa Valores nutricionales estimados.",
     ],
@@ -264,7 +264,7 @@ export default async function handler(req: any, res: any) {
   const body = (req.body ?? {}) as GenerateBody;
   const category = body.category && CATEGORIES[body.category] ? body.category : "comidas_saludables";
   const ingredients = cleanIngredients(body.ingredients);
-  const servings = Math.max(1, Math.min(8, Math.round(Number(body.servings) || 2)));
+  const servings = Math.max(1, Math.min(8, Math.round(Number(body.servings) || 1)));
 
   if (ingredients.length === 0) {
     return res.status(400).json({ error: "Añade al menos un ingrediente" });
