@@ -33,7 +33,7 @@ type FatSecretToken = {
 
 const BASIC_FOODS: Record<string, FoodMacro> = {
   pollo: { kcal: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, aliases: ["pechuga de pollo", "pollo cocido"] },
-  "pechuga de pavo": { kcal: 105, protein: 22.5, carbs: 1, fat: 1.5, fiber: 0, aliases: ["pavo", "fiambre de pavo", "pavo cocido"] },
+  "pechuga de pavo": { kcal: 105, protein: 22.5, carbs: 1, fat: 1.5, fiber: 0, aliases: ["pavo", "fiambre de pavo", "pavo cocido", "turkey breast", "sliced turkey breast"] },
   huevo: { kcal: 143, protein: 12.6, carbs: 0.7, fat: 9.5, fiber: 0, aliases: ["huevos"] },
   "clara de huevo": { kcal: 52, protein: 10.9, carbs: 0.7, fat: 0.2, fiber: 0, aliases: ["claras"] },
   atun: { kcal: 116, protein: 25.5, carbs: 0, fat: 0.8, fiber: 0, aliases: ["atún", "atun natural", "atún natural"] },
@@ -41,7 +41,7 @@ const BASIC_FOODS: Record<string, FoodMacro> = {
   merluza: { kcal: 89, protein: 17, carbs: 0, fat: 1.9, fiber: 0 },
   arroz: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, aliases: ["arroz cocido"] },
   "arroz integral": { kcal: 123, protein: 2.7, carbs: 25.6, fat: 1, fiber: 1.8 },
-  "tortitas de arroz": { kcal: 384, protein: 7.3, carbs: 80, fat: 2.8, fiber: 3.4, aliases: ["tortita de arroz", "tortitas arroz"] },
+  "tortitas de arroz": { kcal: 384, protein: 7.3, carbs: 80, fat: 2.8, fiber: 3.4, aliases: ["tortita de arroz", "tortitas arroz", "rice cakes", "rice cake"] },
   pasta: { kcal: 157, protein: 5.8, carbs: 30.9, fat: 0.9, fiber: 1.8, aliases: ["pasta cocida"] },
   patata: { kcal: 87, protein: 1.9, carbs: 20.1, fat: 0.1, fiber: 1.8, aliases: ["papa"] },
   boniato: { kcal: 86, protein: 1.6, carbs: 20.1, fat: 0.1, fiber: 3, aliases: ["batata"] },
@@ -49,7 +49,7 @@ const BASIC_FOODS: Record<string, FoodMacro> = {
   quinoa: { kcal: 120, protein: 4.4, carbs: 21.3, fat: 1.9, fiber: 2.8 },
   garbanzos: { kcal: 164, protein: 8.9, carbs: 27.4, fat: 2.6, fiber: 7.6 },
   lentejas: { kcal: 116, protein: 9, carbs: 20, fat: 0.4, fiber: 7.9 },
-  "leche desnatada": { kcal: 34, protein: 3.4, carbs: 5, fat: 0.1, fiber: 0, aliases: ["leche desnatada con cafe", "leche desnatada con café", "leche descremada", "leche sin grasa"] },
+  "leche desnatada": { kcal: 34, protein: 3.4, carbs: 5, fat: 0.1, fiber: 0, aliases: ["leche desnatada con cafe", "leche desnatada con café", "leche descremada", "leche sin grasa", "skim milk", "nonfat milk"] },
   "queso fresco": { kcal: 98, protein: 12, carbs: 3, fat: 4, fiber: 0 },
   "yogur natural": { kcal: 61, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0 },
   "yogur griego": { kcal: 97, protein: 9, carbs: 3.6, fat: 5, fiber: 0 },
@@ -141,8 +141,8 @@ function addMacros(target: MacroValues, value: MacroValues) {
 }
 
 function getFatSecretCredentials() {
-  const key = process.env.FATSECRET_CONSUMER_KEY || process.env.FATSECRET_CLIENT_ID;
-  const secret = process.env.FATSECRET_CONSUMER_SECRET || process.env.FATSECRET_CLIENT_SECRET;
+  const key = String(process.env.FATSECRET_CONSUMER_KEY || process.env.FATSECRET_CLIENT_ID || "").trim();
+  const secret = String(process.env.FATSECRET_CONSUMER_SECRET || process.env.FATSECRET_CLIENT_SECRET || "").trim();
   return key && secret ? { key, secret } : null;
 }
 
@@ -386,18 +386,28 @@ async function searchFatSecretOAuth1(name: string, amount: number) {
 
 async function calculateWithFatSecret(name: string, grams: number) {
   if (!getFatSecretCredentials()) return null;
+  const internalMatch = findFood(name);
+  const candidates = Array.from(new Set([
+    name,
+    internalMatch?.key,
+    ...(internalMatch?.food.aliases ?? []),
+  ].filter(Boolean).map(String)));
 
-  try {
-    return await searchFatSecretOAuth1(name, grams);
-  } catch {
-    // Si las credenciales son OAuth 2.0 en lugar de Consumer Key/Secret, probamos el flujo Bearer.
+  for (const candidate of candidates) {
+    try {
+      const result = await searchFatSecretOAuth1(candidate, grams);
+      if (result) return result;
+    } catch {
+      // Si las credenciales son OAuth 2.0 en lugar de Consumer Key/Secret, probamos el flujo Bearer.
+      break;
+    }
   }
 
   try {
-    return await searchFatSecretV3(name, grams);
+    return await searchFatSecretV3(candidates[0] ?? name, grams);
   } catch {
     try {
-      return await searchFatSecretLegacy(name, grams);
+      return await searchFatSecretLegacy(candidates[0] ?? name, grams);
     } catch {
       return null;
     }
