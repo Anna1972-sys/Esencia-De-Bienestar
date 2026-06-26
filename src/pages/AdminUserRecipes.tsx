@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Eye, Globe, Lock, Star, Trash2, Upload, X, Save } from "lucide-react";
+import { ArrowLeft, Eye, Star, Trash2, Upload, X, Save } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import { LIBRARY_CATEGORIES } from "@/lib/libraryCategories";
@@ -26,19 +26,31 @@ type Recipe = {
   created_at: string;
 };
 
-const VISIBILITY_LABEL: Record<Visibility, string> = {
-  private: "Privada",
-  community: "Comunidad",
-  featured: "Destacada",
-};
-
 const ingredientsToText = (ing: any) =>
   Array.isArray(ing)
-    ? ing.map((i: any) => typeof i === "string" ? i : `${i.name ?? ""}${i.quantity ? ` — ${i.quantity}` : ""}`).join("\n")
+    ? ing.map((i: any) => typeof i === "string" ? i : `${i.quantity ?? ""} ${i.name ?? ""}`.trim()).join("\n")
     : "";
 
 const stepsToText = (steps: any) =>
   Array.isArray(steps) ? steps.map((s: any) => typeof s === "string" ? s : s?.text ?? "").join("\n") : "";
+
+const getMacro = (recipe: Recipe, key: string) => Number(recipe.macros?.[key] ?? 0);
+const nutritionLabel = (recipe: Recipe) =>
+  recipe.macros?.nutrition_status === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
+const GENERATED_CATEGORY_LABEL: Record<string, string> = {
+  comidas_saludables: "Comidas saludables",
+  almuerzos: "Almuerzos",
+  meriendas: "Meriendas",
+  nutricion_deportiva: "Nutrición deportiva",
+};
+const DEFAULT_LIBRARY_CATEGORY: Record<string, string> = {
+  comidas_saludables: "comidas",
+  almuerzos: "snacks",
+  meriendas: "meriendas",
+  nutricion_deportiva: "comidas",
+};
+const displayCategory = (category?: string | null) =>
+  category ? GENERATED_CATEGORY_LABEL[category] ?? LIBRARY_CATEGORIES.find(c => c.id === category)?.label ?? category : "Sin categoría";
 
 export default function AdminUserRecipes() {
   const { user } = useAuth();
@@ -72,12 +84,6 @@ export default function AdminUserRecipes() {
   }, [recipes, filterUser, search]);
 
   const userOptions = useMemo(() => Object.entries(profiles), [profiles]);
-
-  const updateVisibility = async (r: Recipe, v: Visibility) => {
-    const { error } = await supabase.from("recipes").update({ visibility: v }).eq("id", r.id);
-    if (error) toast.error(error.message);
-    else { toast.success("Visibilidad actualizada"); load(); }
-  };
 
   const del = async (r: Recipe) => {
     if (!confirm("¿Eliminar esta receta?")) return;
@@ -132,7 +138,7 @@ export default function AdminUserRecipes() {
       steps,
       category: payload.category ?? r.category,
       categories: payload.categories ?? r.categories ?? [],
-      visibility: (payload.visibility ?? r.visibility) as Visibility,
+      visibility: "private" as Visibility,
     } as any).eq("id", r.id);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
@@ -143,13 +149,13 @@ export default function AdminUserRecipes() {
 
   return (
     <div className="pb-28">
-      <AdminPageHeader title="Recetas de usuarias" subtitle="Revisa, edita y publica recetas creadas por las clientas." />
+      <AdminPageHeader title="Recetas generadas por usuarios" subtitle="Revisa las recetas creadas con IA y publícalas manualmente si encajan en la Biblioteca oficial." />
 
 
       <div className="card-soft p-3 mb-4 space-y-2">
         <input className="field" placeholder="Buscar por título…" value={search} onChange={e => setSearch(e.target.value)} />
         <select className="field" value={filterUser} onChange={e => setFilterUser(e.target.value)}>
-          <option value="">Todas las usuarias</option>
+          <option value="">Todos los usuarios</option>
           {userOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
       </div>
@@ -166,11 +172,10 @@ export default function AdminUserRecipes() {
                 <div className="text-xs muted truncate">
                   {profiles[r.user_id || ""] || "Anónima"} · {new Date(r.created_at).toLocaleDateString()}
                 </div>
-                <div className="text-[10px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary">
-                  {r.visibility === "private" && <Lock className="h-3 w-3" />}
-                  {r.visibility === "community" && <Globe className="h-3 w-3" />}
-                  {r.visibility === "featured" && <Star className="h-3 w-3" />}
-                  {VISIBILITY_LABEL[r.visibility]}
+                <div className="flex flex-wrap gap-1 mt-1">
+                  <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary">Pendiente de revisión</span>
+                  {r.category && <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary">{displayCategory(r.category)}</span>}
+                  <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary">{nutritionLabel(r)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -179,16 +184,12 @@ export default function AdminUserRecipes() {
               </div>
             </div>
 
-            <div className="flex gap-1 mt-2">
-              {(["private", "community", "featured"] as Visibility[]).map(v => (
-                <button
-                  key={v}
-                  onClick={() => updateVisibility(r, v)}
-                  className={`flex-1 text-xs px-2 py-1 rounded-lg border ${r.visibility === v ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
-                >
-                  {VISIBILITY_LABEL[v]}
-                </button>
-              ))}
+            <div className="grid grid-cols-5 gap-1.5 mt-3 text-center text-[11px]">
+              <MiniMacro label="Kcal" value={getMacro(r, "calories")} />
+              <MiniMacro label="Prot" value={`${getMacro(r, "protein")}g`} />
+              <MiniMacro label="Hidr" value={`${getMacro(r, "carbs")}g`} />
+              <MiniMacro label="Grasa" value={`${getMacro(r, "fat")}g`} />
+              <MiniMacro label="Fibra" value={`${getMacro(r, "fiber")}g`} />
             </div>
           </div>
         ))}
@@ -219,9 +220,11 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
   const [description, setDescription] = useState(recipe.description ?? "");
   const [ingredientsText, setIngredientsText] = useState(ingredientsToText(recipe.ingredients));
   const [stepsText, setStepsText] = useState(stepsToText(recipe.steps));
-  const [category, setCategory] = useState(recipe.category ?? LIBRARY_CATEGORIES[0].id);
+  const initialLibraryCategory = LIBRARY_CATEGORIES.some(c => c.id === recipe.category)
+    ? recipe.category ?? LIBRARY_CATEGORIES[0].id
+    : DEFAULT_LIBRARY_CATEGORY[recipe.category ?? ""] ?? LIBRARY_CATEGORIES[0].id;
+  const [category, setCategory] = useState(initialLibraryCategory);
   const [categories, setCategories] = useState<string[]>(recipe.categories ?? []);
-  const [visibility, setVisibility] = useState<Visibility>(recipe.visibility);
   const [imageUrl, setImageUrl] = useState(recipe.image_url ?? "");
   const [uploading, setUploading] = useState(false);
 
@@ -248,7 +251,7 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
     }
   };
 
-  const payload = { title, description, ingredientsText, stepsText, category, categories, visibility, image_url: imageUrl };
+  const payload = { title, description, ingredientsText, stepsText, category, categories, image_url: imageUrl };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-end sm:place-items-center p-0 sm:p-4" onClick={onClose}>
@@ -278,7 +281,11 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
             <input className="field" value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs muted">Categoría principal</label>
+            <label className="text-xs muted">Categoría generada</label>
+            <div className="field bg-secondary/60">{displayCategory(recipe.category)}</div>
+          </div>
+          <div>
+            <label className="text-xs muted">Categoría para Biblioteca oficial</label>
             <select className="field" value={category} onChange={e => setCategory(e.target.value)}>
               {LIBRARY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
@@ -298,13 +305,16 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
               ))}
             </div>
           </div>
-          <div>
-            <label className="text-xs muted">Visibilidad</label>
-            <select className="field" value={visibility} onChange={e => setVisibility(e.target.value as Visibility)}>
-              <option value="private">Privada (solo la creadora)</option>
-              <option value="community">Comunidad</option>
-              <option value="featured">Destacada por admin</option>
-            </select>
+          <div className="card-soft p-3">
+            <div className="text-xs font-semibold mb-2">Datos nutricionales</div>
+            <div className="grid grid-cols-5 gap-1.5 text-center text-[11px]">
+              <MiniMacro label="Kcal" value={getMacro(recipe, "calories")} />
+              <MiniMacro label="Prot" value={`${getMacro(recipe, "protein")}g`} />
+              <MiniMacro label="Hidr" value={`${getMacro(recipe, "carbs")}g`} />
+              <MiniMacro label="Grasa" value={`${getMacro(recipe, "fat")}g`} />
+              <MiniMacro label="Fibra" value={`${getMacro(recipe, "fiber")}g`} />
+            </div>
+            <div className="text-[11px] muted mt-2">{nutritionLabel(recipe)}</div>
           </div>
           <div>
             <label className="text-xs muted">Ingredientes (uno por línea)</label>
@@ -320,11 +330,20 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
               <Save className="h-4 w-4" /> Guardar cambios
             </button>
             <button onClick={() => onPublish(payload)} disabled={busy} className="btn-primary flex-1">
-              <Star className="h-4 w-4" /> Publicar en biblioteca
+              <Star className="h-4 w-4" /> Añadir a Biblioteca oficial
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MiniMacro({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl bg-secondary px-1.5 py-2">
+      <div className="font-semibold text-foreground">{value || "—"}</div>
+      <div className="muted uppercase tracking-wide text-[9px] mt-0.5">{label}</div>
     </div>
   );
 }

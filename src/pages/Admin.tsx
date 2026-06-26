@@ -29,7 +29,7 @@ const groups: { title: string; items: Item[] }[] = [
     title: "Contenido",
     items: [
       { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas", image: recipesImage },
-      { to: "/app/admin/recetas-usuarias",   label: "Recetas de usuarias",     desc: "Revisar recetas de clientas", image: userRecipesImage },
+      { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },

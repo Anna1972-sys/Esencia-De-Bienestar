@@ -1,31 +1,42 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, Plus, X, Loader2, ArrowLeft } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-type Mode = "ingredients" | "preferences" | "monthly";
+type RecipeCategory = "comidas_saludables" | "almuerzos" | "meriendas" | "nutricion_deportiva";
+
+const CATEGORIES: { id: RecipeCategory; label: string; description: string }[] = [
+  { id: "comidas_saludables", label: "Comidas saludables", description: "450–500 kcal, alta en proteína y con verduras." },
+  { id: "almuerzos", label: "Almuerzos", description: "Máximo 180 kcal, práctico y transportable." },
+  { id: "meriendas", label: "Meriendas", description: "Máximo 180 kcal, fácil y alta en proteína." },
+  { id: "nutricion_deportiva", label: "Nutrición deportiva", description: "Masa muscular, proteína y cantidades coherentes." },
+];
+
+const CATEGORY_LABEL: Record<RecipeCategory, string> = CATEGORIES.reduce((acc, item) => {
+  acc[item.id] = item.label;
+  return acc;
+}, {} as Record<RecipeCategory, string>);
 
 export default function RecipeGenerator() {
-  const nav = useNavigate();
   const { user } = useAuth();
-  const [mode, setMode] = useState<Mode>("ingredients");
+  const [category, setCategory] = useState<RecipeCategory>("comidas_saludables");
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
-  const [highProtein, setHighProtein] = useState(true);
-  const [targetCalories, setTargetCalories] = useState<string>("");
-  const [allergies, setAllergies] = useState("");
-  const [mealType, setMealType] = useState("comida");
-  const [maxTime, setMaxTime] = useState<string>("30");
+  const [preferences, setPreferences] = useState("");
+  const [dislikes, setDislikes] = useState("");
+  const [avoid, setAvoid] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [monthlyResult, setMonthlyResult] = useState<any[] | null>(null);
+
+  const selectedCategory = useMemo(() => CATEGORIES.find(c => c.id === category), [category]);
 
   const parseIngredients = (text: string): string[] => {
-    return text.split(",")
+    return text
+      .split(",")
       .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .filter(Boolean);
   };
 
   const addIng = () => {
@@ -41,64 +52,79 @@ export default function RecipeGenerator() {
       : ingredients;
 
     if (finalIngredients.length === 0) {
-      return toast.error("Añade ingredientes con sus cantidades exactas para 2 personas");
+      return toast.error("Añade los ingredientes que tienes en casa");
     }
+
     setLoading(true);
     setDraft("");
     setIngredients(finalIngredients);
-    setResult(null); setMonthlyResult(null);
-    const preferences = mode === "ingredients" ? {} : {
-      highProtein,
-      targetCalories: targetCalories ? Number(targetCalories) : undefined,
-      allergies: allergies || undefined,
-      mealType,
-      maxTime: maxTime ? Number(maxTime) : undefined,
-    };
-    const { data, error } = await supabase.functions.invoke("generate-recipe", { body: { mode, ingredients: finalIngredients, preferences, servings: 2 } });
-    setLoading(false);
-    if (error) return toast.error(error.message || "Error generando receta");
-    if (data?.error) return toast.error(data.error);
-    if (mode === "monthly") {
-      const list = data?.result?.recipes ?? [];
-      setMonthlyResult(list);
-      toast.success(`Plan generado con ${list.length} recetas`);
-    } else {
-      const r = data?.result;
-      if (r?.error === "insufficient_ingredients") {
-        return toast.error("Esos ingredientes no son suficientes para una receta. Añade alguno más.");
+    setResult(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch("/api/generate-recipe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          category,
+          ingredients: finalIngredients,
+          preferences: preferences.trim() || undefined,
+          dislikes: dislikes.trim() || undefined,
+          avoid: avoid.trim() || undefined,
+          servings: 2,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || "No se pudo generar la receta");
       }
-      if (r?.error === "missing_ingredients") {
-        return toast.error("Añade al menos un ingrediente");
+      if (data?.error) {
+        throw new Error(data.error);
       }
-      setResult(r);
+
+      setResult(data.result);
+      toast.success("Receta generada");
+    } catch (err: any) {
+      toast.error(err?.message || "Error generando receta");
+    } finally {
+      setLoading(false);
     }
   };
 
   const saveRecipe = async (r: any) => {
     if (!user) return;
+    const macros = {
+      ...(r.macros ?? {}),
+      nutrition_status: r.nutrition_status ?? "estimated",
+      nutrition_note: r.nutrition_note ?? "Valores nutricionales estimados",
+      nutrition_reference: r.nutrition_reference ?? "",
+    };
+
     const { data, error } = await supabase.from("recipes").insert({
       user_id: user.id,
       title: r.title,
       description: r.description,
-      servings: 2,
+      category: r.category ?? category,
+      categories: [r.category ?? category],
+      servings: r.servings ?? 2,
       prep_time: r.prep_time,
-      macros: r.macros ?? {},
+      macros,
       ingredients: r.ingredients ?? [],
       steps: r.steps ?? [],
-      tags: r.tags ?? [],
-      is_high_protein: r.nutrition_status === "verified" && (r.macros?.protein ?? 0) >= 25,
-    }).select().single();
+      tags: Array.from(new Set([...(r.tags ?? []), "Generador IA"])),
+      is_library: false,
+      is_featured: false,
+      visibility: "private",
+      is_high_protein: Number(r.macros?.protein ?? 0) >= 25,
+    } as any).select().single();
+
     if (error) return toast.error(error.message);
     toast.success("Guardada en Mis recetas");
     return data;
-  };
-
-  const saveMonthly = async () => {
-    if (!user || !monthlyResult) return;
-    const month = new Date().toISOString().slice(0, 7);
-    const { error } = await supabase.from("meal_plans").insert({ user_id: user.id, month, recipes: monthlyResult });
-    if (error) return toast.error(error.message);
-    toast.success("Plan mensual guardado");
   };
 
   return (
@@ -107,103 +133,115 @@ export default function RecipeGenerator() {
         <ArrowLeft className="h-4 w-4" /> Volver
       </Link>
       <h1 className="heading-lg mb-1">Generador IA</h1>
-      <p className="muted text-sm mb-5">Recetas para 2 personas, con cantidades y nutrición desglosada por ración.</p>
-
-      <div className="grid grid-cols-3 gap-1.5 bg-muted/60 p-1 rounded-full mb-5 text-xs">
-        {([["ingredients","Ingredientes"],["preferences","+ Preferencias"],["monthly","Plan mensual"]] as [Mode,string][]).map(([k,l]) => (
-          <button key={k} onClick={() => setMode(k)} className={`py-2 rounded-full font-medium transition ${mode===k ? "bg-white shadow text-foreground" : "muted"}`}>{l}</button>
-        ))}
-      </div>
+      <p className="muted text-sm mb-5">Recetas para 2 personas, con cantidades exactas y nutrición por ración.</p>
 
       <div className="card-soft wellness-generator p-5 mb-5">
-        <label className="label">Ingredientes para 2 personas</label>
+        <label className="label">Tipo de receta</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
+          {CATEGORIES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setCategory(item.id)}
+              className={`text-left rounded-2xl border p-3 transition ${category === item.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-white/80"}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm">{item.label}</span>
+                {category === item.id && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+              </div>
+              <p className="text-[11px] muted mt-1 leading-snug">{item.description}</p>
+            </button>
+          ))}
+        </div>
+
+        <label className="label">Ingredientes que tienes en casa</label>
         <div className="flex gap-2">
-          <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addIng())} className="field flex-1" placeholder="Ej. 300 g de pollo, 160 g de arroz…" />
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addIng())}
+            className="field flex-1"
+            placeholder="Ej. pollo, calabacín, tomate, arroz…"
+          />
           <button onClick={addIng} className="btn-ghost px-3" title="Añadir"><Plus className="h-4 w-4" /></button>
         </div>
-        <p className="text-[11px] muted mt-1.5">Indica siempre las cantidades reales. No se calculan macros sin una referencia verificable.</p>
+        <p className="text-[11px] muted mt-1.5">Si no indicas preferencias o restricciones, la receta se genera solo con estos ingredientes como base.</p>
+
         {ingredients.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
             {ingredients.map((i, idx) => (
-              <span key={idx} className="chip">{i}<button onClick={() => setIngredients(ingredients.filter((_,j) => j!==idx))}><X className="h-3 w-3" /></button></span>
+              <span key={`${i}-${idx}`} className="chip">
+                {i}
+                <button onClick={() => setIngredients(ingredients.filter((_, j) => j !== idx))}><X className="h-3 w-3" /></button>
+              </span>
             ))}
           </div>
         )}
 
-        {mode !== "ingredients" && (
-          <div className="space-y-4 mt-5">
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={highProtein} onChange={e => setHighProtein(e.target.checked)} className="h-4 w-4 accent-[hsl(330_80%_58%)]" /> Alta en proteína</label>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="label">Calorías por porción</label><input type="number" value={targetCalories} onChange={e => setTargetCalories(e.target.value)} className="field" placeholder="ej. 450" /></div>
-              <div><label className="label">Tiempo máx (min)</label><input type="number" value={maxTime} onChange={e => setMaxTime(e.target.value)} className="field" placeholder="30" /></div>
-            </div>
-            <div>
-              <label className="label">Tipo de comida</label>
-              <select value={mealType} onChange={e => setMealType(e.target.value)} className="field">
-                {["desayuno","comida","cena","snack"].map(o => <option key={o}>{o}</option>)}
-              </select>
-            </div>
-            <div><label className="label">Alergias / a evitar</label><input value={allergies} onChange={e => setAllergies(e.target.value)} className="field" placeholder="ej. lactosa, frutos secos" /></div>
+        <div className="space-y-3 mt-5">
+          <div>
+            <label className="label">Preferencias personales</label>
+            <input value={preferences} onChange={e => setPreferences(e.target.value)} className="field" placeholder="Ej. rápido, sin horno, más saciante…" />
           </div>
-        )}
+          <div>
+            <label className="label">Alimentos que no te gustan</label>
+            <input value={dislikes} onChange={e => setDislikes(e.target.value)} className="field" placeholder="Ej. cebolla, atún, brócoli…" />
+          </div>
+          <div>
+            <label className="label">Alimentos que no puedes tomar o quieres evitar</label>
+            <input value={avoid} onChange={e => setAvoid(e.target.value)} className="field" placeholder="Ej. lactosa, gluten, frutos secos…" />
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white/80 border border-primary/20 p-3 mt-5">
+          <div className="text-xs font-semibold">{selectedCategory?.label}</div>
+          <div className="text-[11px] muted mt-1">{selectedCategory?.description}</div>
+        </div>
 
         <button onClick={generate} disabled={loading} className="btn-primary w-full mt-5">
-          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando…</> : <><Sparkles className="h-4 w-4" /> Generar {mode === "monthly" ? "plan mensual" : "receta"}</>}
+          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando…</> : <><Sparkles className="h-4 w-4" /> Generar receta</>}
         </button>
       </div>
 
       {result && <RecipeCard recipe={result} onSave={() => saveRecipe(result)} />}
-
-      {monthlyResult && (
-        <div className="mt-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <h2 className="heading-md">Plan mensual ({monthlyResult.length})</h2>
-            <button onClick={saveMonthly} className="btn-ghost text-sm">Guardar plan</button>
-          </div>
-          {monthlyResult.map((r, i) => (
-            <details key={i} className="card-soft p-4">
-              <summary className="cursor-pointer font-medium flex justify-between items-center">
-                <span>{r.title}</span>
-                <span className="text-xs muted">{r.nutrition_status === "verified" ? `${r.macros?.protein ?? 0}g prot · ${r.macros?.calories ?? 0} kcal` : "Nutrición pendiente de verificación"}</span>
-              </summary>
-              <div className="mt-3 text-sm space-y-2">
-                <p className="muted">{r.description}</p>
-                <button onClick={() => saveRecipe(r)} className="btn-ghost text-xs">Guardar receta</button>
-              </div>
-            </details>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
   const perServing = recipe.macros ?? {};
-  const total = recipe.total_macros ?? recipe.macros_total ?? null;
-  const nutritionAvailable = recipe.nutrition_status === "verified" && Boolean(recipe.nutrition_reference?.trim()) && (Number(perServing.protein) > 0 || Number(perServing.carbs) > 0 || Number(perServing.fat) > 0 || Number(perServing.calories) > 0);
+  const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
+  const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
+
   return (
     <div className="card-soft p-5 animate-fade-in">
-      <h2 className="heading-md mb-1">{recipe.title}</h2>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h2 className="heading-md">{recipe.title}</h2>
+        {recipe.category && <span className="chip shrink-0">{CATEGORY_LABEL[recipe.category as RecipeCategory] ?? recipe.category}</span>}
+      </div>
       <p className="muted text-sm">{recipe.description}</p>
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
       </div>
-      <div className="text-sm font-medium mt-4">Raciones: 2 personas</div>
-      <div className="text-sm muted mt-1">Tiempo de preparación: {recipe.prep_time ?? "No indicado"} min</div>
-      {nutritionAvailable ? <>
-        <h3 className="font-serif text-base mt-4 mb-2">Información nutricional por ración (1 persona)</h3>
-        <NutritionStats values={perServing} />
-        {total && <>
-          <h3 className="font-serif text-base mt-4 mb-2">Información nutricional total (2 personas)</h3>
-          <NutritionStats values={total} />
-        </>}
-        {recipe.nutrition_reference && <p className="text-[11px] muted mt-2">Referencia nutricional: {recipe.nutrition_reference}</p>}
-      </> : <p className="card-soft p-3 text-sm muted mt-4">No se muestran valores nutricionales porque no se pudo verificar una referencia nutricional suficiente para todos los ingredientes.</p>}
-      <h3 className="font-serif text-base mt-4 mb-1">Ingredientes (2 personas)</h3>
+
+      <div className="grid grid-cols-2 gap-2 text-sm mt-4">
+        <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.servings ?? 2}</div><div className="muted text-[10px] uppercase tracking-wide">Raciones</div></div>
+        <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.prep_time ?? "—"} min</div><div className="muted text-[10px] uppercase tracking-wide">Preparación</div></div>
+      </div>
+
+      <h3 className="font-serif text-base mt-4 mb-2">Información nutricional por ración</h3>
+      <NutritionStats values={perServing} />
+      <p className="text-[11px] muted mt-2">
+        {nutritionNote}{recipe.nutrition_reference ? ` · Referencia: ${recipe.nutrition_reference}` : ""}
+      </p>
+
+      <h3 className="font-serif text-base mt-4 mb-1">Ingredientes con gramos exactos</h3>
       <ul className="text-sm space-y-1 list-disc pl-5 muted">
-        {(recipe.ingredients ?? []).map((i: any, k: number) => <li key={k}>{typeof i === "string" ? i : `${i.quantity ?? ""} ${i.name ?? ""}`}</li>)}
+        {(recipe.ingredients ?? []).map((i: any, k: number) => (
+          <li key={k}>{typeof i === "string" ? i : `${i.quantity ?? ""} ${i.name ?? ""}`.trim()}</li>
+        ))}
       </ul>
+
       <h3 className="font-serif text-base mt-4 mb-1">Preparación</h3>
       <ol className="text-sm space-y-2 list-decimal pl-5">{(recipe.steps ?? []).map((s: string, k: number) => <li key={k}>{s}</li>)}</ol>
       <button onClick={onSave} className="btn-primary w-full mt-5">Guardar en mis recetas</button>
@@ -212,13 +250,15 @@ function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
 }
 
 function NutritionStats({ values }: { values: any }) {
-  return <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
-    <Stat label="Prot" value={`${values.protein ?? 0}g`} />
-    <Stat label="Carb" value={`${values.carbs ?? 0}g`} />
-    <Stat label="Grasa" value={`${values.fat ?? 0}g`} />
-    <Stat label="Fibra" value={`${values.fiber ?? 0}g`} />
-    <Stat label="Kcal" value={`${values.calories ?? 0}`} />
-  </div>;
+  return (
+    <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
+      <Stat label="Prot" value={`${values.protein ?? 0}g`} />
+      <Stat label="Hidratos" value={`${values.carbs ?? 0}g`} />
+      <Stat label="Grasas" value={`${values.fat ?? 0}g`} />
+      <Stat label="Fibra" value={`${values.fiber ?? 0}g`} />
+      <Stat label="Kcal" value={`${values.calories ?? 0}`} />
+    </div>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
