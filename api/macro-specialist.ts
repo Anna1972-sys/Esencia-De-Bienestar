@@ -26,6 +26,18 @@ type MacroValues = {
   fiber: number;
 };
 
+type IngredientDebugEntry = {
+  raw: string;
+  parsedName: string;
+  grams: number | null;
+  status: string;
+  source?: string;
+  matchedAs?: string;
+  foodId?: string;
+  macros?: Record<string, number>;
+  attempts?: any[];
+};
+
 type FatSecretToken = {
   accessToken: string;
   expiresAt: number;
@@ -38,6 +50,7 @@ const BASIC_FOODS: Record<string, FoodMacro> = {
   "clara de huevo": { kcal: 52, protein: 10.9, carbs: 0.7, fat: 0.2, fiber: 0, aliases: ["claras"] },
   atun: { kcal: 116, protein: 25.5, carbs: 0, fat: 0.8, fiber: 0, aliases: ["atún", "atun natural", "atún natural"] },
   salmon: { kcal: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, aliases: ["salmón"] },
+  lubina: { kcal: 97, protein: 18.4, carbs: 0, fat: 2, fiber: 0, aliases: ["robalo", "sea bass", "european sea bass"] },
   merluza: { kcal: 89, protein: 17, carbs: 0, fat: 1.9, fiber: 0 },
   arroz: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, aliases: ["arroz cocido"] },
   "arroz integral": { kcal: 123, protein: 2.7, carbs: 25.6, fat: 1, fiber: 1.8 },
@@ -76,6 +89,7 @@ function normalizeName(value: string) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[•·●▪▫◦*]/g, " ")
     .replace(/\([^)]*\)/g, "")
     .replace(/\b(g|gr|gramos|kg|ml|mililitros|unidad|unidades|cocido|cocida|crudo|cruda)\b/g, " ")
     .replace(/\bcon cafe\b/g, " ")
@@ -86,7 +100,7 @@ function normalizeName(value: string) {
 
 function cleanSearchName(value: string) {
   return normalizeName(value)
-    .replace(/\bde\b/g, " ")
+    .replace(/\b(de|del|la|el|los|las|virgen|extra)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -100,8 +114,12 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
 function parseRawIngredient(raw: string): IngredientInput {
   const qtyMatch = raw.match(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros)\b/i);
   const grams = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
-  const name = raw.replace(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros)\b/i, "").trim();
+  const name = cleanSearchName(raw.replace(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros)\b/i, "").trim());
   return { raw, name, grams };
+}
+
+function roundMacros(value: MacroValues) {
+  return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, round(v)]));
 }
 
 function findFood(name: string) {
@@ -368,7 +386,7 @@ async function fatSecretOAuth1Request(params: Record<string, string>) {
   return JSON.parse(text);
 }
 
-async function searchFatSecretOAuth1(name: string, amount: number) {
+async function searchFatSecretOAuth1(name: string, amount: number, attempts?: any[]) {
   const query = cleanSearchName(name);
   if (!query) return null;
 
@@ -379,9 +397,13 @@ async function searchFatSecretOAuth1(name: string, amount: number) {
     max_results: "8",
   });
   const foods = asArray(searchPayload?.foods?.food);
+  attempts?.push({ provider: "fatsecret-oauth1", query, resultCount: foods.length, results: foods.slice(0, 5).map(food => ({ foodId: food?.food_id, name: food?.food_name, score: scoreFood(food, query) })) });
   if (!foods.length) return null;
   const best = pickBestFoodWithScore(foods, query);
-  if (!best || best.score < 20) return null;
+  if (!best || best.score < 20) {
+    attempts?.push({ provider: "fatsecret-oauth1", query, rejected: true, reason: "score_bajo", bestScore: best?.score ?? 0, bestName: best?.food?.food_name ?? null });
+    return null;
+  }
   const bestFood = best.food;
 
   const foodPayload = await fatSecretOAuth1Request({
@@ -392,8 +414,14 @@ async function searchFatSecretOAuth1(name: string, amount: number) {
   const servings = asArray(foodPayload?.food?.servings?.serving);
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
-  if (!macros) return null;
-  if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) return null;
+  if (!macros) {
+    attempts?.push({ provider: "fatsecret-oauth1", query, rejected: true, reason: "sin_serving_metrico", matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query });
+    return null;
+  }
+  if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) {
+    attempts?.push({ provider: "fatsecret-oauth1", query, rejected: true, reason: "coincidencia_leche_incorrecta", matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query, macros: roundMacros(macros) });
+    return null;
+  }
 
   return {
     matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
@@ -403,7 +431,7 @@ async function searchFatSecretOAuth1(name: string, amount: number) {
   };
 }
 
-async function calculateWithFatSecret(name: string, grams: number) {
+async function calculateWithFatSecret(name: string, grams: number, attempts?: any[]) {
   if (!getFatSecretCredentials()) return null;
   const internalMatch = findFood(name);
   const candidates = Array.from(new Set([
@@ -414,20 +442,27 @@ async function calculateWithFatSecret(name: string, grams: number) {
 
   for (const candidate of candidates) {
     try {
-      const result = await searchFatSecretOAuth1(candidate, grams);
+      const result = await searchFatSecretOAuth1(candidate, grams, attempts);
       if (result) return result;
-    } catch {
+    } catch (err: any) {
+      attempts?.push({ provider: "fatsecret-oauth1", query: cleanSearchName(candidate), error: err?.message || String(err) });
       // Si las credenciales son OAuth 2.0 en lugar de Consumer Key/Secret, probamos el flujo Bearer.
       break;
     }
   }
 
   try {
-    return await searchFatSecretV3(candidates[0] ?? name, grams);
-  } catch {
+    const result = await searchFatSecretV3(candidates[0] ?? name, grams);
+    attempts?.push({ provider: "fatsecret-v3", query: cleanSearchName(candidates[0] ?? name), used: Boolean(result) });
+    return result;
+  } catch (err: any) {
+    attempts?.push({ provider: "fatsecret-v3", query: cleanSearchName(candidates[0] ?? name), error: err?.message || String(err) });
     try {
-      return await searchFatSecretLegacy(candidates[0] ?? name, grams);
-    } catch {
+      const result = await searchFatSecretLegacy(candidates[0] ?? name, grams);
+      attempts?.push({ provider: "fatsecret-legacy", query: cleanSearchName(candidates[0] ?? name), used: Boolean(result) });
+      return result;
+    } catch (legacyErr: any) {
+      attempts?.push({ provider: "fatsecret-legacy", query: cleanSearchName(candidates[0] ?? name), error: legacyErr?.message || String(legacyErr) });
       return null;
     }
   }
@@ -486,27 +521,43 @@ export default async function handler(req: any, res: any) {
   const missingGrams: any[] = [];
   const fallbackUsed: any[] = [];
   const fatSecretErrors: any[] = [];
+  const debug: IngredientDebugEntry[] = [];
 
   for (const ingredient of inputIngredients) {
     const name = String(ingredient.name || ingredient.raw || "").trim();
     const grams = Number(ingredient.grams);
+    const debugEntry: IngredientDebugEntry = {
+      raw: String(ingredient.raw ?? name),
+      parsedName: name,
+      grams: Number.isFinite(grams) ? grams : null,
+      status: "pendiente",
+      attempts: [],
+    };
     if (!name) continue;
     if (!Number.isFinite(grams) || grams <= 0) {
       missingGrams.push({ name, raw: ingredient.raw ?? name });
+      debugEntry.status = "sin_gramos";
+      debug.push(debugEntry);
       continue;
     }
 
-    const fatSecretMatch = await calculateWithFatSecret(name, grams);
+    const fatSecretMatch = await calculateWithFatSecret(name, grams, debugEntry.attempts);
     if (fatSecretMatch?.macros) {
       addMacros(totals, fatSecretMatch.macros);
+      debugEntry.status = "incluido";
+      debugEntry.source = "fatsecret";
+      debugEntry.matchedAs = fatSecretMatch.matchedAs;
+      debugEntry.foodId = fatSecretMatch.foodId;
+      debugEntry.macros = roundMacros(fatSecretMatch.macros);
       found.push({
         name,
         matchedAs: fatSecretMatch.matchedAs,
         grams,
         source: "fatsecret",
         foodId: fatSecretMatch.foodId,
-        macros: Object.fromEntries(Object.entries(fatSecretMatch.macros).map(([k, v]) => [k, round(v)])),
+        macros: roundMacros(fatSecretMatch.macros),
       });
+      debug.push(debugEntry);
       continue;
     }
 
@@ -514,19 +565,26 @@ export default async function handler(req: any, res: any) {
     if (!match) {
       notFound.push({ name, grams, raw: ingredient.raw ?? name });
       if (externalApisConfigured.fatSecret) fatSecretErrors.push(name);
+      debugEntry.status = "no_encontrado";
+      debug.push(debugEntry);
       continue;
     }
 
     const itemMacros = scale(match.food, grams);
     addMacros(totals, itemMacros);
     fallbackUsed.push({ name, matchedAs: match.key });
+    debugEntry.status = "incluido";
+    debugEntry.source = "tabla_interna";
+    debugEntry.matchedAs = match.key;
+    debugEntry.macros = roundMacros(itemMacros);
     found.push({
       name,
       matchedAs: match.key,
       grams,
       source: "tabla_interna",
-      macros: Object.fromEntries(Object.entries(itemMacros).map(([k, v]) => [k, round(v)])),
+      macros: roundMacros(itemMacros),
     });
+    debug.push(debugEntry);
   }
 
   const status: MacroStatus =
@@ -539,7 +597,7 @@ export default async function handler(req: any, res: any) {
   const totalRounded = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, round(v)]));
   const perServing = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, round(v / servings)]));
 
-  return res.status(200).json({
+  const responseBody = {
     status,
     category: body.category ?? "",
     containsHerbalife: Boolean(body.containsHerbalife),
@@ -551,6 +609,7 @@ export default async function handler(req: any, res: any) {
     found,
     notFound,
     missingGrams,
+    debug,
     warnings: {
       notFound: notFound.map(i => i.name),
       missingGrams: missingGrams.map(i => i.name),
@@ -564,5 +623,25 @@ export default async function handler(req: any, res: any) {
         : "tabla_interna_basica_por_100g",
     },
     envPrepared: ["FATSECRET_CONSUMER_KEY", "FATSECRET_CONSUMER_SECRET", "USDA_API_KEY"],
-  });
+  };
+
+  console.info("[macro-specialist] calculation", JSON.stringify({
+    servings,
+    ingredients: debug.map(item => ({
+      raw: item.raw,
+      parsedName: item.parsedName,
+      grams: item.grams,
+      status: item.status,
+      source: item.source,
+      matchedAs: item.matchedAs,
+      foodId: item.foodId,
+      macros: item.macros,
+      attempts: item.attempts,
+    })),
+    perServing,
+    totals: totalRounded,
+    status,
+  }));
+
+  return res.status(200).json(responseBody);
 }

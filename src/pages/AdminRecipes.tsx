@@ -87,6 +87,7 @@ export default function AdminRecipes() {
         servings: Number(f.servings) || 1,
         category: f.category,
       });
+      console.info("[AdminRecipes] Depuración cálculo macros", data.debug ?? data.found);
       const macros = macrosFromSpecialist(data);
       setF(prev => ({
         ...prev,
@@ -130,6 +131,7 @@ export default function AdminRecipes() {
             servings: Number(f.servings) || 1,
             category: f.category,
           });
+          console.info("[AdminRecipes] Depuración cálculo macros antes de guardar", data.debug ?? data.found);
           calculatedMacros = macrosFromSpecialist(data);
           if (data.notFound?.length || data.missingGrams?.length) {
             toast.warning("Receta guardada con macros pendientes de revisión para algunos ingredientes");

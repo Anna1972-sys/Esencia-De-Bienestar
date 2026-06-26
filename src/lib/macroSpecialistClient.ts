@@ -29,6 +29,7 @@ export type MacroSpecialistResult = {
   found: any[];
   notFound: any[];
   missingGrams: any[];
+  debug?: any[];
   warnings: any;
   envPrepared: string[];
 };
