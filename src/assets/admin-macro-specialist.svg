@@ -1,52 +1,80 @@
 <svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="720" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFF8F8"/>
-      <stop offset="0.48" stop-color="#F7E6EC"/>
-      <stop offset="1" stop-color="#191919"/>
+      <stop stop-color="#FFF9FD"/>
+      <stop offset="0.52" stop-color="#F2E8FF"/>
+      <stop offset="1" stop-color="#E7D7F7"/>
     </linearGradient>
-    <linearGradient id="card" x1="180" y1="110" x2="850" y2="610" gradientUnits="userSpaceOnUse">
-      <stop stop-color="white"/>
-      <stop offset="1" stop-color="#FFF1F6"/>
+    <linearGradient id="panel" x1="160" y1="92" x2="900" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FBF5FF"/>
     </linearGradient>
-    <filter id="shadow" x="120" y="60" width="760" height="620" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#1B1B1B" flood-opacity="0.18"/>
+    <linearGradient id="accent" x1="250" y1="140" x2="760" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D965B4"/>
+      <stop offset="1" stop-color="#7B4BC8"/>
+    </linearGradient>
+    <filter id="softShadow" x="98" y="40" width="856" height="650" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#8A57C7" flood-opacity="0.20"/>
+    </filter>
+    <filter id="smallShadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#8A57C7" flood-opacity="0.16"/>
     </filter>
   </defs>
+
   <rect width="1200" height="720" rx="48" fill="url(#bg)"/>
-  <circle cx="1030" cy="132" r="180" fill="#E91E86" fill-opacity="0.18"/>
-  <circle cx="1105" cy="596" r="210" fill="#111111" fill-opacity="0.22"/>
-  <g filter="url(#shadow)">
-    <rect x="174" y="94" width="690" height="532" rx="44" fill="url(#card)" stroke="#F03A96" stroke-width="4"/>
+  <circle cx="1028" cy="126" r="190" fill="#FFFFFF" fill-opacity="0.55"/>
+  <circle cx="1058" cy="610" r="260" fill="#C9A8F4" fill-opacity="0.28"/>
+  <circle cx="118" cy="610" r="220" fill="#E89BD2" fill-opacity="0.18"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="150" y="82" width="770" height="556" rx="50" fill="url(#panel)" stroke="#E7C9F8" stroke-width="4"/>
   </g>
-  <rect x="232" y="152" width="318" height="56" rx="18" fill="#181818"/>
-  <rect x="232" y="244" width="232" height="26" rx="13" fill="#F03A96" fill-opacity="0.28"/>
-  <rect x="232" y="292" width="440" height="22" rx="11" fill="#151515" fill-opacity="0.15"/>
-  <rect x="232" y="334" width="378" height="22" rx="11" fill="#151515" fill-opacity="0.12"/>
-  <g transform="translate(246 404)">
-    <rect width="116" height="116" rx="30" fill="white" stroke="#F03A96" stroke-width="3"/>
-    <path d="M34 75C34 55 48 42 60 42C72 42 82 53 82 66C82 82 68 92 55 92C43 92 34 85 34 75Z" fill="#F03A96" fill-opacity="0.24"/>
-    <path d="M39 47C46 29 61 22 77 25C73 43 60 54 39 47Z" fill="#2F2F2F"/>
+
+  <rect x="216" y="144" width="286" height="54" rx="18" fill="url(#accent)"/>
+  <text x="248" y="180" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" fill="white" letter-spacing="2">ANÁLISIS</text>
+  <text x="216" y="250" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800" fill="#30233F">Especialista en macros</text>
+  <text x="216" y="292" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="600" fill="#826A98">Cálculo nutricional por ración</text>
+
+  <g filter="url(#smallShadow)">
+    <rect x="216" y="336" width="410" height="198" rx="34" fill="#FFFFFF"/>
+    <rect x="250" y="374" width="130" height="26" rx="13" fill="#F0E4FA"/>
+    <rect x="250" y="424" width="326" height="16" rx="8" fill="#EEE6F7"/>
+    <rect x="250" y="424" width="245" height="16" rx="8" fill="#D965B4"/>
+    <rect x="250" y="462" width="326" height="16" rx="8" fill="#EEE6F7"/>
+    <rect x="250" y="462" width="188" height="16" rx="8" fill="#8B5FD3"/>
+    <rect x="250" y="500" width="326" height="16" rx="8" fill="#EEE6F7"/>
+    <rect x="250" y="500" width="118" height="16" rx="8" fill="#B992E8"/>
+    <text x="398" y="394" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800" fill="#30233F">Proteína · hidratos · grasas</text>
   </g>
-  <g transform="translate(396 404)">
-    <rect width="116" height="116" rx="30" fill="white" stroke="#F03A96" stroke-width="3"/>
-    <rect x="34" y="30" width="48" height="60" rx="12" fill="#181818"/>
-    <rect x="43" y="42" width="30" height="6" rx="3" fill="#F03A96"/>
-    <rect x="43" y="56" width="30" height="6" rx="3" fill="white" fill-opacity="0.75"/>
-    <rect x="43" y="70" width="30" height="6" rx="3" fill="white" fill-opacity="0.75"/>
+
+  <g transform="translate(684 164)" filter="url(#smallShadow)">
+    <circle cx="168" cy="168" r="142" fill="#FFFFFF"/>
+    <circle cx="168" cy="168" r="96" fill="#FBF4FF"/>
+    <path d="M168 72A96 96 0 0 1 260 195L168 168V72Z" fill="#D965B4"/>
+    <path d="M260 195A96 96 0 0 1 118 251L168 168L260 195Z" fill="#8B5FD3"/>
+    <path d="M118 251A96 96 0 0 1 92 116L168 168L118 251Z" fill="#B992E8"/>
+    <path d="M92 116A96 96 0 0 1 168 72V168L92 116Z" fill="#F2B7DA"/>
+    <circle cx="168" cy="168" r="42" fill="white"/>
+    <text x="168" y="162" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800" fill="#30233F">kcal</text>
+    <text x="168" y="185" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#826A98">por ración</text>
   </g>
-  <g transform="translate(546 404)">
-    <rect width="116" height="116" rx="30" fill="white" stroke="#F03A96" stroke-width="3"/>
-    <path d="M30 78H86" stroke="#181818" stroke-width="9" stroke-linecap="round"/>
-    <path d="M42 78V54M58 78V38M74 78V48" stroke="#F03A96" stroke-width="10" stroke-linecap="round"/>
+
+  <g transform="translate(702 484)">
+    <rect width="96" height="96" rx="28" fill="#FFFFFF" filter="url(#smallShadow)"/>
+    <path d="M28 62C31 42 43 30 57 30C72 30 81 43 78 57C75 74 57 82 42 75" stroke="#D965B4" stroke-width="9" stroke-linecap="round"/>
+    <path d="M42 75L52 59L64 75" stroke="#8B5FD3" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <g transform="translate(724 190)">
-    <circle cx="172" cy="172" r="126" fill="#181818"/>
-    <circle cx="172" cy="172" r="92" fill="#FFF7FA"/>
-    <path d="M118 178C124 140 146 118 176 118C206 118 230 142 230 172C230 212 196 238 158 225" stroke="#F03A96" stroke-width="18" stroke-linecap="round"/>
-    <path d="M158 225L174 194L196 222" stroke="#181818" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(826 484)">
+    <rect width="96" height="96" rx="28" fill="#FFFFFF" filter="url(#smallShadow)"/>
+    <circle cx="48" cy="50" r="27" fill="#F2E8FF" stroke="#8B5FD3" stroke-width="7"/>
+    <path d="M35 50H61M48 37V63" stroke="#D965B4" stroke-width="6" stroke-linecap="round"/>
   </g>
-  <text x="254" y="190" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" fill="white">MACROS</text>
-  <text x="232" y="270" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#181818">Análisis nutricional</text>
-  <text x="232" y="585" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#181818">Kcal · Proteína · Hidratos · Grasas · Fibra</text>
+  <g transform="translate(950 484)">
+    <rect width="96" height="96" rx="28" fill="#FFFFFF" filter="url(#smallShadow)"/>
+    <path d="M28 66H68" stroke="#8B5FD3" stroke-width="8" stroke-linecap="round"/>
+    <path d="M34 66V48M48 66V32M62 66V42" stroke="#D965B4" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <text x="216" y="590" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800" fill="#30233F">Calorías · Proteínas · Hidratos · Grasas · Fibra</text>
+  <text x="216" y="624" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="600" fill="#826A98">Una herramienta limpia para revisar recetas antes de publicarlas.</text>
 </svg>
