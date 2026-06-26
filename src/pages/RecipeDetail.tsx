@@ -82,7 +82,7 @@ export default function RecipeDetail() {
   const ing = Array.isArray(r.ingredients) ? r.ingredients : [];
   const steps = Array.isArray(r.steps) ? r.steps : [];
   const macros = r.macros || {};
-  const hasMacros = Number(macros.protein) > 0 || Number(macros.carbs) > 0 || Number(macros.fat) > 0 || Number(macros.calories) > 0;
+  const hasMacros = Number(macros.protein) > 0 || Number(macros.carbs) > 0 || Number(macros.fat) > 0 || Number(macros.calories) > 0 || Number(macros.fiber) > 0;
   const videoThumb = r.video_url ? videoThumbnail(r.video_url) : null;
   const cover = r.image_url || videoThumb || getCategoryImage(r.category);
 
@@ -114,11 +114,12 @@ export default function RecipeDetail() {
       )}
       {r.description && <p className="muted text-sm mb-3">{r.description}</p>}
       {hasMacros && (
-        <div className="card-soft p-3 mb-4 grid grid-cols-4 gap-2 text-center text-xs">
+        <div className="card-soft p-3 mb-4 grid grid-cols-5 gap-2 text-center text-xs">
+          <div className="nutrition-stat"><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Kcal</div></div>
           <div className="nutrition-stat"><div className="font-semibold">{macros.protein ?? 0}g</div><div className="muted">Proteínas</div></div>
           <div className="nutrition-stat"><div className="font-semibold">{macros.carbs ?? 0}g</div><div className="muted">Carbohidratos</div></div>
           <div className="nutrition-stat"><div className="font-semibold">{macros.fat ?? 0}g</div><div className="muted">Grasas</div></div>
-          <div className="nutrition-stat"><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Kcal</div></div>
+          <div className="nutrition-stat"><div className="font-semibold">{macros.fiber ?? 0}g</div><div className="muted">Fibra</div></div>
         </div>
       )}
       {ing.length > 0 && (

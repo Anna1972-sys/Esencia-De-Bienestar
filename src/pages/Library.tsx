@@ -187,11 +187,12 @@ export default function Library() {
                         {r.is_featured && <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />}
                         <div className="font-medium truncate">{r.title}</div>
                       </div>
-                      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10px] text-center">
+                      <div className="mt-1.5 grid grid-cols-5 gap-1 text-[10px] text-center">
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
                         <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
                         <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
                         <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
-                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
+                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fiber ?? 0}g</div><div className="muted">Fibra</div></div>
                       </div>
                       {r.category && !selectedCat && (
                         <div className="text-[10px] muted mt-1 truncate">{getCategoryLabel(r.category)}</div>

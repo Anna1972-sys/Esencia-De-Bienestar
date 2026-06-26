@@ -29,6 +29,31 @@ const ingredientsToMacroText = (ingredients: any[] = []) =>
     .filter(Boolean)
     .join("\n");
 
+const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategory, preferences?: string, restrictions?: string) => {
+  const servings = Number(recipe?.servings) || 2;
+  const ingredientsText = ingredientsToMacroText(recipe?.ingredients ?? []);
+  if (!ingredientsText) return recipe;
+  const macroResult = await calculateWithMacroSpecialist({
+    ingredientsText,
+    servings,
+    category: recipe?.category ?? fallbackCategory,
+    preferences: preferences || undefined,
+    restrictions: restrictions || undefined,
+  });
+  const macros = macrosFromSpecialist(macroResult);
+  return {
+    ...recipe,
+    servings,
+    macros: {
+      ...(recipe?.macros ?? {}),
+      ...macros,
+      servings,
+    },
+    nutrition_status: macros.nutrition_status,
+    nutrition_note: macros.nutrition_note,
+  };
+};
+
 export default function RecipeGenerator() {
   const { user } = useAuth();
   const [category, setCategory] = useState<RecipeCategory>("comidas_saludables");
@@ -96,7 +121,13 @@ export default function RecipeGenerator() {
         throw new Error(data.error);
       }
 
-      setResult(data.result);
+      const enrichedRecipe = await withSpecialistMacros(
+        data.result,
+        category,
+        preferences.trim(),
+        [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
+      );
+      setResult(enrichedRecipe);
       toast.success("Receta generada");
     } catch (err: any) {
       toast.error(err?.message || "Error generando receta");
@@ -108,46 +139,39 @@ export default function RecipeGenerator() {
   const saveRecipe = async (r: any) => {
     if (!user) return;
     const servings = Number(r.servings) || 2;
-    const ingredientsText = ingredientsToMacroText(r.ingredients ?? []);
-    let macros: any = r.macros ?? {};
-    if (ingredientsText) {
-      try {
-        const macroResult = await calculateWithMacroSpecialist({
-          ingredientsText,
-          servings,
-          category: r.category ?? category,
-          preferences: preferences.trim() || undefined,
-          restrictions: [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · ") || undefined,
-        });
-        macros = {
-          ...macros,
-          ...macrosFromSpecialist(macroResult),
-        };
-      } catch (err: any) {
-        toast.error(err?.message || "No se pudieron calcular los macros de la receta");
-        return;
-      }
+    let enrichedRecipe = r;
+    try {
+      enrichedRecipe = await withSpecialistMacros(
+        r,
+        category,
+        preferences.trim(),
+        [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudieron calcular los macros de la receta");
+      return;
     }
+    let macros: any = enrichedRecipe.macros ?? {};
     macros = {
       ...macros,
       servings,
-      nutrition_status: macros.nutrition_status ?? r.nutrition_status ?? "estimated",
-      nutrition_note: macros.nutrition_note ?? r.nutrition_note ?? "Valores nutricionales estimados",
-      nutrition_reference: r.nutrition_reference ?? macros.nutrition_reference ?? "",
+      nutrition_status: macros.nutrition_status ?? enrichedRecipe.nutrition_status ?? "estimated",
+      nutrition_note: macros.nutrition_note ?? enrichedRecipe.nutrition_note ?? "Valores nutricionales estimados",
+      nutrition_reference: enrichedRecipe.nutrition_reference ?? macros.nutrition_reference ?? "",
     };
 
     const { data, error } = await supabase.from("recipes").insert({
       user_id: user.id,
-      title: r.title,
-      description: r.description,
-      category: r.category ?? category,
-      categories: [r.category ?? category],
+      title: enrichedRecipe.title,
+      description: enrichedRecipe.description,
+      category: enrichedRecipe.category ?? category,
+      categories: [enrichedRecipe.category ?? category],
       servings,
-      prep_time: r.prep_time,
+      prep_time: enrichedRecipe.prep_time,
       macros,
-      ingredients: r.ingredients ?? [],
-      steps: r.steps ?? [],
-      tags: Array.from(new Set([...(r.tags ?? []), "Generador IA"])),
+      ingredients: enrichedRecipe.ingredients ?? [],
+      steps: enrichedRecipe.steps ?? [],
+      tags: Array.from(new Set([...(enrichedRecipe.tags ?? []), "Generador IA"])),
       is_library: false,
       is_featured: false,
       visibility: "private",

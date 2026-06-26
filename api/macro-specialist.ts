@@ -122,13 +122,6 @@ async function verifySession(authHeader: string | undefined) {
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return { ok: false, status: 401, error: "Sesión no válida" };
 
-  const { data: roles, error: roleError } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", data.user.id)
-    .eq("role", "admin");
-
-  if (roleError || !roles?.length) return { ok: false, status: 403, error: "Solo administradores" };
   return { ok: true, status: 200, error: "" };
 }
 
