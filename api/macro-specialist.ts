@@ -212,10 +212,10 @@ function scoreFood(food: any, query: string) {
   return overlap * 12 + (normalizedFood.includes(normalizedQuery) ? 25 : 0) + (normalizedQuery.includes(normalizedFood) ? 15 : 0);
 }
 
-function pickBestFood(foods: any[], query: string) {
+function pickBestFoodWithScore(foods: any[], query: string) {
   return foods
     .map(food => ({ food, score: scoreFood(food, query) }))
-    .sort((a, b) => b.score - a.score)[0]?.food ?? foods[0];
+    .sort((a, b) => b.score - a.score)[0] ?? null;
 }
 
 function pickBestServing(servings: any[], amount: number) {
@@ -262,7 +262,9 @@ async function searchFatSecretV3(name: string, amount: number) {
   const foods = asArray(searchPayload?.foods_search?.results?.food);
   if (!foods.length) return null;
 
-  const bestFood = pickBestFood(foods, query);
+  const best = pickBestFoodWithScore(foods, query);
+  if (!best || best.score < 20) return null;
+  const bestFood = best.food;
   const servings = asArray(bestFood?.servings?.serving);
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
@@ -288,7 +290,9 @@ async function searchFatSecretLegacy(name: string, amount: number) {
   });
   const foods = asArray(searchPayload?.foods?.food);
   if (!foods.length) return null;
-  const bestFood = pickBestFood(foods, query);
+  const best = pickBestFoodWithScore(foods, query);
+  if (!best || best.score < 20) return null;
+  const bestFood = best.food;
 
   const foodPayload = await fatSecretRequest("server.api", {
     method: "food.get",
@@ -364,7 +368,9 @@ async function searchFatSecretOAuth1(name: string, amount: number) {
   });
   const foods = asArray(searchPayload?.foods?.food);
   if (!foods.length) return null;
-  const bestFood = pickBestFood(foods, query);
+  const best = pickBestFoodWithScore(foods, query);
+  if (!best || best.score < 20) return null;
+  const bestFood = best.food;
 
   const foodPayload = await fatSecretOAuth1Request({
     method: "food.get",
