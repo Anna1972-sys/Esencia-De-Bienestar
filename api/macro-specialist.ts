@@ -196,6 +196,15 @@ function servingToMacros(serving: any, amount: number): MacroValues | null {
   };
 }
 
+function isBadLowFatMilkMatch(query: string, matchedName: string, macros: MacroValues, amount: number) {
+  const normalizedQuery = normalizeName(query);
+  const normalizedMatch = normalizeName(matchedName);
+  const asksForLowFatMilk = /\b(leche desnatada|leche descremada|leche sin grasa|skim milk|nonfat milk)\b/.test(normalizedQuery);
+  if (!asksForLowFatMilk) return false;
+  const maxExpectedFat = Math.max(0.5, amount * 0.005);
+  return (normalizedMatch === "leche" || normalizedMatch === "milk") && macros.fat > maxExpectedFat;
+}
+
 function asArray<T>(value: T | T[] | undefined | null): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
@@ -269,6 +278,7 @@ async function searchFatSecretV3(name: string, amount: number) {
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
   if (!macros) return null;
+  if (isBadLowFatMilkMatch(query, bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
     matchedAs: bestFood.food_name ?? query,
@@ -303,6 +313,7 @@ async function searchFatSecretLegacy(name: string, amount: number) {
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
   if (!macros) return null;
+  if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
     matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
@@ -381,6 +392,7 @@ async function searchFatSecretOAuth1(name: string, amount: number) {
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
   if (!macros) return null;
+  if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
     matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
