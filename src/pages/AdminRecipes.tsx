@@ -39,6 +39,7 @@ export default function AdminRecipes() {
   const [uploading, setUploading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [macroDebug, setMacroDebug] = useState<any[]>([]);
 
   const load = async () => {
     const { data, error } = await supabase.from("recipes").select("*").eq("is_library", true).order("created_at", { ascending: false });
@@ -51,7 +52,7 @@ export default function AdminRecipes() {
   };
   useEffect(() => { load(); }, []);
 
-  const resetForm = () => { setF(emptyForm); setEditingId(null); clearDraft(); };
+  const resetForm = () => { setF(emptyForm); setEditingId(null); setMacroDebug([]); clearDraft(); };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,7 +88,8 @@ export default function AdminRecipes() {
         servings: Number(f.servings) || 1,
         category: f.category,
       });
-      console.info("[AdminRecipes] Depuración cálculo macros", data.debug ?? data.found);
+      setMacroDebug(data.debug ?? []);
+      console.info("[AdminRecipes] Depuración cálculo macros", JSON.stringify(data.debug ?? data.found, null, 2));
       const macros = macrosFromSpecialist(data);
       setF(prev => ({
         ...prev,
@@ -131,7 +133,8 @@ export default function AdminRecipes() {
             servings: Number(f.servings) || 1,
             category: f.category,
           });
-          console.info("[AdminRecipes] Depuración cálculo macros antes de guardar", data.debug ?? data.found);
+          setMacroDebug(data.debug ?? []);
+          console.info("[AdminRecipes] Depuración cálculo macros antes de guardar", JSON.stringify(data.debug ?? data.found, null, 2));
           calculatedMacros = macrosFromSpecialist(data);
           if (data.notFound?.length || data.missingGrams?.length) {
             toast.warning("Receta guardada con macros pendientes de revisión para algunos ingredientes");
@@ -193,6 +196,7 @@ export default function AdminRecipes() {
 
   const startEdit = (r: any) => {
     setEditingId(r.id);
+    setMacroDebug([]);
     const ing = Array.isArray(r.ingredients) ? r.ingredients : [];
     const steps = Array.isArray(r.steps) ? r.steps : [];
     setF({
@@ -281,7 +285,7 @@ export default function AdminRecipes() {
           className="field min-h-28"
           placeholder={'Ingredientes (opcional, uno por línea con cantidad)\nEj: 100 g de pollo\n2 huevos'}
           value={f.ingredients}
-          onChange={e => setF({ ...f, ingredients: e.target.value, protein: 0, carbs: 0, fat: 0, calories: 0, fiber: 0 })}
+          onChange={e => { setMacroDebug([]); setF({ ...f, ingredients: e.target.value, protein: 0, carbs: 0, fat: 0, calories: 0, fiber: 0 }); }}
         />
         <textarea className="field min-h-24" placeholder="Preparación paso a paso (opcional, uno por línea)" value={f.steps} onChange={e => setF({ ...f, steps: e.target.value })} />
 
@@ -296,6 +300,36 @@ export default function AdminRecipes() {
           <div className="card-soft p-2"><div className="font-semibold">{f.fat}g</div><div className="muted">Grasa</div></div>
           <div className="card-soft p-2"><div className="font-semibold">{f.fiber}g</div><div className="muted">Fibra</div></div>
         </div>
+
+        {macroDebug.length > 0 && (
+          <details className="card-soft p-3 text-xs space-y-2">
+            <summary className="cursor-pointer font-semibold text-sm">Depuración del cálculo nutricional</summary>
+            <div className="space-y-2 pt-2">
+              {macroDebug.map((item, idx) => (
+                <div key={`${item.raw}-${idx}`} className="rounded-xl border border-border/70 bg-white p-2">
+                  <div className="font-medium text-foreground">{item.raw}</div>
+                  <div className="muted">Interpretado como: {item.parsedName || "—"} · {item.grams ?? "—"} g</div>
+                  <div className="muted">Estado: {item.status} · Fuente: {item.source ?? "—"}</div>
+                  <div className="muted">Coincidencia: {item.matchedAs ?? "No encontrada"}</div>
+                  {item.macros && (
+                    <div className="mt-1 grid grid-cols-5 gap-1 text-center">
+                      <span>{item.macros.kcal ?? 0} kcal</span>
+                      <span>{item.macros.protein ?? 0}g prot</span>
+                      <span>{item.macros.carbs ?? 0}g hidr</span>
+                      <span>{item.macros.fat ?? 0}g grasa</span>
+                      <span>{item.macros.fiber ?? 0}g fibra</span>
+                    </div>
+                  )}
+                  {Array.isArray(item.attempts) && item.attempts.length > 0 && (
+                    <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-muted/40 p-2 text-[10px] whitespace-pre-wrap">
+                      {JSON.stringify(item.attempts, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
 
         <button className="btn-primary w-full" disabled={uploading || calculating || saving}>
           <Plus className="h-4 w-4" /> {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Añadir receta"}
