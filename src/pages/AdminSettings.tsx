@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Save } from "lucide-react";
+import { RefreshCw, Save } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ const empty: Settings = {
 export default function AdminSettings() {
   const [s, setS] = useState<Settings>(empty);
   const [busy, setBusy] = useState(false);
+  const [refreshingMedia, setRefreshingMedia] = useState(false);
 
   useEffect(() => {
     (supabase as any)
@@ -50,10 +51,51 @@ export default function AdminSettings() {
     else toast.success("Configuración guardada");
   };
 
+  const refreshMediaLinks = async () => {
+    if (refreshingMedia) return;
+    setRefreshingMedia(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("refresh-media-urls");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const recipes =
+        data?.recipesUpdated ??
+        data?.recipes_updated ??
+        data?.updatedRecipes ??
+        data?.recipes ??
+        0;
+      const resources =
+        data?.resourcesUpdated ??
+        data?.resources_updated ??
+        data?.updatedResources ??
+        data?.resources ??
+        0;
+
+      toast.success(`Enlaces actualizados: ${recipes} recetas y ${resources} recursos.`);
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudieron refrescar los enlaces de medios");
+    } finally {
+      setRefreshingMedia(false);
+    }
+  };
+
   return (
     <div className="pb-28">
       <AdminPageHeader title="Ajustes generales" subtitle="Personaliza la apariencia y los textos principales." />
 
+      <section className="card-soft p-4 mb-4 space-y-3">
+        <div>
+          <h2 className="font-serif text-lg">Mantenimiento de medios</h2>
+          <p className="text-sm muted mt-1">
+            Refresca las URLs de imágenes y vídeos ya existentes sin subir archivos nuevos.
+          </p>
+        </div>
+        <button type="button" onClick={refreshMediaLinks} disabled={refreshingMedia} className="btn-secondary w-full">
+          <RefreshCw className={`h-4 w-4 ${refreshingMedia ? "animate-spin" : ""}`} />
+          {refreshingMedia ? "Refrescando enlaces…" : "Refrescar enlaces de medios"}
+        </button>
+      </section>
 
       <form onSubmit={save} className="card-soft p-4 space-y-4">
         <div>

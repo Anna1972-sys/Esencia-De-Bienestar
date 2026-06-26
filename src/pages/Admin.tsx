@@ -50,7 +50,7 @@ const groups: { title: string; items: Item[] }[] = [
     items: [
       { to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos", image: usersImage },
       { to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones", image: invitationsImage },
-      { to: "/app/admin/configuracion",      label: "Configuración",           desc: "Apariencia y textos", image: settingsDeskImage },
+      { to: "/app/admin/configuracion",      label: "Ajustes generales",       desc: "Configuración y mantenimiento", image: settingsDeskImage },
     ],
   },
 ];
