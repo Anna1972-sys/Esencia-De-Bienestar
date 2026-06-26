@@ -188,9 +188,7 @@ export default async function handler(req: any, res: any) {
   const status: MacroStatus =
     notFound.length || missingGrams.length
       ? "pendiente de revisión"
-      : externalApisConfigured.fatSecret || externalApisConfigured.usda
-        ? "verificado"
-        : "estimado";
+      : "estimado";
 
   const totalRounded = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, round(v)]));
   const perServing = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, round(v / servings)]));

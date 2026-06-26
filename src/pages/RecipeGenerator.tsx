@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
 
 type RecipeCategory = "comidas_saludables" | "almuerzos" | "meriendas" | "nutricion_deportiva";
 
@@ -18,6 +19,15 @@ const CATEGORY_LABEL: Record<RecipeCategory, string> = CATEGORIES.reduce((acc, i
   acc[item.id] = item.label;
   return acc;
 }, {} as Record<RecipeCategory, string>);
+
+const ingredientsToMacroText = (ingredients: any[] = []) =>
+  ingredients
+    .map((item: any) => {
+      if (typeof item === "string") return item;
+      return `${item.quantity ?? ""} ${item.name ?? ""}`.trim();
+    })
+    .filter(Boolean)
+    .join("\n");
 
 export default function RecipeGenerator() {
   const { user } = useAuth();
@@ -97,11 +107,33 @@ export default function RecipeGenerator() {
 
   const saveRecipe = async (r: any) => {
     if (!user) return;
-    const macros = {
-      ...(r.macros ?? {}),
-      nutrition_status: r.nutrition_status ?? "estimated",
-      nutrition_note: r.nutrition_note ?? "Valores nutricionales estimados",
-      nutrition_reference: r.nutrition_reference ?? "",
+    const servings = Number(r.servings) || 2;
+    const ingredientsText = ingredientsToMacroText(r.ingredients ?? []);
+    let macros: any = r.macros ?? {};
+    if (ingredientsText) {
+      try {
+        const macroResult = await calculateWithMacroSpecialist({
+          ingredientsText,
+          servings,
+          category: r.category ?? category,
+          preferences: preferences.trim() || undefined,
+          restrictions: [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · ") || undefined,
+        });
+        macros = {
+          ...macros,
+          ...macrosFromSpecialist(macroResult),
+        };
+      } catch (err: any) {
+        toast.error(err?.message || "No se pudieron calcular los macros de la receta");
+        return;
+      }
+    }
+    macros = {
+      ...macros,
+      servings,
+      nutrition_status: macros.nutrition_status ?? r.nutrition_status ?? "estimated",
+      nutrition_note: macros.nutrition_note ?? r.nutrition_note ?? "Valores nutricionales estimados",
+      nutrition_reference: r.nutrition_reference ?? macros.nutrition_reference ?? "",
     };
 
     const { data, error } = await supabase.from("recipes").insert({
@@ -110,7 +142,7 @@ export default function RecipeGenerator() {
       description: r.description,
       category: r.category ?? category,
       categories: [r.category ?? category],
-      servings: r.servings ?? 2,
+      servings,
       prep_time: r.prep_time,
       macros,
       ingredients: r.ingredients ?? [],
@@ -119,7 +151,7 @@ export default function RecipeGenerator() {
       is_library: false,
       is_featured: false,
       visibility: "private",
-      is_high_protein: Number(r.macros?.protein ?? 0) >= 25,
+      is_high_protein: Number(macros?.protein ?? 0) >= 25,
     } as any).select().single();
 
     if (error) return toast.error(error.message);
@@ -133,7 +165,7 @@ export default function RecipeGenerator() {
         <ArrowLeft className="h-4 w-4" /> Volver
       </Link>
       <h1 className="heading-lg mb-1">Generador IA</h1>
-      <p className="muted text-sm mb-5">Recetas para 2 personas, con cantidades exactas y nutrición por ración.</p>
+      <p className="muted text-sm mb-5">Recetas para 2 personas. Los valores nutricionales (calorías, proteínas, hidratos de carbono, grasas y fibra) están calculados por persona.</p>
 
       <div className="card-soft wellness-generator p-5 mb-5">
         <label className="label">Tipo de receta</label>

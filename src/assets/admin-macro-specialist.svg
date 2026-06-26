@@ -1,0 +1,52 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8F8"/>
+      <stop offset="0.48" stop-color="#F7E6EC"/>
+      <stop offset="1" stop-color="#191919"/>
+    </linearGradient>
+    <linearGradient id="card" x1="180" y1="110" x2="850" y2="610" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white"/>
+      <stop offset="1" stop-color="#FFF1F6"/>
+    </linearGradient>
+    <filter id="shadow" x="120" y="60" width="760" height="620" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#1B1B1B" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="720" rx="48" fill="url(#bg)"/>
+  <circle cx="1030" cy="132" r="180" fill="#E91E86" fill-opacity="0.18"/>
+  <circle cx="1105" cy="596" r="210" fill="#111111" fill-opacity="0.22"/>
+  <g filter="url(#shadow)">
+    <rect x="174" y="94" width="690" height="532" rx="44" fill="url(#card)" stroke="#F03A96" stroke-width="4"/>
+  </g>
+  <rect x="232" y="152" width="318" height="56" rx="18" fill="#181818"/>
+  <rect x="232" y="244" width="232" height="26" rx="13" fill="#F03A96" fill-opacity="0.28"/>
+  <rect x="232" y="292" width="440" height="22" rx="11" fill="#151515" fill-opacity="0.15"/>
+  <rect x="232" y="334" width="378" height="22" rx="11" fill="#151515" fill-opacity="0.12"/>
+  <g transform="translate(246 404)">
+    <rect width="116" height="116" rx="30" fill="white" stroke="#F03A96" stroke-width="3"/>
+    <path d="M34 75C34 55 48 42 60 42C72 42 82 53 82 66C82 82 68 92 55 92C43 92 34 85 34 75Z" fill="#F03A96" fill-opacity="0.24"/>
+    <path d="M39 47C46 29 61 22 77 25C73 43 60 54 39 47Z" fill="#2F2F2F"/>
+  </g>
+  <g transform="translate(396 404)">
+    <rect width="116" height="116" rx="30" fill="white" stroke="#F03A96" stroke-width="3"/>
+    <rect x="34" y="30" width="48" height="60" rx="12" fill="#181818"/>
+    <rect x="43" y="42" width="30" height="6" rx="3" fill="#F03A96"/>
+    <rect x="43" y="56" width="30" height="6" rx="3" fill="white" fill-opacity="0.75"/>
+    <rect x="43" y="70" width="30" height="6" rx="3" fill="white" fill-opacity="0.75"/>
+  </g>
+  <g transform="translate(546 404)">
+    <rect width="116" height="116" rx="30" fill="white" stroke="#F03A96" stroke-width="3"/>
+    <path d="M30 78H86" stroke="#181818" stroke-width="9" stroke-linecap="round"/>
+    <path d="M42 78V54M58 78V38M74 78V48" stroke="#F03A96" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(724 190)">
+    <circle cx="172" cy="172" r="126" fill="#181818"/>
+    <circle cx="172" cy="172" r="92" fill="#FFF7FA"/>
+    <path d="M118 178C124 140 146 118 176 118C206 118 230 142 230 172C230 212 196 238 158 225" stroke="#F03A96" stroke-width="18" stroke-linecap="round"/>
+    <path d="M158 225L174 194L196 222" stroke="#181818" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="254" y="190" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" fill="white">MACROS</text>
+  <text x="232" y="270" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#181818">Análisis nutricional</text>
+  <text x="232" y="585" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#181818">Kcal · Proteína · Hidratos · Grasas · Fibra</text>
+</svg>

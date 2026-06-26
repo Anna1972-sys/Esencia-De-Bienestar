@@ -8,12 +8,13 @@ import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
 import VideoField from "@/components/VideoField";
+import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 
 type LibForm = {
   title: string; description: string; category: string;
-  protein: number; carbs: number; fat: number; calories: number;
+  protein: number; carbs: number; fat: number; calories: number; fiber: number;
   prep_time: string; servings: string;
   ingredients: string; steps: string;
   image_url: string; video_url: string; is_featured: boolean;
@@ -21,7 +22,7 @@ type LibForm = {
 
 const emptyForm: LibForm = {
   title: "", description: "", category: LIBRARY_CATEGORIES[0].id,
-  protein: 0, carbs: 0, fat: 0, calories: 0, prep_time: "", servings: "",
+  protein: 0, carbs: 0, fat: 0, calories: 0, fiber: 0, prep_time: "", servings: "",
   ingredients: "", steps: "",
   image_url: "", video_url: "", is_featured: false,
 };
@@ -71,17 +72,22 @@ export default function AdminRecipes() {
     if (missingQty.length > 0) { toast.error(`Cada ingrediente debe incluir una cantidad. Revisa: ${missingQty[0]}`); return null; }
     setCalculating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("calculate-macros", { body: { ingredients, title: f.title } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      const macros = {
-        protein: Number(data.protein) || 0,
-        carbs: Number(data.carbs) || 0,
-        fat: Number(data.fat) || 0,
-        calories: Number(data.calories) || 0,
-      };
-      setF(prev => ({ ...prev, ...macros }));
-      toast.success("Macros calculados");
+      const data = await calculateWithMacroSpecialist({
+        ingredientsText: f.ingredients,
+        servings: Number(f.servings) || 1,
+        category: f.category,
+      });
+      const macros = macrosFromSpecialist(data);
+      setF(prev => ({
+        ...prev,
+        calories: macros.calories,
+        protein: macros.protein,
+        carbs: macros.carbs,
+        fat: macros.fat,
+        fiber: macros.fiber,
+      }));
+      if (data.notFound?.length || data.missingGrams?.length) toast.warning("Macros calculados con avisos pendientes de revisión");
+      else toast.success("Macros calculados");
       return macros;
     } catch (err: any) {
       toast.error(err.message || "Error calculando macros");
@@ -103,11 +109,35 @@ export default function AdminRecipes() {
         return;
       }
     }
-    const macros: any = {
+    let calculatedMacros: any = null;
+    if (ingredients.length > 0) {
+      setCalculating(true);
+      try {
+        const data = await calculateWithMacroSpecialist({
+          ingredientsText: f.ingredients,
+          servings: Number(f.servings) || 1,
+          category: f.category,
+        });
+        calculatedMacros = macrosFromSpecialist(data);
+        if (data.notFound?.length || data.missingGrams?.length) {
+          toast.warning("Receta guardada con macros pendientes de revisión para algunos ingredientes");
+        }
+      } catch (err: any) {
+        setCalculating(false);
+        toast.error(err.message || "No se pudieron calcular los macros");
+        return;
+      } finally {
+        setCalculating(false);
+      }
+    }
+    const macros: any = calculatedMacros ?? {
       protein: f.protein || 0,
       carbs: f.carbs || 0,
       fat: f.fat || 0,
       calories: f.calories || 0,
+      fiber: f.fiber || 0,
+      nutrition_status: "pending_review",
+      nutrition_note: "pendiente de revisión",
     };
     if (f.prep_time.trim()) macros.prep_time = f.prep_time.trim();
     if (f.servings.trim()) macros.servings = f.servings.trim();
@@ -120,7 +150,7 @@ export default function AdminRecipes() {
       is_featured: f.is_featured,
       image_url: f.image_url || null,
       video_url: f.video_url || null,
-      is_high_protein: (f.protein || 0) >= 25,
+      is_high_protein: Number(macros.protein || 0) >= 25,
       macros,
       ingredients,
       steps: f.steps.split("\n").map(s => s.trim()).filter(Boolean),
@@ -144,6 +174,7 @@ export default function AdminRecipes() {
       carbs: Number(r.macros?.carbs) || 0,
       fat: Number(r.macros?.fat) || 0,
       calories: Number(r.macros?.calories) || 0,
+      fiber: Number(r.macros?.fiber) || 0,
       prep_time: r.macros?.prep_time ?? "",
       servings: r.macros?.servings ?? "",
       ingredients: ing.map((i: any) => typeof i === "string" ? i : `${i.name}${i.quantity ? ` — ${i.quantity}` : ""}`).join("\n"),
@@ -221,19 +252,20 @@ export default function AdminRecipes() {
           className="field min-h-28"
           placeholder={'Ingredientes (opcional, uno por línea con cantidad)\nEj: 100 g de pollo\n2 huevos'}
           value={f.ingredients}
-          onChange={e => setF({ ...f, ingredients: e.target.value, protein: 0, carbs: 0, fat: 0, calories: 0 })}
+          onChange={e => setF({ ...f, ingredients: e.target.value, protein: 0, carbs: 0, fat: 0, calories: 0, fiber: 0 })}
         />
         <textarea className="field min-h-24" placeholder="Preparación paso a paso (opcional, uno por línea)" value={f.steps} onChange={e => setF({ ...f, steps: e.target.value })} />
 
         <button type="button" onClick={calculateMacros} disabled={calculating || uploading || !parseIngredients(f.ingredients).length} className="btn-ghost w-full">
-          <Sparkles className="h-4 w-4" /> {calculating ? "Calculando macros…" : "Calcular macros con IA"}
+          <Sparkles className="h-4 w-4" /> {calculating ? "Calculando macros…" : "Calcular macros"}
         </button>
 
-        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+        <div className="grid grid-cols-5 gap-2 text-center text-xs">
+          <div className="card-soft p-2"><div className="font-semibold">{f.calories}</div><div className="muted">kcal</div></div>
           <div className="card-soft p-2"><div className="font-semibold">{f.protein}g</div><div className="muted">Prot</div></div>
           <div className="card-soft p-2"><div className="font-semibold">{f.carbs}g</div><div className="muted">Carb</div></div>
           <div className="card-soft p-2"><div className="font-semibold">{f.fat}g</div><div className="muted">Grasa</div></div>
-          <div className="card-soft p-2"><div className="font-semibold">{f.calories}</div><div className="muted">kcal</div></div>
+          <div className="card-soft p-2"><div className="font-semibold">{f.fiber}g</div><div className="muted">Fibra</div></div>
         </div>
 
         <button className="btn-primary w-full" disabled={uploading || calculating}>

@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Calculator, Loader2 } from "lucide-react";
+import { Calculator, Loader2 } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { calculateWithMacroSpecialist } from "@/lib/macroSpecialistClient";
 
 const EXAMPLE = "pollo 200 g\narroz 120 g\ncalabacín 150 g\ntomate 100 g\naceite de oliva 10 g";
 
@@ -21,24 +20,14 @@ export default function AdminMacroSpecialist() {
     setLoading(true);
     setResult(null);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const response = await fetch("/api/macro-specialist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          ingredientsText,
-          servings: Number(servings) || 1,
-          category,
-          containsHerbalife,
-          preferences: preferences.trim() || undefined,
-          restrictions: restrictions.trim() || undefined,
-        }),
+      const data = await calculateWithMacroSpecialist({
+        ingredientsText,
+        servings: Number(servings) || 1,
+        category,
+        containsHerbalife,
+        preferences: preferences.trim() || undefined,
+        restrictions: restrictions.trim() || undefined,
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.error || "No se pudo calcular");
       setResult(data);
       toast.success("Macros calculados");
     } catch (err: any) {
@@ -50,9 +39,6 @@ export default function AdminMacroSpecialist() {
 
   return (
     <div className="pb-28">
-      <Link to="/app/admin" className="text-sm muted inline-flex items-center gap-1 mb-3">
-        <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
       <AdminPageHeader
         title="Especialista en macros"
         subtitle="Herramienta de prueba para calcular macros sin modificar recetas existentes."

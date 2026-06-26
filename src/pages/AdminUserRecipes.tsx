@@ -6,6 +6,7 @@ import { ArrowLeft, Eye, Star, Trash2, Upload, X, Save } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import { LIBRARY_CATEGORIES } from "@/lib/libraryCategories";
+import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
 
 type Visibility = "private" | "community" | "featured";
 
@@ -18,6 +19,7 @@ type Recipe = {
   ingredients: any;
   steps: any;
   macros: any;
+  servings?: number | string | null;
   category: string | null;
   categories: string[] | null;
   visibility: Visibility;
@@ -51,6 +53,28 @@ const DEFAULT_LIBRARY_CATEGORY: Record<string, string> = {
 };
 const displayCategory = (category?: string | null) =>
   category ? GENERATED_CATEGORY_LABEL[category] ?? LIBRARY_CATEGORIES.find(c => c.id === category)?.label ?? category : "Sin categoría";
+
+const QTY_RE = /\d/;
+const parseEditableIngredients = (text: string) =>
+  text.split("\n").map(s => s.trim()).filter(Boolean);
+
+const calculateRecipeMacros = async (ingredientsText: string, servings: number, category?: string | null, fallbackMacros: any = {}) => {
+  const ingredients = parseEditableIngredients(ingredientsText);
+  if (!ingredients.length) return fallbackMacros ?? {};
+  const missingQty = ingredients.filter(i => !QTY_RE.test(i));
+  if (missingQty.length > 0) {
+    throw new Error(`Cada ingrediente debe incluir una cantidad. Revisa: ${missingQty[0]}`);
+  }
+  const data = await calculateWithMacroSpecialist({
+    ingredientsText,
+    servings: Number(servings) || 1,
+    category: category || "biblioteca",
+  });
+  return {
+    ...(fallbackMacros ?? {}),
+    ...macrosFromSpecialist(data),
+  };
+};
 
 export default function AdminUserRecipes() {
   const { user } = useAuth();
@@ -95,17 +119,30 @@ export default function AdminUserRecipes() {
   const publishToLibrary = async (r: Recipe, payload: Partial<Recipe>) => {
     if (!user) return;
     setBusy(true);
-    const ingredients = String((payload as any).ingredientsText ?? "")
+    const ingredientsText = String((payload as any).ingredientsText ?? ingredientsToText(r.ingredients));
+    const stepsText = String((payload as any).stepsText ?? stepsToText(r.steps));
+    const ingredients = ingredientsText
       .split("\n").map(s => s.trim()).filter(Boolean);
-    const steps = String((payload as any).stepsText ?? "")
+    const steps = stepsText
       .split("\n").map(s => s.trim()).filter(Boolean);
+    let macros: any = r.macros ?? {};
+    try {
+      const servings = Number(r.servings ?? macros?.servings) || 1;
+      macros = await calculateRecipeMacros(ingredientsText, servings, payload.category ?? r.category, macros);
+      macros.servings = macros.servings ?? servings;
+    } catch (err: any) {
+      setBusy(false);
+      toast.error(err.message || "No se pudieron calcular los macros");
+      return;
+    }
     const insert = {
       user_id: user.id,
       source_user_id: r.user_id,
       title: payload.title ?? r.title,
       description: payload.description ?? r.description,
       image_url: payload.image_url ?? r.image_url,
-      macros: r.macros,
+      macros,
+      servings: r.servings ?? macros.servings ?? null,
       ingredients: ingredients.length ? ingredients : r.ingredients,
       steps: steps.length ? steps : r.steps,
       category: payload.category ?? r.category,
@@ -113,7 +150,7 @@ export default function AdminUserRecipes() {
       is_library: true,
       is_featured: true,
       visibility: "featured" as Visibility,
-      is_high_protein: Number(r.macros?.protein || 0) >= 25,
+      is_high_protein: Number(macros?.protein || 0) >= 25,
     };
     const { error } = await supabase.from("recipes").insert(insert as any);
     setBusy(false);
@@ -131,9 +168,21 @@ export default function AdminUserRecipes() {
     const steps = payload.stepsText !== undefined
       ? payload.stepsText.split("\n").map(s => s.trim()).filter(Boolean)
       : r.steps;
+    const ingredientsText = payload.ingredientsText ?? ingredientsToText(r.ingredients);
+    let macros: any = r.macros ?? {};
+    try {
+      const servings = Number(r.servings ?? macros?.servings) || 1;
+      macros = await calculateRecipeMacros(ingredientsText, servings, payload.category ?? r.category, macros);
+      macros.servings = macros.servings ?? servings;
+    } catch (err: any) {
+      setBusy(false);
+      toast.error(err.message || "No se pudieron calcular los macros");
+      return;
+    }
     const { error } = await supabase.from("recipes").update({
       title: payload.title ?? r.title,
       description: payload.description ?? r.description,
+      macros,
       ingredients,
       steps,
       category: payload.category ?? r.category,

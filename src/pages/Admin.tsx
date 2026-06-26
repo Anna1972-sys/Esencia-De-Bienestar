@@ -7,6 +7,7 @@ import userRecipesImage from "@/assets/cat-comidas.jpg";
 import videosImage from "@/assets/challenge-videos.png";
 import movementImage from "@/assets/home-movimiento.png";
 import nutritionImage from "@/assets/home-nutrition-premium-light.png";
+import macroSpecialistImage from "@/assets/admin-macro-specialist.svg";
 import challengesImage from "@/assets/home-retos.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
 import diaryImage from "@/assets/home-diario.png";
@@ -31,7 +32,7 @@ const groups: { title: string; items: Item[] }[] = [
     items: [
       { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas", image: recipesImage },
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
-      { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: nutritionImage, icon: "calculator" },
+      { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage, icon: "calculator" },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
