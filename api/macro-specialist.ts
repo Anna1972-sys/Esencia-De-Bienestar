@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createHmac, randomBytes } from "node:crypto";
 
 type MacroStatus = "verificado" | "estimado" | "pendiente de revisión";
 
@@ -307,8 +308,90 @@ async function searchFatSecretLegacy(name: string, amount: number) {
   };
 }
 
+function oauthEncode(value: string) {
+  return encodeURIComponent(value)
+    .replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+function buildOAuth1Url(params: Record<string, string>) {
+  const credentials = getFatSecretCredentials();
+  if (!credentials) return null;
+
+  const baseUrl = "https://platform.fatsecret.com/rest/server.api";
+  const oauthParams: Record<string, string> = {
+    oauth_consumer_key: credentials.key,
+    oauth_nonce: randomBytes(16).toString("hex"),
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_version: "1.0",
+  };
+
+  const signatureParams = { ...params, ...oauthParams };
+  const normalized = Object.entries(signatureParams)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${oauthEncode(key)}=${oauthEncode(value)}`)
+    .join("&");
+  const signatureBase = ["GET", oauthEncode(baseUrl), oauthEncode(normalized)].join("&");
+  const signingKey = `${oauthEncode(credentials.secret)}&`;
+  const signature = createHmac("sha1", signingKey).update(signatureBase).digest("base64");
+
+  const url = new URL(baseUrl);
+  for (const [key, value] of Object.entries({ ...params, ...oauthParams, oauth_signature: signature })) {
+    url.searchParams.set(key, value);
+  }
+  return url;
+}
+
+async function fatSecretOAuth1Request(params: Record<string, string>) {
+  const url = buildOAuth1Url(params);
+  if (!url) return null;
+
+  const response = await fetch(url);
+  const text = await response.text();
+  if (!response.ok) throw new Error(`FatSecret OAuth1 ${response.status}: ${text.slice(0, 300)}`);
+  return JSON.parse(text);
+}
+
+async function searchFatSecretOAuth1(name: string, amount: number) {
+  const query = cleanSearchName(name);
+  if (!query) return null;
+
+  const searchPayload = await fatSecretOAuth1Request({
+    method: "foods.search",
+    search_expression: query,
+    format: "json",
+    max_results: "8",
+  });
+  const foods = asArray(searchPayload?.foods?.food);
+  if (!foods.length) return null;
+  const bestFood = pickBestFood(foods, query);
+
+  const foodPayload = await fatSecretOAuth1Request({
+    method: "food.get",
+    food_id: String(bestFood.food_id),
+    format: "json",
+  });
+  const servings = asArray(foodPayload?.food?.servings?.serving);
+  const serving = pickBestServing(servings, amount);
+  const macros = serving ? servingToMacros(serving, amount) : null;
+  if (!macros) return null;
+
+  return {
+    matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
+    foodId: bestFood.food_id,
+    serving,
+    macros,
+  };
+}
+
 async function calculateWithFatSecret(name: string, grams: number) {
   if (!getFatSecretCredentials()) return null;
+
+  try {
+    return await searchFatSecretOAuth1(name, grams);
+  } catch {
+    // Si las credenciales son OAuth 2.0 en lugar de Consumer Key/Secret, probamos el flujo Bearer.
+  }
 
   try {
     return await searchFatSecretV3(name, grams);
