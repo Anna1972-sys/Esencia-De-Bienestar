@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Calculator, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import recipesImage from "@/assets/home-recetas.png";
 import userRecipesImage from "@/assets/cat-comidas.jpg";
 import videosImage from "@/assets/challenge-videos.png";
 import movementImage from "@/assets/home-movimiento.png";
 import nutritionImage from "@/assets/home-nutrition-premium-light.png";
-import macroSpecialistImage from "@/assets/admin-macro-specialist.svg";
+import macroSpecialistImage from "@/assets/admin-macro-specialist.jpg";
 import challengesImage from "@/assets/home-retos.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
 import diaryImage from "@/assets/home-diario.png";
@@ -23,7 +23,6 @@ type Item = {
   label: string;
   desc: string;
   image: string;
-  icon?: "calculator";
 };
 
 const groups: { title: string; items: Item[] }[] = [
@@ -32,7 +31,7 @@ const groups: { title: string; items: Item[] }[] = [
     items: [
       { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas", image: recipesImage },
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
-      { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage, icon: "calculator" },
+      { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
@@ -137,11 +136,6 @@ export default function Admin() {
                   className="challenge-premium group relative overflow-hidden rounded-[22px] bg-white/90 hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <img src={s.image} alt="" className="h-32 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  {s.icon === "calculator" && (
-                    <div className="absolute top-3 right-3 h-10 w-10 rounded-2xl bg-black/75 border border-white/20 text-white grid place-items-center shadow-lg">
-                      <Calculator className="h-5 w-5" />
-                    </div>
-                  )}
                   <div className="flex items-center gap-3 px-4 py-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[15px] leading-tight text-foreground">{s.label}</div>
