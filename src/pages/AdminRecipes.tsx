@@ -308,7 +308,8 @@ export default function AdminRecipes() {
               {macroDebug.map((item, idx) => (
                 <div key={`${item.raw}-${idx}`} className="rounded-xl border border-border/70 bg-white p-2">
                   <div className="font-medium text-foreground">{item.raw}</div>
-                  <div className="muted">Interpretado como: {item.parsedName || "—"} · {item.grams ?? "—"} g</div>
+                  <div className="muted">Interpretado como: {item.parsedName || "—"}</div>
+                  <div className="muted">Cantidad original: {item.quantity ?? "—"} {item.unit ?? ""} · Usado para cálculo: {item.grams ?? "—"} g/ml</div>
                   <div className="muted">Estado: {item.status} · Fuente: {item.source ?? "—"}</div>
                   <div className="muted">Coincidencia: {item.matchedAs ?? "No encontrada"}</div>
                   {item.macros && (
@@ -318,6 +319,11 @@ export default function AdminRecipes() {
                       <span>{item.macros.carbs ?? 0}g hidr</span>
                       <span>{item.macros.fat ?? 0}g grasa</span>
                       <span>{item.macros.fiber ?? 0}g fibra</span>
+                    </div>
+                  )}
+                  {item.calorieCheck && (
+                    <div className="mt-1 text-[11px] text-primary">
+                      Cuadre kcal: {item.calorieCheck.formulaKcal} = proteína×4 + hidratos×4 + grasa×9
                     </div>
                   )}
                   {Array.isArray(item.attempts) && item.attempts.length > 0 && (

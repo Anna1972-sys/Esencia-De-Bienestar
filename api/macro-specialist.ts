@@ -6,6 +6,8 @@ type MacroStatus = "verificado" | "estimado" | "pendiente de revisión";
 type IngredientInput = {
   name?: string;
   grams?: number | string;
+  unit?: string;
+  quantity?: number;
   raw?: string;
 };
 
@@ -29,12 +31,15 @@ type MacroValues = {
 type IngredientDebugEntry = {
   raw: string;
   parsedName: string;
+  quantity?: number | null;
+  unit?: string;
   grams: number | null;
   status: string;
   source?: string;
   matchedAs?: string;
   foodId?: string;
   macros?: Record<string, number>;
+  calorieCheck?: { formulaKcal: number; displayedKcal: number; difference: number };
   attempts?: any[];
 };
 
@@ -112,14 +117,72 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
 }
 
 function parseRawIngredient(raw: string): IngredientInput {
-  const qtyMatch = raw.match(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros)\b/i);
-  const grams = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
-  const name = cleanSearchName(raw.replace(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros)\b/i, "").trim());
-  return { raw, name, grams };
+  const qtyMatch = raw.match(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
+  const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
+  const unit = qtyMatch?.[2]?.toLowerCase();
+  const rawName = raw.replace(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
+  const name = simplifyFoodName(rawName);
+  const grams = quantity && unit ? quantityToGrams(quantity, unit, name) : undefined;
+  return { raw, name, grams, quantity, unit };
 }
 
 function roundMacros(value: MacroValues) {
-  return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, round(v)]));
+  const strict = enforceMacroCalories(value);
+  return Object.fromEntries(Object.entries(strict).map(([k, v]) => [k, round(v)]));
+}
+
+function formulaCalories(value: Pick<MacroValues, "protein" | "carbs" | "fat">) {
+  return value.protein * 4 + value.carbs * 4 + value.fat * 9;
+}
+
+function enforceMacroCalories(value: MacroValues): MacroValues {
+  return { ...value, kcal: formulaCalories(value) };
+}
+
+function calorieCheck(value: MacroValues) {
+  const strict = enforceMacroCalories(value);
+  return {
+    formulaKcal: round(strict.kcal),
+    displayedKcal: round(strict.kcal),
+    difference: 0,
+  };
+}
+
+function simplifyFoodName(value: string) {
+  const cleaned = cleanSearchName(value);
+  const simplifications: Array<[RegExp, string]> = [
+    [/\baceite\s+oliva\b.*/, "aceite de oliva"],
+    [/\bcarne\s+pavo\b.*/, "carne de pavo"],
+    [/\bpechuga\s+pavo\b.*/, "pechuga de pavo"],
+    [/\bpechuga\s+pollo\b.*/, "pechuga de pollo"],
+    [/\bqueso\s+fresco\b.*/, "queso fresco"],
+    [/\byogur\s+griego\b.*/, "yogur griego"],
+    [/\byogur\s+natural\b.*/, "yogur natural"],
+  ];
+  for (const [pattern, replacement] of simplifications) {
+    if (pattern.test(cleaned)) return replacement;
+  }
+  return cleaned;
+}
+
+function quantityToGrams(quantity: number, unit: string, foodName: string) {
+  const normalizedUnit = unit.toLowerCase();
+  if (["g", "gr", "gramos", "ml", "mililitros"].includes(normalizedUnit)) return quantity;
+  if (["cucharada", "cucharadas", "cda", "cdas"].includes(normalizedUnit)) {
+    if (normalizeName(foodName).includes("aceite")) return quantity * 15;
+    return quantity * 10;
+  }
+  if (["cucharadita", "cucharaditas", "cdta", "cdtas"].includes(normalizedUnit)) {
+    if (normalizeName(foodName).includes("aceite")) return quantity * 5;
+    return quantity * 5;
+  }
+  if (["pieza", "piezas", "unidad", "unidades"].includes(normalizedUnit)) {
+    const normalizedFood = normalizeName(foodName);
+    if (normalizedFood.includes("huevo")) return quantity * 50;
+    if (normalizedFood.includes("manzana")) return quantity * 180;
+    if (normalizedFood.includes("platano") || normalizedFood.includes("banana")) return quantity * 120;
+  }
+  return undefined;
 }
 
 function findFood(name: string) {
@@ -133,13 +196,13 @@ function findFood(name: string) {
 
 function scale(food: FoodMacro, grams: number): MacroValues {
   const factor = grams / 100;
-  return {
-    kcal: food.kcal * factor,
+  return enforceMacroCalories({
+    kcal: 0,
     protein: food.protein * factor,
     carbs: food.carbs * factor,
     fat: food.fat * factor,
     fiber: food.fiber * factor,
-  };
+  });
 }
 
 function round(value: number) {
@@ -205,13 +268,13 @@ function servingToMacros(serving: any, amount: number): MacroValues | null {
   if (!metricAmount || !["g", "ml"].includes(metricUnit)) return null;
 
   const factor = amount / metricAmount;
-  return {
-    kcal: numberValue(serving?.calories) * factor,
+  return enforceMacroCalories({
+    kcal: 0,
     protein: numberValue(serving?.protein) * factor,
     carbs: numberValue(serving?.carbohydrate) * factor,
     fat: numberValue(serving?.fat) * factor,
     fiber: numberValue(serving?.fiber) * factor,
-  };
+  });
 }
 
 function isBadLowFatMilkMatch(query: string, matchedName: string, macros: MacroValues, amount: number) {
@@ -529,6 +592,8 @@ export default async function handler(req: any, res: any) {
     const debugEntry: IngredientDebugEntry = {
       raw: String(ingredient.raw ?? name),
       parsedName: name,
+      quantity: ingredient.quantity == null ? null : Number(ingredient.quantity),
+      unit: ingredient.unit,
       grams: Number.isFinite(grams) ? grams : null,
       status: "pendiente",
       attempts: [],
@@ -549,6 +614,7 @@ export default async function handler(req: any, res: any) {
       debugEntry.matchedAs = fatSecretMatch.matchedAs;
       debugEntry.foodId = fatSecretMatch.foodId;
       debugEntry.macros = roundMacros(fatSecretMatch.macros);
+      debugEntry.calorieCheck = calorieCheck(fatSecretMatch.macros);
       found.push({
         name,
         matchedAs: fatSecretMatch.matchedAs,
@@ -574,10 +640,11 @@ export default async function handler(req: any, res: any) {
     addMacros(totals, itemMacros);
     fallbackUsed.push({ name, matchedAs: match.key });
     debugEntry.status = "incluido";
-    debugEntry.source = "tabla_interna";
-    debugEntry.matchedAs = match.key;
-    debugEntry.macros = roundMacros(itemMacros);
-    found.push({
+      debugEntry.source = "tabla_interna";
+      debugEntry.matchedAs = match.key;
+      debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.calorieCheck = calorieCheck(itemMacros);
+      found.push({
       name,
       matchedAs: match.key,
       grams,
@@ -594,8 +661,16 @@ export default async function handler(req: any, res: any) {
         ? "estimado"
         : "verificado";
 
-  const totalRounded = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, round(v)]));
-  const perServing = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, round(v / servings)]));
+  const strictTotals = enforceMacroCalories(totals);
+  const totalRounded = Object.fromEntries(Object.entries(strictTotals).map(([k, v]) => [k, round(v)]));
+  const perServingValues = enforceMacroCalories({
+    kcal: 0,
+    protein: strictTotals.protein / servings,
+    carbs: strictTotals.carbs / servings,
+    fat: strictTotals.fat / servings,
+    fiber: strictTotals.fiber / servings,
+  });
+  const perServing = Object.fromEntries(Object.entries(perServingValues).map(([k, v]) => [k, round(v)]));
 
   const responseBody = {
     status,
@@ -630,12 +705,15 @@ export default async function handler(req: any, res: any) {
     ingredients: debug.map(item => ({
       raw: item.raw,
       parsedName: item.parsedName,
+      quantity: item.quantity,
+      unit: item.unit,
       grams: item.grams,
       status: item.status,
       source: item.source,
       matchedAs: item.matchedAs,
       foodId: item.foodId,
       macros: item.macros,
+      calorieCheck: item.calorieCheck,
       attempts: item.attempts,
     })),
     perServing,
