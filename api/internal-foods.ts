@@ -6,7 +6,12 @@ function pickSupabaseUrl(...candidates: Array<string | undefined>) {
 }
 
 function cleanEnvValue(value: string | undefined) {
-  return String(value ?? "")
+  const cleaned = String(value ?? "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .trim();
+  const envAssignment = cleaned.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i);
+  return (envAssignment?.[1] ?? cleaned)
     .trim()
     .replace(/^['"]|['"]$/g, "")
     .trim();
@@ -122,12 +127,13 @@ export default async function handler(req: any, res: any) {
     const payload = normalizePayload(await readBody(req));
     if (!payload.name) return res.status(400).json({ error: "El nombre del alimento es obligatorio" });
 
-    const { data, error } = await (dataClient as any)
-      .schema("public")
-      .from("internal_foods")
-      .insert(payload)
-      .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
-      .single();
+    const { data, error } = await writeInternalFood({
+      supabaseUrl: config.supabaseUrl,
+      serviceRoleKey: config.supabaseServiceRoleKey,
+      userToken: token,
+      method: "POST",
+      payload,
+    });
 
     if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
     return res.status(200).json({ data });
@@ -140,13 +146,14 @@ export default async function handler(req: any, res: any) {
     const payload = normalizePayload(body);
     if (!payload.name) return res.status(400).json({ error: "El nombre del alimento es obligatorio" });
 
-    const { data, error } = await (dataClient as any)
-      .schema("public")
-      .from("internal_foods")
-      .update(payload)
-      .eq("id", id)
-      .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
-      .single();
+    const { data, error } = await writeInternalFood({
+      supabaseUrl: config.supabaseUrl,
+      serviceRoleKey: config.supabaseServiceRoleKey,
+      userToken: token,
+      method: "PATCH",
+      id,
+      payload,
+    });
 
     if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
     return res.status(200).json({ data });
@@ -156,21 +163,74 @@ export default async function handler(req: any, res: any) {
   const id = String(body?.id ?? req.query?.id ?? "").trim();
   if (!id) return res.status(400).json({ error: "Falta el ID del alimento" });
 
-  const { error } = await (dataClient as any)
-    .schema("public")
-    .from("internal_foods")
-    .delete()
-    .eq("id", id);
+  const { error } = await writeInternalFood({
+    supabaseUrl: config.supabaseUrl,
+    serviceRoleKey: config.supabaseServiceRoleKey,
+    userToken: token,
+    method: "DELETE",
+    id,
+  });
 
   if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
   return res.status(200).json({ ok: true });
+}
+
+const INTERNAL_FOOD_SELECT = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active";
+
+async function writeInternalFood({
+  supabaseUrl,
+  serviceRoleKey,
+  userToken,
+  method,
+  id,
+  payload,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  userToken: string;
+  method: "POST" | "PATCH" | "DELETE";
+  id?: string;
+  payload?: Record<string, any>;
+}) {
+  const filter = id ? `&id=eq.${encodeURIComponent(id)}` : "";
+  const select = method === "DELETE" ? "" : `?select=${INTERNAL_FOOD_SELECT}${filter}`;
+  const deleteFilter = method === "DELETE" ? `?id=eq.${encodeURIComponent(id ?? "")}` : "";
+  const url = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/internal_foods${select || deleteFilter}`;
+  const authorizationToken = serviceRoleKey.startsWith("eyJ") ? serviceRoleKey : userToken;
+
+  const response = await fetch(url, {
+    method,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${authorizationToken}`,
+      ...(payload ? { "Content-Type": "application/json" } : {}),
+      Prefer: method === "DELETE" ? "return=minimal" : "return=representation",
+    },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(async () => ({ message: await response.text().catch(() => response.statusText) }));
+    return {
+      data: null,
+      error: {
+        message: errorPayload?.message || errorPayload?.error || response.statusText,
+        code: errorPayload?.code || String(response.status),
+        details: errorPayload?.details,
+      },
+    };
+  }
+
+  if (method === "DELETE") return { data: null, error: null };
+  const rows = await response.json().catch(() => []);
+  return { data: Array.isArray(rows) ? rows[0] : rows, error: null };
 }
 
 function normalizeSupabaseWriteError(error: any) {
   const message = String(error?.message ?? "Error al guardar el alimento interno");
   if (/invalid api key/i.test(message)) {
     return {
-      error: "SUPABASE_SERVICE_ROLE_KEY no es válida para el proyecto Supabase configurado en Vercel. Revisa que sea la service_role key del mismo proyecto que VITE_SUPABASE_URL.",
+      error: "Supabase ha rechazado la API key usada por el backend. Revisa que SUPABASE_SERVICE_ROLE_KEY no incluya comillas, espacios ni el texto SUPABASE_SERVICE_ROLE_KEY= al pegarla en Vercel.",
       code: error?.code,
     };
   }
