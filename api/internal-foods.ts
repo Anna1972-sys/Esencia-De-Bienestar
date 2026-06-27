@@ -9,12 +9,16 @@ function cleanEnvValue(value: string | undefined) {
   const cleaned = String(value ?? "")
     .trim()
     .replace(/^['"]|['"]$/g, "")
+    .replace(/^Bearer\s+/i, "")
     .trim();
   const envAssignment = cleaned.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i);
-  return (envAssignment?.[1] ?? cleaned)
+  const unwrapped = (envAssignment?.[1] ?? cleaned)
     .trim()
     .replace(/^['"]|['"]$/g, "")
+    .replace(/^Bearer\s+/i, "")
     .trim();
+  const embeddedKey = unwrapped.match(/sb_secret_[A-Za-z0-9_-]+|sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)?.[0];
+  return embeddedKey ?? unwrapped;
 }
 
 function getSupabaseConfig() {
@@ -130,6 +134,7 @@ export default async function handler(req: any, res: any) {
     const { data, error } = await writeInternalFood({
       supabaseUrl: config.supabaseUrl,
       serviceRoleKey: config.supabaseServiceRoleKey,
+      anonKey: config.supabaseAnonKey,
       userToken: token,
       method: "POST",
       payload,
@@ -149,6 +154,7 @@ export default async function handler(req: any, res: any) {
     const { data, error } = await writeInternalFood({
       supabaseUrl: config.supabaseUrl,
       serviceRoleKey: config.supabaseServiceRoleKey,
+      anonKey: config.supabaseAnonKey,
       userToken: token,
       method: "PATCH",
       id,
@@ -166,6 +172,7 @@ export default async function handler(req: any, res: any) {
   const { error } = await writeInternalFood({
     supabaseUrl: config.supabaseUrl,
     serviceRoleKey: config.supabaseServiceRoleKey,
+    anonKey: config.supabaseAnonKey,
     userToken: token,
     method: "DELETE",
     id,
@@ -180,6 +187,7 @@ const INTERNAL_FOOD_SELECT = "id,name,synonyms,base_quantity,base_unit,calories,
 async function writeInternalFood({
   supabaseUrl,
   serviceRoleKey,
+  anonKey,
   userToken,
   method,
   id,
@@ -187,6 +195,7 @@ async function writeInternalFood({
 }: {
   supabaseUrl: string;
   serviceRoleKey: string;
+  anonKey: string;
   userToken: string;
   method: "POST" | "PATCH" | "DELETE";
   id?: string;
@@ -196,41 +205,70 @@ async function writeInternalFood({
   const select = method === "DELETE" ? "" : `?select=${INTERNAL_FOOD_SELECT}${filter}`;
   const deleteFilter = method === "DELETE" ? `?id=eq.${encodeURIComponent(id ?? "")}` : "";
   const url = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/internal_foods${select || deleteFilter}`;
-  const authorizationToken = serviceRoleKey.startsWith("eyJ") ? serviceRoleKey : userToken;
+  const attempts = buildWriteAuthAttempts({ serviceRoleKey, anonKey, userToken });
+  let lastError: any = null;
 
-  const response = await fetch(url, {
-    method,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${authorizationToken}`,
-      ...(payload ? { "Content-Type": "application/json" } : {}),
-      Prefer: method === "DELETE" ? "return=minimal" : "return=representation",
-    },
-    ...(payload ? { body: JSON.stringify(payload) } : {}),
-  });
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(async () => ({ message: await response.text().catch(() => response.statusText) }));
-    return {
-      data: null,
-      error: {
-        message: errorPayload?.message || errorPayload?.error || response.statusText,
-        code: errorPayload?.code || String(response.status),
-        details: errorPayload?.details,
+  for (const attempt of attempts) {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        apikey: attempt.apikey,
+        Authorization: `Bearer ${attempt.authorization}`,
+        ...(payload ? { "Content-Type": "application/json" } : {}),
+        Prefer: method === "DELETE" ? "return=minimal" : "return=representation",
       },
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
+    });
+
+    if (response.ok) {
+      if (method === "DELETE") return { data: null, error: null };
+      const rows = await response.json().catch(() => []);
+      return { data: Array.isArray(rows) ? rows[0] : rows, error: null };
+    }
+
+    const errorPayload = await response.json().catch(async () => ({ message: await response.text().catch(() => response.statusText) }));
+    lastError = {
+      message: errorPayload?.message || errorPayload?.error || response.statusText,
+      code: errorPayload?.code || String(response.status),
+      details: errorPayload?.details,
     };
+
+    if (!/invalid api key/i.test(String(lastError.message))) break;
   }
 
-  if (method === "DELETE") return { data: null, error: null };
-  const rows = await response.json().catch(() => []);
-  return { data: Array.isArray(rows) ? rows[0] : rows, error: null };
+  return { data: null, error: lastError ?? { message: "Error al guardar el alimento interno" } };
+}
+
+function buildWriteAuthAttempts({
+  serviceRoleKey,
+  anonKey,
+  userToken,
+}: {
+  serviceRoleKey: string;
+  anonKey: string;
+  userToken: string;
+}) {
+  const candidates = [
+    { apikey: serviceRoleKey, authorization: serviceRoleKey },
+    { apikey: serviceRoleKey, authorization: userToken },
+    { apikey: anonKey, authorization: serviceRoleKey },
+    { apikey: anonKey, authorization: userToken },
+  ].filter(item => item.apikey && item.authorization);
+
+  const seen = new Set<string>();
+  return candidates.filter(item => {
+    const key = `${item.apikey}|${item.authorization}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function normalizeSupabaseWriteError(error: any) {
   const message = String(error?.message ?? "Error al guardar el alimento interno");
   if (/invalid api key/i.test(message)) {
     return {
-      error: "Supabase ha rechazado la API key usada por el backend. Revisa que SUPABASE_SERVICE_ROLE_KEY no incluya comillas, espacios ni el texto SUPABASE_SERVICE_ROLE_KEY= al pegarla en Vercel.",
+      error: "Supabase ha rechazado las credenciales de backend para guardar alimentos internos.",
       code: error?.code,
     };
   }
