@@ -296,8 +296,16 @@ function getUsdaApiKey() {
   return key || null;
 }
 
+const EXPECTED_SUPABASE_REF = "agoycljrrfcfauguavng";
+const EXPECTED_SUPABASE_HOST = `${EXPECTED_SUPABASE_REF}.supabase.co`;
+
+function pickSupabaseUrl(...candidates: Array<string | undefined>) {
+  const valid = candidates.filter((url): url is string => /^https:\/\//.test(url ?? ""));
+  return valid.find(url => url.includes(EXPECTED_SUPABASE_HOST)) ?? valid[0] ?? "";
+}
+
 function getSupabaseConfig() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
   const supabaseAnonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||

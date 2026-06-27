@@ -2,9 +2,18 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ??
-  import.meta.env.SUPABASE_URL;
+const EXPECTED_SUPABASE_REF = "agoycljrrfcfauguavng";
+const EXPECTED_SUPABASE_HOST = `${EXPECTED_SUPABASE_REF}.supabase.co`;
+
+function pickSupabaseUrl(...candidates: Array<string | undefined>) {
+  const valid = candidates.filter((url): url is string => /^https:\/\//.test(url ?? ""));
+  return valid.find(url => url.includes(EXPECTED_SUPABASE_HOST)) ?? valid[0] ?? "";
+}
+
+const SUPABASE_URL = pickSupabaseUrl(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.SUPABASE_URL,
+);
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
   import.meta.env.VITE_SUPABASE_ANON_KEY ??

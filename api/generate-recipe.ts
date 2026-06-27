@@ -72,6 +72,14 @@ const CATEGORIES: Record<RecipeCategory, { label: string; rules: string; maxCalo
   },
 };
 
+const EXPECTED_SUPABASE_REF = "agoycljrrfcfauguavng";
+const EXPECTED_SUPABASE_HOST = `${EXPECTED_SUPABASE_REF}.supabase.co`;
+
+function pickSupabaseUrl(...candidates: Array<string | undefined>) {
+  const valid = candidates.filter((url): url is string => /^https:\/\//.test(url ?? ""));
+  return valid.find(url => url.includes(EXPECTED_SUPABASE_HOST)) ?? valid[0] ?? "";
+}
+
 const SYSTEM_PROMPT = `Eres el motor nutricional de Esencia de Bienestar.
 Generas recetas prácticas, realistas y seguras en español.
 Debes responder SIEMPRE con JSON válido, sin markdown y sin texto adicional.
@@ -127,9 +135,7 @@ async function loadInternalFoodsForIngredients(authHeader: string | undefined, i
   const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
   if (!token || ingredients.length === 0) return [];
 
-  const supabaseUrl =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
   const supabaseAnonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
@@ -300,9 +306,7 @@ async function verifySupabaseSession(authHeader: string | undefined) {
   const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
   if (!token) return { ok: false, status: 401, error: "Debes iniciar sesión para generar recetas" };
 
-  const supabaseUrl =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
   const supabaseAnonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
