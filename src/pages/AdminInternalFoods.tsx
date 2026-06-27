@@ -57,17 +57,22 @@ export default function AdminInternalFoods() {
 
   const loadFoods = async () => {
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .schema("public")
-      .from("internal_foods")
-      .select("*")
-      .order("name", { ascending: true });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const response = await fetch("/api/internal-foods", {
+      headers: sessionData.session?.access_token
+        ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+        : {},
+    });
+    const payload = await response.json().catch(() => null);
     setLoading(false);
-    if (error) {
-      toast.error(error.message);
+    if (!response.ok) {
+      toast.error(payload?.error || "No se pudieron cargar los alimentos internos");
       return;
     }
-    setFoods((data ?? []).map((item: any) => ({
+    if (payload?.warning) {
+      toast.warning("Mostrando base interna de respaldo hasta que Supabase exponga la tabla.");
+    }
+    setFoods((payload?.data ?? []).map((item: any) => ({
       ...item,
       base_quantity: toNumber(item.base_quantity),
       calories: toNumber(item.calories),

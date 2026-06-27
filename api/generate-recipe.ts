@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { INITIAL_INTERNAL_FOODS } from "./internal-foods-data.js";
 
 type RecipeCategory = "comidas_saludables" | "almuerzos" | "meriendas" | "nutricion_deportiva";
 
@@ -156,7 +157,11 @@ async function loadInternalFoodsForIngredients(authHeader: string | undefined, i
     .select("name,synonyms,category,base_quantity,base_unit,calories,protein,carbs,fat,fiber")
     .eq("is_active", true);
 
-  if (error || !Array.isArray(data)) return [];
+  if (error || !Array.isArray(data)) {
+    return INITIAL_INTERNAL_FOODS
+      .filter(food => ingredients.some(ingredient => matchesInternalFood(ingredient, food)))
+      .slice(0, 20);
+  }
 
   return (data as InternalFoodContext[])
     .filter(food => ingredients.some(ingredient => matchesInternalFood(ingredient, food)))

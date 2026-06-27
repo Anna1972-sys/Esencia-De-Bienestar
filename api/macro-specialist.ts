@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, randomBytes } from "node:crypto";
+import { INITIAL_INTERNAL_FOODS } from "./internal-foods-data.js";
 
 type MacroStatus = "verificado" | "estimado" | "pendiente de revisión";
 
@@ -340,9 +341,9 @@ async function loadInternalFoods(token: string, attempts?: any[]) {
       rejected: true,
       reason: "no_se_pudo_leer_tabla",
       error: error.message,
-      fallback: "usda",
+      fallback: "base_interna_integrada",
     });
-    return [];
+    return INITIAL_INTERNAL_FOODS as InternalFoodRow[];
   }
   return (data ?? []) as InternalFoodRow[];
 }
