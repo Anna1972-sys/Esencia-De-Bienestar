@@ -29,6 +29,7 @@ import AdminUserRecipes from "@/pages/AdminUserRecipes";
 import AdminResources from "@/pages/AdminResources";
 import AdminResourceCategories from "@/pages/AdminResourceCategories";
 import AdminMacroSpecialist from "@/pages/AdminMacroSpecialist";
+import AdminInternalFoods from "@/pages/AdminInternalFoods";
 import AdminMovement from "@/pages/AdminMovement";
 import Movement from "@/pages/Movement";
 import MovementDetail from "@/pages/MovementDetail";
@@ -106,6 +107,7 @@ export default function App() {
               <Route path="admin/recetas" element={<AdminOnly><AdminRecipes /></AdminOnly>} />
               <Route path="admin/recetas-usuarias" element={<AdminOnly><AdminUserRecipes /></AdminOnly>} />
               <Route path="admin/especialista-macros" element={<AdminOnly><AdminMacroSpecialist /></AdminOnly>} />
+              <Route path="admin/alimentos-internos" element={<AdminOnly><AdminInternalFoods /></AdminOnly>} />
               <Route path="admin/recursos" element={<AdminOnly><AdminResources /></AdminOnly>} />
               <Route path="admin/recursos/categorias" element={<AdminOnly><AdminResourceCategories /></AdminOnly>} />
               <Route path="admin/movimiento" element={<AdminOnly><AdminMovement /></AdminOnly>} />

@@ -20,6 +20,22 @@ type FoodMacro = {
   aliases?: string[];
 };
 
+type InternalFoodRow = {
+  id: string;
+  name: string;
+  synonyms: string[] | null;
+  base_quantity: number | string;
+  base_unit: "g" | "ml" | "serving";
+  calories: number | string;
+  protein: number | string;
+  carbs: number | string;
+  fat: number | string;
+  fiber: number | string;
+  category: string | null;
+  source: string | null;
+  is_active: boolean;
+};
+
 type MacroValues = {
   kcal: number;
   protein: number;
@@ -201,6 +217,35 @@ function findFood(name: string) {
   return null;
 }
 
+function foodFromInternalRow(row: InternalFoodRow): FoodMacro {
+  return {
+    kcal: numberValue(row.calories),
+    protein: numberValue(row.protein),
+    carbs: numberValue(row.carbs),
+    fat: numberValue(row.fat),
+    fiber: numberValue(row.fiber),
+    aliases: row.synonyms ?? [],
+  };
+}
+
+function findInternalFood(name: string, foods: InternalFoodRow[]) {
+  const normalized = normalizeName(name);
+  const candidates = foods
+    .filter(food => food.is_active)
+    .flatMap(food => [
+      { key: food.name, food, normalized: normalizeName(food.name), exact: normalizeName(food.name) === normalized },
+      ...((food.synonyms ?? []).map(alias => ({ key: alias, food, normalized: normalizeName(alias), exact: normalizeName(alias) === normalized }))),
+    ]);
+
+  const exact = candidates.find(candidate => candidate.exact);
+  if (exact) return { key: exact.key, row: exact.food, food: foodFromInternalRow(exact.food) };
+
+  const partial = candidates
+    .filter(candidate => candidate.normalized && (normalized.includes(candidate.normalized) || candidate.normalized.includes(normalized)))
+    .sort((a, b) => b.normalized.length - a.normalized.length)[0];
+  return partial ? { key: partial.key, row: partial.food, food: foodFromInternalRow(partial.food) } : null;
+}
+
 function scale(food: FoodMacro, grams: number): MacroValues {
   const factor = grams / 100;
   return enforceMacroCalories({
@@ -209,6 +254,18 @@ function scale(food: FoodMacro, grams: number): MacroValues {
     carbs: food.carbs * factor,
     fat: food.fat * factor,
     fiber: food.fiber * factor,
+  });
+}
+
+function scaleInternalFood(row: InternalFoodRow, grams: number): MacroValues {
+  const baseQuantity = Math.max(1, numberValue(row.base_quantity) || 100);
+  const factor = grams / baseQuantity;
+  return enforceMacroCalories({
+    kcal: 0,
+    protein: numberValue(row.protein) * factor,
+    carbs: numberValue(row.carbs) * factor,
+    fat: numberValue(row.fat) * factor,
+    fiber: numberValue(row.fiber) * factor,
   });
 }
 
@@ -237,6 +294,47 @@ function getFatSecretCredentials() {
 function getUsdaApiKey() {
   const key = String(process.env.USDA_API_KEY || "").trim();
   return key || null;
+}
+
+function getSupabaseConfig() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY;
+  return supabaseUrl && supabaseAnonKey ? { supabaseUrl, supabaseAnonKey } : null;
+}
+
+function createSupabaseForToken(token: string) {
+  const config = getSupabaseConfig();
+  if (!config) return null;
+  return createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
+async function loadInternalFoods(token: string, attempts?: any[]) {
+  const supabase = createSupabaseForToken(token);
+  if (!supabase) return [];
+  const { data, error } = await (supabase as any)
+    .from("internal_foods")
+    .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    attempts?.push({
+      provider: "alimentos_internos",
+      rejected: true,
+      reason: "no_se_pudo_leer_tabla",
+      error: error.message,
+      fallback: "usda",
+    });
+    return [];
+  }
+  return (data ?? []) as InternalFoodRow[];
 }
 
 async function getFatSecretToken() {
@@ -787,23 +885,13 @@ async function verifySession(authHeader: string | undefined) {
   const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
   if (!token) return { ok: false, status: 401, error: "Debes iniciar sesión" };
 
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY;
+  const supabase = createSupabaseForToken(token);
+  if (!supabase) return { ok: false, status: 500, error: "Supabase no está configurado" };
 
-  if (!supabaseUrl || !supabaseAnonKey) return { ok: false, status: 500, error: "Supabase no está configurado" };
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return { ok: false, status: 401, error: "Sesión no válida" };
 
-  return { ok: true, status: 200, error: "" };
+  return { ok: true, status: 200, error: "", token };
 }
 
 export default async function handler(req: any, res: any) {
@@ -814,6 +902,7 @@ export default async function handler(req: any, res: any) {
 
   const session = await verifySession(req.headers.authorization);
   if (!session.ok) return res.status(session.status).json({ error: session.error });
+  const sessionToken = "token" in session ? session.token : "";
 
   const body = req.body ?? {};
   const servings = Math.max(1, Math.round(Number(body.servings) || 1));
@@ -826,9 +915,12 @@ export default async function handler(req: any, res: any) {
       .map(parseRawIngredient);
 
   const externalApisConfigured = {
+    internalFoods: false,
     fatSecret: Boolean(getFatSecretCredentials()),
     usda: Boolean(getUsdaApiKey()),
   };
+  const internalFoods = sessionToken ? await loadInternalFoods(sessionToken) : [];
+  externalApisConfigured.internalFoods = internalFoods.length > 0;
 
   const totals = zeroMacros();
   const found: any[] = [];
@@ -857,6 +949,45 @@ export default async function handler(req: any, res: any) {
       debug.push(debugEntry);
       continue;
     }
+
+    const internalMatch = findInternalFood(name, internalFoods);
+    if (internalMatch) {
+      const itemMacros = scaleInternalFood(internalMatch.row, grams);
+      addMacros(totals, itemMacros);
+      debugEntry.status = "incluido";
+      debugEntry.source = "alimentos_internos";
+      debugEntry.matchedAs = internalMatch.row.name;
+      debugEntry.foodId = internalMatch.row.id;
+      debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.calorieCheck = calorieCheck(itemMacros);
+      debugEntry.attempts?.push({
+        provider: "alimentos_internos",
+        used: true,
+        matchedAs: internalMatch.row.name,
+        matchedBy: internalMatch.key,
+        baseQuantity: internalMatch.row.base_quantity,
+        baseUnit: internalMatch.row.base_unit,
+        source: internalMatch.row.source,
+        macros: roundMacros(itemMacros),
+      });
+      found.push({
+        name,
+        matchedAs: internalMatch.row.name,
+        grams,
+        source: "alimentos_internos",
+        foodId: internalMatch.row.id,
+        macros: roundMacros(itemMacros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
+    debugEntry.attempts?.push({
+      provider: "alimentos_internos",
+      used: false,
+      reason: externalApisConfigured.internalFoods ? "sin_coincidencia_activa" : "tabla_no_disponible_o_vacia",
+      fallback: "usda",
+    });
 
     const usdaPreferred = externalApisConfigured.usda && isBasicFoodForUsda(name);
     const usdaMatch = usdaPreferred ? await searchUsdaFood(name, grams, debugEntry.attempts) : null;
@@ -927,7 +1058,7 @@ export default async function handler(req: any, res: any) {
     debug.push(debugEntry);
   }
 
-  const externalSourceUsed = found.some(item => item.source === "usda" || item.source === "fatsecret");
+  const externalSourceUsed = found.some(item => item.source === "alimentos_internos" || item.source === "usda" || item.source === "fatsecret");
   const sourcesUsed = Array.from(new Set(found.map(item => item.source).filter(Boolean)));
   const status: MacroStatus =
     notFound.length || missingGrams.length
