@@ -233,7 +233,7 @@ async function writeInternalFood({
       details: errorPayload?.details,
     };
 
-    if (!/invalid api key/i.test(String(lastError.message))) break;
+    if (!/invalid api key|wrong key type|no suitable key/i.test(String(lastError.message))) break;
   }
 
   return { data: null, error: lastError ?? { message: "Error al guardar el alimento interno" } };
@@ -248,12 +248,15 @@ function buildWriteAuthAttempts({
   anonKey: string;
   userToken: string;
 }) {
-  const candidates = [
-    { apikey: serviceRoleKey, authorization: serviceRoleKey },
-    { apikey: serviceRoleKey, authorization: userToken },
-    { apikey: anonKey, authorization: serviceRoleKey },
-    { apikey: anonKey, authorization: userToken },
-  ].filter(item => item.apikey && item.authorization);
+  const serviceRoleIsJwt = serviceRoleKey.startsWith("eyJ");
+  const candidates = serviceRoleIsJwt
+    ? [
+        { apikey: serviceRoleKey, authorization: serviceRoleKey },
+        { apikey: anonKey, authorization: userToken },
+      ]
+    : [
+        { apikey: anonKey, authorization: userToken },
+      ];
 
   const seen = new Set<string>();
   return candidates.filter(item => {
