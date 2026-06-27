@@ -2,17 +2,25 @@ import { createClient } from "@supabase/supabase-js";
 import { INITIAL_INTERNAL_FOODS } from "./internal-foods-data.js";
 
 function pickSupabaseUrl(...candidates: Array<string | undefined>) {
-  return candidates.find((url): url is string => /^https:\/\//.test(url ?? "")) ?? "";
+  return candidates.map(cleanEnvValue).find((url): url is string => /^https:\/\//.test(url ?? "")) ?? "";
+}
+
+function cleanEnvValue(value: string | undefined) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .trim();
 }
 
 function getSupabaseConfig() {
   const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
-  const supabaseAnonKey =
+  const supabaseAnonKey = cleanEnvValue(
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY
+  );
+  const supabaseServiceRoleKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
   return supabaseUrl && supabaseAnonKey ? { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey } : null;
 }
 
@@ -121,7 +129,7 @@ export default async function handler(req: any, res: any) {
       .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
       .single();
 
-    if (error) return res.status(400).json({ error: error.message, code: error.code });
+    if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
     return res.status(200).json({ data });
   }
 
@@ -140,7 +148,7 @@ export default async function handler(req: any, res: any) {
       .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
       .single();
 
-    if (error) return res.status(400).json({ error: error.message, code: error.code });
+    if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
     return res.status(200).json({ data });
   }
 
@@ -154,6 +162,17 @@ export default async function handler(req: any, res: any) {
     .delete()
     .eq("id", id);
 
-  if (error) return res.status(400).json({ error: error.message, code: error.code });
+  if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
   return res.status(200).json({ ok: true });
+}
+
+function normalizeSupabaseWriteError(error: any) {
+  const message = String(error?.message ?? "Error al guardar el alimento interno");
+  if (/invalid api key/i.test(message)) {
+    return {
+      error: "SUPABASE_SERVICE_ROLE_KEY no es válida para el proyecto Supabase configurado en Vercel. Revisa que sea la service_role key del mismo proyecto que VITE_SUPABASE_URL.",
+      code: error?.code,
+    };
+  }
+  return { error: message, code: error?.code };
 }
