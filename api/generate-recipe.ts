@@ -11,6 +11,19 @@ type GenerateBody = {
   servings?: number;
 };
 
+type InternalFoodContext = {
+  name: string;
+  synonyms: string[];
+  category: string;
+  base_quantity: number;
+  base_unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+};
+
 type RecipeResult = {
   title: string;
   description: string;
@@ -89,9 +102,69 @@ function cleanIngredients(input: unknown): string[] {
     : [];
 }
 
+function normalizeName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function numberOrZero(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
+}
+
+function matchesInternalFood(input: string, food: InternalFoodContext) {
+  const normalizedInput = normalizeName(input);
+  const names = [food.name, ...(food.synonyms ?? [])].map(normalizeName).filter(Boolean);
+  return names.some(name => normalizedInput === name || normalizedInput.includes(name) || name.includes(normalizedInput));
+}
+
+async function loadInternalFoodsForIngredients(authHeader: string | undefined, ingredients: string[]) {
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+  if (!token || ingredients.length === 0) return [];
+
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data, error } = await (supabase as any)
+    .from("internal_foods")
+    .select("name,synonyms,category,base_quantity,base_unit,calories,protein,carbs,fat,fiber")
+    .eq("is_active", true);
+
+  if (error || !Array.isArray(data)) return [];
+
+  return (data as InternalFoodContext[])
+    .filter(food => ingredients.some(ingredient => matchesInternalFood(ingredient, food)))
+    .slice(0, 20)
+    .map(food => ({
+      name: food.name,
+      synonyms: food.synonyms ?? [],
+      category: food.category,
+      base_quantity: Number(food.base_quantity) || 100,
+      base_unit: food.base_unit,
+      calories: numberOrZero(food.calories),
+      protein: numberOrZero(food.protein),
+      carbs: numberOrZero(food.carbs),
+      fat: numberOrZero(food.fat),
+      fiber: numberOrZero(food.fiber),
+    }));
 }
 
 function normalizeRecipe(raw: any, category: RecipeCategory, servings: number): RecipeResult {
@@ -155,7 +228,11 @@ function validateRecipe(recipe: RecipeResult): string[] {
   return issues;
 }
 
-function buildUserPrompt(body: Required<Pick<GenerateBody, "category" | "ingredients" | "servings">> & Omit<GenerateBody, "category" | "ingredients" | "servings">, issues: string[] = []): string {
+function buildUserPrompt(
+  body: Required<Pick<GenerateBody, "category" | "ingredients" | "servings">> & Omit<GenerateBody, "category" | "ingredients" | "servings">,
+  issues: string[] = [],
+  internalFoods: InternalFoodContext[] = [],
+): string {
   const category = CATEGORIES[body.category];
   return JSON.stringify({
     tarea: "Genera una receta para el Generador IA de Esencia de Bienestar.",
@@ -163,6 +240,7 @@ function buildUserPrompt(body: Required<Pick<GenerateBody, "category" | "ingredi
     nombre_categoria: category.label,
     reglas_obligatorias: category.rules,
     ingredientes_disponibles: body.ingredients,
+    alimentos_internos_reconocidos: internalFoods,
     preferencias_personales: body.preferences || "Sin preferencias adicionales.",
     alimentos_que_no_gustan: body.dislikes || "No indicado.",
     alimentos_a_evitar: body.avoid || "No indicado.",
@@ -172,6 +250,7 @@ function buildUserPrompt(body: Required<Pick<GenerateBody, "category" | "ingredi
       "Devuelve solo JSON válido con la estructura obligatoria.",
       "Ajusta gramos y cantidades antes de responder para cumplir las reglas.",
       "Calcula macros siempre para 1 persona / 1 ración.",
+      "Si un ingrediente coincide con alimentos_internos_reconocidos por nombre o sinónimo, usa ese alimento interno como referencia principal y conserva su nombre de forma reconocible.",
       "Nunca presentes valores estimados como exactos.",
       "Si no hay referencia nutricional suficiente, usa Valores nutricionales estimados.",
     ],
@@ -242,7 +321,7 @@ async function verifySupabaseSession(authHeader: string | undefined) {
     return { ok: false, status: 401, error: "Sesión no válida. Vuelve a iniciar sesión." };
   }
 
-  return { ok: true, status: 200, error: "" };
+  return { ok: true, status: 200, error: "", token };
 }
 
 export default async function handler(req: any, res: any) {
@@ -278,12 +357,13 @@ export default async function handler(req: any, res: any) {
     dislikes: body.dislikes,
     avoid: body.avoid,
   };
+  const internalFoods = await loadInternalFoodsForIngredients(req.headers.authorization, ingredients);
 
   let issues: string[] = [];
 
   try {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const raw = await callOpenAI(apiKey, buildUserPrompt(requestBody, issues));
+      const raw = await callOpenAI(apiKey, buildUserPrompt(requestBody, issues, internalFoods));
       const recipe = normalizeRecipe(raw, category, servings);
       issues = validateRecipe(recipe);
 
