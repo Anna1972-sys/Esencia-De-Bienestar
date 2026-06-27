@@ -46,6 +46,29 @@ const textToSynonyms = (value: string) =>
     .split(",")
     .map(item => item.trim())
     .filter(Boolean);
+const normalizeText = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const SEARCH_FAMILIES: Record<string, string[]> = {
+  carne: ["carne", "pollo", "pavo", "ternera", "cerdo", "conejo", "lomo", "jamon", "picada"],
+  carnes: ["carne", "pollo", "pavo", "ternera", "cerdo", "conejo", "lomo", "jamon", "picada"],
+  verdura: ["verdura", "verduras", "tomate", "calabacin", "cebolla", "brocoli", "espinacas", "lechuga", "pimiento", "pepino", "berenjena", "coliflor", "setas", "champinon", "esparragos", "judias verdes", "acelgas", "alcachofa", "puerro", "apio", "rucula"],
+  verduras: ["verdura", "verduras", "tomate", "calabacin", "cebolla", "brocoli", "espinacas", "lechuga", "pimiento", "pepino", "berenjena", "coliflor", "setas", "champinon", "esparragos", "judias verdes", "acelgas", "alcachofa", "puerro", "apio", "rucula"],
+  lacteo: ["lacteo", "lacteos", "leche", "yogur", "kefir", "queso", "cottage", "burgos", "requeson", "skyr"],
+  lacteos: ["lacteo", "lacteos", "leche", "yogur", "kefir", "queso", "cottage", "burgos", "requeson", "skyr"],
+  lácteo: ["lacteo", "lacteos", "leche", "yogur", "kefir", "queso", "cottage", "burgos", "requeson", "skyr"],
+  lácteos: ["lacteo", "lacteos", "leche", "yogur", "kefir", "queso", "cottage", "burgos", "requeson", "skyr"],
+};
+
+const getSessionHeaders = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  return sessionData.session?.access_token
+    ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+    : {};
+};
 
 export default function AdminInternalFoods() {
   const [foods, setFoods] = useState<InternalFood[]>([]);
@@ -57,11 +80,8 @@ export default function AdminInternalFoods() {
 
   const loadFoods = async () => {
     setLoading(true);
-    const { data: sessionData } = await supabase.auth.getSession();
     const response = await fetch("/api/internal-foods", {
-      headers: sessionData.session?.access_token
-        ? { Authorization: `Bearer ${sessionData.session.access_token}` }
-        : {},
+      headers: await getSessionHeaders(),
     });
     const payload = await response.json().catch(() => null);
     setLoading(false);
@@ -89,13 +109,19 @@ export default function AdminInternalFoods() {
   }, []);
 
   const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = normalizeText(query.trim());
     if (!normalized) return foods;
+    const terms = [normalized, ...(SEARCH_FAMILIES[normalized] ?? [])].map(normalizeText);
     return foods.filter(food =>
-      food.name.toLowerCase().includes(normalized) ||
-      food.category.toLowerCase().includes(normalized) ||
-      food.source.toLowerCase().includes(normalized) ||
-      food.synonyms.some(alias => alias.toLowerCase().includes(normalized))
+      terms.some(term => {
+        const searchable = normalizeText([
+          food.name,
+          food.category,
+          food.source,
+          ...food.synonyms,
+        ].join(" "));
+        return searchable.includes(term);
+      })
     );
   }, [foods, query]);
 
@@ -142,14 +168,18 @@ export default function AdminInternalFoods() {
       updated_at: new Date().toISOString(),
     };
 
-    const request = editingId
-      ? (supabase as any).schema("public").from("internal_foods").update(payload).eq("id", editingId)
-      : (supabase as any).schema("public").from("internal_foods").insert(payload);
-
-    const { error } = await request;
+    const response = await fetch("/api/internal-foods", {
+      method: editingId ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getSessionHeaders()),
+      },
+      body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
+    });
+    const result = await response.json().catch(() => null);
     setSaving(false);
-    if (error) {
-      toast.error(error.message);
+    if (!response.ok) {
+      toast.error(result?.error || "No se pudo guardar el alimento");
       return;
     }
     toast.success(editingId ? "Alimento actualizado" : "Alimento creado");
@@ -159,12 +189,21 @@ export default function AdminInternalFoods() {
 
   const remove = async (food: InternalFood) => {
     if (!confirm(`¿Eliminar "${food.name}" de Alimentos internos?`)) return;
-    const { error } = await (supabase as any).schema("public").from("internal_foods").delete().eq("id", food.id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Alimento eliminado");
-      loadFoods();
+    const response = await fetch("/api/internal-foods", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getSessionHeaders()),
+      },
+      body: JSON.stringify({ id: food.id }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      toast.error(result?.error || "No se pudo eliminar el alimento");
+      return;
     }
+    toast.success("Alimento eliminado");
+    loadFoods();
   };
 
   const updateForm = (patch: Partial<FormState>) => setForm(prev => ({ ...prev, ...patch }));
