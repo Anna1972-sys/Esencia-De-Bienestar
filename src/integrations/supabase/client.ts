@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const EXPECTED_SUPABASE_REF = "agoycljrrfcfauguavng";
+const EXPECTED_SUPABASE_REF = "vuvdnmessgwhlggzcfqb";
 const EXPECTED_SUPABASE_HOST = `${EXPECTED_SUPABASE_REF}.supabase.co`;
 
 function pickSupabaseUrl(...candidates: Array<string | undefined>) {
