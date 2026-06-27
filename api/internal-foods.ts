@@ -13,12 +13,12 @@ function cleanEnvValue(value: string | undefined) {
 }
 
 function getSupabaseConfig() {
-  const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
+  const supabaseUrl = pickSupabaseUrl(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_URL);
   const supabaseAnonKey = cleanEnvValue(
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY
   );
   const supabaseServiceRoleKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
   return supabaseUrl && supabaseAnonKey ? { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey } : null;
