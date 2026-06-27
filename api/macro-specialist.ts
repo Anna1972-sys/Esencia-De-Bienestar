@@ -48,6 +48,13 @@ type FatSecretToken = {
   expiresAt: number;
 };
 
+type ProviderMacroMatch = {
+  matchedAs: string;
+  foodId?: string;
+  macros: MacroValues;
+  provider: "usda" | "fatsecret";
+};
+
 const BASIC_FOODS: Record<string, FoodMacro> = {
   pollo: { kcal: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, aliases: ["pechuga de pollo", "pollo cocido"] },
   "pechuga de pavo": { kcal: 105, protein: 22.5, carbs: 1, fat: 1.5, fiber: 0, aliases: ["pavo", "fiambre de pavo", "pavo cocido", "turkey breast", "sliced turkey breast"] },
@@ -227,6 +234,11 @@ function getFatSecretCredentials() {
   return key && secret ? { key, secret } : null;
 }
 
+function getUsdaApiKey() {
+  const key = String(process.env.USDA_API_KEY || "").trim();
+  return key || null;
+}
+
 async function getFatSecretToken() {
   const credentials = getFatSecretCredentials();
   if (!credentials) return null;
@@ -289,6 +301,199 @@ function isBadLowFatMilkMatch(query: string, matchedName: string, macros: MacroV
 
 function requiresExactFatSecretMatch(query: string) {
   return ["aceite oliva", "olive oil", "extra virgin olive oil"].includes(normalizeName(query));
+}
+
+function isBasicFoodForUsda(query: string) {
+  const normalized = normalizeName(query);
+  if (findFood(normalized)) return true;
+  return [
+    "pollo", "chicken", "pavo", "turkey", "carne", "beef", "cerdo", "pork",
+    "pescado", "fish", "lubina", "merluza", "salmon", "atun", "hake", "bass", "tuna",
+    "huevo", "egg", "tomate", "brocoli", "calabacin", "zanahoria", "lechuga", "espinacas",
+    "fruta", "fresa", "platano", "manzana", "arroz", "rice", "pasta",
+    "garbanzo", "lenteja", "aceite oliva", "olive oil",
+    "leche", "milk", "yogur", "yogurt", "queso", "cheese",
+  ].some(token => normalized.includes(token));
+}
+
+function usdaSearchCandidates(name: string) {
+  const normalized = normalizeName(name);
+  const translations: Array<[RegExp, string]> = [
+    [/\baceite\s+oliva\b/, "olive oil"],
+    [/\bpechuga\s+pollo\b|\bpollo\b/, "chicken breast"],
+    [/\bpechuga\s+pavo\b|\bpavo\b/, "turkey breast"],
+    [/\bhuevo\b|\bhuevos\b/, "egg"],
+    [/\blubina\b|\brobalo\b/, "sea bass"],
+    [/\bmerluza\b/, "hake"],
+    [/\bsalmon\b/, "salmon"],
+    [/\batun\b/, "tuna"],
+    [/\bbrocoli\b/, "broccoli"],
+    [/\bcalabacin\b/, "zucchini"],
+    [/\btomate\b/, "tomato"],
+    [/\bzanahoria\b/, "carrot"],
+    [/\blechuga\b/, "lettuce"],
+    [/\bespinacas\b/, "spinach"],
+    [/\barroz\s+integral\b/, "brown rice"],
+    [/\barroz\b/, "rice"],
+    [/\bpasta\b/, "pasta"],
+    [/\bgarbanzos?\b/, "chickpeas"],
+    [/\blentejas?\b/, "lentils"],
+    [/\bleche\s+desnatada\b|\bleche\s+descremada\b|\bleche\s+sin\s+grasa\b/, "skim milk"],
+    [/\bleche\b/, "milk"],
+    [/\byogur\s+griego\b/, "greek yogurt"],
+    [/\byogur\b/, "plain yogurt"],
+    [/\bqueso\s+fresco\b/, "fresh cheese"],
+    [/\bfresas?\b/, "strawberries"],
+    [/\bplatano\b|\bbanana\b/, "banana"],
+    [/\bmanzana\b/, "apple"],
+    [/\baguacate\b/, "avocado"],
+    [/\bavena\b/, "oats"],
+    [/\bquinoa\b/, "quinoa"],
+  ];
+  const translated = translations.find(([pattern]) => pattern.test(normalized))?.[1];
+  return Array.from(new Set([translated, name, cleanSearchName(name)].filter(Boolean).map(String)));
+}
+
+function nutrientValue(food: any, nutrientNames: string[]) {
+  const nutrients = asArray(food?.foodNutrients);
+  const found = nutrients.find((item: any) => {
+    const name = normalizeName(item?.nutrientName ?? item?.nutrient?.name ?? "");
+    return nutrientNames.some(expected => {
+      const normalizedExpected = normalizeName(expected);
+      return name === normalizedExpected || name.includes(normalizedExpected);
+    });
+  });
+  return numberValue(found?.value ?? found?.amount);
+}
+
+function usdaFoodToMacros(food: any, amount: number): MacroValues | null {
+  const protein = nutrientValue(food, ["Protein"]);
+  const carbs = nutrientValue(food, ["Carbohydrate, by difference", "Carbohydrate"]);
+  const fat = nutrientValue(food, ["Total lipid (fat)", "Total lipid", "fat"]);
+  const fiber = nutrientValue(food, ["Fiber, total dietary", "Fiber"]);
+  if (!protein && !carbs && !fat && !fiber) return null;
+
+  const factor = amount / 100;
+  return enforceMacroCalories({
+    kcal: 0,
+    protein: protein * factor,
+    carbs: carbs * factor,
+    fat: fat * factor,
+    fiber: fiber * factor,
+  });
+}
+
+function isAllowedUsdaFood(food: any, query: string) {
+  const description = normalizeName(food?.description ?? "");
+  const dataType = String(food?.dataType ?? "").toLowerCase();
+  const normalizedQuery = normalizeName(query);
+  if (!description) return false;
+  if (dataType.includes("branded")) return false;
+
+  if (requiresExactFatSecretMatch(query)) {
+    const isOliveOil = description === "olive oil" || description.startsWith("oil olive") || description.startsWith("olive oil");
+    const forbidden = /\b(tuna|sardine|fish|chicken|mayonnaise|sauce|meal|sandwich|pasta|rice|vegetable oil spread|dressing)\b/.test(description);
+    return isOliveOil && !forbidden;
+  }
+
+  const compositeWords = /\b(soup|sandwich|pizza|restaurant|fast food|meal|dish|recipe|with sauce|in sauce|breaded|casserole|salad dressing|mayonnaise)\b/;
+  if (compositeWords.test(description)) return false;
+
+  const queryTokens = normalizedQuery.split(" ").filter(token => token.length > 2);
+  return queryTokens.some(token => description.includes(token));
+}
+
+function scoreUsdaFood(food: any, query: string) {
+  const description = normalizeName(food?.description ?? "");
+  const normalizedQuery = normalizeName(query);
+  const dataType = String(food?.dataType ?? "").toLowerCase();
+  let score = scoreFood({ food_name: description }, normalizedQuery);
+  if (description === normalizedQuery) score += 80;
+  if (dataType.includes("foundation")) score += 18;
+  if (dataType.includes("sr legacy")) score += 15;
+  if (dataType.includes("survey")) score += 5;
+  if (/\b(raw|cooked|boiled|roasted|broiled|grilled|oil)\b/.test(description)) score += 4;
+  return score;
+}
+
+async function searchUsdaFood(name: string, grams: number, attempts?: any[]): Promise<ProviderMacroMatch | null> {
+  const apiKey = getUsdaApiKey();
+  if (!apiKey) return null;
+
+  const candidates = usdaSearchCandidates(name);
+  for (const query of candidates) {
+    const url = new URL("https://api.nal.usda.gov/fdc/v1/foods/search");
+    url.searchParams.set("api_key", apiKey);
+    url.searchParams.set("query", query);
+    url.searchParams.set("pageSize", "12");
+    url.searchParams.set("dataType", "Foundation,SR Legacy,Survey (FNDDS)");
+
+    try {
+      const response = await fetch(url);
+      const text = await response.text();
+      if (!response.ok) {
+        attempts?.push({ provider: "usda", query, rejected: true, reason: `http_${response.status}`, detail: text.slice(0, 240), fallback: "fatsecret" });
+        continue;
+      }
+
+      const payload = JSON.parse(text);
+      const foods = asArray(payload?.foods);
+      const allowed = foods.filter(food => isAllowedUsdaFood(food, query));
+      attempts?.push({
+        provider: "usda",
+        query,
+        resultCount: foods.length,
+        acceptedCount: allowed.length,
+        rejected: foods
+          .filter(food => !isAllowedUsdaFood(food, query))
+          .slice(0, 6)
+          .map(food => ({ fdcId: food?.fdcId, description: food?.description, dataType: food?.dataType })),
+      });
+
+      if (!allowed.length) continue;
+      const best = allowed
+        .map(food => ({ food, score: scoreUsdaFood(food, query) }))
+        .sort((a, b) => b.score - a.score)[0];
+      if (!best || best.score < 18) {
+        attempts?.push({ provider: "usda", query, rejected: true, reason: "score_bajo", bestScore: best?.score ?? 0, bestName: best?.food?.description ?? null, fallback: "fatsecret" });
+        continue;
+      }
+
+      const macros = usdaFoodToMacros(best.food, grams);
+      if (!macros) {
+        attempts?.push({ provider: "usda", query, rejected: true, reason: "sin_macros_validos", matchedAs: best.food?.description ?? query, fallback: "fatsecret" });
+        continue;
+      }
+
+      attempts?.push({
+        provider: "usda",
+        query,
+        used: true,
+        matchedAs: best.food?.description,
+        fdcId: best.food?.fdcId,
+        dataType: best.food?.dataType,
+        macros: roundMacros(macros),
+      });
+
+      return {
+        provider: "usda",
+        matchedAs: best.food?.description ?? query,
+        foodId: best.food?.fdcId ? String(best.food.fdcId) : undefined,
+        macros,
+      };
+    } catch (err: any) {
+      attempts?.push({ provider: "usda", query, rejected: true, reason: "error", error: err?.message || String(err), fallback: "fatsecret" });
+    }
+  }
+
+  attempts?.push({
+    provider: "usda",
+    query: name,
+    rejected: true,
+    reason: "sin_coincidencia_valida",
+    fallback: "fatsecret",
+  });
+  return null;
 }
 
 function isAllowedExactOliveOilName(foodName: string) {
@@ -393,6 +598,7 @@ async function searchFatSecretV3(name: string, amount: number) {
   if (isBadLowFatMilkMatch(query, bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
+    provider: "fatsecret",
     matchedAs: bestFood.food_name ?? query,
     foodId: bestFood.food_id,
     serving,
@@ -428,6 +634,7 @@ async function searchFatSecretLegacy(name: string, amount: number) {
   if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
+    provider: "fatsecret",
     matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
     foodId: bestFood.food_id,
     serving,
@@ -517,6 +724,7 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
   }
 
   return {
+    provider: "fatsecret",
     matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
     foodId: bestFood.food_id,
     serving,
@@ -619,7 +827,7 @@ export default async function handler(req: any, res: any) {
 
   const externalApisConfigured = {
     fatSecret: Boolean(getFatSecretCredentials()),
-    usda: Boolean(process.env.USDA_API_KEY),
+    usda: Boolean(getUsdaApiKey()),
   };
 
   const totals = zeroMacros();
@@ -650,22 +858,33 @@ export default async function handler(req: any, res: any) {
       continue;
     }
 
-    const fatSecretMatch = await calculateWithFatSecret(name, grams, debugEntry.attempts);
-    if (fatSecretMatch?.macros) {
-      addMacros(totals, fatSecretMatch.macros);
+    const usdaPreferred = externalApisConfigured.usda && isBasicFoodForUsda(name);
+    const usdaMatch = usdaPreferred ? await searchUsdaFood(name, grams, debugEntry.attempts) : null;
+    if (!usdaPreferred && externalApisConfigured.usda) {
+      debugEntry.attempts?.push({
+        provider: "usda",
+        skipped: true,
+        reason: "ingrediente_no_clasificado_como_basico",
+        fallback: "fatsecret",
+      });
+    }
+
+    const providerMatch = usdaMatch ?? await calculateWithFatSecret(name, grams, debugEntry.attempts);
+    if (providerMatch?.macros) {
+      addMacros(totals, providerMatch.macros);
       debugEntry.status = "incluido";
-      debugEntry.source = "fatsecret";
-      debugEntry.matchedAs = fatSecretMatch.matchedAs;
-      debugEntry.foodId = fatSecretMatch.foodId;
-      debugEntry.macros = roundMacros(fatSecretMatch.macros);
-      debugEntry.calorieCheck = calorieCheck(fatSecretMatch.macros);
+      debugEntry.source = providerMatch.provider ?? "fatsecret";
+      debugEntry.matchedAs = providerMatch.matchedAs;
+      debugEntry.foodId = providerMatch.foodId;
+      debugEntry.macros = roundMacros(providerMatch.macros);
+      debugEntry.calorieCheck = calorieCheck(providerMatch.macros);
       found.push({
         name,
-        matchedAs: fatSecretMatch.matchedAs,
+        matchedAs: providerMatch.matchedAs,
         grams,
-        source: "fatsecret",
-        foodId: fatSecretMatch.foodId,
-        macros: roundMacros(fatSecretMatch.macros),
+        source: providerMatch.provider ?? "fatsecret",
+        foodId: providerMatch.foodId,
+        macros: roundMacros(providerMatch.macros),
       });
       debug.push(debugEntry);
       continue;
@@ -708,10 +927,12 @@ export default async function handler(req: any, res: any) {
     debug.push(debugEntry);
   }
 
+  const externalSourceUsed = found.some(item => item.source === "usda" || item.source === "fatsecret");
+  const sourcesUsed = Array.from(new Set(found.map(item => item.source).filter(Boolean)));
   const status: MacroStatus =
     notFound.length || missingGrams.length
       ? "pendiente de revisión"
-      : fallbackUsed.length || !externalApisConfigured.fatSecret
+      : fallbackUsed.length || !externalSourceUsed
         ? "estimado"
         : "verificado";
 
@@ -745,10 +966,10 @@ export default async function handler(req: any, res: any) {
       fallbackUsed,
       fatSecretUnavailableFor: fatSecretErrors,
       externalApisConfigured,
-      dataSource: externalApisConfigured.fatSecret
+      dataSource: externalSourceUsed
         ? fallbackUsed.length || notFound.length || missingGrams.length
-          ? "fatsecret_con_respaldo_tabla_interna"
-          : "fatsecret"
+          ? `${sourcesUsed.join("_")}_con_respaldo_tabla_interna`
+          : sourcesUsed.join("_")
         : "tabla_interna_basica_por_100g",
     },
     envPrepared: ["FATSECRET_CONSUMER_KEY", "FATSECRET_CONSUMER_SECRET", "USDA_API_KEY"],
