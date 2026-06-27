@@ -32,6 +32,9 @@ export const supabase = createClient<Database>(
   isConfigured ? SUPABASE_URL : "https://invalid.supabase.co",
   isConfigured ? SUPABASE_PUBLISHABLE_KEY : "invalid-publishable-key",
   {
+  db: {
+    schema: "public",
+  },
   auth: {
     storage: localStorage,
     persistSession: true,

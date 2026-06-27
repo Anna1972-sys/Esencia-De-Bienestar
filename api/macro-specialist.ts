@@ -310,6 +310,7 @@ function createSupabaseForToken(token: string) {
   const config = getSupabaseConfig();
   if (!config) return null;
   return createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    db: { schema: "public" },
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
@@ -319,6 +320,7 @@ async function loadInternalFoods(token: string, attempts?: any[]) {
   const supabase = createSupabaseForToken(token);
   if (!supabase) return [];
   const { data, error } = await (supabase as any)
+    .schema("public")
     .from("internal_foods")
     .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
     .eq("is_active", true)

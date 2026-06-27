@@ -58,6 +58,7 @@ export default function AdminInternalFoods() {
   const loadFoods = async () => {
     setLoading(true);
     const { data, error } = await (supabase as any)
+      .schema("public")
       .from("internal_foods")
       .select("*")
       .order("name", { ascending: true });
@@ -137,8 +138,8 @@ export default function AdminInternalFoods() {
     };
 
     const request = editingId
-      ? (supabase as any).from("internal_foods").update(payload).eq("id", editingId)
-      : (supabase as any).from("internal_foods").insert(payload);
+      ? (supabase as any).schema("public").from("internal_foods").update(payload).eq("id", editingId)
+      : (supabase as any).schema("public").from("internal_foods").insert(payload);
 
     const { error } = await request;
     setSaving(false);
@@ -153,7 +154,7 @@ export default function AdminInternalFoods() {
 
   const remove = async (food: InternalFood) => {
     if (!confirm(`¿Eliminar "${food.name}" de Alimentos internos?`)) return;
-    const { error } = await (supabase as any).from("internal_foods").delete().eq("id", food.id);
+    const { error } = await (supabase as any).schema("public").from("internal_foods").delete().eq("id", food.id);
     if (error) toast.error(error.message);
     else {
       toast.success("Alimento eliminado");

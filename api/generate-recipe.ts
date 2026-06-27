@@ -139,11 +139,13 @@ async function loadInternalFoodsForIngredients(authHeader: string | undefined, i
   if (!supabaseUrl || !supabaseAnonKey) return [];
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    db: { schema: "public" },
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
   const { data, error } = await (supabase as any)
+    .schema("public")
     .from("internal_foods")
     .select("name,synonyms,category,base_quantity,base_unit,calories,protein,carbs,fat,fiber")
     .eq("is_active", true);
@@ -312,6 +314,7 @@ async function verifySupabaseSession(authHeader: string | undefined) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    db: { schema: "public" },
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
