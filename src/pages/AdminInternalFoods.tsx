@@ -111,7 +111,7 @@ export default function AdminInternalFoods() {
       fat: food.fat,
       fiber: food.fiber,
       category: food.category,
-      source: food.source,
+      source: "Tabla interna",
       is_active: food.is_active,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -131,7 +131,7 @@ export default function AdminInternalFoods() {
       fat: Number(form.fat) || 0,
       fiber: Number(form.fiber) || 0,
       category: form.category.trim() || "general",
-      source: form.source.trim() || "Tabla interna",
+      source: "Tabla interna",
       is_active: form.is_active,
       updated_at: new Date().toISOString(),
     };
@@ -214,7 +214,7 @@ export default function AdminInternalFoods() {
           </label>
           <label className="space-y-1">
             <span className="text-xs muted">Fuente</span>
-            <input className="field" value={form.source} onChange={e => updateForm({ source: e.target.value })} />
+            <input className="field bg-muted/30" value="Tabla interna" readOnly />
           </label>
         </div>
 
