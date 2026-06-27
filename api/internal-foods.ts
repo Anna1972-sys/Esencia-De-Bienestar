@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { INITIAL_INTERNAL_FOODS } from "./internal-foods-data.js";
 
 function pickSupabaseUrl(...candidates: Array<string | undefined>) {
   return candidates.map(cleanEnvValue).find((url): url is string => /^https:\/\//.test(url ?? "")) ?? "";
@@ -73,10 +72,8 @@ export default async function handler(req: any, res: any) {
 
   const config = getSupabaseConfig();
   if (!config) {
-    return res.status(200).json({
-      data: INITIAL_INTERNAL_FOODS,
-      source: "fallback",
-      warning: "Supabase no está configurado en la API.",
+    return res.status(500).json({
+      error: "Supabase no está configurado en la API de Alimentos internos.",
     });
   }
 
@@ -89,32 +86,23 @@ export default async function handler(req: any, res: any) {
   const { data: userData, error: userError } = await authClient.auth.getUser(token);
   if (userError || !userData?.user) return res.status(401).json({ error: "Sesión no válida" });
 
-  const dataClient = createClient(
-    config.supabaseUrl,
-    config.supabaseServiceRoleKey || config.supabaseAnonKey,
-    {
-      db: { schema: "public" },
-      auth: { persistSession: false, autoRefreshToken: false },
-      ...(config.supabaseServiceRoleKey ? {} : { global: { headers: { Authorization: `Bearer ${token}` } } }),
-    },
-  );
-
   if (req.method === "GET") {
-    const { data, error } = await (dataClient as any)
+    const { data, error } = await (authClient as any)
     .schema("public")
     .from("internal_foods")
     .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
     .order("name", { ascending: true });
 
     if (error) {
-      console.warn("[internal-foods] Supabase read failed, using fallback", {
+      console.warn("[internal-foods] Supabase read failed", {
         code: error.code,
         message: error.message,
+        supabaseHost: safeSupabaseHost(config.supabaseUrl),
       });
-      return res.status(200).json({
-        data: INITIAL_INTERNAL_FOODS,
-        source: "fallback",
-        warning: error.message,
+      return res.status(500).json({
+        error: error.message,
+        code: error.code,
+        supabaseHost: safeSupabaseHost(config.supabaseUrl),
       });
     }
 
@@ -141,6 +129,7 @@ export default async function handler(req: any, res: any) {
     });
 
     if (error) return res.status(400).json(normalizeSupabaseWriteError(error));
+    if (!data) return res.status(404).json({ error: "No se ha encontrado el alimento real en Supabase. Recarga la pantalla e inténtalo de nuevo." });
     return res.status(200).json({ data });
   }
 
@@ -265,6 +254,14 @@ function buildWriteAuthAttempts({
     seen.add(key);
     return true;
   });
+}
+
+function safeSupabaseHost(url: string) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
 }
 
 function normalizeSupabaseWriteError(error: any) {
