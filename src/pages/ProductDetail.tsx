@@ -40,6 +40,8 @@ type Product = {
   sugars: number;
   salt: number;
   micronutrients: Record<string, unknown>;
+  source: string | null;
+  verification_status: "verificado" | "pendiente";
   spoon_image_url: string | null;
   product_measures: ProductMeasure[];
 };
@@ -96,6 +98,7 @@ export default function ProductDetail() {
   );
 
   const micronutrients = Object.entries(product.micronutrients ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const hasNutrition = Boolean(product.calories || product.protein || product.carbs || product.fat || product.fiber);
 
   return (
     <article className="pb-8 space-y-5">
@@ -117,13 +120,20 @@ export default function ProductDetail() {
         </div>
       </header>
 
-      <section className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-        <Stat label="Kcal/100g" value={product.calories} />
-        <Stat label="Proteínas" value={`${product.protein}g`} />
-        <Stat label="Hidratos" value={`${product.carbs}g`} />
-        <Stat label="Grasas" value={`${product.fat}g`} />
-        <Stat label="Fibra" value={`${product.fiber}g`} />
-      </section>
+      {hasNutrition ? (
+        <section className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+          <Stat label="Kcal/100g" value={product.calories} />
+          <Stat label="Proteínas" value={`${product.protein}g`} />
+          <Stat label="Hidratos" value={`${product.carbs}g`} />
+          <Stat label="Grasas" value={`${product.fat}g`} />
+          <Stat label="Fibra" value={`${product.fiber}g`} />
+        </section>
+      ) : (
+        <section className="card-soft p-4">
+          <div className="font-medium">Información nutricional pendiente</div>
+          <p className="text-sm muted mt-1">Este producto está creado en la base, pero falta completar sus valores desde etiqueta oficial.</p>
+        </section>
+      )}
 
       <ContentBlock title="Beneficios" value={product.benefits} />
       <ContentBlock title="Modo de empleo" value={product.usage} />
@@ -131,12 +141,14 @@ export default function ProductDetail() {
       <ContentBlock title="Observaciones" value={product.observations} />
       <ContentBlock title="Información adicional" value={product.free_text} />
 
-      {(product.sugars > 0 || product.salt > 0 || micronutrients.length > 0) && (
+      {(product.sugars > 0 || product.salt > 0 || micronutrients.length > 0 || product.source) && (
         <section className="card-soft p-4">
           <h2 className="font-serif text-xl mb-3">Información nutricional ampliada</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
             {product.sugars > 0 && <Info label="Azúcares" value={`${product.sugars} g`} />}
             {product.salt > 0 && <Info label="Sal" value={`${product.salt} g`} />}
+            <Info label="Estado" value={product.verification_status} />
+            {product.source && <Info label="Fuente" value={product.source} />}
             {micronutrients.map(([key, value]) => <Info key={key} label={key.replace(/_/g, " ")} value={String(value)} />)}
           </div>
         </section>
@@ -247,6 +259,8 @@ function normalizeProduct(item: any): Product {
     sugars: toNumber(item.sugars),
     salt: toNumber(item.salt),
     micronutrients: item.micronutrients ?? {},
+    source: item.source ?? null,
+    verification_status: item.verification_status === "verificado" ? "verificado" : "pendiente",
     product_measures: Array.isArray(item.product_measures)
       ? item.product_measures.map((measure: any) => ({
         ...measure,

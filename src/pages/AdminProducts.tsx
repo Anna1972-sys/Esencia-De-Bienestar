@@ -23,6 +23,8 @@ type ProductMeasure = {
   carbs: number;
   fat: number;
   fiber: number;
+  source: string;
+  verification_status: "verificado" | "pendiente";
   is_default: boolean;
   sort_order: number;
 };
@@ -32,6 +34,8 @@ type Product = {
   category_id: string | null;
   name: string;
   slug: string;
+  aliases: string[];
+  line: string | null;
   image_url: string | null;
   gallery_urls: string[];
   video_urls: string[];
@@ -51,6 +55,9 @@ type Product = {
   sugars: number;
   salt: number;
   micronutrients: Record<string, unknown>;
+  source: string;
+  verification_status: "verificado" | "pendiente";
+  nutrition_effective_from: string | null;
   is_active: boolean;
   visible_to_clients: boolean;
   available_for_recipes: boolean;
@@ -63,6 +70,7 @@ type Product = {
 
 type ProductForm = Omit<Product, "id" | "slug" | "product_measures"> & {
   id?: string;
+  aliasesText: string;
   micronutrientsText: string;
   measures: ProductMeasure[];
 };
@@ -75,6 +83,8 @@ const emptyMeasure: ProductMeasure = {
   carbs: 0,
   fat: 0,
   fiber: 0,
+  source: "Pendiente de etiqueta oficial",
+  verification_status: "pendiente",
   is_default: true,
   sort_order: 0,
 };
@@ -82,6 +92,9 @@ const emptyMeasure: ProductMeasure = {
 const emptyProduct: ProductForm = {
   category_id: "",
   name: "",
+  aliases: [],
+  aliasesText: "",
+  line: "",
   image_url: "",
   gallery_urls: [],
   video_urls: [],
@@ -102,6 +115,9 @@ const emptyProduct: ProductForm = {
   salt: 0,
   micronutrients: {},
   micronutrientsText: "{}",
+  source: "Pendiente de etiqueta oficial",
+  verification_status: "pendiente",
+  nutrition_effective_from: null,
   is_active: true,
   visible_to_clients: true,
   available_for_recipes: true,
@@ -122,6 +138,7 @@ const slugify = (value: string) =>
 
 const toNumber = (value: unknown) => Number(String(value ?? "").replace(",", ".")) || 0;
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+const textToArray = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 const round1 = (value: number) => Math.round(value * 10) / 10;
 
 function measureFromProductNutrition(measure: ProductMeasure, product: ProductForm): ProductMeasure {
@@ -264,6 +281,8 @@ export default function AdminProducts() {
       category_id: form.category_id || null,
       name: form.name.trim(),
       slug: form.id ? undefined : slugify(form.name),
+      aliases: textToArray(form.aliasesText),
+      line: form.line || null,
       image_url: form.image_url || null,
       gallery_urls: form.gallery_urls,
       video_urls: form.video_urls,
@@ -283,6 +302,9 @@ export default function AdminProducts() {
       sugars: toNumber(form.sugars),
       salt: toNumber(form.salt),
       micronutrients,
+      source: form.source || "Pendiente de etiqueta oficial",
+      verification_status: form.verification_status,
+      nutrition_effective_from: form.nutrition_effective_from || new Date().toISOString(),
       is_active: form.is_active,
       visible_to_clients: form.visible_to_clients,
       available_for_recipes: form.available_for_recipes,
@@ -315,6 +337,8 @@ export default function AdminProducts() {
         carbs: toNumber(measure.carbs),
         fat: toNumber(measure.fat),
         fiber: toNumber(measure.fiber),
+        source: measure.source || form.source || "Pendiente de etiqueta oficial",
+        verification_status: measure.verification_status,
         is_default: Boolean(measure.is_default),
         sort_order: index,
       }));
@@ -336,6 +360,8 @@ export default function AdminProducts() {
     setForm({
       ...product,
       category_id: product.category_id ?? "",
+      aliasesText: (product.aliases ?? []).join(", "),
+      line: product.line ?? "",
       image_url: product.image_url ?? "",
       gallery_urls: asTextArray(product.gallery_urls),
       video_urls: asTextArray(product.video_urls),
@@ -349,6 +375,9 @@ export default function AdminProducts() {
       free_text: product.free_text ?? "",
       spoon_image_url: product.spoon_image_url ?? "",
       micronutrientsText: JSON.stringify(product.micronutrients ?? {}, null, 2),
+      source: product.source ?? "Pendiente de etiqueta oficial",
+      verification_status: product.verification_status ?? "pendiente",
+      nutrition_effective_from: product.nutrition_effective_from ?? null,
       measures: measures.length ? measures.map(normalizeMeasure) : [emptyMeasure],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -491,6 +520,7 @@ export default function AdminProducts() {
                       <div className="text-xs muted truncate">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
                       <div className="flex flex-wrap gap-1.5 mt-2 text-[10px]">
                         <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
+                        <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
                         {product.visible_to_clients && <span className="chip-lavender">Clientes</span>}
                         {product.available_for_recipes && <span className="chip-lavender">Recetas</span>}
                         {product.informative_only && <span className="chip">Solo informativo</span>}
@@ -527,6 +557,33 @@ export default function AdminProducts() {
             <option value="">Sin categoría</option>
             {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
+          <input className="field" placeholder="Línea / categoría comercial" value={form.line ?? ""} onChange={e => setForm({ ...form, line: e.target.value })} />
+          <select className="field" value={form.verification_status} onChange={e => setForm({ ...form, verification_status: e.target.value as ProductForm["verification_status"] })}>
+            <option value="pendiente">Pendiente</option>
+            <option value="verificado">Verificado</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs muted">Alias inteligentes</span>
+            <textarea
+              className="field min-h-20 mt-1"
+              value={form.aliasesText}
+              onChange={e => setForm({ ...form, aliasesText: e.target.value })}
+              placeholder="F1, Fórmula Uno, Batido Herbalife…"
+            />
+            <p className="text-[11px] muted mt-1">Separados por coma. Se usan para reconocer productos en recetas y generador IA.</p>
+          </label>
+          <label className="block">
+            <span className="text-xs muted">Fuente</span>
+            <textarea
+              className="field min-h-20 mt-1"
+              value={form.source}
+              onChange={e => setForm({ ...form, source: e.target.value })}
+              placeholder="Etiqueta oficial Herbalife España, imagen de cuchara, pendiente…"
+            />
+          </label>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -610,6 +667,22 @@ export default function AdminProducts() {
                   <ReadonlyMacro label="Grasa" value={`${measure.fat} g`} />
                   <ReadonlyMacro label="Fibra" value={`${measure.fiber} g`} />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-2 mt-2">
+                  <input
+                    className="field"
+                    placeholder="Fuente de la medida"
+                    value={measure.source}
+                    onChange={e => updateMeasure(index, { source: e.target.value })}
+                  />
+                  <select
+                    className="field"
+                    value={measure.verification_status}
+                    onChange={e => updateMeasure(index, { verification_status: e.target.value as ProductMeasure["verification_status"] })}
+                  >
+                    <option value="pendiente">Pendiente</option>
+                    <option value="verificado">Verificado</option>
+                  </select>
+                </div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <button type="button" className={measure.is_default ? "btn-primary text-xs py-2" : "btn-secondary text-xs py-2"} onClick={() => markDefaultMeasure(index)}>Medida principal</button>
                   <button type="button" className="btn-secondary text-xs py-2 text-destructive" onClick={() => setForm(prev => ({ ...prev, measures: prev.measures.filter((_, i) => i !== index) }))}><Trash2 className="h-3.5 w-3.5" /> Eliminar medida</button>
@@ -638,6 +711,8 @@ function normalizeProduct(item: any): Product {
   return {
     ...item,
     category_id: item.category_id ?? null,
+    aliases: asTextArray(item.aliases),
+    line: item.line ?? null,
     image_url: item.image_url ?? null,
     gallery_urls: asTextArray(item.gallery_urls),
     video_urls: asTextArray(item.video_urls),
@@ -651,6 +726,9 @@ function normalizeProduct(item: any): Product {
     sugars: toNumber(item.sugars),
     salt: toNumber(item.salt),
     micronutrients: item.micronutrients ?? {},
+    source: item.source ?? "Pendiente de etiqueta oficial",
+    verification_status: item.verification_status === "verificado" ? "verificado" : "pendiente",
+    nutrition_effective_from: item.nutrition_effective_from ?? null,
     is_active: item.is_active !== false,
     visible_to_clients: item.visible_to_clients !== false,
     available_for_recipes: item.available_for_recipes !== false,
@@ -672,6 +750,8 @@ function normalizeMeasure(item: any): ProductMeasure {
     carbs: toNumber(item.carbs),
     fat: toNumber(item.fat),
     fiber: toNumber(item.fiber),
+    source: item.source ?? "Pendiente de etiqueta oficial",
+    verification_status: item.verification_status === "verificado" ? "verificado" : "pendiente",
     is_default: Boolean(item.is_default),
     sort_order: toNumber(item.sort_order),
   };

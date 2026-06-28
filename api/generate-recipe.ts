@@ -27,6 +27,7 @@ type InternalFoodContext = {
 
 type ProductContext = {
   name: string;
+  aliases: string[];
   category: string;
   calories: number;
   protein: number;
@@ -155,7 +156,13 @@ function matchesInternalFood(input: string, food: InternalFoodContext) {
 function matchesProduct(input: string, product: ProductContext) {
   const normalizedInput = normalizeName(input);
   const normalizedProduct = normalizeName(product.name);
-  return Boolean(normalizedInput && normalizedProduct && (normalizedInput === normalizedProduct || normalizedInput.includes(normalizedProduct) || normalizedProduct.includes(normalizedInput)));
+  const normalizedAliases = (product.aliases ?? []).map(normalizeName).filter(Boolean);
+  return Boolean(normalizedInput && normalizedProduct && (
+    normalizedInput === normalizedProduct ||
+    normalizedInput.includes(normalizedProduct) ||
+    normalizedProduct.includes(normalizedInput) ||
+    normalizedAliases.some(alias => normalizedInput.includes(alias) || alias.includes(normalizedInput))
+  ));
 }
 
 async function loadInternalFoodsForIngredients(authHeader: string | undefined, ingredients: string[]) {
@@ -228,7 +235,7 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
   const { data, error } = await (supabase as any)
     .schema("public")
     .from("products")
-    .select("name,calories,protein,carbs,fat,fiber,product_measures(name,grams,calories,protein,carbs,fat,fiber,is_default),product_categories(name)")
+    .select("name,aliases,calories,protein,carbs,fat,fiber,product_measures(name,grams,calories,protein,carbs,fat,fiber,is_default),product_categories(name)")
     .eq("is_active", true)
     .eq("available_for_recipes", true)
     .eq("informative_only", false);
@@ -238,6 +245,7 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
   return data
     .map((product: any) => ({
       name: String(product.name ?? ""),
+      aliases: Array.isArray(product.aliases) ? product.aliases.map(String).filter(Boolean) : [],
       category: String(product.product_categories?.name ?? "Productos"),
       calories: numberOrZero(product.calories),
       protein: numberOrZero(product.protein),

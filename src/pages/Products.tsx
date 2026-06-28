@@ -24,6 +24,7 @@ type Product = {
   visible_to_clients: boolean;
   available_for_recipes: boolean;
   informative_only: boolean;
+  verification_status?: "verificado" | "pendiente";
 };
 
 export default function Products() {
@@ -135,6 +136,7 @@ export default function Products() {
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {product.available_for_recipes && <span className="chip-lavender">Recetas</span>}
                     {product.informative_only && <span className="chip">Informativo</span>}
+                    <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status ?? "pendiente"}</span>
                   </div>
                 </div>
               </Link>

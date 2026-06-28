@@ -46,6 +46,8 @@ type ProductMeasureRow = {
   carbs: number | string;
   fat: number | string;
   fiber: number | string;
+  source?: string | null;
+  verification_status?: string | null;
   is_default: boolean;
   sort_order: number | string;
 };
@@ -54,6 +56,9 @@ type ProductRow = {
   id: string;
   name: string;
   slug: string | null;
+  aliases?: string[] | null;
+  source?: string | null;
+  verification_status?: string | null;
   calories: number | string;
   protein: number | string;
   carbs: number | string;
@@ -316,13 +321,18 @@ function findProduct(input: IngredientInput, products: ProductRow[]) {
     .map(product => {
       const normalizedProduct = normalizeName(product.name);
       const normalizedSlug = normalizeName(product.slug ?? "");
+      const normalizedAliases = (product.aliases ?? []).map(alias => normalizeName(alias)).filter(Boolean);
       const productMatches =
         Boolean(normalizedProduct && (searchable.includes(normalizedProduct) || normalizedProduct.includes(normalizedName))) ||
-        Boolean(normalizedSlug && searchable.includes(normalizedSlug));
+        Boolean(normalizedSlug && searchable.includes(normalizedSlug)) ||
+        normalizedAliases.some(alias => searchable.includes(alias) || alias.includes(normalizedName));
+      const aliasScore = normalizedAliases
+        .filter(alias => searchable.includes(alias) || alias.includes(normalizedName))
+        .sort((a, b) => b.length - a.length)[0]?.length ?? 0;
       return {
         product,
         normalizedProduct,
-        score: productMatches ? normalizedProduct.length + (searchable.includes(normalizedProduct) ? 30 : 0) : 0,
+        score: productMatches ? Math.max(normalizedProduct.length, aliasScore) + (searchable.includes(normalizedProduct) ? 30 : 0) : 0,
       };
     })
     .filter(match => match.score > 0)
@@ -359,18 +369,34 @@ function findProductMeasure(input: IngredientInput, product: ProductRow) {
   const cacito = measures.find(measure => normalizeName(measure.name) === "cacito");
   if (cacito && raw.includes("medio cacito")) return { measure: cacito, quantity: 0.5 };
 
+  const spoon = measures.find(measure => {
+    const name = normalizeName(measure.name);
+    return name.includes("cuchara") && (measure.is_default || name.includes("1 cuchara"));
+  }) ?? measures.find(measure => normalizeName(measure.name).includes("cuchara"));
+  if (spoon && /\b(cuchara|cucharas)\b/.test(raw)) {
+    if (/\b(1\s*2|media|medio)\s+cuchara\b/.test(raw)) return { measure: spoon, quantity: 0.5 };
+    if (input.quantity && String(input.unit ?? "").toLowerCase().includes("cuchara")) return { measure: spoon, quantity: Number(input.quantity) };
+    return { measure: spoon, quantity: 1 };
+  }
+
   const defaultMeasure = measures.find(measure => measure.is_default);
   if (defaultMeasure) return { measure: defaultMeasure, quantity: input.quantity && !input.unit ? Number(input.quantity) : 1 };
   return null;
 }
 
+function hasUsableMacros(value: Pick<FoodMacro, "kcal" | "protein" | "carbs" | "fat" | "fiber">) {
+  return Boolean(value.kcal || value.protein || value.carbs || value.fat || value.fiber);
+}
+
 function calculateProductMacros(input: IngredientInput, product: ProductRow, explicitGrams: number | null) {
+  const productMacro = productFoodMacro(product);
   if (explicitGrams && Number.isFinite(explicitGrams) && explicitGrams > 0) {
+    if (!hasUsableMacros(productMacro)) return null;
     return {
       grams: explicitGrams,
       matchedAs: product.name,
       measureName: "100 g",
-      macros: scale(productFoodMacro(product), explicitGrams),
+      macros: scale(productMacro, explicitGrams),
     };
   }
 
@@ -378,7 +404,8 @@ function calculateProductMacros(input: IngredientInput, product: ProductRow, exp
   if (!measureMatch) return null;
   const grams = numberValue(measureMatch.measure.grams) * Math.max(0.01, measureMatch.quantity);
   const measureMacro = measureFoodMacro(measureMatch.measure);
-  const hasMeasureMacros = measureMacro.protein || measureMacro.carbs || measureMacro.fat || measureMacro.fiber || measureMacro.kcal;
+  const hasMeasureMacros = hasUsableMacros(measureMacro);
+  if (!hasMeasureMacros && !hasUsableMacros(productMacro)) return null;
   const macros = hasMeasureMacros
     ? {
       kcal: measureMacro.kcal * measureMatch.quantity,
@@ -388,7 +415,7 @@ function calculateProductMacros(input: IngredientInput, product: ProductRow, exp
       fiber: measureMacro.fiber * measureMatch.quantity,
       micronutrients: {},
     }
-    : scale(productFoodMacro(product), grams);
+    : scale(productMacro, grams);
 
   return {
     grams,
@@ -524,7 +551,7 @@ async function loadProducts(token: string, attempts?: any[]) {
   const { data, error } = await (supabase as any)
     .schema("public")
     .from("products")
-    .select("id,name,slug,calories,protein,carbs,fat,fiber,is_active,available_for_recipes,informative_only,product_measures(id,name,grams,calories,protein,carbs,fat,fiber,is_default,sort_order)")
+    .select("id,name,slug,aliases,source,verification_status,calories,protein,carbs,fat,fiber,is_active,available_for_recipes,informative_only,product_measures(id,name,grams,calories,protein,carbs,fat,fiber,source,verification_status,is_default,sort_order)")
     .eq("is_active", true)
     .eq("available_for_recipes", true)
     .eq("informative_only", false)
@@ -1194,8 +1221,8 @@ export default async function handler(req: any, res: any) {
     if (productMatch) {
       const productCalculation = calculateProductMacros(ingredient, productMatch, Number.isFinite(grams) ? grams : null);
       if (!productCalculation) {
-        missingGrams.push({ name, raw: ingredient.raw ?? name, reason: "Producto encontrado sin gramos ni medida configurada" });
-        debugEntry.status = "sin_medida_producto";
+        missingGrams.push({ name, raw: ingredient.raw ?? name, reason: "Producto encontrado, pero su ficha nutricional está pendiente o la medida no tiene gramos válidos" });
+        debugEntry.status = "producto_pendiente";
         debugEntry.source = "productos";
         debugEntry.matchedAs = productMatch.name;
         debugEntry.foodId = productMatch.id;
@@ -1203,7 +1230,9 @@ export default async function handler(req: any, res: any) {
           provider: "productos",
           matchedAs: productMatch.name,
           used: false,
-          reason: "sin_gramos_o_medida_configurada",
+          reason: "ficha_nutricional_pendiente_o_medida_sin_gramos",
+          source: productMatch.source,
+          verificationStatus: productMatch.verification_status,
           skippedExternalApis: true,
         });
         debug.push(debugEntry);
@@ -1223,6 +1252,8 @@ export default async function handler(req: any, res: any) {
         used: true,
         matchedAs: productCalculation.matchedAs,
         measure: productCalculation.measureName,
+        source: productMatch.source,
+        verificationStatus: productMatch.verification_status,
         skippedExternalApis: true,
         macros: roundMacros(productCalculation.macros),
       });
