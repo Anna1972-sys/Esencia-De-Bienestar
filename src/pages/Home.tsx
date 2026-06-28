@@ -15,7 +15,7 @@ import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
-import imgProducts from "@/assets/nutrition/suplementacion.png";
+import imgProducts from "@/assets/home-productos-te-jardin.png";
 
 const QUOTES = [
   "Cuidarte es el primer acto de amor.",
@@ -105,12 +105,14 @@ function Tile({
       className="wellness-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
       <div className="relative grid place-items-center h-36 w-full">
-        <img
-          src={image}
-          alt={title}
-          loading="lazy"
-          className={`h-36 w-36 object-contain ${scale} group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-500 drop-shadow-[0_4px_12px_hsl(315_55%_60%/0.15)]`}
-        />
+        <div className="home-card-image-frame">
+          <img
+            src={image}
+            alt={title}
+            loading="lazy"
+            className={`home-card-image ${scale} group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-500`}
+          />
+        </div>
       </div>
       <div className="relative mt-4">
         <div className="font-sans font-bold text-lg leading-tight text-foreground">{title}</div>
@@ -127,7 +129,7 @@ function NutritionTile() {
       className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
       <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
-        <div className="h-[152px] w-[152px] overflow-hidden rounded-2xl border border-[#FF2D95]">
+        <div className="home-card-image-frame home-card-image-frame-dark">
           <img src={imgNutritionPremium} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
         </div>
       </div>
@@ -146,7 +148,7 @@ function MovementTile() {
       className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
       <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
-        <div className="h-[152px] w-[152px] overflow-hidden rounded-2xl border border-[#FF2D95] bg-black/30">
+        <div className="home-card-image-frame home-card-image-frame-dark bg-black/30">
           <img src={imgMovimiento} alt="" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
         </div>
       </div>
