@@ -15,7 +15,7 @@ import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
-import imgProducts from "@/assets/home-nutrition-premium-light.png";
+import imgProducts from "@/assets/nutrition/suplementacion.png";
 
 const QUOTES = [
   "Cuidarte es el primer acto de amor.",
@@ -81,10 +81,10 @@ export default function Home() {
           <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
           <Tile to="/app/productos" image={imgProducts} title="Productos" subtitle="Herbalife y nutrición" />
           <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
-          <NutritionTile />
-          <MovementTile />
           <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" />
           <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" scale="scale-110" />
+          <NutritionTile />
+          <MovementTile />
           {isAdmin && (
             <Tile to="/app/admin" image={imgAdmin} title="Administración" subtitle="Gestiona" />
           )}
