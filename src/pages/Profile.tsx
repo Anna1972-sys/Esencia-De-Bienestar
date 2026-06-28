@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { LogOut, Settings, Crown, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,9 +34,9 @@ export default function Profile() {
 
   return (
     <div>
-      <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
       <h1 className="heading-lg mb-4">Mi perfil</h1>
       <div className="card-soft p-5 space-y-4">
         <div><label className="label">Nombre</label><input value={name} onChange={e => setName(e.target.value)} className="field" /></div>

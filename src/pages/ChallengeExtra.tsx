@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import { EXTRAS, ExtraKey, ContentBlock } from "@/lib/challengeExtras";
 import ChallengeContentView from "@/components/ChallengeContentView";
+import BackButton from "@/components/BackButton";
 import menuImage from "@/assets/challenge-menu.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
 import videosImage from "@/assets/challenge-videos.png";
@@ -37,9 +38,9 @@ export default function ChallengeExtra() {
 
   return (
     <div className="space-y-5 pb-10">
-      <Link to={`/app/retos/${id}`} className="text-sm muted inline-flex items-center gap-1">
+      <BackButton fallbackTo={`/app/retos/${id}`} className="text-sm muted inline-flex items-center gap-1">
         <ArrowLeft className="h-4 w-4" /> {c.title}
-      </Link>
+      </BackButton>
 
       <header className="challenge-premium rounded-[28px] relative min-h-[250px] overflow-hidden text-white">
         <img src={hero.image} alt="" className="absolute inset-0 h-full w-full object-cover" />

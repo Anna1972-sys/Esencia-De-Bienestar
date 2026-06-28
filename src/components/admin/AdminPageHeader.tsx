@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ReactNode } from "react";
+import BackButton from "@/components/BackButton";
 
 type Props = {
   title: string;
@@ -19,12 +19,12 @@ export default function AdminPageHeader({
 }: Props) {
   return (
     <div className="mb-6">
-      <Link
-        to={backTo}
+      <BackButton
+        fallbackTo={backTo}
         className="text-sm muted inline-flex items-center gap-1 mb-3 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" strokeWidth={1.75} /> {backLabel}
-      </Link>
+      </BackButton>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="heading-lg tracking-tight leading-tight">{title}</h1>

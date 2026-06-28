@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel, getCategoryImage } from "@/lib/libraryCategories";
+import BackButton from "@/components/BackButton";
 
 type Recipe = {
   id: string;
@@ -122,9 +123,9 @@ export default function Library() {
 
   return (
     <div className="pb-28">
-      <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
       <h1 className="heading-lg mb-1">Biblioteca de recetas</h1>
       <p className="muted text-sm mb-4">Recetas oficiales seleccionadas para ti.</p>
 

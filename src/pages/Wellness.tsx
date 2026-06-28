@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, ChevronLeft, ChevronRight, LineChart, Save, Sparkles, Droplets, Moon, Footprints, Activity, Scale, Ruler, Heart, Trash2 } from "lucide-react";
@@ -119,9 +120,9 @@ export default function Wellness() {
   return (
     <div className="wellness-diary space-y-6 pb-6">
       <div className="flex items-center justify-between">
-        <Link to="/app" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
+        <BackButton fallbackTo="/app" className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition">
           <ArrowLeft className="h-4 w-4" /> Volver
-        </Link>
+        </BackButton>
         <Link to="/app/progreso" className="chip-lavender">
           <LineChart className="h-3.5 w-3.5" /> Mi progreso
         </Link>

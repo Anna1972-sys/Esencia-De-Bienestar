@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
@@ -173,9 +174,9 @@ export default function Resources() {
         </>
       ) : (
         <>
-          <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+          <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
             <ArrowLeft className="h-4 w-4" /> Volver
-          </Link>
+          </BackButton>
           <h1 className="heading-lg mb-1">Vídeos y guías</h1>
           <p className="text-sm muted mb-4">Explora los recursos por categoría.</p>
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, ShoppingBag, Check, ArrowLeft } from "lucide-react";
@@ -206,9 +206,9 @@ export default function ShoppingList() {
 
   return (
     <div className="pb-28">
-      <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
       <h1 className="heading-lg mb-1">Lista de compra</h1>
       <p className="muted text-sm mb-4">Organiza tus productos por categorías.</p>
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -185,9 +185,9 @@ export default function RecipeGenerator() {
 
   return (
     <div>
-      <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
       <h1 className="heading-lg mb-1">Generador IA</h1>
       <p className="muted text-sm mb-5">Recetas para 1 persona. Todos los valores nutricionales (calorías, proteínas, hidratos de carbono, grasas y fibra) están calculados para 1 persona.</p>
 

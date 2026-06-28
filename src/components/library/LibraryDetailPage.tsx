@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileText, ExternalLink } from "lucide-react";
 import type { ContentBlock } from "@/lib/movementCategories";
 import type { LibraryCategory } from "./LibraryPage";
+import BackButton from "@/components/BackButton";
 
 function isEmbeddable(url: string) {
   return /youtube\.com|youtu\.be|vimeo\.com/.test(url);
@@ -44,9 +45,9 @@ export default function LibraryDetailPage({ table, basePath, categories }: Props
   if (!it)
     return (
       <div>
-        <Link to={basePath} className="text-sm muted inline-flex items-center gap-1 mb-3">
+        <BackButton fallbackTo={basePath} className="text-sm muted inline-flex items-center gap-1 mb-3">
           <ArrowLeft className="h-4 w-4" /> Volver
-        </Link>
+        </BackButton>
         <div className="card-soft p-6 text-center muted">Publicación no encontrada.</div>
       </div>
     );
@@ -56,9 +57,9 @@ export default function LibraryDetailPage({ table, basePath, categories }: Props
 
   return (
     <article className="pb-8">
-      <Link to={basePath} className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo={basePath} className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
 
       {it.cover_image && (
         <img src={it.cover_image} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />

@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import BackButton from "@/components/BackButton";
 import { EXTRAS } from "@/lib/challengeExtras";
 import menuImage from "@/assets/challenge-menu.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
@@ -49,7 +50,7 @@ export default function ChallengeDetail() {
 
   return (
     <div className="space-y-5 pb-10">
-      <Link to="/app/retos" className="text-sm muted inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> Retos</Link>
+      <BackButton fallbackTo="/app/retos" className="text-sm muted inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> Retos</BackButton>
       <header className="challenge-premium relative min-h-[350px] overflow-hidden rounded-[30px] text-white">
         <img src={challengeHero} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/5" />

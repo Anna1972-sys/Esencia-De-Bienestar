@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseConfig } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import BackButton from "@/components/BackButton";
 
 export default function Login() {
   const nav = useNavigate();
@@ -86,7 +87,7 @@ export default function Login() {
           <button onClick={() => setMode("login")} className="text-primary font-medium">Volver a iniciar sesión</button>
         )}
         <div className="muted">¿No tienes cuenta? El acceso es solo por invitación.</div>
-        <Link to="/" className="muted underline-offset-4 hover:underline">Volver</Link>
+        <BackButton fallbackTo="/" className="muted underline-offset-4 hover:underline">Volver</BackButton>
       </div>
     </div>
   );

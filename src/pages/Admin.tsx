@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,9 +88,9 @@ export default function Admin() {
 
   return (
     <div className="pb-28 max-w-3xl mx-auto">
-      <Link to="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
+      <BackButton fallbackTo="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
 
       <header className="mb-5">
         <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary mb-1">Esencia de Bienestar</p>

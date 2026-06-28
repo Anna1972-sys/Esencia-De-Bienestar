@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileText, PlayCircle } from "lucide-react";
 import type { ResourceBlock } from "@/lib/resourceCategories";
+import BackButton from "@/components/BackButton";
 
 function isEmbeddable(url: string) {
   return /youtube\.com|youtu\.be|vimeo\.com/.test(url);
@@ -36,7 +37,7 @@ export default function ResourceDetail() {
   if (loading) return <div className="muted">Cargando…</div>;
   if (!it) return (
     <div>
-      <Link to="/app/recursos" className="text-sm muted inline-flex items-center gap-1 mb-3"><ArrowLeft className="h-4 w-4" /> Volver</Link>
+      <BackButton fallbackTo="/app/recursos" className="text-sm muted inline-flex items-center gap-1 mb-3"><ArrowLeft className="h-4 w-4" /> Volver</BackButton>
       <div className="card-soft p-6 text-center muted">Publicación no encontrada.</div>
     </div>
   );
@@ -45,7 +46,7 @@ export default function ResourceDetail() {
 
   return (
     <article className="pb-8">
-      <Link to="/app/recursos" className="text-sm muted inline-flex items-center gap-1 mb-3"><ArrowLeft className="h-4 w-4" /> Volver</Link>
+      <BackButton fallbackTo="/app/recursos" className="text-sm muted inline-flex items-center gap-1 mb-3"><ArrowLeft className="h-4 w-4" /> Volver</BackButton>
 
       {it.cover_image && <img src={it.cover_image} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />}
       {cat && <div className="text-xs muted mb-1">{cat.icon} {cat.name}</div>}

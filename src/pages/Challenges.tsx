@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,7 +30,7 @@ export default function Challenges() {
 
   return (
     <div className="space-y-5">
-      <Link to="/app" className="text-sm muted inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> Volver</Link>
+      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> Volver</BackButton>
       <header>
         <p className="muted text-xs tracking-[0.18em] uppercase">Retos</p>
         <h1 className="heading-lg mt-1">Retos de 5 días</h1>

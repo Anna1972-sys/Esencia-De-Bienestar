@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ChallengeContentView from "@/components/ChallengeContentView";
+import BackButton from "@/components/BackButton";
 import { ContentBlock } from "@/lib/challengeExtras";
 
 type Day = ContentBlock & { day: number };
@@ -62,7 +63,7 @@ export default function ChallengeDay() {
 
   return (
     <div className="space-y-5 pb-6">
-      <Link to={`/app/retos/${id}`} className="text-sm muted inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> {c.title}</Link>
+      <BackButton fallbackTo={`/app/retos/${id}`} className="text-sm muted inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> {c.title}</BackButton>
 
       <header className="rounded-[28px] p-6 relative overflow-hidden"
         style={{ background: "linear-gradient(135deg, hsl(335 80% 96%), hsl(295 70% 95%) 55%, hsl(275 65% 95%))" }}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Trash2, ShoppingBag, ArrowLeft, ChefHat } from "lucide-react";
@@ -46,9 +46,9 @@ export default function SavedRecipes() {
 
   return (
     <div>
-      <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </Link>
+      </BackButton>
       <h1 className="heading-lg mb-3">Mis recetas</h1>
       <input value={q} onChange={e => setQ(e.target.value)} className="field mb-4" placeholder="Buscar…" />
       {loading ? <p className="muted">Cargando…</p> : filtered.length === 0 ? (

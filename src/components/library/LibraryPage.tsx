@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, BookOpen, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -141,9 +142,9 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
         </>
       ) : (
         <>
-          <Link to="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+          <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
             <ArrowLeft className="h-4 w-4" /> Volver
-          </Link>
+          </BackButton>
           {hero}
           <h1 className="heading-lg mb-1">{title}</h1>
           <p className="text-sm muted mb-4">{subtitle}</p>

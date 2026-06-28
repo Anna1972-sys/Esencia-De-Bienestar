@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Target, Trophy, Trash2, Plus, TrendingDown, TrendingUp, Camera, X, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
+import BackButton from "@/components/BackButton";
 import imgWeight from "@/assets/metric-weight.png";
 import imgWaist from "@/assets/metric-waist.png";
 import imgHip from "@/assets/metric-hip.png";
@@ -29,7 +29,6 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
 const DISPLAY_METRIC_ORDER: MetricKey[] = ["weight", "waist", "chest", "hip", "arm", "thigh"];
 
 export default function WellnessProgress() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -215,12 +214,12 @@ export default function WellnessProgress() {
 
   return (
     <div className="progress-page space-y-6 pb-6">
-      <button
-        onClick={() => window.history.length > 1 ? navigate(-1) : navigate("/app")}
+      <BackButton
+        fallbackTo="/app"
         className="inline-flex items-center gap-1.5 text-sm muted hover:text-foreground transition"
       >
         <ArrowLeft className="h-4 w-4" /> Volver
-      </button>
+      </BackButton>
 
       <header className="wellness-hero relative overflow-hidden rounded-[28px] px-6 py-7">
         <div className="absolute -right-7 -top-8 h-32 w-32 rounded-full bg-primary/25 blur-2xl" />
