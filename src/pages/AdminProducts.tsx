@@ -122,6 +122,25 @@ const slugify = (value: string) =>
 
 const toNumber = (value: unknown) => Number(String(value ?? "").replace(",", ".")) || 0;
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+const round1 = (value: number) => Math.round(value * 10) / 10;
+
+function measureFromProductNutrition(measure: ProductMeasure, product: ProductForm): ProductMeasure {
+  const grams = toNumber(measure.grams);
+  const factor = grams / 100;
+  return {
+    ...measure,
+    grams,
+    calories: round1(toNumber(product.calories) * factor),
+    protein: round1(toNumber(product.protein) * factor),
+    carbs: round1(toNumber(product.carbs) * factor),
+    fat: round1(toNumber(product.fat) * factor),
+    fiber: round1(toNumber(product.fiber) * factor),
+  };
+}
+
+function measuresFromProductNutrition(measures: ProductMeasure[], product: ProductForm) {
+  return measures.map(measure => measureFromProductNutrition(measure, product));
+}
 
 async function uploadProductFile(file: File, folder: string) {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -284,7 +303,8 @@ export default function AdminProducts() {
 
     const productId = productResult.data.id;
     await (supabase as any).from("product_measures").delete().eq("product_id", productId);
-    const measures = form.measures
+    const calculatedMeasures = measuresFromProductNutrition(form.measures, form);
+    const measures = calculatedMeasures
       .filter(measure => measure.name.trim())
       .map((measure, index) => ({
         product_id: productId,
@@ -397,8 +417,15 @@ export default function AdminProducts() {
   const updateMeasure = (index: number, patch: Partial<ProductMeasure>) => {
     setForm(prev => ({
       ...prev,
-      measures: prev.measures.map((measure, i) => i === index ? { ...measure, ...patch } : measure),
+      measures: prev.measures.map((measure, i) => i === index ? measureFromProductNutrition({ ...measure, ...patch }, prev) : measure),
     }));
+  };
+
+  const updateNutrition = (patch: Partial<Pick<ProductForm, "calories" | "protein" | "carbs" | "fat" | "fiber" | "sugars" | "salt">>) => {
+    setForm(prev => {
+      const next = { ...prev, ...patch };
+      return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
+    });
   };
 
   const markDefaultMeasure = (index: number) => {
@@ -539,13 +566,13 @@ export default function AdminProducts() {
         <section>
           <h3 className="font-serif text-xl mb-2">Información nutricional por 100 g</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <NumberField label="Calorías" value={form.calories} onChange={value => setForm({ ...form, calories: value })} />
-            <NumberField label="Proteínas" value={form.protein} onChange={value => setForm({ ...form, protein: value })} />
-            <NumberField label="Hidratos" value={form.carbs} onChange={value => setForm({ ...form, carbs: value })} />
-            <NumberField label="Grasas" value={form.fat} onChange={value => setForm({ ...form, fat: value })} />
-            <NumberField label="Fibra" value={form.fiber} onChange={value => setForm({ ...form, fiber: value })} />
-            <NumberField label="Azúcares" value={form.sugars} onChange={value => setForm({ ...form, sugars: value })} />
-            <NumberField label="Sal" value={form.salt} onChange={value => setForm({ ...form, salt: value })} />
+            <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} />
+            <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} />
+            <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} />
+            <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} />
+            <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} />
+            <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} />
+            <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} />
           </div>
           <label className="block text-xs muted mt-3 mb-1">Micronutrientes opcionales (JSON)</label>
           <textarea className="field min-h-24 font-mono text-xs" value={form.micronutrientsText} onChange={e => setForm({ ...form, micronutrientsText: e.target.value })} placeholder='{"calcium_mg": 120, "iron_mg": 2}' />
@@ -555,9 +582,21 @@ export default function AdminProducts() {
           <div className="flex items-center justify-between gap-3 mb-2">
             <div>
               <h3 className="font-serif text-xl">Medidas habituales</h3>
-              <p className="text-xs muted">Gramos, ml, cucharada, cacito, medio cacito, sobre, stick, barrita o cualquier medida personalizada.</p>
+              <p className="text-xs muted">Introduce solo el nombre y los gramos. Los macros de cada medida se calculan automáticamente desde la ficha por 100 g.</p>
             </div>
-            <button type="button" className="btn-secondary" onClick={() => setForm(prev => ({ ...prev, measures: [...prev.measures, { ...emptyMeasure, name: "", is_default: false, sort_order: prev.measures.length }] }))}><Plus className="h-4 w-4" /> Añadir</button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setForm(prev => ({
+                ...prev,
+                measures: [
+                  ...prev.measures,
+                  measureFromProductNutrition({ ...emptyMeasure, name: "", is_default: false, sort_order: prev.measures.length }, prev),
+                ],
+              }))}
+            >
+              <Plus className="h-4 w-4" /> Añadir
+            </button>
           </div>
           <div className="space-y-3">
             {form.measures.map((measure, index) => (
@@ -565,11 +604,11 @@ export default function AdminProducts() {
                 <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
                   <input className="field md:col-span-2" placeholder="Nombre medida" value={measure.name} onChange={e => updateMeasure(index, { name: e.target.value })} />
                   <NumberField label="Gramos" value={measure.grams} onChange={value => updateMeasure(index, { grams: value })} />
-                  <NumberField label="Kcal" value={measure.calories} onChange={value => updateMeasure(index, { calories: value })} />
-                  <NumberField label="Prot" value={measure.protein} onChange={value => updateMeasure(index, { protein: value })} />
-                  <NumberField label="Hidr" value={measure.carbs} onChange={value => updateMeasure(index, { carbs: value })} />
-                  <NumberField label="Grasa" value={measure.fat} onChange={value => updateMeasure(index, { fat: value })} />
-                  <NumberField label="Fibra" value={measure.fiber} onChange={value => updateMeasure(index, { fiber: value })} />
+                  <ReadonlyMacro label="Kcal" value={measure.calories} />
+                  <ReadonlyMacro label="Prot" value={`${measure.protein} g`} />
+                  <ReadonlyMacro label="Hidr" value={`${measure.carbs} g`} />
+                  <ReadonlyMacro label="Grasa" value={`${measure.fat} g`} />
+                  <ReadonlyMacro label="Fibra" value={`${measure.fiber} g`} />
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <button type="button" className={measure.is_default ? "btn-primary text-xs py-2" : "btn-secondary text-xs py-2"} onClick={() => markDefaultMeasure(index)}>Medida principal</button>
@@ -653,6 +692,15 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
       <span className="text-[11px] muted">{label}</span>
       <input className="field mt-1" type="number" step="0.01" value={value} onChange={e => onChange(toNumber(e.target.value))} />
     </label>
+  );
+}
+
+function ReadonlyMacro({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <span className="text-[11px] muted">{label}</span>
+      <div className="field mt-1 bg-white/70 text-muted-foreground">{value}</div>
+    </div>
   );
 }
 
