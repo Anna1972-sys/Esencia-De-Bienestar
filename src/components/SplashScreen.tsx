@@ -33,7 +33,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
           className="absolute inset-0 -m-20 rounded-full blur-3xl opacity-80"
           style={{
             background:
-              "radial-gradient(circle, hsl(325 95% 60% / 0.45) 0%, hsl(110 80% 55% / 0.18) 45%, transparent 72%)",
+              "radial-gradient(circle, hsl(325 95% 60% / 0.45) 0%, hsl(282 70% 72% / 0.22) 45%, transparent 72%)",
             animation: "splashPulse 2.4s ease-in-out infinite",
           }}
         />
