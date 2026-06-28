@@ -89,7 +89,7 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="pb-28 max-w-3xl mx-auto">
+    <div className="admin-dashboard pb-28 max-w-3xl mx-auto">
       <BackButton fallbackTo="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
@@ -100,7 +100,7 @@ export default function Admin() {
         <p className="muted text-sm mt-1">Tu centro de control, contenido y acompañamiento.</p>
       </header>
 
-      <section className="challenge-premium rounded-[28px] overflow-hidden mb-7 relative text-white">
+      <section className="challenge-premium admin-hero rounded-[28px] overflow-hidden mb-7 relative text-white">
         <img src={welcomeImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/45" />
         <div className="relative p-4 sm:p-5">
@@ -137,10 +137,10 @@ export default function Admin() {
                 <Link
                   key={s.to}
                   to={s.to}
-                  className="challenge-premium group relative overflow-hidden rounded-[22px] bg-white/90 hover:-translate-y-0.5 transition-all duration-200"
+                  className="challenge-premium admin-card group relative overflow-hidden rounded-[28px] hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <img src={s.image} alt="" className="h-32 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  <div className="flex items-center gap-3 px-4 py-3.5">
+                  <img src={s.image} alt="" className="admin-card-image transition-transform duration-500 group-hover:scale-105" />
+                  <div className="admin-card-body flex items-center gap-3 px-4 py-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[15px] leading-tight text-foreground">{s.label}</div>
                     <div className="text-xs muted mt-1 truncate">{s.desc}</div>
