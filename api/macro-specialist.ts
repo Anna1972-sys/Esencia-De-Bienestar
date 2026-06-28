@@ -43,6 +43,7 @@ type MacroValues = {
   carbs: number;
   fat: number;
   fiber: number;
+  micronutrients: Record<string, number>;
 };
 
 type IngredientDebugEntry = {
@@ -55,7 +56,7 @@ type IngredientDebugEntry = {
   source?: string;
   matchedAs?: string;
   foodId?: string;
-  macros?: Record<string, number>;
+  macros?: Record<string, any>;
   calorieCheck?: { formulaKcal: number; displayedKcal: number; difference: number };
   attempts?: any[];
 };
@@ -152,7 +153,16 @@ function parseRawIngredient(raw: string): IngredientInput {
 
 function roundMacros(value: MacroValues) {
   const strict = enforceMacroCalories(value);
-  return Object.fromEntries(Object.entries(strict).map(([k, v]) => [k, round(v)]));
+  return {
+    kcal: round(strict.kcal),
+    protein: round(strict.protein),
+    carbs: round(strict.carbs),
+    fat: round(strict.fat),
+    fiber: round(strict.fiber),
+    micronutrients: Object.fromEntries(
+      Object.entries(strict.micronutrients ?? {}).map(([key, micronutrientValue]) => [key, round(micronutrientValue)]),
+    ),
+  };
 }
 
 function formulaCalories(value: Pick<MacroValues, "protein" | "carbs" | "fat">) {
@@ -160,7 +170,7 @@ function formulaCalories(value: Pick<MacroValues, "protein" | "carbs" | "fat">) 
 }
 
 function enforceMacroCalories(value: MacroValues): MacroValues {
-  return { ...value, kcal: formulaCalories(value) };
+  return { ...value, kcal: formulaCalories(value), micronutrients: value.micronutrients ?? {} };
 }
 
 function calorieCheck(value: MacroValues) {
@@ -255,6 +265,7 @@ function scale(food: FoodMacro, grams: number): MacroValues {
     carbs: food.carbs * factor,
     fat: food.fat * factor,
     fiber: food.fiber * factor,
+    micronutrients: {},
   });
 }
 
@@ -267,6 +278,7 @@ function scaleInternalFood(row: InternalFoodRow, grams: number): MacroValues {
     carbs: numberValue(row.carbs) * factor,
     fat: numberValue(row.fat) * factor,
     fiber: numberValue(row.fiber) * factor,
+    micronutrients: {},
   });
 }
 
@@ -275,7 +287,7 @@ function round(value: number) {
 }
 
 function zeroMacros(): MacroValues {
-  return { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+  return { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, micronutrients: {} };
 }
 
 function addMacros(target: MacroValues, value: MacroValues) {
@@ -284,6 +296,23 @@ function addMacros(target: MacroValues, value: MacroValues) {
   target.carbs += value.carbs;
   target.fat += value.fat;
   target.fiber += value.fiber;
+  for (const [key, micronutrientValue] of Object.entries(value.micronutrients ?? {})) {
+    target.micronutrients[key] = (target.micronutrients[key] ?? 0) + micronutrientValue;
+  }
+}
+
+function divideMacros(value: MacroValues, divisor: number): MacroValues {
+  const safeDivisor = Math.max(1, divisor);
+  return enforceMacroCalories({
+    kcal: 0,
+    protein: value.protein / safeDivisor,
+    carbs: value.carbs / safeDivisor,
+    fat: value.fat / safeDivisor,
+    fiber: value.fiber / safeDivisor,
+    micronutrients: Object.fromEntries(
+      Object.entries(value.micronutrients ?? {}).map(([key, micronutrientValue]) => [key, micronutrientValue / safeDivisor]),
+    ),
+  });
 }
 
 function getFatSecretCredentials() {
@@ -395,6 +424,7 @@ function servingToMacros(serving: any, amount: number): MacroValues | null {
     carbs: numberValue(serving?.carbohydrate) * factor,
     fat: numberValue(serving?.fat) * factor,
     fiber: numberValue(serving?.fiber) * factor,
+    micronutrients: {},
   });
 }
 
@@ -475,6 +505,39 @@ function nutrientValue(food: any, nutrientNames: string[]) {
   return numberValue(found?.value ?? found?.amount);
 }
 
+const USDA_MICRONUTRIENTS: Record<string, string[]> = {
+  calcium_mg: ["Calcium, Ca", "Calcium"],
+  iron_mg: ["Iron, Fe", "Iron"],
+  magnesium_mg: ["Magnesium, Mg", "Magnesium"],
+  phosphorus_mg: ["Phosphorus, P", "Phosphorus"],
+  potassium_mg: ["Potassium, K", "Potassium"],
+  sodium_mg: ["Sodium, Na", "Sodium"],
+  zinc_mg: ["Zinc, Zn", "Zinc"],
+  copper_mg: ["Copper, Cu", "Copper"],
+  manganese_mg: ["Manganese, Mn", "Manganese"],
+  selenium_ug: ["Selenium, Se", "Selenium"],
+  vitamin_a_rae_ug: ["Vitamin A, RAE"],
+  vitamin_c_mg: ["Vitamin C, total ascorbic acid", "Vitamin C"],
+  vitamin_d_ug: ["Vitamin D (D2 + D3)", "Vitamin D"],
+  vitamin_e_mg: ["Vitamin E (alpha-tocopherol)", "Vitamin E"],
+  vitamin_k_ug: ["Vitamin K (phylloquinone)", "Vitamin K"],
+  thiamin_mg: ["Thiamin"],
+  riboflavin_mg: ["Riboflavin"],
+  niacin_mg: ["Niacin"],
+  vitamin_b6_mg: ["Vitamin B-6"],
+  folate_dfe_ug: ["Folate, DFE"],
+  vitamin_b12_ug: ["Vitamin B-12"],
+  choline_mg: ["Choline, total", "Choline"],
+};
+
+function usdaMicronutrients(food: any, factor: number) {
+  return Object.fromEntries(
+    Object.entries(USDA_MICRONUTRIENTS)
+      .map(([key, names]) => [key, nutrientValue(food, names) * factor])
+      .filter(([, value]) => Number(value) > 0),
+  );
+}
+
 function usdaFoodToMacros(food: any, amount: number): MacroValues | null {
   const protein = nutrientValue(food, ["Protein"]);
   const carbs = nutrientValue(food, ["Carbohydrate, by difference", "Carbohydrate"]);
@@ -489,6 +552,7 @@ function usdaFoodToMacros(food: any, amount: number): MacroValues | null {
     carbs: carbs * factor,
     fat: fat * factor,
     fiber: fiber * factor,
+    micronutrients: usdaMicronutrients(food, factor),
   });
 }
 
@@ -961,10 +1025,42 @@ export default async function handler(req: any, res: any) {
       continue;
     }
 
+    const usdaMatch = externalApisConfigured.usda ? await searchUsdaFood(name, grams, debugEntry.attempts) : null;
+    if (!externalApisConfigured.usda) {
+      debugEntry.attempts?.push({
+        provider: "usda",
+        skipped: true,
+        reason: "USDA_API_KEY_no_configurada",
+        fallback: externalApisConfigured.fatSecret ? "fatsecret" : "alimentos_internos",
+      });
+    }
+
+    const providerMatch = usdaMatch ?? await calculateWithFatSecret(name, grams, debugEntry.attempts);
+    if (providerMatch?.macros) {
+      addMacros(totals, providerMatch.macros);
+      debugEntry.status = "incluido";
+      debugEntry.source = providerMatch.provider ?? "fatsecret";
+      debugEntry.matchedAs = providerMatch.matchedAs;
+      debugEntry.foodId = providerMatch.foodId;
+      debugEntry.macros = roundMacros(providerMatch.macros);
+      debugEntry.calorieCheck = calorieCheck(providerMatch.macros);
+      found.push({
+        name,
+        matchedAs: providerMatch.matchedAs,
+        grams,
+        source: providerMatch.provider ?? "fatsecret",
+        foodId: providerMatch.foodId,
+        macros: roundMacros(providerMatch.macros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
     const internalMatch = findInternalFood(name, internalFoods);
     if (internalMatch) {
       const itemMacros = scaleInternalFood(internalMatch.row, grams);
       addMacros(totals, itemMacros);
+      fallbackUsed.push({ name, matchedAs: internalMatch.row.name, source: "alimentos_internos" });
       debugEntry.status = "incluido";
       debugEntry.source = "alimentos_internos";
       debugEntry.matchedAs = internalMatch.row.name;
@@ -997,40 +1093,8 @@ export default async function handler(req: any, res: any) {
       provider: "alimentos_internos",
       used: false,
       reason: externalApisConfigured.internalFoods ? "sin_coincidencia_activa" : "tabla_no_disponible_o_vacia",
-      fallback: "usda",
+      fallback: "tabla_interna_basica",
     });
-
-    const usdaPreferred = externalApisConfigured.usda && isBasicFoodForUsda(name);
-    const usdaMatch = usdaPreferred ? await searchUsdaFood(name, grams, debugEntry.attempts) : null;
-    if (!usdaPreferred && externalApisConfigured.usda) {
-      debugEntry.attempts?.push({
-        provider: "usda",
-        skipped: true,
-        reason: "ingrediente_no_clasificado_como_basico",
-        fallback: "fatsecret",
-      });
-    }
-
-    const providerMatch = usdaMatch ?? await calculateWithFatSecret(name, grams, debugEntry.attempts);
-    if (providerMatch?.macros) {
-      addMacros(totals, providerMatch.macros);
-      debugEntry.status = "incluido";
-      debugEntry.source = providerMatch.provider ?? "fatsecret";
-      debugEntry.matchedAs = providerMatch.matchedAs;
-      debugEntry.foodId = providerMatch.foodId;
-      debugEntry.macros = roundMacros(providerMatch.macros);
-      debugEntry.calorieCheck = calorieCheck(providerMatch.macros);
-      found.push({
-        name,
-        matchedAs: providerMatch.matchedAs,
-        grams,
-        source: providerMatch.provider ?? "fatsecret",
-        foodId: providerMatch.foodId,
-        macros: roundMacros(providerMatch.macros),
-      });
-      debug.push(debugEntry);
-      continue;
-    }
 
     if (externalApisConfigured.fatSecret && requiresExactFatSecretMatch(name)) {
       notFound.push({ name, grams, raw: ingredient.raw ?? name, reason: "Sin coincidencia exacta simple en FatSecret" });
@@ -1053,13 +1117,13 @@ export default async function handler(req: any, res: any) {
 
     const itemMacros = scale(match.food, grams);
     addMacros(totals, itemMacros);
-    fallbackUsed.push({ name, matchedAs: match.key });
+    fallbackUsed.push({ name, matchedAs: match.key, source: "tabla_interna_basica" });
     debugEntry.status = "incluido";
-      debugEntry.source = "tabla_interna";
-      debugEntry.matchedAs = match.key;
-      debugEntry.macros = roundMacros(itemMacros);
-      debugEntry.calorieCheck = calorieCheck(itemMacros);
-      found.push({
+    debugEntry.source = "tabla_interna";
+    debugEntry.matchedAs = match.key;
+    debugEntry.macros = roundMacros(itemMacros);
+    debugEntry.calorieCheck = calorieCheck(itemMacros);
+    found.push({
       name,
       matchedAs: match.key,
       grams,
@@ -1069,7 +1133,7 @@ export default async function handler(req: any, res: any) {
     debug.push(debugEntry);
   }
 
-  const externalSourceUsed = found.some(item => item.source === "alimentos_internos" || item.source === "usda" || item.source === "fatsecret");
+  const externalSourceUsed = found.some(item => item.source === "usda" || item.source === "fatsecret");
   const sourcesUsed = Array.from(new Set(found.map(item => item.source).filter(Boolean)));
   const status: MacroStatus =
     notFound.length || missingGrams.length
@@ -1079,15 +1143,8 @@ export default async function handler(req: any, res: any) {
         : "verificado";
 
   const strictTotals = enforceMacroCalories(totals);
-  const totalRounded = Object.fromEntries(Object.entries(strictTotals).map(([k, v]) => [k, round(v)]));
-  const perServingValues = enforceMacroCalories({
-    kcal: 0,
-    protein: strictTotals.protein / servings,
-    carbs: strictTotals.carbs / servings,
-    fat: strictTotals.fat / servings,
-    fiber: strictTotals.fiber / servings,
-  });
-  const perServing = Object.fromEntries(Object.entries(perServingValues).map(([k, v]) => [k, round(v)]));
+  const totalRounded = roundMacros(strictTotals);
+  const perServing = roundMacros(divideMacros(strictTotals, servings));
 
   const responseBody = {
     status,

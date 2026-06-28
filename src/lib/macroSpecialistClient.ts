@@ -18,6 +18,7 @@ export type MacroSpecialistResult = {
     carbs: number;
     fat: number;
     fiber: number;
+    micronutrients?: Record<string, number>;
   };
   totals: {
     kcal: number;
@@ -25,6 +26,7 @@ export type MacroSpecialistResult = {
     carbs: number;
     fat: number;
     fiber: number;
+    micronutrients?: Record<string, number>;
   };
   found: any[];
   notFound: any[];
@@ -57,6 +59,7 @@ export function macrosFromSpecialist(result: MacroSpecialistResult) {
     carbs: Number(result.perServing?.carbs) || 0,
     fat: Number(result.perServing?.fat) || 0,
     fiber: Number(result.perServing?.fiber) || 0,
+    micronutrients: result.perServing?.micronutrients ?? {},
     nutrition_status: result.status === "verificado" ? "verified" : result.status === "estimado" ? "estimated" : "pending_review",
     nutrition_note: result.status,
     nutrition_source: result.warnings?.dataSource ?? "macro-specialist",
