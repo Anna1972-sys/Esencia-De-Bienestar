@@ -14,6 +14,9 @@ type Recipe = {
   macros: any;
   image_url: string | null;
   is_featured: boolean | null;
+  is_library?: boolean | null;
+  user_id?: string | null;
+  visibility?: string | null;
 };
 
 type LibraryContext = {
@@ -30,14 +33,37 @@ export default function Library() {
   const [selectedCat, setSelectedCat] = useState<string | null>(() => returnContext?.selectedCat ?? null);
   const [q, setQ] = useState(() => returnContext?.query ?? "");
 
+  const normalizeCategory = (category?: string | null) => {
+    const value = (category ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
+
+    if (!value) return null;
+    if (LIBRARY_CATEGORIES.some(c => c.id === value)) return value;
+    if (value.includes("snack")) return "snacks";
+    if (value.includes("merienda")) return "meriendas";
+    if (value.includes("comida") || value.includes("almuerzo")) return "comidas";
+    if (value.includes("cena")) return value.includes("herbalife") ? "cenas_herbalife" : "cenas_sin_herbalife";
+    if (value.includes("desayuno") || value.includes("batido")) return value.includes("herbalife") ? "desayunos_herbalife" : "desayunos_sin_herbalife";
+    return null;
+  };
+
+  const isVisibleLibraryRecipe = (recipe: Recipe) =>
+    recipe.is_library === true ||
+    recipe.user_id == null ||
+    recipe.visibility === "community" ||
+    recipe.visibility === "featured";
+
   const load = () =>
     supabase
       .from("recipes")
       .select("*")
-      .eq("is_library", true)
       .order("is_featured", { ascending: false })
       .order("title")
-      .then(({ data }) => setItems((data as any) ?? []));
+      .then(({ data }) => setItems(((data as any) ?? []).filter(isVisibleLibraryRecipe)));
 
   useEffect(() => {
     load();
@@ -51,14 +77,17 @@ export default function Library() {
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
-    items.forEach(r => { if (r.category) m[r.category] = (m[r.category] ?? 0) + 1; });
+    items.forEach(r => {
+      const category = normalizeCategory(r.category);
+      if (category) m[category] = (m[category] ?? 0) + 1;
+    });
     return m;
   }, [items]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     let list = items;
-    if (selectedCat) list = list.filter(r => r.category === selectedCat);
+    if (selectedCat) list = list.filter(r => normalizeCategory(r.category) === selectedCat);
     if (query) {
       list = list.filter(r => {
         if (r.title?.toLowerCase().includes(query)) return true;
@@ -170,7 +199,8 @@ export default function Library() {
           ) : (
             <div className="space-y-3">
               {filtered.map(r => {
-                const cover = r.image_url || getCategoryImage(r.category);
+                const category = normalizeCategory(r.category);
+                const cover = r.image_url || getCategoryImage(category);
                 return (
                   <button
                     key={r.id}
@@ -194,8 +224,8 @@ export default function Library() {
                         <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
                         <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fiber ?? 0}g</div><div className="muted">Fibra</div></div>
                       </div>
-                      {r.category && !selectedCat && (
-                        <div className="text-[10px] muted mt-1 truncate">{getCategoryLabel(r.category)}</div>
+                      {(category || r.category) && !selectedCat && (
+                        <div className="text-[10px] muted mt-1 truncate">{category ? getCategoryLabel(category) : r.category}</div>
                       )}
                     </div>
 

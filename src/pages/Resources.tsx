@@ -57,11 +57,10 @@ export default function Resources() {
     supabase.from("resource_categories").select("*").order("sort_order").then(({ data }) => setCats((data ?? []) as Category[]));
     supabase.from("resources")
       .select("*")
-      .eq("is_published", true)
       .order("is_pinned", { ascending: false })
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false })
-      .then(({ data }) => setItems(data ?? []));
+      .then(({ data }) => setItems((data ?? []).filter((item: any) => item.is_published !== false)));
   }, []);
 
   const tops = cats.filter(c => !c.parent_id);
@@ -70,21 +69,44 @@ export default function Resources() {
   // Map descendant ids for a top-level cat (itself + its subs)
   const descIds = (id: string) => new Set<string>([id, ...subsOf(id).map(s => s.id)]);
 
+  const normalizeSlug = (value?: string | null) =>
+    (value ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const itemCategory = (item: any) => {
+    if (item.category_id) return cats.find(c => c.id === item.category_id) ?? null;
+    const legacy = normalizeSlug(item.category);
+    if (!legacy) return null;
+    return cats.find(c => normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy) ?? null;
+  };
+
+  const itemCategoryMatches = (item: any, ids: Set<string>) => {
+    const cat = itemCategory(item);
+    if (cat?.id && ids.has(cat.id)) return true;
+    const legacy = normalizeSlug(item.category);
+    if (!legacy) return false;
+    return cats.some(c => ids.has(c.id) && (normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy));
+  };
+
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
 
   const filteredItems = useMemo(() => {
     let list = items;
-    if (activeSub) list = list.filter(i => i.category_id === activeSub);
+    if (activeSub) list = list.filter(i => itemCategoryMatches(i, new Set([activeSub])));
     else if (activeTop) {
       const ids = descIds(activeTop);
-      list = list.filter(i => i.category_id && ids.has(i.category_id));
+      list = list.filter(i => itemCategoryMatches(i, ids));
     }
     if (q) {
       list = list.filter(i => {
-        const cat = cats.find(c => c.id === i.category_id);
+        const cat = itemCategory(i);
         const parent = cat?.parent_id ? cats.find(c => c.id === cat.parent_id) : null;
-        const haystack = [i.title, cat?.name, parent?.name].filter(Boolean).join(" ").toLowerCase();
+        const haystack = [i.title, i.category, cat?.name, parent?.name].filter(Boolean).join(" ").toLowerCase();
         return haystack.includes(q);
       });
     }
@@ -129,7 +151,7 @@ export default function Resources() {
           ) : (
             <div className="space-y-3">
               {filteredItems.map(it => {
-                const cat = cats.find(c => c.id === it.category_id);
+                const cat = itemCategory(it);
                 return (
                   <Link key={it.id} to={`/app/recursos/${it.id}`} className="card-soft overflow-hidden block hover:shadow-glow transition">
                     {it.cover_image && <img src={it.cover_image} alt="" className="w-full h-40 object-cover" />}
