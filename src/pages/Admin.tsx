@@ -10,7 +10,7 @@ import movementImage from "@/assets/home-movimiento.png";
 import nutritionImage from "@/assets/home-nutrition-premium-light.png";
 import macroSpecialistImage from "@/assets/admin-macro-specialist.jpg";
 import internalFoodsImage from "@/assets/resource-alimentacion.png";
-import productsImage from "@/assets/nutrition/suplementacion.png";
+import productsImage from "@/assets/home-productos-te-jardin.png";
 import usersAdminImage from "@/assets/home-biblioteca.png";
 import invitationsAdminImage from "@/assets/home-recipe-generator.png";
 import challengesImage from "@/assets/home-retos.png";
@@ -35,7 +35,7 @@ const groups: { title: string; items: Item[] }[] = [
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
       { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage },
       { to: "/app/admin/alimentos-internos", label: "Alimentos internos", desc: "Base nutricional editable", image: internalFoodsImage },
-      { to: "/app/admin/productos",          label: "Productos",              desc: "Gestionar productos, medidas y macros", image: productsImage },
+      { to: "/app/admin/productos",          label: "Salud y Bienestar",      desc: "todo sobre herbalife", image: productsImage },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
