@@ -46,7 +46,7 @@ export default function Nutrition() {
           <img src={nutritionHeroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/25" />
           <div className="relative z-10">
-            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#9DFF00]">Rendimiento consciente</p>
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#FF8BC7]">Rendimiento consciente</p>
             <p className="text-white font-bold text-lg mt-1 drop-shadow">Nutrición para sentirte bien</p>
             <p className="text-white/85 text-xs mt-1 drop-shadow">Proteína, energía y recuperación.</p>
           </div>

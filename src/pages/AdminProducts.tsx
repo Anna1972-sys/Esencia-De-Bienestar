@@ -465,14 +465,14 @@ export default function AdminProducts() {
   };
 
   return (
-    <div className="pb-28 max-w-5xl mx-auto">
+    <div className="admin-products pb-28 max-w-5xl mx-auto">
       <AdminPageHeader
         title="Productos"
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
       <section className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] gap-4 mb-5">
-        <form onSubmit={saveCategory} className="card-soft p-4 space-y-3">
+        <form onSubmit={saveCategory} className="card-soft admin-products-panel p-4 space-y-4">
           <div>
             <h2 className="font-serif text-xl">{editingCategory ? "Editar categoría" : "Nueva categoría"}</h2>
             <p className="text-xs muted">Crea carpetas libremente: control de peso, hidratación, deportiva…</p>
@@ -498,7 +498,7 @@ export default function AdminProducts() {
           </div>
         </form>
 
-        <div className="card-soft p-4">
+        <div className="card-soft admin-products-panel p-4">
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
@@ -512,7 +512,7 @@ export default function AdminProducts() {
           {loading ? <div className="muted text-sm">Cargando productos…</div> : (
             <div className="space-y-3 max-h-[470px] overflow-auto pr-1">
               {filteredProducts.map(product => (
-                <div key={product.id} className="rounded-[22px] bg-white/85 border border-white/70 shadow-sm overflow-hidden">
+                <div key={product.id} className="admin-product-row rounded-[22px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
                   <div className="flex gap-3 p-3">
                     {product.image_url ? <img src={product.image_url} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-gradient-rosa/20 grid place-items-center"><ImageIcon className="h-5 w-5 text-primary" /></div>}
                     <div className="min-w-0 flex-1">
@@ -542,7 +542,7 @@ export default function AdminProducts() {
         </div>
       </section>
 
-      <form onSubmit={saveProduct} className="card-soft p-4 space-y-5">
+      <form onSubmit={saveProduct} className="card-soft admin-products-form p-4 sm:p-5 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-serif text-2xl">{form.id ? "Editar producto" : "Nuevo producto"}</h2>
@@ -657,7 +657,7 @@ export default function AdminProducts() {
           </div>
           <div className="space-y-3">
             {form.measures.map((measure, index) => (
-              <div key={index} className="rounded-[22px] bg-secondary/70 p-3">
+              <div key={index} className="admin-measure-row rounded-[22px] bg-secondary/70 p-3">
                 <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
                   <input className="field md:col-span-2" placeholder="Nombre medida" value={measure.name} onChange={e => updateMeasure(index, { name: e.target.value })} />
                   <NumberField label="Gramos" value={measure.grams} onChange={value => updateMeasure(index, { grams: value })} />

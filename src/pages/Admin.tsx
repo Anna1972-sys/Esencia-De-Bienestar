@@ -9,15 +9,16 @@ import videosImage from "@/assets/challenge-videos.png";
 import movementImage from "@/assets/home-movimiento.png";
 import nutritionImage from "@/assets/home-nutrition-premium-light.png";
 import macroSpecialistImage from "@/assets/admin-macro-specialist.jpg";
+import internalFoodsImage from "@/assets/resource-alimentacion.png";
+import productsImage from "@/assets/nutrition/suplementacion.png";
+import usersAdminImage from "@/assets/home-biblioteca.png";
+import invitationsAdminImage from "@/assets/home-recipe-generator.png";
 import challengesImage from "@/assets/home-retos.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
-import diaryImage from "@/assets/home-diario.png";
+import diaryImage from "@/assets/diary/diary-hero.png";
 import progressImage from "@/assets/home-progreso.png";
-import usersImage from "@/assets/home-admin.png";
-import invitationsImage from "@/assets/home-compra.png";
-import settingsImage from "@/assets/home-biblioteca.png";
 import welcomeImage from "@/assets/home-admin.png";
-import settingsDeskImage from "@/assets/home-diario.png";
+import settingsDeskImage from "@/assets/challenge-downloads.png";
 
 type Item = {
   to: string;
@@ -33,8 +34,8 @@ const groups: { title: string; items: Item[] }[] = [
       { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas", image: recipesImage },
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
       { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage },
-      { to: "/app/admin/alimentos-internos", label: "Alimentos internos", desc: "Base nutricional editable", image: macroSpecialistImage },
-      { to: "/app/admin/productos",          label: "Productos",              desc: "Gestionar productos, medidas y macros", image: nutritionImage },
+      { to: "/app/admin/alimentos-internos", label: "Alimentos internos", desc: "Base nutricional editable", image: internalFoodsImage },
+      { to: "/app/admin/productos",          label: "Productos",              desc: "Gestionar productos, medidas y macros", image: productsImage },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
@@ -53,8 +54,8 @@ const groups: { title: string; items: Item[] }[] = [
   {
     title: "Sistema",
     items: [
-      { to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos", image: usersImage },
-      { to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones", image: invitationsImage },
+      { to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos", image: usersAdminImage },
+      { to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones", image: invitationsAdminImage },
       { to: "/app/admin/configuracion",      label: "Ajustes generales",       desc: "Configuración y mantenimiento", image: settingsDeskImage },
     ],
   },

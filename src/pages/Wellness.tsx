@@ -184,7 +184,7 @@ export default function Wellness() {
         <div className="grid grid-cols-2 gap-3">
           <SummaryMetric
             icon={Droplets}
-            iconClassName="text-sky-500"
+            iconClassName="text-fuchsia-500"
             label="Agua"
             value={`${waterCups} / 8 vasos`}
             status={entry.water_ml ? "Hidratación registrada" : "Objetivo diario"}
@@ -192,7 +192,7 @@ export default function Wellness() {
           />
           <SummaryMetric
             icon={Moon}
-            iconClassName="text-amber-500"
+            iconClassName="text-purple-500"
             label="Sueño"
             value={entry.sleep_hours ? `${entry.sleep_hours} h` : "Sin registrar"}
             status={entry.sleep_hours ? "Descanso registrado" : "Pendiente"}
@@ -208,7 +208,7 @@ export default function Wellness() {
           />
           <SummaryMetric
             icon={Heart}
-            iconClassName="text-red-500"
+            iconClassName="text-pink-500"
             label="Estado general"
             value={moodLabel}
             status={entry.mood ? "Estado registrado" : "Sin valorar"}
@@ -216,7 +216,7 @@ export default function Wellness() {
           />
           <SummaryMetric
             icon={Activity}
-            iconClassName="text-emerald-600"
+            iconClassName="text-fuchsia-600"
             label="Ejercicio"
             value={hasExercise ? "Registrado" : "Sin registrar"}
             status={hasExercise ? "Movimiento completado" : "Pendiente"}

@@ -15,7 +15,7 @@ import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
-import imgProducts from "@/assets/home-nutrition-premium-light.png";
+import imgProducts from "@/assets/nutrition/suplementacion.png";
 
 const QUOTES = [
   "Cuidarte es el primer acto de amor.",
