@@ -54,7 +54,6 @@ export default function Library() {
 
   const isVisibleLibraryRecipe = (recipe: Recipe) =>
     recipe.is_library === true ||
-    recipe.user_id == null ||
     recipe.visibility === "community" ||
     recipe.visibility === "featured";
 
