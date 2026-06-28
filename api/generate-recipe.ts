@@ -25,6 +25,26 @@ type InternalFoodContext = {
   fiber: number;
 };
 
+type ProductContext = {
+  name: string;
+  category: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  measures: {
+    name: string;
+    grams: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
+    is_default: boolean;
+  }[];
+};
+
 type RecipeResult = {
   title: string;
   description: string;
@@ -49,20 +69,20 @@ type RecipeResult = {
 const CATEGORIES: Record<RecipeCategory, { label: string; rules: string; maxCalories?: number; minCalories?: number; minProtein: number }> = {
   comidas_saludables: {
     label: "Comidas saludables",
-    rules: "Sin productos Herbalife. Entre 450 y 500 kcal por ración. Alta en proteína. Verduras como base. Fácil de cocinar.",
+    rules: "Entre 450 y 500 kcal por ración. Alta en proteína. Verduras como base. Fácil de cocinar. Puede usar productos propios disponibles para recetas si el usuario los incluye.",
     minCalories: 450,
     maxCalories: 500,
     minProtein: 28,
   },
   almuerzos: {
     label: "Almuerzos",
-    rules: "Sin productos Herbalife. Máximo 180 kcal por ración. Alto en proteína. Fácil de preparar y transportar.",
+    rules: "Máximo 180 kcal por ración. Alto en proteína. Fácil de preparar y transportar. Puede usar productos propios disponibles para recetas si el usuario los incluye.",
     maxCalories: 180,
     minProtein: 12,
   },
   meriendas: {
     label: "Meriendas",
-    rules: "Sin productos Herbalife. Máximo 180 kcal por ración. Alta en proteína. Fácil de preparar.",
+    rules: "Máximo 180 kcal por ración. Alta en proteína. Fácil de preparar. Puede usar productos propios disponibles para recetas si el usuario los incluye.",
     maxCalories: 180,
     minProtein: 12,
   },
@@ -73,7 +93,7 @@ const CATEGORIES: Record<RecipeCategory, { label: string; rules: string; maxCalo
   },
 };
 
-const EXPECTED_SUPABASE_REF = "agoycljrrfcfauguavng";
+const EXPECTED_SUPABASE_REF = "vuvdnmessgwhlggzcfqb";
 const EXPECTED_SUPABASE_HOST = `${EXPECTED_SUPABASE_REF}.supabase.co`;
 
 function pickSupabaseUrl(...candidates: Array<string | undefined>) {
@@ -132,6 +152,12 @@ function matchesInternalFood(input: string, food: InternalFoodContext) {
   return names.some(name => normalizedInput === name || normalizedInput.includes(name) || name.includes(normalizedInput));
 }
 
+function matchesProduct(input: string, product: ProductContext) {
+  const normalizedInput = normalizeName(input);
+  const normalizedProduct = normalizeName(product.name);
+  return Boolean(normalizedInput && normalizedProduct && (normalizedInput === normalizedProduct || normalizedInput.includes(normalizedProduct) || normalizedProduct.includes(normalizedInput)));
+}
+
 async function loadInternalFoodsForIngredients(authHeader: string | undefined, ingredients: string[]) {
   const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
   if (!token || ingredients.length === 0) return [];
@@ -180,6 +206,61 @@ async function loadInternalFoodsForIngredients(authHeader: string | undefined, i
     }));
 }
 
+async function loadProductsForIngredients(authHeader: string | undefined, ingredients: string[]) {
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+  if (!token || ingredients.length === 0) return [];
+
+  const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    db: { schema: "public" },
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data, error } = await (supabase as any)
+    .schema("public")
+    .from("products")
+    .select("name,calories,protein,carbs,fat,fiber,product_measures(name,grams,calories,protein,carbs,fat,fiber,is_default),product_categories(name)")
+    .eq("is_active", true)
+    .eq("available_for_recipes", true)
+    .eq("informative_only", false);
+
+  if (error || !Array.isArray(data)) return [];
+
+  return data
+    .map((product: any) => ({
+      name: String(product.name ?? ""),
+      category: String(product.product_categories?.name ?? "Productos"),
+      calories: numberOrZero(product.calories),
+      protein: numberOrZero(product.protein),
+      carbs: numberOrZero(product.carbs),
+      fat: numberOrZero(product.fat),
+      fiber: numberOrZero(product.fiber),
+      measures: Array.isArray(product.product_measures)
+        ? product.product_measures.map((measure: any) => ({
+          name: String(measure.name ?? ""),
+          grams: numberOrZero(measure.grams),
+          calories: numberOrZero(measure.calories),
+          protein: numberOrZero(measure.protein),
+          carbs: numberOrZero(measure.carbs),
+          fat: numberOrZero(measure.fat),
+          fiber: numberOrZero(measure.fiber),
+          is_default: Boolean(measure.is_default),
+        }))
+        : [],
+    }))
+    .filter((product: ProductContext) => product.name && ingredients.some(ingredient => matchesProduct(ingredient, product)))
+    .slice(0, 20);
+}
+
 function normalizeRecipe(raw: any, category: RecipeCategory, servings: number): RecipeResult {
   const macros = raw?.macros ?? {};
   const nutritionStatus = raw?.nutrition_status === "verified" ? "verified" : "estimated";
@@ -217,7 +298,6 @@ function validateRecipe(recipe: RecipeResult): string[] {
   const issues: string[] = [];
   const calories = Number(recipe.macros.calories);
   const protein = Number(recipe.macros.protein);
-  const serialized = JSON.stringify(recipe).toLowerCase();
 
   if (!recipe.title || recipe.ingredients.length === 0 || recipe.steps.length === 0) {
     issues.push("La receta debe incluir nombre, ingredientes y preparación completa.");
@@ -234,10 +314,6 @@ function validateRecipe(recipe: RecipeResult): string[] {
   if (protein < category.minProtein) {
     issues.push(`Debe subir la proteína por ración hasta al menos ${category.minProtein} g si es posible con los ingredientes disponibles.`);
   }
-  if (recipe.category !== "nutricion_deportiva" && /herbalife|h24|formula 1|prolong|rebuild|restore|cr7/.test(serialized)) {
-    issues.push("Esta categoría no puede incluir productos Herbalife ni H24.");
-  }
-
   return issues;
 }
 
@@ -245,6 +321,7 @@ function buildUserPrompt(
   body: Required<Pick<GenerateBody, "category" | "ingredients" | "servings">> & Omit<GenerateBody, "category" | "ingredients" | "servings">,
   issues: string[] = [],
   internalFoods: InternalFoodContext[] = [],
+  products: ProductContext[] = [],
 ): string {
   const category = CATEGORIES[body.category];
   return JSON.stringify({
@@ -253,6 +330,7 @@ function buildUserPrompt(
     nombre_categoria: category.label,
     reglas_obligatorias: category.rules,
     ingredientes_disponibles: body.ingredients,
+    productos_propios_reconocidos: products,
     alimentos_internos_reconocidos: internalFoods,
     preferencias_personales: body.preferences || "Sin preferencias adicionales.",
     alimentos_que_no_gustan: body.dislikes || "No indicado.",
@@ -263,6 +341,8 @@ function buildUserPrompt(
       "Devuelve solo JSON válido con la estructura obligatoria.",
       "Ajusta gramos y cantidades antes de responder para cumplir las reglas.",
       "Calcula macros siempre para 1 persona / 1 ración.",
+      "Si un ingrediente coincide con productos_propios_reconocidos, úsalo como referencia prioritaria y conserva su nombre de forma reconocible para que el recalculador use la base oficial de productos.",
+      "Si un producto propio tiene medidas habituales, puedes usar esas medidas exactas en quantity y grams.",
       "Si un ingrediente coincide con alimentos_internos_reconocidos por nombre o sinónimo, usa ese alimento interno como referencia principal y conserva su nombre de forma reconocible.",
       "Nunca presentes valores estimados como exactos.",
       "Si no hay referencia nutricional suficiente, usa Valores nutricionales estimados.",
@@ -370,12 +450,13 @@ export default async function handler(req: any, res: any) {
     avoid: body.avoid,
   };
   const internalFoods = await loadInternalFoodsForIngredients(req.headers.authorization, ingredients);
+  const products = await loadProductsForIngredients(req.headers.authorization, ingredients);
 
   let issues: string[] = [];
 
   try {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const raw = await callOpenAI(apiKey, buildUserPrompt(requestBody, issues, internalFoods));
+      const raw = await callOpenAI(apiKey, buildUserPrompt(requestBody, issues, internalFoods, products));
       const recipe = normalizeRecipe(raw, category, servings);
       issues = validateRecipe(recipe);
 

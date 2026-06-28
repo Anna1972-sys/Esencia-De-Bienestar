@@ -19,6 +19,8 @@ import ChallengeDay from "@/pages/ChallengeDay";
 import ChallengeExtra from "@/pages/ChallengeExtra";
 import Resources from "@/pages/Resources";
 import ResourceDetail from "@/pages/ResourceDetail";
+import Products from "@/pages/Products";
+import ProductDetail from "@/pages/ProductDetail";
 import Profile from "@/pages/Profile";
 import Wellness from "@/pages/Wellness";
 import WellnessProgress from "@/pages/WellnessProgress";
@@ -30,6 +32,7 @@ import AdminResources from "@/pages/AdminResources";
 import AdminResourceCategories from "@/pages/AdminResourceCategories";
 import AdminMacroSpecialist from "@/pages/AdminMacroSpecialist";
 import AdminInternalFoods from "@/pages/AdminInternalFoods";
+import AdminProducts from "@/pages/AdminProducts";
 import AdminMovement from "@/pages/AdminMovement";
 import Movement from "@/pages/Movement";
 import MovementDetail from "@/pages/MovementDetail";
@@ -95,6 +98,8 @@ export default function App() {
               <Route path="retos/:id/extra/:key" element={<ChallengeExtra />} />
               <Route path="recursos" element={<Resources />} />
               <Route path="recursos/:id" element={<ResourceDetail />} />
+              <Route path="productos" element={<Products />} />
+              <Route path="productos/:id" element={<ProductDetail />} />
               <Route path="perfil" element={<Profile />} />
               <Route path="diario" element={<Wellness />} />
               <Route path="progreso" element={<WellnessProgress />} />
@@ -108,6 +113,7 @@ export default function App() {
               <Route path="admin/recetas-usuarias" element={<AdminOnly><AdminUserRecipes /></AdminOnly>} />
               <Route path="admin/especialista-macros" element={<AdminOnly><AdminMacroSpecialist /></AdminOnly>} />
               <Route path="admin/alimentos-internos" element={<AdminOnly><AdminInternalFoods /></AdminOnly>} />
+              <Route path="admin/productos" element={<AdminOnly><AdminProducts /></AdminOnly>} />
               <Route path="admin/recursos" element={<AdminOnly><AdminResources /></AdminOnly>} />
               <Route path="admin/recursos/categorias" element={<AdminOnly><AdminResourceCategories /></AdminOnly>} />
               <Route path="admin/movimiento" element={<AdminOnly><AdminMovement /></AdminOnly>} />

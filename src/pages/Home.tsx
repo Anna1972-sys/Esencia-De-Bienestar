@@ -15,6 +15,7 @@ import imgProgreso from "@/assets/home-progreso.png";
 import imgAdmin from "@/assets/home-admin.png";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
+import imgProducts from "@/assets/home-nutrition-premium-light.png";
 
 const QUOTES = [
   "Cuidarte es el primer acto de amor.",
@@ -78,6 +79,7 @@ export default function Home() {
           <Tile to="/app/biblioteca" image={imgRecetario} title="Tu recetario" subtitle="Tus desayunos, comidas y cenas favoritas" scale="scale-[.82]" />
           <Tile to="/app/retos" image={imgRetos} title="Retos 5 días" subtitle="Acepta el reto" />
           <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
+          <Tile to="/app/productos" image={imgProducts} title="Productos" subtitle="Herbalife y nutrición" />
           <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
           <NutritionTile />
           <MovementTile />

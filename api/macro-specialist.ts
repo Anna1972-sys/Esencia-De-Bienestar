@@ -37,6 +37,34 @@ type InternalFoodRow = {
   is_active: boolean;
 };
 
+type ProductMeasureRow = {
+  id: string;
+  name: string;
+  grams: number | string;
+  calories: number | string;
+  protein: number | string;
+  carbs: number | string;
+  fat: number | string;
+  fiber: number | string;
+  is_default: boolean;
+  sort_order: number | string;
+};
+
+type ProductRow = {
+  id: string;
+  name: string;
+  slug: string | null;
+  calories: number | string;
+  protein: number | string;
+  carbs: number | string;
+  fat: number | string;
+  fiber: number | string;
+  is_active: boolean;
+  available_for_recipes: boolean;
+  informative_only: boolean;
+  product_measures?: ProductMeasureRow[];
+};
+
 type MacroValues = {
   kcal: number;
   protein: number;
@@ -142,10 +170,10 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
 }
 
 function parseRawIngredient(raw: string): IngredientInput {
-  const qtyMatch = raw.match(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
+  const qtyMatch = raw.match(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
   const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
   const unit = qtyMatch?.[2]?.toLowerCase();
-  const rawName = raw.replace(/(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
+  const rawName = raw.replace(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
   const name = simplifyFoodName(rawName);
   const grams = quantity && unit ? quantityToGrams(quantity, unit, name) : undefined;
   return { raw, name, grams, quantity, unit };
@@ -255,6 +283,119 @@ function findInternalFood(name: string, foods: InternalFoodRow[]) {
     .filter(candidate => candidate.normalized && (normalized.includes(candidate.normalized) || candidate.normalized.includes(normalized)))
     .sort((a, b) => b.normalized.length - a.normalized.length)[0];
   return partial ? { key: partial.key, row: partial.food, food: foodFromInternalRow(partial.food) } : null;
+}
+
+function productFoodMacro(row: ProductRow): FoodMacro {
+  return {
+    kcal: numberValue(row.calories),
+    protein: numberValue(row.protein),
+    carbs: numberValue(row.carbs),
+    fat: numberValue(row.fat),
+    fiber: numberValue(row.fiber),
+  };
+}
+
+function measureFoodMacro(measure: ProductMeasureRow): FoodMacro {
+  return {
+    kcal: numberValue(measure.calories),
+    protein: numberValue(measure.protein),
+    carbs: numberValue(measure.carbs),
+    fat: numberValue(measure.fat),
+    fiber: numberValue(measure.fiber),
+  };
+}
+
+function findProduct(input: IngredientInput, products: ProductRow[]) {
+  const normalizedRaw = normalizeName(String(input.raw ?? ""));
+  const normalizedName = normalizeName(String(input.name ?? ""));
+  const searchable = `${normalizedRaw} ${normalizedName}`.trim();
+  if (!searchable) return null;
+
+  const matches = products
+    .filter(product => product.is_active && product.available_for_recipes && !product.informative_only)
+    .map(product => {
+      const normalizedProduct = normalizeName(product.name);
+      const normalizedSlug = normalizeName(product.slug ?? "");
+      const productMatches =
+        Boolean(normalizedProduct && (searchable.includes(normalizedProduct) || normalizedProduct.includes(normalizedName))) ||
+        Boolean(normalizedSlug && searchable.includes(normalizedSlug));
+      return {
+        product,
+        normalizedProduct,
+        score: productMatches ? normalizedProduct.length + (searchable.includes(normalizedProduct) ? 30 : 0) : 0,
+      };
+    })
+    .filter(match => match.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return matches[0]?.product ?? null;
+}
+
+function productMeasureQuantity(input: IngredientInput, measure: ProductMeasureRow) {
+  const raw = normalizeName(String(input.raw ?? input.name ?? ""));
+  const measureName = normalizeName(measure.name);
+  if (!measureName || !raw.includes(measureName)) return null;
+
+  const quantityPattern = new RegExp(`(\\d+(?:[,.]\\d+)?)\\s*${measureName.replace(/\s+/g, "\\s+")}\\b`, "i");
+  const quantityMatch = raw.match(quantityPattern);
+  if (quantityMatch) return Number(quantityMatch[1].replace(",", "."));
+  if (measureName.includes("medio")) return 1;
+  return input.quantity && normalizeName(input.unit ?? "") === measureName ? Number(input.quantity) : 1;
+}
+
+function findProductMeasure(input: IngredientInput, product: ProductRow) {
+  const raw = normalizeName(String(input.raw ?? input.name ?? ""));
+  const measures = [...(product.product_measures ?? [])].sort((a, b) => {
+    const aName = normalizeName(a.name);
+    const bName = normalizeName(b.name);
+    return bName.length - aName.length || numberValue(a.sort_order) - numberValue(b.sort_order);
+  });
+
+  for (const measure of measures) {
+    const quantity = productMeasureQuantity(input, measure);
+    if (quantity) return { measure, quantity };
+  }
+
+  const cacito = measures.find(measure => normalizeName(measure.name) === "cacito");
+  if (cacito && raw.includes("medio cacito")) return { measure: cacito, quantity: 0.5 };
+
+  const defaultMeasure = measures.find(measure => measure.is_default);
+  if (defaultMeasure) return { measure: defaultMeasure, quantity: input.quantity && !input.unit ? Number(input.quantity) : 1 };
+  return null;
+}
+
+function calculateProductMacros(input: IngredientInput, product: ProductRow, explicitGrams: number | null) {
+  if (explicitGrams && Number.isFinite(explicitGrams) && explicitGrams > 0) {
+    return {
+      grams: explicitGrams,
+      matchedAs: product.name,
+      measureName: "100 g",
+      macros: scale(productFoodMacro(product), explicitGrams),
+    };
+  }
+
+  const measureMatch = findProductMeasure(input, product);
+  if (!measureMatch) return null;
+  const grams = numberValue(measureMatch.measure.grams) * Math.max(0.01, measureMatch.quantity);
+  const measureMacro = measureFoodMacro(measureMatch.measure);
+  const hasMeasureMacros = measureMacro.protein || measureMacro.carbs || measureMacro.fat || measureMacro.fiber || measureMacro.kcal;
+  const macros = hasMeasureMacros
+    ? {
+      kcal: measureMacro.kcal * measureMatch.quantity,
+      protein: measureMacro.protein * measureMatch.quantity,
+      carbs: measureMacro.carbs * measureMatch.quantity,
+      fat: measureMacro.fat * measureMatch.quantity,
+      fiber: measureMacro.fiber * measureMatch.quantity,
+      micronutrients: {},
+    }
+    : scale(productFoodMacro(product), grams);
+
+  return {
+    grams,
+    matchedAs: product.name,
+    measureName: measureMatch.measure.name,
+    macros: enforceMacroCalories(macros),
+  };
 }
 
 function scale(food: FoodMacro, grams: number): MacroValues {
@@ -375,6 +516,31 @@ async function loadInternalFoods(token: string, attempts?: any[]) {
     return INITIAL_INTERNAL_FOODS as InternalFoodRow[];
   }
   return (data ?? []) as InternalFoodRow[];
+}
+
+async function loadProducts(token: string, attempts?: any[]) {
+  const supabase = createSupabaseForToken(token);
+  if (!supabase) return [];
+  const { data, error } = await (supabase as any)
+    .schema("public")
+    .from("products")
+    .select("id,name,slug,calories,protein,carbs,fat,fiber,is_active,available_for_recipes,informative_only,product_measures(id,name,grams,calories,protein,carbs,fat,fiber,is_default,sort_order)")
+    .eq("is_active", true)
+    .eq("available_for_recipes", true)
+    .eq("informative_only", false)
+    .order("name", { ascending: true });
+
+  if (error) {
+    attempts?.push({
+      provider: "productos",
+      rejected: true,
+      reason: "no_se_pudo_leer_tabla",
+      error: error.message,
+      fallback: "usda_fatsecret_alimentos_internos",
+    });
+    return [];
+  }
+  return (data ?? []) as ProductRow[];
 }
 
 async function getFatSecretToken() {
@@ -990,11 +1156,15 @@ export default async function handler(req: any, res: any) {
       .map(parseRawIngredient);
 
   const externalApisConfigured = {
+    products: false,
     internalFoods: false,
     fatSecret: Boolean(getFatSecretCredentials()),
     usda: Boolean(getUsdaApiKey()),
   };
+  const loadAttempts: any[] = [];
+  const products = sessionToken ? await loadProducts(sessionToken, loadAttempts) : [];
   const internalFoods = sessionToken ? await loadInternalFoods(sessionToken) : [];
+  externalApisConfigured.products = products.length > 0;
   externalApisConfigured.internalFoods = internalFoods.length > 0;
 
   const totals = zeroMacros();
@@ -1018,6 +1188,57 @@ export default async function handler(req: any, res: any) {
       attempts: [],
     };
     if (!name) continue;
+
+    for (const attempt of loadAttempts) debugEntry.attempts?.push(attempt);
+    const productMatch = findProduct(ingredient, products);
+    if (productMatch) {
+      const productCalculation = calculateProductMacros(ingredient, productMatch, Number.isFinite(grams) ? grams : null);
+      if (!productCalculation) {
+        missingGrams.push({ name, raw: ingredient.raw ?? name, reason: "Producto encontrado sin gramos ni medida configurada" });
+        debugEntry.status = "sin_medida_producto";
+        debugEntry.source = "productos";
+        debugEntry.matchedAs = productMatch.name;
+        debugEntry.foodId = productMatch.id;
+        debugEntry.attempts?.push({
+          provider: "productos",
+          matchedAs: productMatch.name,
+          used: false,
+          reason: "sin_gramos_o_medida_configurada",
+          skippedExternalApis: true,
+        });
+        debug.push(debugEntry);
+        continue;
+      }
+
+      addMacros(totals, productCalculation.macros);
+      debugEntry.status = "incluido";
+      debugEntry.source = "productos";
+      debugEntry.matchedAs = productCalculation.matchedAs;
+      debugEntry.foodId = productMatch.id;
+      debugEntry.grams = productCalculation.grams;
+      debugEntry.macros = roundMacros(productCalculation.macros);
+      debugEntry.calorieCheck = calorieCheck(productCalculation.macros);
+      debugEntry.attempts?.push({
+        provider: "productos",
+        used: true,
+        matchedAs: productCalculation.matchedAs,
+        measure: productCalculation.measureName,
+        skippedExternalApis: true,
+        macros: roundMacros(productCalculation.macros),
+      });
+      found.push({
+        name,
+        matchedAs: productCalculation.matchedAs,
+        grams: productCalculation.grams,
+        source: "productos",
+        foodId: productMatch.id,
+        measure: productCalculation.measureName,
+        macros: roundMacros(productCalculation.macros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
     if (!Number.isFinite(grams) || grams <= 0) {
       missingGrams.push({ name, raw: ingredient.raw ?? name });
       debugEntry.status = "sin_gramos";
@@ -1133,7 +1354,7 @@ export default async function handler(req: any, res: any) {
     debug.push(debugEntry);
   }
 
-  const externalSourceUsed = found.some(item => item.source === "usda" || item.source === "fatsecret");
+  const externalSourceUsed = found.some(item => item.source === "productos" || item.source === "usda" || item.source === "fatsecret");
   const sourcesUsed = Array.from(new Set(found.map(item => item.source).filter(Boolean)));
   const status: MacroStatus =
     notFound.length || missingGrams.length
@@ -1171,7 +1392,7 @@ export default async function handler(req: any, res: any) {
           : sourcesUsed.join("_")
         : "tabla_interna_basica_por_100g",
     },
-    envPrepared: ["FATSECRET_CONSUMER_KEY", "FATSECRET_CONSUMER_SECRET", "USDA_API_KEY"],
+    envPrepared: ["PRODUCTOS_PROPIOS", "FATSECRET_CONSUMER_KEY", "FATSECRET_CONSUMER_SECRET", "USDA_API_KEY"],
   };
 
   console.info("[macro-specialist] calculation", JSON.stringify({
