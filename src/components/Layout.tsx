@@ -1,10 +1,11 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Home, Sparkles, BookHeart, ShoppingBag, User } from "lucide-react";
+import { Home, Sparkles, BookHeart, Package, ShoppingBag, User } from "lucide-react";
 
 const items = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
   { to: "/app/generar", icon: Sparkles, label: "Crear" },
   { to: "/app/mis-recetas", icon: BookHeart, label: "Recetas" },
+  { to: "/app/productos", icon: Package, label: "Productos" },
   { to: "/app/lista-compra", icon: ShoppingBag, label: "Compra" },
   { to: "/app/perfil", icon: User, label: "Yo" },
 ];

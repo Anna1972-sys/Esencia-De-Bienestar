@@ -34,7 +34,7 @@ const groups: { title: string; items: Item[] }[] = [
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
       { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage },
       { to: "/app/admin/alimentos-internos", label: "Alimentos internos", desc: "Base nutricional editable", image: macroSpecialistImage },
-      { to: "/app/admin/productos",          label: "Productos",              desc: "Herbalife, recursos y macros propios", image: nutritionImage },
+      { to: "/app/admin/productos",          label: "Productos",              desc: "Gestionar productos, medidas y macros", image: nutritionImage },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
