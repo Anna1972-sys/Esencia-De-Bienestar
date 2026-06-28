@@ -214,14 +214,14 @@
     width: 152px;
     overflow: hidden;
     border-radius: 1rem;
-    border: 2px solid #FF2D95;
+    border: 0;
     background: hsl(340 76% 96%);
-    box-shadow: 0 12px 24px -22px hsl(325 55% 25% / .28);
+    box-shadow: none;
     display: grid;
     place-items: center;
   }
   .home-card-image-frame-dark {
-    border-color: #FF2D95;
+    border: 0;
   }
   .home-card-image {
     height: 100%;
