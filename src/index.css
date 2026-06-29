@@ -214,20 +214,25 @@
     width: 152px;
     overflow: hidden;
     border-radius: 1rem;
-    border: 0;
-    background: hsl(340 76% 96%);
-    box-shadow: none;
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent;
+    box-shadow: none !important;
     display: grid;
     place-items: center;
   }
   .home-card-image-frame-dark {
-    border: 0;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
   }
   .home-card-image {
     height: 100%;
     width: 100%;
     object-fit: cover;
-    filter: drop-shadow(0 4px 12px hsl(315 55% 60% / 0.12));
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
   }
   .nutrition-stat { border-radius: 10px; padding: .4rem .2rem; color: white; background: #FF2D95; box-shadow: 0 8px 18px -13px hsl(325 100% 45% / .8); }
   .nutrition-stat .muted { color: hsl(0 0% 100% / .82); }
@@ -395,6 +400,9 @@
     width: 100%;
     object-fit: cover;
     flex-shrink: 0;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
   }
 
   .admin-dashboard .admin-card-body {
