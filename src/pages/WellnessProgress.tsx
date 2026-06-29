@@ -41,6 +41,18 @@ export default function WellnessProgress() {
   const [editingMeasurement, setEditingMeasurement] = useState<Measurement | null>(null);
   const [isSavingMeasurement, setIsSavingMeasurement] = useState(false);
   const [reg, setReg] = useState<MeasurementForm>({ value: "", unit: "kg", date: localDateKey(new Date()) });
+  const [bulkDate, setBulkDate] = useState(localDateKey(new Date()));
+  const [bulkCalendarOpen, setBulkCalendarOpen] = useState(false);
+  const [bulkCalendarMonth, setBulkCalendarMonth] = useState(() => new Date());
+  const [bulkValues, setBulkValues] = useState<Record<MetricKey, string>>({
+    weight: "",
+    waist: "",
+    hip: "",
+    chest: "",
+    arm: "",
+    thigh: "",
+  });
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
   const beforeInputRef = useRef<HTMLInputElement>(null);
   const afterInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +61,11 @@ export default function WellnessProgress() {
   useEffect(() => {
     if (!editingMeasurement) setReg(r => ({ ...r, unit: m.unit }));
   }, [m.unit, editingMeasurement]);
+
+  useEffect(() => {
+    const parsed = dateFromLocalKey(bulkDate);
+    if (parsed) setBulkCalendarMonth(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+  }, [bulkDate]);
 
   const reload = async () => {
     if (!user) return;
@@ -108,12 +125,6 @@ export default function WellnessProgress() {
   const beforePhoto = photos.find(p => p.metric === metric && p.kind === "before");
   const afterPhoto = photos.find(p => p.metric === metric && p.kind === "after");
 
-  const openRegister = () => {
-    setEditingMeasurement(null);
-    setReg({ value: "", unit: m.unit, date: localDateKey(new Date()) });
-    setShowRegister(true);
-  };
-
   const openEdit = (measurement: Measurement) => {
     setEditingMeasurement(measurement);
     setReg({ value: String(measurement.value), unit: measurement.unit as "kg" | "cm", date: localDateKey(new Date(measurement.measured_at)) });
@@ -154,6 +165,55 @@ export default function WellnessProgress() {
       toast.error("No se pudo guardar la medida. Inténtalo de nuevo.");
     } finally {
       setIsSavingMeasurement(false);
+    }
+  };
+
+  const saveBulkMeasurements = async () => {
+    if (!user) return;
+    if (!bulkDate) { toast.error("Selecciona una fecha"); return; }
+    const rows = DISPLAY_METRIC_ORDER
+      .map((key) => {
+        const def = METRICS.find(item => item.key === key)!;
+        const raw = bulkValues[key].trim().replace(",", ".");
+        const value = Number(raw);
+        if (!raw) return null;
+        if (!Number.isFinite(value) || value <= 0) return { invalid: true, label: def.label };
+        return {
+          user_id: user.id,
+          metric: key,
+          value,
+          unit: def.unit,
+          measured_at: new Date(bulkDate + "T12:00:00").toISOString(),
+        };
+      })
+      .filter(Boolean) as Array<any>;
+
+    const invalid = rows.find((row: any) => row.invalid);
+    if (invalid) {
+      toast.error(`Revisa ${invalid.label}: debe ser mayor que cero`);
+      return;
+    }
+    if (rows.length === 0) {
+      toast.error("Introduce al menos una medida");
+      return;
+    }
+
+    setIsSavingBulk(true);
+    try {
+      const { data, error } = await supabase
+        .from("wellness_measurements")
+        .insert(rows)
+        .select();
+      if (error) throw error;
+      setMeasurements(current => [...current, ...((data as Measurement[]) ?? [])].sort(compareMeasurements));
+      setBulkValues({ weight: "", waist: "", hip: "", chest: "", arm: "", thigh: "" });
+      toast.success("Medidas guardadas ✨");
+      reload();
+    } catch (error) {
+      console.error("Unable to save wellness measurements", error);
+      toast.error("No se pudieron guardar las medidas");
+    } finally {
+      setIsSavingBulk(false);
     }
   };
 
@@ -250,10 +310,114 @@ export default function WellnessProgress() {
         })}
       </div>
 
-      {/* Botón registrar */}
-      <button onClick={openRegister} className="btn-primary w-full flex items-center justify-center gap-2">
-        <Plus className="h-4 w-4" /> Registrar medida
-      </button>
+      {/* Objetivos */}
+      <section className="card-elegant wellness-progress-goals p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="h-4 w-4 text-primary" />
+          <h2 className="font-sans font-bold text-lg">Mis objetivos</h2>
+        </div>
+        <p className="mb-4 text-xs muted progress-goal-help">Define pequeños objetivos y sigue tu avance.</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select className="field goal-select flex-1 min-w-[120px]" value={newGoal.metric} onChange={e => setNewGoal({ ...newGoal, metric: e.target.value as MetricKey })}>
+            {METRICS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
+          </select>
+          <select className="field goal-select w-28" value={newGoal.direction} onChange={e => setNewGoal({ ...newGoal, direction: e.target.value as "lose" | "gain" })}>
+            <option value="lose">Perder</option>
+            <option value="gain">Aumentar</option>
+          </select>
+          <input type="number" step="0.1" min="0" placeholder="Cantidad" className="field w-24" value={newGoal.amount} onChange={e => setNewGoal({ ...newGoal, amount: e.target.value })} />
+          <button onClick={addGoal} className="btn-primary px-4"><Plus className="h-4 w-4" /></button>
+        </div>
+        {goals.length === 0 ? (
+          <p className="text-sm muted text-center py-2 progress-empty-text">Aún no has añadido objetivos.</p>
+        ) : (
+          <ul className="space-y-2">
+            {goals.map(g => {
+              const def = METRICS.find(mm => mm.key === g.metric);
+              const lbl = def?.label ?? g.metric;
+              const unit = def?.unit ?? "";
+              const current = [...measurements].reverse().find(x => x.metric === g.metric)?.value ?? null;
+              const start = g.start_value;
+              const goingDown = start != null ? g.target_value < start : g.target_value < (current ?? g.target_value);
+              const reached = current != null && (goingDown ? current <= g.target_value : current >= g.target_value);
+              const remaining = current != null ? Math.max(0, +(goingDown ? current - g.target_value : g.target_value - current).toFixed(2)) : null;
+              return (
+                <li key={g.id} className={`flex items-center gap-3 p-3 rounded-2xl border ${g.achieved ? "border-primary/40" : "border-border"}`}
+                  style={g.achieved ? { background: "linear-gradient(135deg, hsl(330 70% 96%), hsl(290 65% 96%))" } : undefined}>
+                  <button onClick={() => toggleGoal(g)} className={`h-9 w-9 rounded-full grid place-items-center transition ${g.achieved ? "text-white shadow-soft" : "bg-muted text-foreground/50"}`}
+                    style={g.achieved ? { backgroundImage: "var(--gradient-primary)" } : undefined}>
+                    <Trophy className="h-4 w-4" />
+                  </button>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">{lbl} · Objetivo: {g.target_value} {unit}</div>
+                    <div className="text-xs muted">
+                      Actual: {current ?? "—"} {unit}
+                      {remaining != null && <> · {reached ? "¡Meta alcanzada!" : `Restan: ${remaining} ${unit}`}</>}
+                    </div>
+                  </div>
+                  <button onClick={() => removeGoal(g.id)} className="h-8 w-8 grid place-items-center rounded-full hover:bg-muted text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* Registrar medidas */}
+      <section className="card-elegant wellness-progress-register p-5">
+        <div className="mb-4">
+          <h2 className="font-sans font-bold text-lg">Registrar medidas</h2>
+          <p className="mt-1 text-xs muted">Introduce tus medidas juntas y guarda todo en un solo paso.</p>
+        </div>
+        <div className="relative mb-4">
+          <label className="text-[11px] uppercase tracking-wider muted">Fecha</label>
+          <button
+            type="button"
+            className="field progress-date-trigger w-full text-left"
+            onClick={() => setBulkCalendarOpen(open => !open)}
+          >
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <span>{formatDateLabel(bulkDate)}</span>
+          </button>
+          {bulkCalendarOpen && (
+            <ProgressDatePicker
+              selected={bulkDate}
+              month={bulkCalendarMonth}
+              onMonthChange={setBulkCalendarMonth}
+              onSelect={(value) => {
+                setBulkDate(value);
+                setBulkCalendarOpen(false);
+              }}
+            />
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {DISPLAY_METRIC_ORDER.map((key) => {
+            const def = METRICS.find(item => item.key === key)!;
+            return (
+              <label key={key} className="progress-measure-field rounded-2xl border p-3">
+                <span className="block text-[11px] font-bold uppercase tracking-[0.08em]">{def.label}</span>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    step={def.unit === "kg" ? "0.1" : "1"}
+                    min="0"
+                    inputMode="decimal"
+                    className="field min-h-10 flex-1"
+                    placeholder=""
+                    value={bulkValues[key]}
+                    onChange={e => setBulkValues(values => ({ ...values, [key]: e.target.value }))}
+                  />
+                  <span className="text-xs font-bold muted">{def.unit}</span>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+        <button onClick={saveBulkMeasurements} disabled={isSavingBulk} className="btn-primary mt-5 w-full">
+          {isSavingBulk ? "Guardando medidas…" : "Guardar medidas"}
+        </button>
+      </section>
 
       {/* Gráfico */}
       <section className="card-elegant wellness-progress-evolution p-5">
@@ -334,59 +498,6 @@ export default function WellnessProgress() {
         {metricMeas.length === 0 && <p className="mt-4 rounded-2xl bg-white/65 px-3 py-3 text-center text-xs muted">Aún no hay medidas registradas para esta categoría.</p>}
       </section>
 
-      {/* Objetivos */}
-      <section className="card-elegant wellness-progress-goals p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Target className="h-4 w-4 text-primary" />
-          <h2 className="font-sans font-bold text-lg">Mis objetivos</h2>
-        </div>
-        <p className="mb-4 text-xs muted">Define pequeños objetivos y sigue tu avance.</p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <select className="field goal-select flex-1 min-w-[120px]" value={newGoal.metric} onChange={e => setNewGoal({ ...newGoal, metric: e.target.value as MetricKey })}>
-            {METRICS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
-          </select>
-          <select className="field goal-select w-28" value={newGoal.direction} onChange={e => setNewGoal({ ...newGoal, direction: e.target.value as "lose" | "gain" })}>
-            <option value="lose">Perder</option>
-            <option value="gain">Aumentar</option>
-          </select>
-          <input type="number" step="0.1" min="0" placeholder="Cantidad" className="field w-24" value={newGoal.amount} onChange={e => setNewGoal({ ...newGoal, amount: e.target.value })} />
-          <button onClick={addGoal} className="btn-primary px-4"><Plus className="h-4 w-4" /></button>
-        </div>
-        {goals.length === 0 ? (
-          <p className="text-sm muted text-center py-2">Aún no has añadido objetivos.</p>
-        ) : (
-          <ul className="space-y-2">
-            {goals.map(g => {
-              const def = METRICS.find(mm => mm.key === g.metric);
-              const lbl = def?.label ?? g.metric;
-              const unit = def?.unit ?? "";
-              const current = [...measurements].reverse().find(x => x.metric === g.metric)?.value ?? null;
-              const start = g.start_value;
-              const goingDown = start != null ? g.target_value < start : g.target_value < (current ?? g.target_value);
-              const reached = current != null && (goingDown ? current <= g.target_value : current >= g.target_value);
-              const remaining = current != null ? Math.max(0, +(goingDown ? current - g.target_value : g.target_value - current).toFixed(2)) : null;
-              return (
-                <li key={g.id} className={`flex items-center gap-3 p-3 rounded-2xl border ${g.achieved ? "border-primary/40" : "border-border"}`}
-                  style={g.achieved ? { background: "linear-gradient(135deg, hsl(330 70% 96%), hsl(290 65% 96%))" } : undefined}>
-                  <button onClick={() => toggleGoal(g)} className={`h-9 w-9 rounded-full grid place-items-center transition ${g.achieved ? "text-white shadow-soft" : "bg-muted text-foreground/50"}`}
-                    style={g.achieved ? { backgroundImage: "var(--gradient-primary)" } : undefined}>
-                    <Trophy className="h-4 w-4" />
-                  </button>
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm">{lbl} · Objetivo: {g.target_value} {unit}</div>
-                    <div className="text-xs muted">
-                      Actual: {current ?? "—"} {unit}
-                      {remaining != null && <> · {reached ? "¡Meta alcanzada!" : `Restan: ${remaining} ${unit}`}</>}
-                    </div>
-                  </div>
-                  <button onClick={() => removeGoal(g.id)} className="h-8 w-8 grid place-items-center rounded-full hover:bg-muted text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
       {/* Modal de registro */}
       {showRegister && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={closeMeasurementForm}>
@@ -421,8 +532,77 @@ function localDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function dateFromLocalKey(value: string) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatDateLabel(value: string) {
+  const date = dateFromLocalKey(value);
+  if (!date) return "Seleccionar fecha";
+  return date.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" });
+}
+
 function compareMeasurements(a: Measurement, b: Measurement) {
   return new Date(a.measured_at).getTime() - new Date(b.measured_at).getTime();
+}
+
+function ProgressDatePicker({
+  selected,
+  month,
+  onMonthChange,
+  onSelect,
+}: {
+  selected: string;
+  month: Date;
+  onMonthChange: (date: Date) => void;
+  onSelect: (date: string) => void;
+}) {
+  const selectedDate = dateFromLocalKey(selected);
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const startWeekday = (first.getDay() + 6) % 7;
+  const days: (Date | null)[] = Array(startWeekday).fill(null);
+  for (let day = 1; day <= last.getDate(); day++) {
+    days.push(new Date(month.getFullYear(), month.getMonth(), day));
+  }
+
+  return (
+    <div className="progress-date-picker">
+      <div className="progress-date-picker-header">
+        <button type="button" onClick={() => onMonthChange(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+          <ArrowLeft className="h-3.5 w-3.5" />
+        </button>
+        <span>{month.toLocaleDateString("es", { month: "long", year: "numeric" })}</span>
+        <button type="button" onClick={() => onMonthChange(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+          <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+        </button>
+      </div>
+      <div className="progress-date-weekdays">
+        {["L", "M", "X", "J", "V", "S", "D"].map(day => <span key={day}>{day}</span>)}
+      </div>
+      <div className="progress-date-days">
+        {days.map((day, index) => {
+          if (!day) return <span key={`empty-${index}`} />;
+          const key = localDateKey(day);
+          const isSelected = selectedDate && key === localDateKey(selectedDate);
+          const isToday = key === localDateKey(new Date());
+          return (
+            <button
+              type="button"
+              key={key}
+              onClick={() => onSelect(key)}
+              className={`${isSelected ? "is-selected" : ""} ${isToday ? "is-today" : ""}`}
+            >
+              {day.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function PhotoCard({ label, photo, url, gradient, dark, onPick, onRemove }: {
@@ -475,7 +655,7 @@ function HistoryCard({ label, entries, unit }: { label: string; entries: Measure
       <p className="font-sans font-bold text-xl mt-1">
         {diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`} <span className="text-xs muted">{unit}</span>
       </p>
-      <p className="text-[10px] muted mt-0.5">{entries.length} registros</p>
+      <p className="text-[10px] muted mt-0.5">{entries.length === 0 ? "Sin registros" : `${entries.length} registros`}</p>
     </div>
   );
 }

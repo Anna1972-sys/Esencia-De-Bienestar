@@ -1186,6 +1186,133 @@
     color: #FFFFFF !important;
   }
 
+  .progress-page .wellness-progress-register,
+  .progress-page .wellness-progress-evolution,
+  .progress-page .wellness-progress-photos,
+  .progress-page .wellness-progress-history,
+  .progress-page .wellness-progress-goals {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+    color: hsl(var(--foreground)) !important;
+    box-shadow: 0 18px 34px -24px hsl(325 45% 24% / .28) !important;
+  }
+
+  .progress-page .wellness-progress-register h2,
+  .progress-page .wellness-progress-evolution h2,
+  .progress-page .wellness-progress-photos h2,
+  .progress-page .wellness-progress-history h2,
+  .progress-page .wellness-progress-goals h2,
+  .progress-page .wellness-progress-goals .font-semibold,
+  .progress-page .wellness-progress-goals .progress-goal-help,
+  .progress-page .wellness-progress-goals .progress-empty-text {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .progress-page .wellness-progress-register .muted,
+  .progress-page .wellness-progress-evolution .muted,
+  .progress-page .wellness-progress-photos .muted,
+  .progress-page .wellness-progress-history .muted,
+  .progress-page .wellness-progress-goals .muted {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .progress-page .progress-measure-field,
+  .progress-page .wellness-progress-history .wellness-history-card,
+  .progress-page .wellness-progress-goals li {
+    background: #FFFFFF !important;
+    border-color: rgb(255 45 149 / .38) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .progress-page .progress-date-trigger {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    justify-content: flex-start;
+  }
+
+  .progress-page .progress-date-picker {
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    top: calc(100% + .45rem);
+    max-width: 15.5rem;
+    margin-inline: auto;
+    border: 1px solid #FF2D95;
+    border-radius: .95rem;
+    background: #FFFFFF;
+    padding: .45rem;
+    box-shadow: 0 18px 34px -24px hsl(325 45% 24% / .45);
+  }
+
+  .progress-page .progress-date-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    border-radius: .75rem;
+    background: #1F1F1F;
+    color: #FFFFFF;
+    padding: .32rem .42rem;
+    text-transform: capitalize;
+    font-size: .68rem;
+    font-weight: 800;
+  }
+
+  .progress-page .progress-date-picker-header button {
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: .55rem;
+    background: rgb(255 255 255 / .08);
+    color: #FFFFFF;
+  }
+
+  .progress-page .progress-date-weekdays,
+  .progress-page .progress-date-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: .12rem;
+  }
+
+  .progress-page .progress-date-weekdays {
+    margin-top: .38rem;
+    color: #FF2D95;
+    font-size: .58rem;
+    font-weight: 900;
+    text-align: center;
+  }
+
+  .progress-page .progress-date-days {
+    margin-top: .18rem;
+  }
+
+  .progress-page .progress-date-days button,
+  .progress-page .progress-date-days span {
+    display: grid;
+    place-items: center;
+    height: 1.22rem;
+    border-radius: .5rem;
+    font-size: .64rem;
+    font-weight: 800;
+    color: hsl(var(--foreground));
+  }
+
+  .progress-page .progress-date-days button:hover {
+    background: #FFF7FA;
+  }
+
+  .progress-page .progress-date-days button.is-today {
+    box-shadow: inset 0 0 0 1px rgb(255 45 149 / .45);
+  }
+
+  .progress-page .progress-date-days button.is-selected {
+    background: #FF2D95;
+    color: #FFFFFF;
+  }
+
   .shopping-list-page .shopping-hero-card,
   .admin-shopping-page .shopping-hero-card {
     position: relative;
