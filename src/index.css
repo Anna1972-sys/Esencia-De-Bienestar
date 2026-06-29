@@ -5,10 +5,10 @@
 @layer base {
   :root {
     /* Premium Wellness — blanco, negro, fucsia, rosa y lila */
-    --background: 342 72% 96%;
+    --background: 342 78% 97%;
     --foreground: 0 0% 12%;
 
-    --card: 0 0% 100%;
+    --card: 340 60% 99%;
     --card-foreground: 0 0% 12%;
 
     --popover: 0 0% 100%;
@@ -18,13 +18,13 @@
     --primary-foreground: 0 0% 100%;
     --primary-glow: 326 100% 67%;
 
-    --secondary: 340 76% 95%;
+    --secondary: 340 82% 96%;
     --secondary-foreground: 0 0% 12%;
 
     --tertiary: 290 55% 88%;
     --tertiary-foreground: 280 45% 28%;
 
-    --muted: 340 56% 94%;
+    --muted: 340 62% 95%;
     --muted-foreground: 0 0% 36%;
 
     --accent: 295 60% 92%;
@@ -33,7 +33,7 @@
     --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 332 76% 84%;
+    --border: 332 72% 88%;
     --input: 334 70% 86%;
     --ring: 326 94% 55%;
 
@@ -53,7 +53,7 @@
     --gradient-hero: linear-gradient(140deg, hsl(330 75% 92%), hsl(300 65% 92%) 50%, hsl(275 60% 90%));
 
     /* Sombras con más presencia */
-    --shadow-soft: 0 18px 34px -24px hsl(325 45% 30% / 0.22);
+    --shadow-soft: 0 16px 30px -24px hsl(325 38% 28% / 0.18);
     --shadow-elegant: 0 24px 50px -30px hsl(325 42% 25% / 0.30);
     --shadow-glow: 0 0 30px hsl(326 100% 59% / 0.22);
     --shadow-nav: 0 -8px 30px -10px hsl(310 55% 45% / 0.22);
@@ -64,9 +64,9 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image:
-      radial-gradient(at 0% 0%, hsl(335 100% 97%) 0px, transparent 52%),
-      radial-gradient(at 100% 8%, hsl(285 80% 96%) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, hsl(326 100% 96%) 0px, transparent 56%);
+      radial-gradient(at 0% 0%, hsl(338 100% 98%) 0px, transparent 54%),
+      radial-gradient(at 100% 8%, hsl(295 72% 97%) 0px, transparent 48%),
+      radial-gradient(at 50% 100%, hsl(330 90% 97%) 0px, transparent 56%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -199,21 +199,25 @@
   .wellness-avatar { background: var(--gradient-primary); box-shadow: 0 10px 24px -12px hsl(var(--primary) / 0.75); }
   .wellness-hero { background: #1F1F1F; color: white; box-shadow: inset 0 0 0 2px #FF2D95, 0 22px 48px -28px hsl(0 0% 8% / 0.72); }
   .wellness-tile {
-    background: hsl(0 0% 100%);
+    background: hsl(var(--card));
     border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
   }
   .wellness-tile,
   .wellness-nutrition-tile {
-    min-height: 268px;
-    height: 268px;
+    min-height: 262px;
+    height: 262px;
   }
-  .wellness-nutrition-tile { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #FF2D95; box-shadow: var(--shadow-soft); }
+  .wellness-nutrition-tile {
+    background: hsl(var(--card));
+    border: 1px solid #FF2D95;
+    box-shadow: var(--shadow-soft);
+  }
   .home-card-image-frame {
-    height: 152px;
-    width: 152px;
+    height: 176px;
+    width: 100%;
     overflow: hidden;
-    border-radius: 1rem;
+    border-radius: 1.15rem;
     border: 0 !important;
     outline: 0 !important;
     background: transparent;
@@ -233,6 +237,19 @@
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
+  }
+  .home-card-text {
+    min-height: 48px;
+  }
+  .home-card-subtitle {
+    margin-top: .25rem;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: .03em;
+    color: hsl(var(--muted-foreground) / .78);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .nutrition-stat { border-radius: 10px; padding: .4rem .2rem; color: white; background: #FF2D95; box-shadow: 0 8px 18px -13px hsl(325 100% 45% / .8); }
   .nutrition-stat .muted { color: hsl(0 0% 100% / .82); }

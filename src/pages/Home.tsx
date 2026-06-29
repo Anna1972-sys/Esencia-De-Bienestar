@@ -76,17 +76,17 @@ export default function Home() {
 
         <div className="grid grid-cols-2 gap-5">
           <Tile to="/app/mis-recetas" image={imgRecetas} title="Recetas" subtitle="Tus creaciones" />
-          <Tile to="/app/biblioteca" image={imgRecetario} title="Tu recetario" subtitle="Tus desayunos, comidas y cenas favoritas" scale="scale-[.82]" />
+          <Tile to="/app/biblioteca" image={imgRecetario} title="Tu recetario" subtitle="Tus favoritos" />
           <Tile to="/app/retos" image={imgRetos} title="Retos 5 días" subtitle="Acepta el reto" />
           <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
-          <Tile to="/app/productos" image={imgProducts} title="Salud y Bienestar" subtitle="Todo sobre Herbalife" />
+          <Tile to="/app/productos" image={imgProducts} title="Productos" subtitle="Todo sobre Herbalife" />
           <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
           <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" />
-          <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Evolución" scale="scale-110" />
+          <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Tu evolución" />
           <NutritionTile />
           <MovementTile />
           {isAdmin && (
-            <Tile to="/app/admin" image={imgAdmin} title="Administración" subtitle="Gestiona" />
+            <Tile to="/app/admin" image={imgAdmin} title="Administración" subtitle="Gestiona tu app" />
           )}
         </div>
       </section>
@@ -102,9 +102,9 @@ function Tile({
   return (
     <Link
       to={to}
-      className="wellness-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+      className="wellness-tile relative rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center p-3"
     >
-      <div className="relative grid place-items-center h-[152px] w-full">
+      <div className="relative grid place-items-center h-[176px] w-full">
         <div className="home-card-image-frame">
           <img
             src={image}
@@ -114,9 +114,9 @@ function Tile({
           />
         </div>
       </div>
-      <div className="relative mt-4">
+      <div className="home-card-text relative mt-3 w-full">
         <div className="font-sans font-bold text-lg leading-tight text-foreground">{title}</div>
-        {subtitle && <p className="text-[10.5px] mt-1.5 tracking-wide text-muted-foreground">{subtitle}</p>}
+        {subtitle && <p className="home-card-subtitle">{subtitle}</p>}
       </div>
     </Link>
   );
@@ -126,16 +126,16 @@ function NutritionTile() {
   return (
     <Link
       to="/app/nutricion"
-      className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+      className="wellness-nutrition-tile relative rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center p-3"
     >
-      <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
+      <div className="relative grid place-items-center h-[176px] w-full" aria-hidden="true">
         <div className="home-card-image-frame home-card-image-frame-dark">
           <img src={imgNutritionPremium} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
         </div>
       </div>
-      <div className="relative mt-4">
-        <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Nutrición deportiva</div>
-        <p className="text-[10.5px] mt-1.5 tracking-wide text-white/75">Rendimiento y energía</p>
+      <div className="home-card-text relative mt-3 w-full">
+        <div className="font-sans font-bold text-lg leading-tight text-foreground">Nutrición deportiva</div>
+        <p className="home-card-subtitle">Rendimiento y energía</p>
       </div>
     </Link>
   );
@@ -145,16 +145,16 @@ function MovementTile() {
   return (
     <Link
       to="/app/movimiento"
-      className="wellness-nutrition-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
+      className="wellness-nutrition-tile relative rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center p-3"
     >
-      <div className="relative grid place-items-center h-[152px] w-full" aria-hidden="true">
-        <div className="home-card-image-frame home-card-image-frame-dark bg-black/30">
+      <div className="relative grid place-items-center h-[176px] w-full" aria-hidden="true">
+        <div className="home-card-image-frame home-card-image-frame-dark">
           <img src={imgMovimiento} alt="" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-2" />
         </div>
       </div>
-      <div className="relative mt-4">
-        <div className="font-sans font-bold text-lg leading-tight text-[#FF2D95]">Movimiento y ejercicio</div>
-        <p className="text-[10.5px] mt-1.5 tracking-wide text-white/75">Actívate cada día</p>
+      <div className="home-card-text relative mt-3 w-full">
+        <div className="font-sans font-bold text-lg leading-tight text-foreground">Movimiento y ejercicio</div>
+        <p className="home-card-subtitle">Actívate cada día</p>
       </div>
     </Link>
   );
