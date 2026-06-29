@@ -1,24 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
 import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
+import {
+  DEFAULT_RECIPE_GENERATOR_CATEGORIES,
+  loadRecipeGeneratorCategories,
+  type RecipeGeneratorCategory,
+} from "@/lib/recipeGeneratorCategories";
 
-type RecipeCategory = "comidas_saludables" | "almuerzos" | "meriendas" | "nutricion_deportiva";
-
-const CATEGORIES: { id: RecipeCategory; label: string; description: string }[] = [
-  { id: "comidas_saludables", label: "Comidas saludables", description: "450–500 kcal, alta en proteína y con verduras." },
-  { id: "almuerzos", label: "Almuerzos", description: "Máximo 180 kcal, práctico y transportable." },
-  { id: "meriendas", label: "Meriendas", description: "Máximo 180 kcal, fácil y alta en proteína." },
-  { id: "nutricion_deportiva", label: "Nutrición deportiva", description: "Masa muscular, proteína y cantidades coherentes." },
-];
-
-const CATEGORY_LABEL: Record<RecipeCategory, string> = CATEGORIES.reduce((acc, item) => {
-  acc[item.id] = item.label;
-  return acc;
-}, {} as Record<RecipeCategory, string>);
+type RecipeCategory = string;
 
 const ingredientsToMacroText = (ingredients: any[] = []) =>
   ingredients
@@ -56,16 +49,30 @@ const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategor
 
 export default function RecipeGenerator() {
   const { user } = useAuth();
-  const [category, setCategory] = useState<RecipeCategory>("comidas_saludables");
+  const [categories, setCategories] = useState<RecipeGeneratorCategory[]>(DEFAULT_RECIPE_GENERATOR_CATEGORIES);
+  const [category, setCategory] = useState<RecipeCategory>(DEFAULT_RECIPE_GENERATOR_CATEGORIES[0].id);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [preferences, setPreferences] = useState("");
+  const [likes, setLikes] = useState("");
   const [dislikes, setDislikes] = useState("");
   const [avoid, setAvoid] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
-  const selectedCategory = useMemo(() => CATEGORIES.find(c => c.id === category), [category]);
+  const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
+
+  useEffect(() => {
+    let mounted = true;
+    loadRecipeGeneratorCategories(supabase as any).then(nextCategories => {
+      if (!mounted) return;
+      setCategories(nextCategories);
+      setCategory(current => nextCategories.some(item => item.id === current) ? current : nextCategories[0]?.id ?? DEFAULT_RECIPE_GENERATOR_CATEGORIES[0].id);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const parseIngredients = (text: string): string[] => {
     return text
@@ -106,7 +113,7 @@ export default function RecipeGenerator() {
         body: JSON.stringify({
           category,
           ingredients: finalIngredients,
-          preferences: preferences.trim() || undefined,
+          preferences: [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · ") || undefined,
           dislikes: dislikes.trim() || undefined,
           avoid: avoid.trim() || undefined,
           servings: 1,
@@ -124,7 +131,7 @@ export default function RecipeGenerator() {
       const enrichedRecipe = await withSpecialistMacros(
         data.result,
         category,
-        preferences.trim(),
+        [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
         [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
       );
       setResult(enrichedRecipe);
@@ -144,7 +151,7 @@ export default function RecipeGenerator() {
       enrichedRecipe = await withSpecialistMacros(
         r,
         category,
-        preferences.trim(),
+        [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
         [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
       );
     } catch (err: any) {
@@ -188,28 +195,12 @@ export default function RecipeGenerator() {
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
-      <h1 className="heading-lg mb-1">Generador IA</h1>
-      <p className="muted text-sm mb-5">Recetas para 1 persona. Todos los valores nutricionales (calorías, proteínas, hidratos de carbono, grasas y fibra) están calculados para 1 persona.</p>
+      <section className="generator-hero-card mb-5">
+        <h1>Crea tu plato con los ingredientes de tu nevera</h1>
+        <p>Recetas para 1 persona con calorías, proteínas, hidratos, grasas y fibra calculados para una ración.</p>
+      </section>
 
-      <div className="card-soft wellness-generator p-5 mb-5">
-        <label className="label">Tipo de receta</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
-          {CATEGORIES.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setCategory(item.id)}
-              className={`text-left rounded-2xl border p-3 transition ${category === item.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-white/80"}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-sm">{item.label}</span>
-                {category === item.id && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
-              </div>
-              <p className="text-[11px] muted mt-1 leading-snug">{item.description}</p>
-            </button>
-          ))}
-        </div>
-
+      <div className="card-soft wellness-generator generator-ingredients-card p-5 mb-4">
         <label className="label">Ingredientes que tienes en casa</label>
         <div className="flex gap-2">
           <input
@@ -234,19 +225,47 @@ export default function RecipeGenerator() {
           </div>
         )}
 
-        <div className="space-y-3 mt-5">
+        <div className="space-y-3 mt-6">
           <div>
             <label className="label">Preferencias personales</label>
             <input value={preferences} onChange={e => setPreferences(e.target.value)} className="field" placeholder="Ej. rápido, sin horno, más saciante…" />
+          </div>
+          <div>
+            <label className="label">Alimentos que te gustan</label>
+            <input value={likes} onChange={e => setLikes(e.target.value)} className="field" placeholder="Ej. salmón, yogur, fresas, aguacate…" />
           </div>
           <div>
             <label className="label">Alimentos que no te gustan</label>
             <input value={dislikes} onChange={e => setDislikes(e.target.value)} className="field" placeholder="Ej. cebolla, atún, brócoli…" />
           </div>
           <div>
-            <label className="label">Alimentos que no puedes tomar o quieres evitar</label>
+            <label className="label">Alimentos que quieres evitar</label>
             <input value={avoid} onChange={e => setAvoid(e.target.value)} className="field" placeholder="Ej. lactosa, gluten, frutos secos…" />
           </div>
+        </div>
+
+        <button onClick={generate} disabled={loading} className="btn-primary w-full mt-6">
+          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando…</> : <><Sparkles className="h-4 w-4" /> Generar receta</>}
+        </button>
+      </div>
+
+      <div className="card-soft wellness-generator generator-options-card p-5 mb-5">
+        <label className="label">Tipo de receta</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
+          {categories.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setCategory(item.id)}
+              className={`recipe-type-marker text-left rounded-2xl border p-3 transition ${category === item.id ? "recipe-type-marker-selected border-primary shadow-sm" : "border-border bg-white/80"}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm">{item.label}</span>
+                {category === item.id && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+              </div>
+              <p className="text-[11px] muted mt-1 leading-snug">{item.description}</p>
+            </button>
+          ))}
         </div>
 
         <div className="rounded-2xl bg-white/80 border border-primary/20 p-3 mt-5">
@@ -254,26 +273,24 @@ export default function RecipeGenerator() {
           <div className="text-[11px] muted mt-1">{selectedCategory?.description}</div>
         </div>
 
-        <button onClick={generate} disabled={loading} className="btn-primary w-full mt-5">
-          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando…</> : <><Sparkles className="h-4 w-4" /> Generar receta</>}
-        </button>
       </div>
 
-      {result && <RecipeCard recipe={result} onSave={() => saveRecipe(result)} />}
+      {result && <RecipeCard recipe={result} categories={categories} onSave={() => saveRecipe(result)} />}
     </div>
   );
 }
 
-function RecipeCard({ recipe, onSave }: { recipe: any; onSave: () => void }) {
+function RecipeCard({ recipe, categories, onSave }: { recipe: any; categories: RecipeGeneratorCategory[]; onSave: () => void }) {
   const perServing = recipe.macros ?? {};
   const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
   const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
+  const categoryLabel = categories.find(item => item.id === recipe.category)?.label ?? recipe.category;
 
   return (
     <div className="card-soft p-5 animate-fade-in">
       <div className="flex items-start justify-between gap-3 mb-1">
         <h2 className="heading-md">{recipe.title}</h2>
-        {recipe.category && <span className="chip shrink-0">{CATEGORY_LABEL[recipe.category as RecipeCategory] ?? recipe.category}</span>}
+        {recipe.category && <span className="chip shrink-0">{categoryLabel}</span>}
       </div>
       <p className="muted text-sm">{recipe.description}</p>
       <div className="flex flex-wrap gap-2 my-3">

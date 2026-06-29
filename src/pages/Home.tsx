@@ -48,9 +48,8 @@ export default function Home() {
         to="/app/generar"
         className="wellness-hero block rounded-[28px] p-7 overflow-hidden relative group"
       >
-        <img src={imgRecipeGenerator} alt="Plato saludable" className="absolute inset-y-0 right-0 h-full w-[42%] rounded-r-[28px] object-cover scale-[1.18] origin-center opacity-95 pointer-events-none" />
+        <img src={imgRecipeGenerator} alt="Plato saludable" className="absolute inset-y-0 right-0 h-full w-[34%] rounded-r-[28px] object-cover scale-105 origin-center opacity-95 pointer-events-none" />
         <div className="relative max-w-[68%]">
-          <span className="chip mb-3 bg-primary text-white"><Sparkles className="h-3 w-3" /> Generador IA</span>
           <h2 className="heading-md text-white">Crea una receta con lo que tienes en casa</h2>
           <p className="text-sm text-white/80 mt-2 leading-relaxed">Alta en proteína, según tus preferencias o un plan mensual completo.</p>
           <div className="btn-primary mt-5 w-max group-hover:scale-[1.02] transition-transform">Crear receta</div>
