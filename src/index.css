@@ -57,6 +57,15 @@
     --shadow-elegant: 0 24px 50px -30px hsl(325 42% 25% / 0.30);
     --shadow-glow: 0 0 30px hsl(326 100% 59% / 0.22);
     --shadow-nav: 0 -8px 30px -10px hsl(310 55% 45% / 0.22);
+
+    --wellness-card-bg: #FFFFFF;
+    --wellness-calendar-bg: #FFFBFD;
+    --wellness-control-bg: #FFFFFF;
+    --wellness-border: #FF2D95;
+    --wellness-border-width: 1px;
+    --wellness-radius: 1.5rem;
+    --wellness-shadow: 0 18px 34px -24px hsl(325 45% 24% / 0.26);
+    --wellness-button-height: 46px;
   }
 
   * { @apply border-border; }
@@ -78,17 +87,22 @@
     @apply mx-auto w-full max-w-md min-h-[100dvh] pb-28;
   }
   .card-soft {
-    @apply bg-card rounded-3xl;
-    border: 1px solid #FF2D95;
-    box-shadow: var(--shadow-soft);
+    background: var(--wellness-card-bg);
+    border: var(--wellness-border-width) solid var(--wellness-border);
+    border-radius: var(--wellness-radius);
+    box-shadow: var(--wellness-shadow);
   }
   .card-elegant {
-    @apply bg-card rounded-3xl;
-    border: 1px solid #FF2D95;
-    box-shadow: var(--shadow-elegant);
+    background: var(--wellness-card-bg);
+    border: var(--wellness-border-width) solid var(--wellness-border);
+    border-radius: var(--wellness-radius);
+    box-shadow: var(--wellness-shadow);
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold text-primary-foreground;
+    @apply inline-flex items-center justify-center gap-2 px-6 font-semibold text-primary-foreground;
+    min-height: var(--wellness-button-height);
+    border-radius: 999px;
+    border: var(--wellness-border-width) solid var(--wellness-border);
     background-image: var(--gradient-primary);
     box-shadow: 0 14px 32px -10px hsl(320 75% 50% / 0.55);
     transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
@@ -96,16 +110,30 @@
   .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 18px 40px -10px hsl(320 75% 50% / 0.65); }
   .btn-primary:disabled { @apply opacity-60 cursor-not-allowed; transform: none; }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-semibold border border-border bg-card/90 backdrop-blur-sm hover:bg-muted transition;
+    @apply inline-flex items-center justify-center gap-2 px-5 font-semibold backdrop-blur-sm transition;
+    min-height: var(--wellness-button-height);
+    border-radius: 999px;
+    color: hsl(var(--foreground));
+    background: var(--wellness-control-bg);
+    border: var(--wellness-border-width) solid var(--wellness-border);
+    box-shadow: 0 12px 24px -20px hsl(325 45% 24% / .28);
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-semibold border transition;
-    color: white;
-    background: #161616;
-    border-color: #161616;
-    box-shadow: 0 12px 24px -18px hsl(0 0% 0% / 0.55);
+    @apply inline-flex items-center justify-center gap-2 px-5 font-semibold transition;
+    min-height: var(--wellness-button-height);
+    border-radius: 999px;
+    color: hsl(var(--foreground));
+    background: var(--wellness-control-bg);
+    border: var(--wellness-border-width) solid var(--wellness-border);
+    box-shadow: 0 12px 24px -20px hsl(325 45% 24% / .28);
   }
-  .btn-secondary:hover { background: #000; transform: translateY(-1px); }
+  .btn-ghost:hover,
+  .btn-secondary:hover {
+    background: #FFF7FA;
+    border-color: #E81D7F;
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px -22px hsl(325 100% 45% / .38);
+  }
   .chip {
     @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold text-white;
     background: #FF2D95;
@@ -119,8 +147,16 @@
   }
   .divider-soft { height: 1px; background: linear-gradient(90deg, transparent, hsl(310 50% 80%), transparent); }
   .field {
-    @apply w-full rounded-2xl border border-input bg-white px-4 py-3 text-foreground placeholder:text-muted-foreground/70 outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary transition;
+    @apply w-full px-4 py-3 text-foreground placeholder:text-muted-foreground/70 outline-none transition;
+    min-height: 48px;
+    border-radius: 1rem;
+    border: var(--wellness-border-width) solid var(--wellness-border);
+    background: var(--wellness-control-bg);
     box-shadow: 0 10px 22px -20px hsl(320 35% 20% / .35);
+  }
+  .field:focus {
+    border-color: #E81D7F;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / .16), 0 12px 24px -20px hsl(320 35% 20% / .38);
   }
   .progress-page .card-elegant { background: hsl(0 0% 100% / .78); }
   .progress-page .wellness-hero {
@@ -582,5 +618,381 @@
   .admin-dashboard .admin-card-body {
     min-height: 92px;
     flex: 1;
+  }
+
+  /* Design system unificado — tarjetas, formularios y acciones */
+  .card-soft,
+  .card-elegant,
+  .wellness-tile,
+  .recipe-premium,
+  .challenge-premium,
+  .admin-dashboard .admin-card,
+  .admin-area .card-soft,
+  .admin-area .card-elegant,
+  .admin-area .admin-products-panel,
+  .admin-area .admin-products-form,
+  .admin-product-row,
+  .admin-measure-row,
+  .wellness-history-card,
+  .progress-page .wellness-progress-metric,
+  .progress-page .wellness-progress-evolution,
+  .progress-page .wellness-progress-photos,
+  .progress-page .wellness-progress-history,
+  .progress-page .goal-select {
+    background: var(--wellness-card-bg) !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    border-radius: var(--wellness-radius) !important;
+    box-shadow: var(--wellness-shadow) !important;
+  }
+
+  .wellness-tile,
+  .admin-dashboard .admin-card {
+    min-height: 286px;
+    height: 286px;
+  }
+
+  .card-soft .card-soft,
+  .card-elegant .card-soft,
+  .admin-area [class*="bg-secondary/"],
+  .admin-area [class*="bg-muted"],
+  .admin-area .rounded-2xl.bg-white,
+  .admin-area .rounded-xl.bg-white,
+  .rounded-2xl.bg-secondary,
+  .rounded-2xl.bg-secondary\/60,
+  .rounded-2xl.bg-secondary\/70,
+  .rounded-2xl.bg-secondary\/80,
+  .rounded-\[22px\].bg-secondary\/60,
+  .rounded-\[22px\].bg-secondary\/70,
+  .rounded-\[22px\].bg-white\/90 {
+    background: var(--wellness-card-bg) !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    border-radius: var(--wellness-radius) !important;
+  }
+
+  .field,
+  input.field,
+  textarea.field,
+  select.field,
+  .admin-area .field,
+  .admin-products .field,
+  .wellness-generator .field,
+  .wellness-nutrition .field,
+  .progress-page .field {
+    min-height: 48px !important;
+    background: var(--wellness-control-bg) !important;
+    color: hsl(var(--foreground)) !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    border-radius: 1rem !important;
+    box-shadow: 0 10px 22px -20px hsl(320 35% 20% / .35) !important;
+  }
+
+  .field:focus,
+  input.field:focus,
+  textarea.field:focus,
+  select.field:focus,
+  .admin-area .field:focus,
+  .admin-products .field:focus {
+    border-color: #E81D7F !important;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / .16), 0 12px 24px -20px hsl(320 35% 20% / .38) !important;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .admin-area .btn-primary,
+  .admin-area .btn-secondary {
+    min-height: var(--wellness-button-height) !important;
+    border-radius: 999px !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    font-weight: 700 !important;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease, color .2s ease, filter .2s ease !important;
+  }
+
+  .btn-primary,
+  .admin-area .btn-primary {
+    background-image: var(--gradient-primary) !important;
+    color: white !important;
+    box-shadow: 0 14px 32px -14px hsl(320 75% 50% / .55) !important;
+  }
+
+  .btn-secondary,
+  .btn-ghost,
+  .admin-area .btn-secondary {
+    background: var(--wellness-control-bg) !important;
+    color: hsl(var(--foreground)) !important;
+    box-shadow: 0 12px 24px -20px hsl(325 45% 24% / .28) !important;
+  }
+
+  .btn-secondary:hover,
+  .btn-ghost:hover,
+  .admin-area .btn-secondary:hover {
+    background: #FFF7FA !important;
+    border-color: #E81D7F !important;
+    color: hsl(var(--foreground)) !important;
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost.text-destructive,
+  .btn-secondary.text-destructive,
+  .text-destructive.btn-ghost,
+  .text-destructive.btn-secondary,
+  .admin-area .btn-secondary.text-destructive,
+  .admin-area .text-destructive.btn-secondary {
+    background: var(--wellness-control-bg) !important;
+    border-color: var(--wellness-border) !important;
+    color: hsl(var(--destructive)) !important;
+  }
+
+  .admin-product-row button,
+  .admin-measure-row button,
+  .card-soft .btn-ghost,
+  .card-soft .btn-secondary {
+    min-height: 42px !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    border-radius: 999px !important;
+    background: var(--wellness-control-bg) !important;
+    color: hsl(var(--foreground)) !important;
+    padding-left: .9rem !important;
+    padding-right: .9rem !important;
+  }
+
+  .card-soft .btn-ghost.text-destructive,
+  .card-soft .btn-secondary.text-destructive {
+    color: hsl(var(--destructive)) !important;
+  }
+
+  .nutrition-stat {
+    background: var(--wellness-card-bg) !important;
+    color: hsl(var(--foreground)) !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    border-radius: 1rem !important;
+    box-shadow: 0 10px 22px -20px hsl(320 35% 20% / .35) !important;
+  }
+
+  .nutrition-stat .muted {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .wellness-diary section.card-elegant:not(.diary-calendar-card),
+  .wellness-diary a.card-soft {
+    background: #1F1F1F !important;
+    border-color: #FF2D95 !important;
+    color: white !important;
+    box-shadow: 0 20px 40px -26px hsl(0 0% 8% / .75) !important;
+  }
+
+  .wellness-diary section.card-elegant.diary-calendar-card {
+    background: var(--wellness-calendar-bg) !important;
+    border: var(--wellness-border-width) solid var(--wellness-border) !important;
+    color: hsl(var(--foreground)) !important;
+    box-shadow: var(--wellness-shadow) !important;
+  }
+
+  .wellness-diary section.card-elegant.diary-calendar-card h1,
+  .wellness-diary section.card-elegant.diary-calendar-card h2,
+  .wellness-diary section.card-elegant.diary-calendar-card h3,
+  .wellness-diary section.card-elegant.diary-calendar-card .font-bold {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .wellness-diary section.card-elegant.diary-calendar-card .muted,
+  .wellness-diary section.card-elegant.diary-calendar-card p,
+  .wellness-diary section.card-elegant.diary-calendar-card span {
+    color: inherit;
+  }
+
+  .wellness-diary section.card-elegant.diary-calendar-card > div:first-child,
+  .wellness-diary section.card-elegant.diary-calendar-card > div:first-child .font-bold,
+  .wellness-diary section.card-elegant.diary-calendar-card > div:first-child button,
+  .wellness-diary section.card-elegant.diary-calendar-card > div:first-child svg {
+    color: white !important;
+  }
+
+  .wellness-diary .diary-weekdays,
+  .wellness-diary .diary-weekdays div {
+    color: #FF2D95 !important;
+  }
+
+  .wellness-diary .diary-habits-grid > div:nth-child(1) label svg {
+    color: #1DA8FF !important;
+    filter: drop-shadow(0 6px 8px rgb(29 168 255 / .32));
+  }
+
+  .wellness-diary .diary-habits-grid > div:nth-child(2) label svg {
+    color: #A855F7 !important;
+    filter: drop-shadow(0 6px 8px rgb(168 85 247 / .30));
+  }
+
+  .wellness-diary section.card-elegant:not(.diary-calendar-card) > div:not(.diary-measures-grid):not(.diary-habits-grid) > div:nth-child(4) svg {
+    color: #E53958 !important;
+    filter: drop-shadow(0 6px 8px rgb(229 57 88 / .28));
+  }
+
+  .wellness-diary .diary-habits-grid + div label svg {
+    color: #FF2D95 !important;
+    filter: drop-shadow(0 6px 8px rgb(255 45 149 / .32));
+  }
+
+  .wellness-diary section.card-elegant:not(.diary-calendar-card) > h2 {
+    color: #FF2D95 !important;
+  }
+
+  .wellness-diary section.card-elegant:has(.diary-measures-grid) > h2,
+  .wellness-diary section.card-elegant:has(.diary-habits-grid) > h2 {
+    color: #FF2D95 !important;
+  }
+
+  .wellness-diary section.card-elegant:not(.diary-calendar-card) > .muted,
+  .wellness-diary section.card-elegant:not(.diary-calendar-card) > p {
+    color: hsl(0 0% 94% / .78) !important;
+  }
+
+  .wellness-diary .field,
+  .wellness-diary input,
+  .wellness-diary textarea {
+    background: var(--wellness-control-bg) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: var(--wellness-border) !important;
+  }
+
+  .wellness-diary img,
+  .home-card-image,
+  .admin-dashboard .admin-card-image {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .wellness-diary .diary-measures-grid input,
+  .wellness-diary .diary-habits-grid input,
+  .wellness-diary .diary-habits-grid + div input {
+    min-height: auto !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: inherit !important;
+  }
+
+  .wellness-diary .diary-editable-metric {
+    min-height: 96px;
+    padding: .5rem .78rem !important;
+  }
+
+  .wellness-diary .diary-editable-metric > div:first-child {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: .55rem;
+    row-gap: .16rem;
+    align-items: center;
+  }
+
+  .wellness-diary .diary-editable-metric > div:first-child > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .wellness-diary .diary-editable-metric > div:first-child > div:last-child {
+    display: contents;
+  }
+
+  .wellness-diary .diary-editable-metric .metric-label {
+    grid-column: 2;
+    grid-row: 1;
+    color: #050505 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em !important;
+  }
+
+  .wellness-diary .diary-editable-metric .metric-label + div {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .wellness-diary .metric-value-control {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    min-height: 1.95rem;
+    margin-top: 0;
+    background: #FFF7FA !important;
+    border: 1px solid #FF2D95 !important;
+    border-radius: .9rem !important;
+    box-shadow: inset 0 0 0 1px rgb(255 45 149 / .14), 0 10px 18px -16px rgb(255 45 149 / .72) !important;
+    overflow: hidden;
+  }
+
+  .wellness-diary .diary-editable-metric .metric-value-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 1.95rem !important;
+    padding: .18rem .56rem .2rem .68rem !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #050505 !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
+    letter-spacing: -.02em;
+  }
+
+  .wellness-diary .diary-editable-metric .metric-value-input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .wellness-diary .metric-stepper {
+    display: flex;
+    width: 1.45rem;
+    flex: 0 0 1.45rem;
+    flex-direction: column;
+    border-left: 1px solid rgb(255 45 149 / .42);
+    background: white;
+  }
+
+  .wellness-diary .metric-stepper button {
+    display: grid;
+    min-height: 0;
+    height: .975rem;
+    width: 1.45rem;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: #050505;
+    padding: 0;
+    transition: background-color .18s ease, color .18s ease;
+  }
+
+  .wellness-diary .metric-stepper button:first-child {
+    border-bottom: 1px solid rgb(255 45 149 / .26);
+  }
+
+  .wellness-diary .metric-stepper button:hover,
+  .wellness-diary .metric-stepper button:focus-visible {
+    background: #FFE4F0;
+    color: #FF2D95;
+  }
+
+  .wellness-diary .metric-stepper svg {
+    width: .72rem;
+    height: .72rem;
+    stroke-width: 3;
+  }
+
+  .wellness-diary .diary-editable-metric > div.mt-3 {
+    margin-top: .42rem !important;
+  }
+
+  .wellness-diary .diary-editable-metric > div.mt-3 > div {
+    height: .38rem !important;
+  }
+
+  .wellness-diary section.card-elegant:has(.diary-measures-grid) > h2,
+  .wellness-diary section.card-elegant:has(.diary-habits-grid) > h2 {
+    color: #FF2D95 !important;
   }
 }

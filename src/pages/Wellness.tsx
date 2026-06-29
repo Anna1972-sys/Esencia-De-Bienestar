@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, ChevronLeft, ChevronRight, LineChart, Save, Sparkles, Droplets, Moon, Footprints, Activity, Scale, Ruler, Heart, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LineChart, Save, Sparkles, Droplets, Moon, Footprints, Activity, Scale, Heart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import diaryHeroImage from "@/assets/diary/diary-hero.png";
 
@@ -143,7 +143,7 @@ export default function Wellness() {
       </div>
 
       {/* Calendario */}
-      <section className="card-elegant p-4">
+      <section className="card-elegant diary-calendar-card p-4">
         <div className="mb-3 flex items-center justify-between rounded-[22px] bg-[#1F1F1F] px-3 py-2 shadow-[0_14px_28px_-24px_hsl(0_0%_8%/.75)]">
           <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="h-9 w-9 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronLeft className="h-4 w-4" /></button>
           <div className="font-sans text-lg font-bold capitalize text-white">
@@ -151,7 +151,7 @@ export default function Wellness() {
           </div>
           <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="h-9 w-9 grid place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <div className="grid grid-cols-7 gap-x-1.5 gap-y-0.5 text-center text-[10px] font-bold text-primary mb-1.5">
+        <div className="diary-weekdays grid grid-cols-7 gap-x-1.5 gap-y-0.5 text-center text-[10px] font-bold text-primary mb-1.5">
           {["L","M","X","J","V","S","D"].map(d => <div key={d}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-x-1.5 gap-y-0.5">
@@ -181,7 +181,7 @@ export default function Wellness() {
       </section>
 
       <Section title="Resumen de hoy" variant="dark">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="diary-summary-grid grid grid-cols-2 gap-3">
           <SummaryMetric
             icon={Droplets}
             iconClassName="text-fuchsia-500"
@@ -228,35 +228,32 @@ export default function Wellness() {
 
       {/* Medidas corporales */}
       <Section title="Medidas" variant="light">
-        <div className="grid grid-cols-2 gap-3">
-          <Field variant="measure" icon={Scale} label="Peso (kg)" value={entry.weight_kg} onChange={(v) => update("weight_kg", v)} step="0.1" />
-          <Field variant="measure" icon={Ruler} label="Cintura (cm)" value={entry.waist_cm} onChange={(v) => update("waist_cm", v)} step="0.1" />
-          <Field variant="measure" icon={Ruler} label="Cadera (cm)" value={entry.hip_cm} onChange={(v) => update("hip_cm", v)} step="0.1" />
-          <Field variant="measure" icon={Heart} label="Pecho (cm)" value={entry.chest_cm} onChange={(v) => update("chest_cm", v)} step="0.1" />
-          <Field variant="measure" icon={Ruler} label="Brazos (cm)" value={entry.arm_cm} onChange={(v) => update("arm_cm", v)} step="0.1" />
-          <Field variant="measure" icon={Ruler} label="Muslos (cm)" value={entry.thigh_cm} onChange={(v) => update("thigh_cm", v)} step="0.1" />
+        <div className="diary-measures-grid grid grid-cols-2 gap-3">
+          <MetricInput icon={Scale} iconClassName="text-neutral-800" label="Peso" value={entry.weight_kg} onChange={(v) => update("weight_kg", v)} step="0.1" unit="kg" min={0.1} max={70} />
+          <MetricInput label="Cintura" value={entry.waist_cm} onChange={(v) => update("waist_cm", v)} step="1" unit="cm" min={1} max={100} />
+          <MetricInput label="Cadera" value={entry.hip_cm} onChange={(v) => update("hip_cm", v)} step="1" unit="cm" min={1} max={100} />
+          <MetricInput label="Pecho" value={entry.chest_cm} onChange={(v) => update("chest_cm", v)} step="1" unit="cm" min={1} max={100} />
+          <MetricInput label="Brazos" value={entry.arm_cm} onChange={(v) => update("arm_cm", v)} step="1" unit="cm" min={1} max={100} />
+          <MetricInput label="Muslos" value={entry.thigh_cm} onChange={(v) => update("thigh_cm", v)} step="1" unit="cm" min={1} max={100} />
         </div>
       </Section>
 
       {/* Hábitos */}
       <Section title="Hábitos del día" variant="dark">
-        <div className="grid grid-cols-2 gap-3">
-          <Field variant="habit" icon={Droplets} label="Agua (ml)" value={entry.water_ml} onChange={(v) => update("water_ml", v)} step="50" />
-          <Field variant="habit" icon={Moon} label="Sueño (h)" value={entry.sleep_hours} onChange={(v) => update("sleep_hours", v)} step="0.5" />
-          <Field variant="habit" icon={Footprints} label="Pasos" value={entry.steps} onChange={(v) => update("steps", v)} step="100" />
+        <div className="diary-habits-grid grid grid-cols-2 gap-3">
+          <MetricInput icon={Droplets} iconClassName="text-fuchsia-500" label="Agua" value={entry.water_ml} onChange={(v) => update("water_ml", v)} step="100" unit="water" min={0} max={5000} />
+          <MetricInput icon={Moon} iconClassName="text-purple-500" label="Sueño" value={entry.sleep_hours} onChange={(v) => update("sleep_hours", v)} step="0.5" unit="hours" min={1} max={15} />
+          <MetricInput icon={Footprints} iconClassName="text-neutral-800" label="Pasos" value={entry.steps} onChange={(v) => update("steps", v)} step="100" unit="steps" min={0} max={60000} />
         </div>
-        <div className={`mt-3 rounded-[22px] border p-4 transition duration-300 ${hasExercise ? "border-primary bg-primary text-white shadow-[0_16px_30px_-22px_hsl(var(--primary)/.75)]" : "border-border bg-white text-foreground shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
-          <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] ${hasExercise ? "text-white/88" : "text-foreground/80"}`}>
-            <Activity className={`h-4 w-4 transition-colors duration-300 ${hasExercise ? "text-white" : "text-foreground/45"}`} />
-            Ejercicio realizado
-          </label>
-          <input
-            className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 text-sm outline-none transition duration-300 focus:border-transparent focus:ring-0 ${hasExercise ? "font-semibold text-white placeholder:text-white/65" : "text-foreground placeholder:text-muted-foreground/65"}`}
-            placeholder="Yoga 30 min, caminata..."
-            value={entry.exercise ?? ""}
-            onChange={(e) => update("exercise", e.target.value)}
-          />
-        </div>
+        <MetricTextInput
+          icon={Activity}
+          iconClassName="text-fuchsia-600"
+          label="Ejercicio"
+          value={entry.exercise ?? ""}
+          onChange={(v) => update("exercise", v)}
+          placeholder="Yoga 30 min, caminata..."
+          className="mt-3"
+        />
       </Section>
 
       {/* Estado de ánimo */}
@@ -343,16 +340,52 @@ function SummaryMetric({
 }) {
   const hasValue = percent > 0 || value !== "Sin registrar";
   return (
-    <div className={`rounded-[22px] border p-3.5 shadow-[0_12px_28px_-24px_hsl(0_0%_8%/.45)] transition duration-300 ${hasValue ? "border-primary bg-primary text-white" : "border-border bg-white text-foreground"} ${className}`}>
+    <MetricCardBase
+      icon={Icon}
+      iconClassName={iconClassName}
+      label={label}
+      valueNode={value}
+      status={status}
+      percent={percent}
+      hasValue={hasValue}
+      className={className}
+    />
+  );
+}
+
+function MetricCardBase({
+  icon: Icon,
+  iconClassName = "text-neutral-800",
+  label,
+  valueNode,
+  rightControl,
+  status,
+  percent,
+  hasValue,
+  className = "",
+}: {
+  icon?: any;
+  iconClassName?: string;
+  label: string;
+  valueNode: React.ReactNode;
+  rightControl?: React.ReactNode;
+  status: string;
+  percent: number;
+  hasValue: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`relative rounded-[22px] border p-3.5 shadow-[0_12px_28px_-24px_hsl(0_0%_8%/.45)] transition duration-300 ${hasValue ? "border-primary bg-primary text-white" : "border-border bg-white text-foreground"} ${className}`}>
       <div className="flex items-center gap-2.5">
         <div className={`grid h-9 w-9 place-items-center rounded-2xl shadow-[0_10px_22px_-20px_hsl(0_0%_8%/.45)] ${hasValue ? "bg-white/16" : "bg-white"}`}>
-          <Icon className={`h-5 w-5 ${hasValue ? "text-white" : iconClassName}`} />
+          {Icon ? <Icon className={`h-5 w-5 ${hasValue ? "text-white" : iconClassName}`} /> : <span className="h-5 w-5" aria-hidden="true" />}
         </div>
-        <div className="min-w-0">
-          <span className={`block text-[11px] font-semibold uppercase tracking-[0.08em] ${hasValue ? "text-white/76" : "text-foreground/55"}`}>{label}</span>
-          <span className={`block text-base font-bold leading-tight ${hasValue ? "text-white" : "text-foreground"}`}>{value}</span>
+        <div className="min-w-0 flex-1">
+          <span className={`metric-label block text-[11px] font-semibold uppercase tracking-[0.08em] ${hasValue ? "text-white/76" : "text-foreground/55"}`}>{label}</span>
+          <div className={`block text-base font-bold leading-tight ${hasValue ? "text-white" : "text-foreground"}`}>{valueNode}</div>
         </div>
       </div>
+      {rightControl && <div className="metric-right-control absolute right-3 top-1/2 -translate-y-1/2">{rightControl}</div>}
       <div className="mt-3 flex items-center gap-3">
         <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${hasValue ? "text-white/72" : "text-muted-foreground"}`}>{status}</span>
         <div className={`h-2 w-20 overflow-hidden rounded-full ${hasValue ? "bg-white/20" : "bg-primary/14"}`}>
@@ -360,6 +393,169 @@ function SummaryMetric({
         </div>
       </div>
     </div>
+  );
+}
+
+function MetricInput({
+  icon: Icon,
+  iconClassName = "text-neutral-800",
+  label,
+  value,
+  onChange,
+  step,
+  unit,
+  min = 0,
+  max = Number.POSITIVE_INFINITY,
+  className = "",
+}: {
+  icon?: any;
+  iconClassName?: string;
+  label: string;
+  value: number | string | null;
+  onChange: (v: string) => void;
+  step?: string;
+  unit: "kg" | "cm" | "water" | "hours" | "steps";
+  min?: number;
+  max?: number;
+  className?: string;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const increment = Number(step ?? "1") || 1;
+  const decimals = increment.toString().includes(".") ? increment.toString().split(".")[1].length : 0;
+  const parseNumericValue = (raw: number | string | null | undefined) => {
+    if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+    if (typeof raw === "string") {
+      const lower = raw.trim().toLowerCase();
+      const isLiters = unit === "water" && /\bl\b/.test(lower) && !/\bml\b/.test(lower);
+      const normalized = lower
+        .replace(/\s+/g, "")
+        .replace(/pasos|kg|cm|ml|l|h/g, "")
+        .replace(/\.(?=\d{3}(\D|$))/g, "")
+        .replace(",", ".");
+      if (!normalized) return null;
+      const parsed = Number(normalized);
+      if (!Number.isFinite(parsed)) return null;
+      return isLiters ? parsed * 1000 : parsed;
+    }
+    return null;
+  };
+  const currentValue = parseNumericValue(value);
+  const hasValue = currentValue !== null;
+  const formatValue = (next: number) => {
+    const fixed = decimals > 0 ? next.toFixed(decimals) : String(Math.round(next));
+    return fixed.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+  };
+  function formatValueForEditing(next: number) {
+    return formatValue(next).replace(".", ",");
+  }
+  const formatDecimal = (next: number, precision = decimals) => {
+    const fixed = precision > 0 ? next.toFixed(precision) : String(Math.round(next));
+    return fixed.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1").replace(".", ",");
+  };
+  const formatDisplayValue = (next: number) => {
+    if (unit === "kg") return `${formatDecimal(next, next % 1 === 0 ? 0 : 1)} kg`;
+    if (unit === "cm") return `${Math.round(next)} cm`;
+    if (unit === "water") {
+      if (next >= 1000) return `${formatDecimal(next / 1000, next % 1000 === 0 ? 0 : 1)} L`;
+      return `${Math.round(next)} ml`;
+    }
+    if (unit === "hours") return `${formatDecimal(next, next % 1 === 0 ? 0 : 1)} h`;
+    return `${Math.round(next).toLocaleString("es-ES")} pasos`;
+  };
+  const displayValue = hasValue ? (isEditing ? formatValueForEditing(currentValue) : formatDisplayValue(currentValue)) : "";
+  const clampValue = (next: number) => Math.min(max, Math.max(min, next));
+  const nudge = (direction: -1 | 1) => {
+    const start = currentValue ?? (direction > 0 ? Math.max(min - increment, 0) : min);
+    const next = clampValue(start + increment * direction);
+    onChange(formatValue(next));
+  };
+  const handleChange = (text: string) => {
+    if (!text.trim()) {
+      onChange("");
+      return;
+    }
+    const parsed = parseNumericValue(text);
+    if (parsed === null) return;
+    onChange(formatValue(clampValue(parsed)));
+  };
+
+  return (
+    <MetricCardBase
+      icon={Icon}
+      iconClassName={iconClassName}
+      label={label}
+      status=""
+      percent={hasValue ? 100 : 0}
+      hasValue={hasValue}
+      className={`diary-editable-metric ${className}`}
+      valueNode={
+        <div className="metric-value-control" aria-label={`Control de ${label}`}>
+          <input
+            type="text"
+            inputMode="decimal"
+            step={step ?? "1"}
+            aria-label={label}
+            className="metric-value-input"
+            placeholder=""
+            value={displayValue}
+            onFocus={(event) => {
+              const target = event.currentTarget;
+              setIsEditing(true);
+              window.requestAnimationFrame(() => target.select());
+            }}
+            onBlur={() => setIsEditing(false)}
+            onChange={(e) => handleChange(e.target.value)}
+          />
+          <div className="metric-stepper" aria-label={`Ajustar ${label}`}>
+            <button type="button" onClick={() => nudge(1)} aria-label={`Subir ${label}`}>
+              <ChevronUp />
+            </button>
+            <button type="button" onClick={() => nudge(-1)} aria-label={`Bajar ${label}`}>
+              <ChevronDown />
+            </button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+function MetricTextInput({
+  icon: Icon,
+  iconClassName = "text-neutral-800",
+  label,
+  value,
+  onChange,
+  placeholder,
+  className = "",
+}: {
+  icon: any;
+  iconClassName?: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const hasValue = Boolean(value.trim());
+  return (
+    <MetricCardBase
+      icon={Icon}
+      iconClassName={iconClassName}
+      label={label}
+      status=""
+      percent={hasValue ? 100 : 0}
+      hasValue={hasValue}
+      className={className}
+      valueNode={
+        <input
+          className={`block w-full min-w-0 border-0 bg-transparent p-0 text-base font-bold leading-tight outline-none placeholder:text-muted-foreground focus:ring-0 ${hasValue ? "text-white placeholder:text-white/65" : "text-foreground"}`}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      }
+    />
   );
 }
 
@@ -384,62 +580,6 @@ function MiniTrend() {
         <path d="M4 22 C12 18 15 20 22 13 S34 8 40 11 S48 8 52 5" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
         <circle cx="52" cy="5" r="2.5" fill="hsl(var(--primary))" />
       </svg>
-    </div>
-  );
-}
-
-function Field({ label, value, onChange, step, icon: Icon, variant = "default" }: { label: string; value: number | null; onChange: (v: string) => void; step?: string; icon?: any; variant?: "default" | "measure" | "habit" }) {
-  const hasValue = value !== null && value !== undefined;
-  if (variant === "measure") {
-    return (
-      <div className="rounded-[22px] border border-[#1F1F1F] bg-[#1F1F1F] p-3.5 shadow-[0_14px_28px_-24px_hsl(0_0%_8%/.75)] transition duration-300">
-        <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary">
-          {Icon && <Icon className="h-4 w-4 text-primary" />}
-          {label}
-        </label>
-        <input
-          type="number"
-          inputMode="decimal"
-          step={step ?? "1"}
-          className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 outline-none transition duration-300 placeholder:text-white/45 focus:border-transparent focus:ring-0 ${hasValue ? "text-lg font-bold text-white" : "text-sm text-white"}`}
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  if (variant === "habit") {
-    return (
-      <div className={`rounded-[22px] border p-3.5 transition duration-300 ${hasValue ? "border-primary bg-primary text-white shadow-[0_14px_28px_-24px_hsl(var(--primary)/.75)]" : "border-border bg-white text-foreground shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
-        <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] ${hasValue ? "text-white/88" : "text-foreground/80"}`}>
-          {Icon && <Icon className={`h-4 w-4 transition-colors duration-300 ${hasValue ? "text-white" : "text-foreground/45"}`} />}
-          {label}
-        </label>
-        <input
-          type="number"
-          inputMode="decimal"
-          step={step ?? "1"}
-          className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 outline-none transition duration-300 focus:border-transparent focus:ring-0 ${hasValue ? "text-lg font-bold text-white placeholder:text-white/65" : "text-sm text-foreground placeholder:text-muted-foreground/65"}`}
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className={`rounded-[22px] border p-3.5 transition duration-300 ${hasValue ? "border-primary/65 bg-primary/5 shadow-[0_14px_28px_-24px_hsl(var(--primary)/.55)]" : "border-border bg-white shadow-[0_10px_24px_-24px_hsl(0_0%_8%/.35)]"}`}>
-      <label className="label text-xs flex items-center gap-2">
-        {Icon && <Icon className={`h-4 w-4 transition-colors duration-300 ${hasValue ? "text-primary" : "text-foreground/45"}`} />}
-        {label}
-      </label>
-      <input
-        type="number"
-        inputMode="decimal"
-        step={step ?? "1"}
-        className={`mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1.5 outline-none transition duration-300 placeholder:text-muted-foreground/65 focus:border-transparent focus:ring-0 ${hasValue ? "text-lg font-bold text-foreground" : "text-sm text-foreground"}`}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-      />
     </div>
   );
 }
