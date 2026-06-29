@@ -463,6 +463,15 @@
   .admin-nutrition-page .admin-nutrition-category-row .muted {
     color: hsl(0 0% 90% / .82);
   }
+  .admin-nutrition-page .admin-nutrition-new-category-card,
+  .admin-nutrition-page .admin-nutrition-new-category-form {
+    background: hsl(0 0% 9% / .98) !important;
+    color: hsl(0 0% 96%);
+    border-color: #FF2D95 !important;
+  }
+  .admin-nutrition-page .admin-nutrition-new-category-form .font-medium {
+    color: #FF2D95;
+  }
   .admin-nutrition-page .admin-nutrition-card-action {
     min-height: 28px;
     border-radius: 999px;
