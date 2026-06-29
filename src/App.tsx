@@ -65,10 +65,10 @@ function Protected({ children }: { children: JSX.Element }) {
 }
 
 function AdminOnly({ children }: { children: JSX.Element }) {
-  const { isAdmin, loading, user } = useAuth();
+  const { isAdmin, loading, roleLoading, user } = useAuth();
   // eslint-disable-next-line no-console
-  console.log("[AdminOnly]", { loading, isAdmin, hasUser: !!user });
-  if (loading) return <div className="min-h-[100dvh] grid place-items-center muted">Cargando…</div>;
+  console.log("[AdminOnly]", { loading, roleLoading, isAdmin, hasUser: !!user });
+  if (loading || (user && roleLoading)) return <div className="min-h-[100dvh] grid place-items-center muted">Cargando…</div>;
   if (!isAdmin) return <Navigate to="/app" replace />;
   return children;
 }

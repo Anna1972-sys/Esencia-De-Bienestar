@@ -6,15 +6,17 @@ interface AuthCtx {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  roleLoading: boolean;
   isAdmin: boolean;
   signOut: () => Promise<void>;
 }
 
-const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, isAdmin: false, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, roleLoading: true, isAdmin: false, signOut: async () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const hydratedRef = useRef(false);
 
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const loadRole = (userId: string) => {
+      setRoleLoading(true);
       supabase
         .from("user_roles")
         .select("role")
@@ -31,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // eslint-disable-next-line no-console
           console.log("[Auth] loadRole result", { userId, data, error });
           setIsAdmin(!!data?.some((r: any) => r.role === "admin"));
+          setRoleLoading(false);
         });
     };
 
@@ -59,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => loadRole(sess.user.id), 0);
       } else {
         setIsAdmin(false);
+        setRoleLoading(false);
       }
     });
 
@@ -71,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hydratedRef.current = true;
         setSession(data.session);
         if (data.session?.user) loadRole(data.session.user.id);
+        else {
+          setIsAdmin(false);
+          setRoleLoading(false);
+        }
         setLoading(false);
       })
       .catch((error) => {
@@ -80,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hydratedRef.current = true;
         setSession(null);
         setIsAdmin(false);
+        setRoleLoading(false);
         setLoading(false);
       });
 
@@ -94,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       session,
       loading,
+      roleLoading,
       isAdmin,
       signOut: async () => { await supabase.auth.signOut(); },
     }}>{children}</Ctx.Provider>
