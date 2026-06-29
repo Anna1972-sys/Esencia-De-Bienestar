@@ -79,7 +79,7 @@ export default function Home() {
           <Tile to="/app/biblioteca" image={imgRecetario} title="Tu recetario" subtitle="Tus favoritos" />
           <Tile to="/app/retos" image={imgRetos} title="Retos 5 días" subtitle="Acepta el reto" />
           <Tile to="/app/recursos" image={imgVideos} title="Vídeos y guías" subtitle="Aprende" />
-          <Tile to="/app/productos" image={imgProducts} title="Salud y Bienestar" subtitle="Todo sobre Herbalife" />
+          <Tile to="/app/productos" image={imgProducts} title="Salud y Bienestar" subtitle="Suplementación inteligente" />
           <Tile to="/app/lista-compra" image={imgCompra} title="Lista de compra" subtitle="Todo lo necesario" />
           <Tile to="/app/diario" image={imgDiario} title="Diario" subtitle="Tu jornada" />
           <Tile to="/app/progreso" image={imgProgreso} title="Mi progreso" subtitle="Tu evolución" />

@@ -73,8 +73,8 @@ export default function Products() {
 
       <header className="mb-5">
         <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary mb-1">Productos</p>
-        <h1 className="heading-lg">Productos y nutrición deportiva</h1>
-        <p className="muted text-sm mt-2">Consulta productos visibles, guías de uso e información nutricional.</p>
+        <h1 className="heading-lg">Suplementación inteligente</h1>
+        <p className="muted text-sm mt-2">Consulta productos, guías de uso e información nutricional.</p>
       </header>
 
       <div className="relative mb-4">
