@@ -79,12 +79,12 @@
   }
   .card-soft {
     @apply bg-card rounded-3xl;
-    border: 1.5px solid #FF2D95;
+    border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
   }
   .card-elegant {
     @apply bg-card rounded-3xl;
-    border: 1.5px solid #FF2D95;
+    border: 1px solid #FF2D95;
     box-shadow: var(--shadow-elegant);
   }
   .btn-primary {
@@ -200,15 +200,15 @@
   .wellness-hero { background: #1F1F1F; color: white; box-shadow: inset 0 0 0 2px #FF2D95, 0 22px 48px -28px hsl(0 0% 8% / 0.72); }
   .wellness-tile {
     background: hsl(0 0% 100%);
-    border: 1.5px solid #FF2D95;
+    border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
   }
   .wellness-tile,
   .wellness-nutrition-tile {
-    min-height: 240px;
-    height: 100%;
+    min-height: 268px;
+    height: 268px;
   }
-  .wellness-nutrition-tile { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1.5px solid #FF2D95; box-shadow: var(--shadow-soft); }
+  .wellness-nutrition-tile { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #FF2D95; box-shadow: var(--shadow-soft); }
   .home-card-image-frame {
     height: 152px;
     width: 152px;
@@ -238,7 +238,7 @@
   .nutrition-stat .muted { color: hsl(0 0% 100% / .82); }
   .recipe-premium { overflow: hidden; border: 1px solid hsl(var(--primary) / .18); box-shadow: inset 0 0 0 1px hsl(0 0% 100% / .86), 0 16px 30px -22px hsl(320 35% 18% / .28); }
   .recipe-premium-image { min-height: 142px; background: #1F1F1F; }
-  .challenge-premium { border: 1.5px solid #FF2D95; box-shadow: var(--shadow-soft); transition: transform .25s ease, box-shadow .25s ease; }
+  .challenge-premium { border: 1px solid #FF2D95; box-shadow: var(--shadow-soft); transition: transform .25s ease, box-shadow .25s ease; }
   .challenge-premium:hover { transform: translateY(-3px); box-shadow: 0 22px 36px -20px hsl(325 100% 45% / .22); }
   .nutrition-hero { background: linear-gradient(145deg, #111 0%, #242424 100%); border: 1px solid #050505; box-shadow: inset 0 0 0 2px #FF2D95; }
   .progress-page .card-elegant { background: hsl(0 0% 100% / .78); }
@@ -381,15 +381,15 @@
   }
 
   .admin-dashboard .admin-hero {
-    border: 1.5px solid #FF2D95;
+    border: 1px solid #FF2D95;
     box-shadow: var(--shadow-elegant);
   }
 
   .admin-dashboard .admin-card {
-    min-height: 240px;
-    height: 100%;
+    min-height: 268px;
+    height: 268px;
     background: hsl(0 0% 100%);
-    border: 1.5px solid #FF2D95;
+    border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
     display: flex;
     flex-direction: column;
