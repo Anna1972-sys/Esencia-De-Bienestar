@@ -643,7 +643,7 @@ export default function AdminProducts() {
             </div>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-primary"
               onClick={() => setForm(prev => ({
                 ...prev,
                 measures: [
@@ -815,7 +815,7 @@ function MediaUploader({
       <div className="flex items-center gap-2 text-sm font-medium mb-2">{icon}{title}</div>
       {url && <img src={url} alt="" className="w-full h-40 object-cover rounded-2xl mb-2" />}
       <div className="flex flex-col sm:flex-row gap-2">
-        <label className="btn-secondary cursor-pointer justify-center">
+        <label className="btn-primary cursor-pointer justify-center">
           <Upload className="h-4 w-4" /> Subir
           <input type="file" className="hidden" accept={accept} onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
         </label>
@@ -859,13 +859,13 @@ function MultiUrlEditor({
       </div>
       <div className="flex flex-col sm:flex-row gap-2">
         {onUpload && (
-          <label className="btn-secondary cursor-pointer justify-center">
+          <label className="btn-primary cursor-pointer justify-center">
             <Upload className="h-4 w-4" /> {uploadLabel}
             <input type="file" className="hidden" accept={accept} onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
           </label>
         )}
         <input className="field flex-1" placeholder="Pegar URL" value={draft} onChange={e => setDraft(e.target.value)} />
-        <button type="button" className="btn-secondary" onClick={() => { onAdd(draft); setDraft(""); }}><Plus className="h-4 w-4" /> Añadir</button>
+        <button type="button" className="btn-primary" onClick={() => { onAdd(draft); setDraft(""); }}><Plus className="h-4 w-4" /> Añadir</button>
       </div>
     </section>
   );

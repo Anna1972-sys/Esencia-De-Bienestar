@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { Home, Sparkles, BookHeart, Package, ShoppingBag, User } from "lucide-react";
 
 const items = [
@@ -11,9 +11,12 @@ const items = [
 ];
 
 export default function Layout() {
+  const location = useLocation();
+  const isAdminArea = location.pathname.startsWith("/app/admin");
+
   return (
     <div className="app-shell relative">
-      <main className="px-5 pt-6 animate-fade-in">
+      <main className={`px-5 pt-6 animate-fade-in ${isAdminArea ? "admin-area" : ""}`}>
         <Outlet />
       </main>
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md px-4 pb-5 pt-2 z-40">
