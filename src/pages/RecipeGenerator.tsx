@@ -10,6 +10,7 @@ import {
   loadRecipeGeneratorCategories,
   type RecipeGeneratorCategory,
 } from "@/lib/recipeGeneratorCategories";
+import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 
 type RecipeCategory = string;
 
@@ -196,8 +197,11 @@ export default function RecipeGenerator() {
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
       <section className="generator-hero-card mb-5">
-        <h1>Crea tu plato con los ingredientes de tu nevera</h1>
-        <p>Recetas para 1 persona con calorías, proteínas, hidratos, grasas y fibra calculados para una ración.</p>
+        <img src={imgRecipeGenerator} alt="Plato saludable" className="generator-hero-image" />
+        <div className="generator-hero-content">
+          <h1>Crea tu plato con los ingredientes de tu nevera</h1>
+          <p>Recetas para 1 persona con calorías, proteínas, hidratos, grasas y fibra calculados para una ración.</p>
+        </div>
       </section>
 
       <div className="card-soft wellness-generator generator-ingredients-card p-5 mb-4">

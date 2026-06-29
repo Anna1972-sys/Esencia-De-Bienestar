@@ -1035,8 +1035,8 @@
     border-radius: 1.75rem;
     border: 1px solid #FF2D95;
     background: hsl(var(--anthracite));
-    height: 13.75rem;
-    min-height: 13.75rem;
+    height: 15.5rem;
+    min-height: 15.5rem;
     padding: 1.45rem;
     color: #FFFFFF;
     box-shadow: 0 18px 34px -24px hsl(325 45% 24% / .45);
@@ -1045,11 +1045,31 @@
     justify-content: center;
   }
 
+  .generator-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 66%;
+  }
+
+  .generator-hero-image {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    height: 100%;
+    width: 38%;
+    object-fit: cover;
+    object-position: center;
+    border-top-right-radius: 1.75rem;
+    border-bottom-right-radius: 1.75rem;
+    opacity: .96;
+    pointer-events: none;
+  }
+
   .generator-hero-card h1 {
-    max-width: 17rem;
+    max-width: 18rem;
     font-family: var(--font-serif);
-    font-size: clamp(1.55rem, 6vw, 2.15rem);
-    line-height: 1;
+    font-size: clamp(1.55rem, 5.6vw, 2.05rem);
+    line-height: 1.05;
     letter-spacing: -.04em;
     color: #FF2D95;
   }
