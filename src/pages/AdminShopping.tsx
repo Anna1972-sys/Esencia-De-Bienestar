@@ -407,7 +407,7 @@ export default function AdminShopping() {
         <img src={imgCompra} alt="" className="shopping-hero-image" />
         <div className="shopping-hero-copy">
           <h1>Lista de compra</h1>
-          <p>Gestiona categorías, plantillas y los productos de tus clientas.</p>
+          <p>Organiza tus ingredientes de forma sencilla.</p>
         </div>
       </section>
 

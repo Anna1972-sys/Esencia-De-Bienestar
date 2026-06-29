@@ -1416,7 +1416,7 @@
   .admin-shopping-page .shopping-hero-card {
     position: relative;
     display: block;
-    min-height: 14.5rem;
+    min-height: 16.25rem;
     overflow: hidden;
     padding: 0 !important;
     border: 1px solid #FF2D95 !important;
@@ -1425,11 +1425,23 @@
     box-shadow: none !important;
   }
 
+  .shopping-list-page .shopping-hero-card::after,
+  .admin-shopping-page .shopping-hero-card::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 46%;
+    background: linear-gradient(to top, rgb(0 0 0 / .42), rgb(0 0 0 / .16), transparent);
+    pointer-events: none;
+  }
+
   .shopping-list-page .shopping-hero-image,
   .admin-shopping-page .shopping-hero-image {
     width: 100%;
-    height: 14.5rem;
+    height: 16.25rem;
     object-fit: cover;
+    object-position: center 52%;
+    transform: scale(1.035);
     display: block;
   }
 
@@ -1439,7 +1451,7 @@
     z-index: 1;
     left: 1rem;
     right: 1rem;
-    bottom: -.75rem;
+    bottom: 1.05rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -1451,26 +1463,26 @@
     border-radius: 0;
     box-shadow: none;
     backdrop-filter: none;
-    text-shadow: none;
+    text-shadow: 0 2px 10px rgb(0 0 0 / .42);
   }
 
   .shopping-list-page .shopping-hero-copy h1,
   .admin-shopping-page .shopping-hero-copy h1 {
     font-family: var(--font-serif);
-    font-size: clamp(2rem, 5.6vw, 3rem);
-    line-height: .95;
+    font-size: clamp(1.65rem, 4.5vw, 2.45rem);
+    line-height: 1;
     color: #FFFFFF;
     letter-spacing: -.04em;
-    text-shadow: 0 2px 10px rgb(0 0 0 / .38);
+    text-shadow: 0 2px 10px rgb(0 0 0 / .42);
   }
 
   .shopping-list-page .shopping-hero-copy p,
   .admin-shopping-page .shopping-hero-copy p {
     color: #FFFFFF;
-    font-size: .98rem;
+    font-size: .9rem;
     line-height: 1.35;
     font-weight: 600;
-    text-shadow: 0 2px 9px rgb(0 0 0 / .38);
+    text-shadow: 0 2px 9px rgb(0 0 0 / .42);
   }
 
   .shopping-list-page .shopping-category-hero,

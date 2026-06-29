@@ -147,7 +147,14 @@ export default function Wellness() {
 
   const update = (k: keyof Entry, v: any) => setEntry({ ...entry, [k]: v });
   const progress = (value: number | null | undefined, target: number) => Math.max(0, Math.min(100, ((value ?? 0) / target) * 100));
-  const waterCups = Math.round((entry.water_ml ?? 0) / 250);
+  const formatWater = (ml: number | null | undefined) => {
+    if (!ml) return "Sin registrar";
+    if (ml >= 1000) {
+      const liters = ml / 1000;
+      return `${Number.isInteger(liters) ? liters.toFixed(0) : liters.toFixed(1).replace(".", ",")} L`;
+    }
+    return `${Math.round(ml)} ml`;
+  };
   const moodLabel = entry.mood ? MOODS[(entry.mood ?? 1) - 1]?.label ?? "Sin registrar" : "Sin registrar";
   const hasExercise = Boolean(entry.exercise?.trim());
 
@@ -220,7 +227,7 @@ export default function Wellness() {
             icon={Droplets}
             iconClassName="text-fuchsia-500"
             label="Agua"
-            value={`${waterCups} / 8 vasos`}
+            value={formatWater(entry.water_ml)}
             status={entry.water_ml ? "Hidratación registrada" : "Objetivo diario"}
             percent={progress(entry.water_ml, 2000)}
           />

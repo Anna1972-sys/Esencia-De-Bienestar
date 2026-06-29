@@ -200,7 +200,7 @@ export default function ShoppingList() {
         <img src={imgCompra} alt="" className="shopping-hero-image" />
         <div className="shopping-hero-copy">
           <h1>Lista de compra</h1>
-          <p>Elige tu categoría.</p>
+          <p>Organiza tus ingredientes de forma sencilla.</p>
         </div>
       </section>
 
