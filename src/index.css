@@ -837,13 +837,41 @@
     filter: drop-shadow(0 6px 8px rgb(255 45 149 / .32));
   }
 
-  .wellness-diary section.card-elegant:not(.diary-calendar-card) > h2 {
+  .wellness-diary section.card-elegant:not(.diary-calendar-card) h2 {
     color: #FF2D95 !important;
   }
 
-  .wellness-diary section.card-elegant:has(.diary-measures-grid) > h2,
-  .wellness-diary section.card-elegant:has(.diary-habits-grid) > h2 {
+  .wellness-diary section.card-elegant:has(.diary-measures-grid) h2,
+  .wellness-diary section.card-elegant:has(.diary-habits-grid) h2 {
     color: #FF2D95 !important;
+  }
+
+  .wellness-diary .diary-section-clear-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    min-height: 2rem !important;
+    border: 1px solid rgb(255 45 149 / .52) !important;
+    border-radius: 999px !important;
+    background: rgb(255 45 149 / .24) !important;
+    color: #FF2D95 !important;
+    padding: .35rem .7rem !important;
+    font-size: .72rem !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+    transition: background .2s ease, border-color .2s ease, color .2s ease, opacity .2s ease;
+  }
+
+  .wellness-diary .diary-section-clear-button:hover,
+  .wellness-diary .diary-section-clear-button:focus-visible {
+    background: #FF2D95 !important;
+    border-color: #FF2D95 !important;
+    color: #FFFFFF !important;
+  }
+
+  .wellness-diary .diary-section-clear-button:disabled {
+    cursor: default;
+    opacity: 1;
   }
 
   .wellness-diary section.card-elegant:not(.diary-calendar-card) > .muted,
@@ -995,8 +1023,8 @@
     height: .38rem !important;
   }
 
-  .wellness-diary section.card-elegant:has(.diary-measures-grid) > h2,
-  .wellness-diary section.card-elegant:has(.diary-habits-grid) > h2 {
+  .wellness-diary section.card-elegant:has(.diary-measures-grid) h2,
+  .wellness-diary section.card-elegant:has(.diary-habits-grid) h2 {
     color: #FF2D95 !important;
   }
 

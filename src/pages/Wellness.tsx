@@ -111,6 +111,40 @@ export default function Wellness() {
     setEntry(empty(selected));
   };
 
+  const hasAnyValue = (keys: (keyof Entry)[]) =>
+    keys.some((key) => {
+      const value = entry[key];
+      return value !== null && value !== undefined && value !== "";
+    });
+
+  const clearSection = async (keys: (keyof Entry)[], label: string) => {
+    if (!hasAnyValue(keys)) return;
+    if (!confirm(`¿Borrar ${label}? Solo se eliminarán estos datos del día seleccionado.`)) return;
+
+    const cleared = keys.reduce((acc, key) => ({ ...acc, [key]: null }), {} as Partial<Entry>);
+    setEntry((current) => ({ ...current, ...cleared }));
+
+    if (!entry.id) {
+      toast.success(`${label} borrado`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("wellness_entries")
+      .update(cleared as any)
+      .eq("id", entry.id);
+
+    if (error) {
+      toast.error(`No se pudo borrar ${label}`);
+      return;
+    }
+    toast.success(`${label} borrado`);
+  };
+
+  const measureKeys: (keyof Entry)[] = ["weight_kg", "waist_cm", "hip_cm", "chest_cm", "arm_cm", "thigh_cm"];
+  const habitKeys: (keyof Entry)[] = ["water_ml", "sleep_hours", "steps", "exercise"];
+  const moodKeys: (keyof Entry)[] = ["mood"];
+
   const update = (k: keyof Entry, v: any) => setEntry({ ...entry, [k]: v });
   const progress = (value: number | null | undefined, target: number) => Math.max(0, Math.min(100, ((value ?? 0) / target) * 100));
   const waterCups = Math.round((entry.water_ml ?? 0) / 250);
@@ -227,7 +261,11 @@ export default function Wellness() {
       </Section>
 
       {/* Medidas corporales */}
-      <Section title="Medidas" variant="light">
+      <Section
+        title="Medidas"
+        variant="light"
+        action={<SectionClearButton disabled={!hasAnyValue(measureKeys)} onClick={() => clearSection(measureKeys, "medidas")} />}
+      >
         <div className="diary-measures-grid grid grid-cols-2 gap-3">
           <MetricInput icon={Scale} iconClassName="text-neutral-800" label="Peso" value={entry.weight_kg} onChange={(v) => update("weight_kg", v)} step="0.1" unit="kg" min={0.1} max={70} />
           <MetricInput label="Cintura" value={entry.waist_cm} onChange={(v) => update("waist_cm", v)} step="1" unit="cm" min={1} max={100} />
@@ -239,7 +277,11 @@ export default function Wellness() {
       </Section>
 
       {/* Hábitos */}
-      <Section title="Hábitos del día" variant="dark">
+      <Section
+        title="Hábitos del día"
+        variant="dark"
+        action={<SectionClearButton disabled={!hasAnyValue(habitKeys)} onClick={() => clearSection(habitKeys, "hábitos")} />}
+      >
         <div className="diary-habits-grid grid grid-cols-2 gap-3">
           <MetricInput icon={Droplets} iconClassName="text-fuchsia-500" label="Agua" value={entry.water_ml} onChange={(v) => update("water_ml", v)} step="100" unit="water" min={0} max={5000} />
           <MetricInput icon={Moon} iconClassName="text-purple-500" label="Sueño" value={entry.sleep_hours} onChange={(v) => update("sleep_hours", v)} step="0.5" unit="hours" min={1} max={15} />
@@ -257,7 +299,10 @@ export default function Wellness() {
       </Section>
 
       {/* Estado de ánimo */}
-      <Section title="¿Cómo te sientes?">
+      <Section
+        title="¿Cómo te sientes?"
+        action={<SectionClearButton disabled={!hasAnyValue(moodKeys)} onClick={() => clearSection(moodKeys, "cómo te sientes")} />}
+      >
         <div className="grid grid-cols-5 gap-2">
           {MOODS.map((m, i) => {
             const selected = entry.mood === i + 1;
@@ -311,13 +356,41 @@ export default function Wellness() {
   );
 }
 
-function Section({ title, children, variant = "default" }: { title: string; children: React.ReactNode; variant?: "default" | "dark" | "light" }) {
+function Section({
+  title,
+  children,
+  variant = "default",
+  action,
+}: {
+  title: string;
+  children: React.ReactNode;
+  variant?: "default" | "dark" | "light";
+  action?: React.ReactNode;
+}) {
   const isDark = variant === "dark";
   return (
     <section className={`card-elegant p-5 ${isDark ? "border-[#1F1F1F] bg-[#1F1F1F] text-white shadow-[0_20px_40px_-26px_hsl(0_0%_8%/.75)]" : ""}`}>
-      <h2 className={`font-sans text-lg font-bold mb-4 ${isDark ? "text-primary" : ""}`} style={isDark ? undefined : { color: "hsl(var(--plum))" }}>{title}</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className={`font-sans text-lg font-bold ${isDark ? "text-primary" : ""}`} style={isDark ? undefined : { color: "hsl(var(--plum))" }}>{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
+  );
+}
+
+function SectionClearButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="diary-section-clear-button"
+      title="Borrar esta sección"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+      Borrar
+    </button>
   );
 }
 
