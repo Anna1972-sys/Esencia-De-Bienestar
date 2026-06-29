@@ -25,11 +25,25 @@ type Settings = {
 const empty: Settings = {
   app_name: "Esencia de Bienestar",
   logo_url: "",
-  primary_color: "#D9A6B3",
-  secondary_color: "#F4E7E1",
+  primary_color: "#FF2D95",
+  secondary_color: "#FFF7FA",
   accent_color: "#C8B6E2",
   welcome_title: "",
   welcome_message: "",
+};
+
+const legacyDefaultColors = {
+  primary_color: "#D9A6B3",
+  secondary_color: "#F4E7E1",
+};
+
+const normalizeSettings = (data: Partial<Settings>): Settings => {
+  const next = { ...empty, ...data };
+  return {
+    ...next,
+    primary_color: next.primary_color === legacyDefaultColors.primary_color ? empty.primary_color : next.primary_color,
+    secondary_color: next.secondary_color === legacyDefaultColors.secondary_color ? empty.secondary_color : next.secondary_color,
+  };
 };
 
 export default function AdminSettings() {
@@ -45,7 +59,7 @@ export default function AdminSettings() {
       .select("*")
       .eq("id", true)
       .maybeSingle()
-      .then(({ data }: any) => data && setS({ ...empty, ...data }));
+      .then(({ data }: any) => data && setS(normalizeSettings(data)));
     loadRecipeGeneratorCategories(supabase as any).then(setRecipeTypes);
   }, []);
 
