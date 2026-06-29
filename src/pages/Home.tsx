@@ -17,15 +17,7 @@ import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
 import imgProducts from "@/assets/home-productos-te-jardin.png";
 
-const QUOTES = [
-  "Cuidarte es el primer acto de amor.",
-  "Cada bocado consciente es un paso hacia tu bienestar.",
-  "Tu cuerpo escucha todo lo que tu mente le dice.",
-  "El equilibrio no se encuentra, se cultiva cada día.",
-  "Pequeños hábitos, grandes transformaciones.",
-  "Nutrir tu cuerpo es honrar tu esencia.",
-  "Respira, sonríe y vuelve a tu centro.",
-];
+const HOME_SUBTITLE = "Hoy es un buen día para cuidar de ti";
 
 export default function Home() {
   const { user, isAdmin } = useAuth();
@@ -36,15 +28,13 @@ export default function Home() {
     supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle().then(({ data }) => setName(data?.display_name ?? ""));
   }, [user]);
 
-  const quote = QUOTES[new Date().getDate() % QUOTES.length];
-
   return (
     <div className="space-y-8">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary mb-1">Bienestar</p>
           <h1 className="heading-lg">Hola, {name || "ANNA MARI"}</h1>
-          <p className="muted text-sm mt-2 leading-relaxed pr-2">{quote}</p>
+          <p className="muted text-sm mt-2 leading-relaxed pr-2">{HOME_SUBTITLE}</p>
         </div>
         <Link
           to="/app/perfil"

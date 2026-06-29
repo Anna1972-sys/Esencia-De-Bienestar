@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, ShoppingBag, Check, ArrowLeft } from "lucide-react";
+import { ShoppingBag, Check, ArrowLeft, Search, X } from "lucide-react";
+import { toast } from "sonner";
+import imgCompra from "@/assets/home-compra.png";
 
 type Item = {
   id: string;
@@ -33,57 +35,51 @@ export default function ShoppingList() {
   const [items, setItems] = useState<Item[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
-  const [name, setName] = useState("");
-  const [newCat, setNewCat] = useState<string | "auto">("auto");
   const [filter, setFilter] = useState<string>("all");
+  const [query, setQuery] = useState("");
 
   const loadCats = async () => {
-    const { data } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from("shopping_categories")
       .select("*")
       .order("sort_order")
       .order("name");
+    if (error) {
+      console.error("[shopping_categories]", error);
+      toast.error(`No se pudieron cargar las categorías: ${error.message}`);
+      setCats([]);
+      return;
+    }
     setCats(data ?? []);
   };
 
   const loadTemplates = async () => {
-    // 1) Plantillas explícitas creadas desde el panel
-    const { data: tpl } = await (supabase as any)
+    const { data: tpl, error: tplError } = await (supabase as any)
       .from("shopping_templates")
       .select("*")
       .order("sort_order")
       .order("name");
+    if (tplError) {
+      console.error("[shopping_templates]", tplError);
+      toast.error(`No se pudieron cargar los ingredientes: ${tplError.message}`);
+    }
 
-    // 2) Productos creados por administradoras en shopping_list_items.
-    //    RLS permite leer solo los de usuarias con rol admin.
-    //    Para la propia administradora excluimos sus filas para no duplicar
-    //    (las verá como personales en loadItems).
-    let q = (supabase as any)
-      .from("shopping_list_items")
-      .select("id,name,category")
-      .order("name");
-    if (user) q = q.neq("user_id", user.id);
-    const { data: adminItems } = await q;
-
-    const merged: Template[] = [
-      ...((tpl as Template[]) ?? []),
-      ...((adminItems ?? []) as any[]).map((it) => ({
-        id: `sli-${it.id}`,
-        name: it.name,
-        category: it.category,
-        sort_order: 0,
-      })),
-    ];
-    setTemplates(merged);
+    setTemplates(tplError ? [] : ((tpl as Template[]) ?? []));
   };
 
   const loadItems = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("shopping_list_items")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+    if (error) {
+      console.error("[shopping_list_items own]", error);
+      toast.error(`No se pudo cargar tu lista: ${error.message}`);
+      setItems([]);
+      return;
+    }
     setItems((data as any) ?? []);
   };
 
@@ -97,25 +93,9 @@ export default function ShoppingList() {
     return m;
   }, [items]);
 
-  const add = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !user) return;
-    let cat: string | null;
-    if (newCat === "auto") {
-      cat = filter !== "all" && filter !== UNCATEGORIZED ? filter : (cats[0]?.name ?? null);
-    } else {
-      cat = newCat || null;
-    }
-    const { data } = await supabase
-      .from("shopping_list_items")
-      .insert({ user_id: user.id, name: name.trim(), category: cat })
-      .select()
-      .single();
-    if (data) { setItems([data as any, ...items]); setName(""); }
-  };
-
   const togglePersonal = async (id: string, checked: boolean) => {
-    await supabase.from("shopping_list_items").update({ checked: !checked }).eq("id", id);
+    const { error } = await supabase.from("shopping_list_items").update({ checked: !checked }).eq("id", id);
+    if (error) return toast.error(error.message);
     setItems(items.map(i => i.id === id ? { ...i, checked: !checked } : i));
   };
 
@@ -125,14 +105,16 @@ export default function ShoppingList() {
     const existing = personalByKey.get(key);
     if (currentlyChecked && existing) {
       // uncheck → remove the personal "checked marker"
-      await supabase.from("shopping_list_items").delete().eq("id", existing.id);
+      const { error } = await supabase.from("shopping_list_items").delete().eq("id", existing.id);
+      if (error) return toast.error(error.message);
       setItems(items.filter(i => i.id !== existing.id));
     } else if (!currentlyChecked) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("shopping_list_items")
         .insert({ user_id: user.id, name: t.name, category: t.category, checked: true })
         .select()
         .single();
+      if (error) return toast.error(error.message);
       if (data) setItems([data as any, ...items]);
     }
   };
@@ -176,10 +158,14 @@ export default function ShoppingList() {
   }, [templates, items, personalByKey]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return allRows;
-    if (filter === UNCATEGORIZED) return allRows.filter(r => !r.category || !catNames.has(r.category));
-    return allRows.filter(r => r.category === filter);
-  }, [allRows, filter, catNames]);
+    const byCategory =
+      filter === "all" ? allRows
+      : filter === UNCATEGORIZED ? allRows.filter(r => !r.category || !catNames.has(r.category))
+      : allRows.filter(r => r.category === filter);
+    const q = query.trim().toLowerCase();
+    if (!q) return byCategory;
+    return byCategory.filter(r => r.name.toLowerCase().includes(q));
+  }, [allRows, filter, catNames, query]);
 
   const grouped = useMemo(() => {
     const m = new Map<string, Row[]>();
@@ -205,72 +191,61 @@ export default function ShoppingList() {
     : filter;
 
   return (
-    <div className="pb-28">
+    <div className="shopping-list-page pb-28">
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
-      <h1 className="heading-lg mb-1">Lista de compra</h1>
-      <p className="muted text-sm mb-4">Organiza tus productos por categorías.</p>
 
-      <form onSubmit={add} className="card-soft p-3 mb-4 space-y-2">
-        <div className="flex gap-2">
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="field flex-1"
-            placeholder="Añadir producto personal…"
-          />
-          <button className="btn-primary px-4" aria-label="Añadir"><Plus className="h-4 w-4" /></button>
+      <section className="shopping-hero-card card-soft mb-5">
+        <img src={imgCompra} alt="" className="shopping-hero-image" />
+        <div className="shopping-hero-copy">
+          <h1>Lista de compra</h1>
+          <p>Elige tu categoría.</p>
         </div>
-        <select
-          className="field"
-          value={newCat}
-          onChange={e => setNewCat(e.target.value as any)}
-        >
-          <option value="auto">Categoría automática</option>
-          {cats.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-        </select>
-      </form>
+      </section>
 
-      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-2 mb-3">
-        <button onClick={() => setFilter("all")}
-          className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition ${filter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground/70"}`}>
-          Todas
-        </button>
-        {cats.map(c => (
-          <button key={c.id} onClick={() => setFilter(c.name)}
-            className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition ${filter === c.name ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground/70"}`}>
-            {c.name}
-          </button>
-        ))}
-        {hasUncategorized && (
-          <button onClick={() => setFilter(UNCATEGORIZED)}
-            className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition ${filter === UNCATEGORIZED ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground/70"}`}>
-            Sin categoría
-          </button>
-        )}
-      </div>
-
-      {total > 0 && (
-        <div className="card-soft p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <ShoppingBag className="h-4 w-4 text-primary" />
-              {activeLabel}
+      <section className="shopping-category-hero card-soft mb-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-2xl">Elige tu categoría</h2>
+              <p className="text-sm muted">Filtra y marca solo los ingredientes de tu lista personal.</p>
             </div>
-            <div className="text-xs muted">{done} / {total}</div>
+            <div className="rounded-full border border-primary/35 bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
+              {total} visible(s)
+            </div>
           </div>
-          <div className="h-2 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${pct}%`, backgroundImage: "linear-gradient(135deg, hsl(330 80% 60%), hsl(285 65% 55%))" }}
-            />
+
+          <div className="shopping-category-scroll" role="tablist" aria-label="Categorías de lista de compra">
+            <button onClick={() => setFilter("all")} className={`shopping-filter-chip ${filter === "all" ? "is-active" : ""}`} role="tab" aria-selected={filter === "all"}>
+              Todas
+            </button>
+            {cats.map(c => (
+              <button key={c.id} onClick={() => setFilter(c.name)} className={`shopping-filter-chip ${filter === c.name ? "is-active" : ""}`} role="tab" aria-selected={filter === c.name}>
+                {c.name}
+              </button>
+            ))}
+            {hasUncategorized && (
+              <button onClick={() => setFilter(UNCATEGORIZED)} className={`shopping-filter-chip ${filter === UNCATEGORIZED ? "is-active" : ""}`} role="tab" aria-selected={filter === UNCATEGORIZED}>
+                Sin categoría
+              </button>
+            )}
+          </div>
+
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 muted" />
+            <input className="field pl-9 pr-9" placeholder="Buscar ingrediente…" value={query} onChange={(e) => setQuery(e.target.value)} />
+            {query && (
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1 muted" onClick={() => setQuery("")} aria-label="Limpiar búsqueda">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
-      )}
+      </section>
 
       {total === 0 ? (
-        <div className="card-soft p-8 text-center">
+        <div className="card-soft shopping-card p-8 text-center">
           <div className="h-12 w-12 rounded-full bg-primary/10 text-primary grid place-items-center mx-auto mb-3">
             <ShoppingBag className="h-6 w-6" strokeWidth={1.75} />
           </div>
@@ -299,7 +274,7 @@ export default function ShoppingList() {
                   <h2 className="font-serif text-lg">{label}</h2>
                   <span className="text-[11px] muted">{catDone}/{list.length}</span>
                 </div>
-                <div className="card-soft divide-y divide-border/60 overflow-hidden">
+                <div className="card-soft shopping-inner-card divide-y divide-border/60 overflow-hidden">
                   {list.map(r => (
                     <div key={r.key} className={`flex items-center gap-3 px-4 py-3 transition ${r.checked ? "bg-muted/40" : ""}`}>
                       <button
@@ -326,6 +301,24 @@ export default function ShoppingList() {
               </section>
             );
           })}
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="card-soft shopping-card p-4 mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <ShoppingBag className="h-4 w-4 text-primary" />
+              {activeLabel}
+            </div>
+            <div className="text-xs muted">{done} / {total}</div>
+          </div>
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${pct}%`, backgroundImage: "linear-gradient(135deg, hsl(330 80% 60%), hsl(285 65% 55%))" }}
+            />
+          </div>
         </div>
       )}
     </div>

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Users, Package, ChevronDown, ChevronRight, ArrowDownAZ } from "lucide-react";
-import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Package, ArrowLeft } from "lucide-react";
+import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
 import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
+import imgCompra from "@/assets/home-compra.png";
 
 type Category = { id: string; name: string; sort_order: number };
 type Template = { id: string; name: string; category: string | null; sort_order: number };
@@ -28,8 +29,6 @@ export default function AdminShopping() {
   const [filterCat, setFilterCat] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkTarget, setBulkTarget] = useState<string>("");
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   // Client items panel state
   const [cQuery, setCQuery] = useState("");
@@ -38,44 +37,28 @@ export default function AdminShopping() {
   const [cSelected, setCSelected] = useState<Set<string>>(new Set());
   const [cBulkTarget, setCBulkTarget] = useState<string>("");
 
-  // Expandable categories (templates inside)
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
-  const [catQuery, setCatQuery] = useState<Record<string, string>>({});
-  const [catSortAlpha, setCatSortAlpha] = useState<Record<string, boolean>>({});
-  const toggleExpand = (id: string) =>
-    setExpandedCats((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-  const moveTemplateInCat = async (catName: string, id: string, dir: -1 | 1) => {
-    const list = items
-      .filter((i) => i.category === catName)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, "es"));
-    const idx = list.findIndex((i) => i.id === id);
-    const j = idx + dir;
-    if (idx < 0 || j < 0 || j >= list.length) return;
-    const a = list[idx], b = list[j];
-    await (supabase as any).from("shopping_templates").update({ sort_order: b.sort_order ?? 0 }).eq("id", a.id);
-    await (supabase as any).from("shopping_templates").update({ sort_order: a.sort_order ?? 0 }).eq("id", b.id);
-    load();
-  };
-
-  const sortCatAlphabetically = async (catName: string) => {
-    const list = items
-      .filter((i) => i.category === catName)
-      .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
-    for (let i = 0; i < list.length; i++) {
-      await (supabase as any).from("shopping_templates").update({ sort_order: i }).eq("id", list[i].id);
-    }
-    toast.success("Ordenado alfabéticamente");
-    load();
-  };
-
   const load = async () => {
-    const [{ data: c }, { data: t }, { data: items }, { data: profs }] = await Promise.all([
+    const [{ data: c, error: cError }, { data: t, error: tError }, { data: items, error: itemsError }, { data: profs, error: profsError }] = await Promise.all([
       (supabase as any).from("shopping_categories").select("*").order("sort_order").order("name"),
       (supabase as any).from("shopping_templates").select("*").order("name", { ascending: true }),
       (supabase as any).from("shopping_list_items").select("id,user_id,name,category,quantity,checked").order("name", { ascending: true }),
       (supabase as any).from("profiles").select("id,display_name"),
     ]);
+    if (cError) {
+      console.error("[admin shopping_categories]", cError);
+      toast.error(`No se pudieron cargar las categorías: ${cError.message}`);
+    }
+    if (tError) {
+      console.error("[admin shopping_templates]", tError);
+      toast.error(`No se pudieron cargar los ingredientes: ${tError.message}`);
+    }
+    if (itemsError) {
+      console.error("[admin shopping_list_items]", itemsError);
+      toast.error(`No se pudieron cargar productos de clientas: ${itemsError.message}`);
+    }
+    if (profsError) {
+      console.error("[admin shopping profiles]", profsError);
+    }
     setCats(c ?? []);
     setItems(t ?? []);
     setClientItems(items ?? []);
@@ -194,8 +177,8 @@ export default function AdminShopping() {
     const { id, ...rest } = itemForm;
     const payload = { ...rest, category: rest.category || null };
     const res = id
-      ? await (supabase as any).from("shopping_templates").update(payload).eq("id", id)
-      : await (supabase as any).from("shopping_templates").insert(payload);
+      ? await (supabase as any).from("shopping_templates").update(payload).eq("id", id).select().single()
+      : await (supabase as any).from("shopping_templates").insert(payload).select().single();
     if (res.error) return toast.error(res.error.message);
     toast.success("Ingrediente guardado");
     resetItem();
@@ -276,156 +259,233 @@ export default function AdminShopping() {
     setClientItems((arr) => arr.filter((i) => !ids.includes(i.id)));
   };
 
-  // ---- Drag & drop (templates) ----
-  const onDragStart = (id: string) => setDragId(id);
-  const onDrop = async (catName: string | null) => {
-    if (!dragId) return;
-    setDropTarget(null);
-    const moving = selected.has(dragId) && selected.size > 1 ? Array.from(selected) : [dragId];
-    const { error } = await (supabase as any).from("shopping_templates").update({ category: catName }).in("id", moving);
-    setDragId(null);
-    if (error) return toast.error(error.message);
-    toast.success(`${moving.length} movido(s) a "${catName ?? "Sin categoría"}"`);
-    load();
-  };
+  const templateFilterChips: { key: string; label: string }[] = useMemo(() => {
+    const ordered = cats.map((c) => c.name);
+    const extras = Array.from(new Set(items.map((it) => it.category).filter((value): value is string => Boolean(value && value.trim()))))
+      .filter((name) => !ordered.includes(name))
+      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+    return [
+      { key: "all", label: "Todas" },
+      ...ordered.map((name) => ({ key: name, label: name })),
+      ...extras.map((name) => ({ key: name, label: name })),
+      { key: UNCAT, label: "Sin categoría" },
+    ];
+  }, [cats, items]);
 
-  const filterChips: { key: string; label: string }[] = [
-    { key: "all", label: "Todos" },
-    ...cats.map((c) => ({ key: c.name, label: c.name })),
-    { key: UNCAT, label: "Sin categoría" },
-  ];
+  const clientFilterChips: { key: string; label: string }[] = useMemo(() => {
+    const ordered = cats.map((c) => c.name);
+    const extras = Array.from(new Set(clientItems.map((it) => it.category).filter((value): value is string => Boolean(value && value.trim()))))
+      .filter((name) => !ordered.includes(name))
+      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+    return [
+      { key: "all", label: "Todas" },
+      ...ordered.map((name) => ({ key: name, label: name })),
+      ...extras.map((name) => ({ key: name, label: name })),
+      { key: UNCAT, label: "Sin categoría" },
+    ];
+  }, [cats, clientItems]);
+
+  const activeCategory = tab === "templates" ? filterCat : cFilterCat;
+  const activeCategoryRecord = activeCategory !== "all" && activeCategory !== UNCAT ? cats.find((c) => c.name === activeCategory) ?? null : null;
+  const activeVisibleCount = tab === "templates" ? filtered.length : cFiltered.length;
+  const activeChips = tab === "templates"
+    ? templateFilterChips.map((ch) => ({ ...ch, total: counts[ch.key] ?? 0, active: filterCat === ch.key, onClick: () => setFilterCat(ch.key) }))
+    : clientFilterChips.map((ch) => ({ ...ch, total: cCounts[ch.key] ?? 0, active: cFilterCat === ch.key, onClick: () => setCFilterCat(ch.key) }));
+
+  const filteredIngredientGroups = useMemo(() => {
+    const grouped = new Map<string, Template[]>();
+    filtered.forEach((it) => {
+      const key = it.category?.trim() || UNCAT;
+      grouped.set(key, [...(grouped.get(key) ?? []), it]);
+    });
+
+    const orderedCategoryNames = cats.map((c) => c.name);
+    const extraCategoryNames = Array.from(grouped.keys())
+      .filter((name) => name !== UNCAT && !orderedCategoryNames.includes(name))
+      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+
+    const order = filterCat === "all"
+      ? [...orderedCategoryNames, ...extraCategoryNames, UNCAT]
+      : [filterCat];
+
+    return order
+      .map((key) => ({ key, label: key === UNCAT ? "Sin categoría" : key, items: grouped.get(key) ?? [] }))
+      .filter((group) => group.items.length > 0);
+  }, [filtered, cats, filterCat]);
+
+  const clientItemsList = (
+    <section className="mb-5">
+      <div className="space-y-2">
+        {cFiltered.map((it) => {
+          const known = cats.some((c) => c.name === it.category);
+          const displayCat = it.category && known ? it.category : "";
+          return (
+            <div key={it.id} className="card-soft shopping-inner-card p-3 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={cSelected.has(it.id)}
+                onChange={() => cToggle(it.id)}
+                className="h-4 w-4 shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">{it.name}</div>
+                <div className="text-xs muted truncate">
+                  {profiles[it.user_id] || "Clienta"}
+                  {it.quantity ? ` · ${it.quantity}` : ""}
+                  {!known && it.category ? ` · ⚠ "${it.category}" (categoría desconocida)` : ""}
+                </div>
+              </div>
+              <select
+                className="field w-44 text-sm"
+                value={displayCat}
+                onChange={(e) => cSetCategory(it.id, e.target.value || null)}
+              >
+                <option value="">Sin categoría</option>
+                {cats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+              <button onClick={() => cDelete(it.id, it.name)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          );
+        })}
+        {cFiltered.length === 0 && (
+          <div className="card-soft shopping-card p-6 text-center muted text-sm">
+            {cQuery || cFilterCat !== "all" || cFilterUser !== "all" ? "Sin resultados con estos filtros." : "Aún no hay productos."}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const templateItemsList = (
+    <section className="mb-5">
+      <div className="space-y-4">
+        {filteredIngredientGroups.map((group) => (
+          <section key={group.key}>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="font-serif text-lg">{group.label}</h3>
+              <span className="text-[11px] muted">{group.items.length}</span>
+            </div>
+            <div className="space-y-2">
+              {group.items.map((it) => (
+                <div
+                  key={it.id}
+                  className="card-soft shopping-inner-card p-3 flex items-center gap-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(it.id)}
+                    onChange={() => toggle(it.id)}
+                    className="h-4 w-4 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{it.name}</div>
+                    <div className="text-xs muted truncate">{it.category ?? "Sin categoría"}</div>
+                  </div>
+                  <button onClick={() => { setItemForm({ id: it.id, name: it.name, category: it.category ?? "", sort_order: it.sort_order }); document.getElementById("tpl-form")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="p-1 text-primary" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => delItem(it.id)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+        {filtered.length === 0 && (
+          <div className="card-soft shopping-card p-6 text-center muted text-sm">
+            {query || filterCat !== "all" ? "Sin resultados con estos filtros." : "Aún no hay ingredientes."}
+          </div>
+        )}
+      </div>
+    </section>
+  );
 
   return (
-    <div className="pb-28 max-w-5xl mx-auto">
-      <AdminPageHeader title="Lista de compra" subtitle="Gestiona categorías, plantillas y los productos de tus clientas." />
+    <div className="admin-shopping-page pb-28 max-w-5xl mx-auto">
+      <BackButton fallbackTo="/app/admin" className="text-sm muted inline-flex items-center gap-1 mb-3">
+        <ArrowLeft className="h-4 w-4" /> Volver
+      </BackButton>
+
+      <section className="shopping-hero-card card-soft mb-5">
+        <img src={imgCompra} alt="" className="shopping-hero-image" />
+        <div className="shopping-hero-copy">
+          <h1>Lista de compra</h1>
+          <p>Gestiona categorías, plantillas y los productos de tus clientas.</p>
+        </div>
+      </section>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-5">
-        <button
-          onClick={() => setTab("clients")}
-          className={`text-sm px-3 py-2 rounded-full border transition flex items-center gap-2 ${tab === "clients" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
-        >
-          <Users className="h-4 w-4" /> Productos de clientas ({clientItems.length})
-        </button>
+      <div className="flex justify-center gap-2 mb-5">
         <button
           onClick={() => setTab("templates")}
           className={`text-sm px-3 py-2 rounded-full border transition flex items-center gap-2 ${tab === "templates" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
         >
-          <Package className="h-4 w-4" /> Plantillas ({items.length})
+          <Package className="h-4 w-4" /> Ingredientes ({items.length})
         </button>
       </div>
 
-      {/* Categories — shared, always visible */}
-      <section className="mb-8">
-        <div className="flex items-baseline justify-between mb-2">
-          <h2 className="font-serif text-xl">Categorías</h2>
-          <span className="text-xs muted">{cats.length} en total</span>
-        </div>
-        {!catForm.id && (
-          <form onSubmit={saveCat} className="card-soft p-4 space-y-3 mb-4">
-            <div className="font-medium text-sm">Nueva categoría</div>
-            <div className="flex gap-2 flex-wrap">
-              <input className="field flex-1 min-w-[180px]" placeholder="Nombre" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
-              <input className="field w-28" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
-              <button className="btn-primary"><Plus className="h-4 w-4" /> Añadir</button>
+      {/* Categories — horizontal quick filter */}
+      <section className="shopping-category-hero card-soft mb-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-2xl">Categorías</h2>
+              <p className="text-sm muted">Desliza la barra y pulsa una categoría para filtrar los ingredientes.</p>
             </div>
-          </form>
-        )}
-        <div className="space-y-2">
-          {cats.map((c) => {
-            const usage = (counts[c.name] ?? 0) + (cCounts[c.name] ?? 0);
-            const isEditing = catForm.id === c.id;
-            if (isEditing) {
-              return (
-                <form key={c.id} onSubmit={saveCat} className="card-soft p-3 space-y-2 border-primary/40">
-                  <div className="text-xs muted">Editando categoría: <span className="font-medium text-foreground">{catForm._origName}</span></div>
-                  <div className="flex gap-2 flex-wrap items-center">
-                    <input autoFocus className="field flex-1 min-w-[180px]" placeholder="Nombre" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
-                    <input className="field w-24" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
-                    <button type="submit" className="btn-primary">Guardar</button>
-                    <button type="button" className="btn-secondary" onClick={resetCat}>Cancelar</button>
-                  </div>
-                  {catForm._origName && catForm._origName !== catForm.name && (
-                    <p className="text-xs muted">Al guardar, los {usage} producto(s)/plantilla(s) con "{catForm._origName}" pasarán a "{catForm.name}".</p>
-                  )}
+            <div className="rounded-full border border-primary/35 bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
+              {activeVisibleCount} visible(s)
+            </div>
+          </div>
+
+          <div className="shopping-category-scroll" role="tablist" aria-label="Categorías de lista de compra">
+            {activeChips.map((ch) => (
+              <button
+                key={ch.key}
+                type="button"
+                onClick={ch.onClick}
+                className={`shopping-filter-chip ${ch.active ? "is-active" : ""}`}
+                role="tab"
+                aria-selected={ch.active}
+              >
+                {ch.label} <span className="opacity-70">· {ch.total}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="shopping-category-toolbar">
+            {catForm.id ? (
+              <form onSubmit={saveCat} className="shopping-category-edit-form">
+                <div className="text-xs font-semibold text-foreground">Editando categoría</div>
+                <input autoFocus className="field flex-1 min-w-[180px]" placeholder="Nombre" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
+                <input className="field w-24" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
+                <button type="submit" className="btn-primary">Guardar</button>
+                <button type="button" className="btn-secondary" onClick={resetCat}>Cancelar</button>
+              </form>
+            ) : (
+              <>
+                <form onSubmit={saveCat} className="shopping-category-create-form">
+                  <input className="field flex-1 min-w-[180px]" placeholder="Nueva categoría" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
+                  <input className="field w-24" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
+                  <button className="btn-primary"><Plus className="h-4 w-4" /> Añadir</button>
                 </form>
-              );
-            }
-            return (
-              <div key={c.id} className="space-y-2">
-                <div className="card-soft p-3 flex items-center gap-2">
-                  <button type="button" onClick={() => toggleExpand(c.id)} className="p-1 shrink-0" aria-label={expandedCats.has(c.id) ? "Contraer" : "Expandir"}>
-                    {expandedCats.has(c.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </button>
-                  <button type="button" onClick={() => toggleExpand(c.id)} className="flex-1 min-w-0 flex items-center gap-2 flex-wrap text-left">
-                    <span className="font-medium text-sm truncate">{c.name}</span>
-                    <span className="text-xs muted">{counts[c.name] ?? 0} ingredientes</span>
-                  </button>
-                  <button type="button" onClick={() => moveCat(c, -1)} className="p-1" aria-label="Subir"><ArrowUp className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => moveCat(c, 1)} className="p-1" aria-label="Bajar"><ArrowDown className="h-4 w-4" /></button>
-                  <button type="button" onClick={(e) => { e.preventDefault(); setCatForm({ id: c.id, name: c.name, sort_order: c.sort_order, _origName: c.name }); }} className="p-1 text-primary" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => delCat(c)} className={`p-1 ${usage > 0 ? "text-muted-foreground/40 cursor-not-allowed" : "text-destructive"}`} title={usage > 0 ? "Reasigna los productos antes de borrar" : "Eliminar"}><Trash2 className="h-4 w-4" /></button>
-                </div>
-                {expandedCats.has(c.id) && (() => {
-                  const q = (catQuery[c.id] || "").trim().toLowerCase();
-                  const alpha = !!catSortAlpha[c.id];
-                  const list = items
-                    .filter((i) => i.category === c.name)
-                    .filter((i) => q ? i.name.toLowerCase().includes(q) : true)
-                    .sort((a, b) => alpha
-                      ? a.name.localeCompare(b.name, "es", { sensitivity: "base" })
-                      : ((a.sort_order ?? 0) - (b.sort_order ?? 0)) || a.name.localeCompare(b.name, "es"));
+
+                {activeCategoryRecord && (() => {
+                  const usage = (counts[activeCategoryRecord.name] ?? 0) + (cCounts[activeCategoryRecord.name] ?? 0);
                   return (
-                    <div className="ml-6 space-y-2 border-l-2 border-border pl-3">
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <div className="relative flex-1 min-w-[180px]">
-                          <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 muted" />
-                          <input className="field pl-8 text-sm" placeholder={`Buscar en ${c.name}…`} value={catQuery[c.id] || ""} onChange={(e) => setCatQuery((s) => ({ ...s, [c.id]: e.target.value }))} />
-                        </div>
-                        <button type="button" onClick={() => setCatSortAlpha((s) => ({ ...s, [c.id]: !s[c.id] }))} className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 ${alpha ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`} title="Vista alfabética">
-                          <ArrowDownAZ className="h-3.5 w-3.5" /> A-Z
-                        </button>
-                        <button type="button" onClick={() => sortCatAlphabetically(c.name)} className="text-xs px-2.5 py-1 rounded-full border bg-card border-border" title="Reordenar permanentemente A-Z">
-                          Guardar A-Z
-                        </button>
-                      </div>
-                      {list.length === 0 && (
-                        <div className="text-xs muted py-2">{q ? "Sin resultados." : "Sin ingredientes en esta categoría."}</div>
-                      )}
-                      {list.map((it) => (
-                        <div key={it.id} className="card-soft p-2.5 flex items-center gap-2">
-                          <div className="flex-1 min-w-0 text-sm truncate">{it.name}</div>
-                          {!alpha && (
-                            <>
-                              <button type="button" onClick={() => moveTemplateInCat(c.name, it.id, -1)} className="p-1" aria-label="Subir"><ArrowUp className="h-3.5 w-3.5" /></button>
-                              <button type="button" onClick={() => moveTemplateInCat(c.name, it.id, 1)} className="p-1" aria-label="Bajar"><ArrowDown className="h-3.5 w-3.5" /></button>
-                            </>
-                          )}
-                          <select
-                            className="field text-xs w-36"
-                            value={it.category ?? ""}
-                            onChange={async (e) => {
-                              const v = e.target.value || null;
-                              const { error } = await (supabase as any).from("shopping_templates").update({ category: v }).eq("id", it.id);
-                              if (error) return toast.error(error.message);
-                              setItems((arr) => arr.map((x) => x.id === it.id ? { ...x, category: v } : x));
-                            }}
-                          >
-                            <option value="">Sin categoría</option>
-                            {cats.map((cc) => <option key={cc.id} value={cc.name}>{cc.name}</option>)}
-                          </select>
-                          <button type="button" onClick={() => { setTab("templates"); setItemForm({ id: it.id, name: it.name, category: it.category ?? "", sort_order: it.sort_order }); setTimeout(() => document.getElementById("tpl-form")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50); }} className="p-1 text-primary" aria-label="Editar"><Pencil className="h-3.5 w-3.5" /></button>
-                          <button type="button" onClick={() => delItem(it.id)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-3.5 w-3.5" /></button>
-                        </div>
-                      ))}
+                    <div className="shopping-category-actions">
+                      <span className="text-xs muted">Ordenar “{activeCategoryRecord.name}”</span>
+                      <button type="button" onClick={() => moveCat(activeCategoryRecord, -1)} className="btn-secondary compact" aria-label="Subir categoría"><ArrowUp className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => moveCat(activeCategoryRecord, 1)} className="btn-secondary compact" aria-label="Bajar categoría"><ArrowDown className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => setCatForm({ id: activeCategoryRecord.id, name: activeCategoryRecord.name, sort_order: activeCategoryRecord.sort_order, _origName: activeCategoryRecord.name })} className="btn-secondary compact" aria-label="Editar categoría"><Pencil className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => delCat(activeCategoryRecord)} className={`btn-secondary compact ${usage > 0 ? "opacity-45 cursor-not-allowed" : "text-destructive"}`} title={usage > 0 ? "Reasigna los productos antes de borrar" : "Eliminar categoría"}><Trash2 className="h-4 w-4" /></button>
                     </div>
                   );
                 })()}
-              </div>
-            );
-          })}
+              </>
+            )}
+          </div>
         </div>
       </section>
+
+      {tab === "clients" && clientItemsList}
+      {tab === "templates" && templateItemsList}
 
       {/* === CLIENT ITEMS TAB === */}
       {tab === "clients" && (
@@ -435,7 +495,7 @@ export default function AdminShopping() {
             <span className="text-xs muted">{clientItems.length} en total</span>
           </div>
 
-          {/* Search + filters */}
+          {/* Search */}
           <div className="card-soft p-3 mb-3">
             <div className="relative">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 muted" />
@@ -445,18 +505,6 @@ export default function AdminShopping() {
                   <X className="h-4 w-4" />
                 </button>
               )}
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {[{ key: "all", label: "Todas" }, ...cats.map((c) => ({ key: c.name, label: c.name })), { key: UNCAT, label: "Sin categoría" }].map((ch) => (
-                <button
-                  key={ch.key}
-                  onClick={() => setCFilterCat(ch.key)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition ${cFilterCat === ch.key ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
-                >
-                  {ch.label} <span className="opacity-70">· {cCounts[ch.key] ?? 0}</span>
-                </button>
-              ))}
             </div>
 
             {clientUsers.length > 1 && (
@@ -495,45 +543,6 @@ export default function AdminShopping() {
             </button>
           </div>
 
-          {/* List */}
-          <div className="space-y-2">
-            {cFiltered.map((it) => {
-              const known = cats.some((c) => c.name === it.category);
-              const displayCat = it.category && known ? it.category : "";
-              return (
-                <div key={it.id} className="card-soft p-3 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={cSelected.has(it.id)}
-                    onChange={() => cToggle(it.id)}
-                    className="h-4 w-4 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{it.name}</div>
-                    <div className="text-xs muted truncate">
-                      {profiles[it.user_id] || "Clienta"}
-                      {it.quantity ? ` · ${it.quantity}` : ""}
-                      {!known && it.category ? ` · ⚠ "${it.category}" (categoría desconocida)` : ""}
-                    </div>
-                  </div>
-                  <select
-                    className="field w-44 text-sm"
-                    value={displayCat}
-                    onChange={(e) => cSetCategory(it.id, e.target.value || null)}
-                  >
-                    <option value="">Sin categoría</option>
-                    {cats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </select>
-                  <button onClick={() => cDelete(it.id, it.name)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
-                </div>
-              );
-            })}
-            {cFiltered.length === 0 && (
-              <div className="card-soft p-6 text-center muted text-sm">
-                {cQuery || cFilterCat !== "all" || cFilterUser !== "all" ? "Sin resultados con estos filtros." : "Aún no hay productos."}
-              </div>
-            )}
-          </div>
         </section>
       )}
 
@@ -541,7 +550,7 @@ export default function AdminShopping() {
       {tab === "templates" && (
         <section>
           <div className="flex items-baseline justify-between mb-2">
-            <h2 className="font-serif text-xl">Plantillas de ingredientes</h2>
+            <h2 className="font-serif text-xl">Ingredientes</h2>
             <span className="text-xs muted">{items.length} en total</span>
           </div>
 
@@ -569,17 +578,6 @@ export default function AdminShopping() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {filterChips.map((ch) => (
-                <button
-                  key={ch.key}
-                  onClick={() => setFilterCat(ch.key)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition ${filterCat === ch.key ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
-                >
-                  {ch.label} <span className="opacity-70">· {counts[ch.key] ?? 0}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="card-soft p-3 mb-3 flex flex-wrap items-center gap-2">
@@ -600,35 +598,6 @@ export default function AdminShopping() {
             </button>
           </div>
 
-          <div className="space-y-2">
-            {filtered.map((it) => (
-              <div
-                key={it.id}
-                draggable
-                onDragStart={() => onDragStart(it.id)}
-                onDragEnd={() => { setDragId(null); setDropTarget(null); }}
-                className={`card-soft p-3 flex items-center gap-2 cursor-grab active:cursor-grabbing ${dragId === it.id ? "opacity-50" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(it.id)}
-                  onChange={() => toggle(it.id)}
-                  className="h-4 w-4 shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{it.name}</div>
-                  <div className="text-xs muted truncate">{it.category ?? "Sin categoría"}</div>
-                </div>
-                <button onClick={() => { setItemForm({ id: it.id, name: it.name, category: it.category ?? "", sort_order: it.sort_order }); document.getElementById("tpl-form")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="p-1 text-primary" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
-                <button onClick={() => delItem(it.id)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="card-soft p-6 text-center muted text-sm">
-                {query || filterCat !== "all" ? "Sin resultados con estos filtros." : "Aún no hay ingredientes."}
-              </div>
-            )}
-          </div>
         </section>
       )}
     </div>

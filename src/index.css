@@ -567,6 +567,10 @@
     background: linear-gradient(160deg, hsl(340 60% 99% / .94), hsl(342 100% 98% / .88)) !important;
   }
 
+  .admin-area .admin-hero {
+    color: hsl(var(--foreground)) !important;
+  }
+
   .admin-area .admin-hero .text-white,
   .admin-area .admin-hero .text-white\/75,
   .admin-area .admin-hero .text-white\/70 {
@@ -580,7 +584,7 @@
 
   .admin-area .admin-hero .font-serif.text-xl,
   .admin-area .admin-hero .text-\[10px\].text-white\/70 {
-    color: #FF2D95 !important;
+    color: hsl(var(--foreground)) !important;
   }
 
   .admin-dashboard {
@@ -994,5 +998,206 @@
   .wellness-diary section.card-elegant:has(.diary-measures-grid) > h2,
   .wellness-diary section.card-elegant:has(.diary-habits-grid) > h2 {
     color: #FF2D95 !important;
+  }
+
+  .shopping-list-page .card-soft,
+  .admin-shopping-page .card-soft {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+    box-shadow: 0 18px 34px -24px hsl(325 45% 24% / .28) !important;
+  }
+
+  .shopping-list-page .shopping-inner-card,
+  .admin-shopping-page .shopping-inner-card {
+    background: #FFFFFF !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .shopping-list-page .btn-primary,
+  .admin-shopping-page .btn-primary,
+  .shopping-list-page button.bg-primary,
+  .admin-shopping-page button.bg-primary {
+    background: #FF2D95 !important;
+    background-image: none !important;
+    border-color: #FF2D95 !important;
+    color: white !important;
+  }
+
+  .shopping-list-page .field,
+  .admin-shopping-page .field {
+    background: #FFFFFF !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .shopping-list-page .shopping-hero-card,
+  .admin-shopping-page .shopping-hero-card {
+    position: relative;
+    display: block;
+    min-height: 14.5rem;
+    overflow: hidden;
+    padding: 0 !important;
+    border: 1px solid #FF2D95 !important;
+    border-radius: 1.75rem !important;
+    background: #FFF7FA !important;
+    box-shadow: none !important;
+  }
+
+  .shopping-list-page .shopping-hero-image,
+  .admin-shopping-page .shopping-hero-image {
+    width: 100%;
+    height: 14.5rem;
+    object-fit: cover;
+    display: block;
+  }
+
+  .shopping-list-page .shopping-hero-copy,
+  .admin-shopping-page .shopping-hero-copy {
+    position: absolute;
+    z-index: 1;
+    left: 1rem;
+    right: 1rem;
+    bottom: -.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: .35rem;
+    max-width: 27rem;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    text-shadow: none;
+  }
+
+  .shopping-list-page .shopping-hero-copy h1,
+  .admin-shopping-page .shopping-hero-copy h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 5.6vw, 3rem);
+    line-height: .95;
+    color: #FFFFFF;
+    letter-spacing: -.04em;
+    text-shadow: 0 2px 10px rgb(0 0 0 / .38);
+  }
+
+  .shopping-list-page .shopping-hero-copy p,
+  .admin-shopping-page .shopping-hero-copy p {
+    color: #FFFFFF;
+    font-size: .98rem;
+    line-height: 1.35;
+    font-weight: 600;
+    text-shadow: 0 2px 9px rgb(0 0 0 / .38);
+  }
+
+  .shopping-list-page .shopping-category-hero,
+  .admin-shopping-page .shopping-category-hero {
+    width: 100%;
+    min-height: 11.5rem;
+    padding: 1rem !important;
+    background: #FFF7FA !important;
+    border: 1px solid #FF2D95 !important;
+    border-radius: 1.75rem !important;
+    box-shadow: 0 22px 42px -28px hsl(325 45% 24% / .38) !important;
+    backdrop-filter: blur(10px);
+  }
+
+  .shopping-list-page .shopping-category-scroll,
+  .admin-shopping-page .shopping-category-scroll {
+    display: flex;
+    gap: .65rem;
+    overflow-x: auto;
+    padding: .35rem .1rem .65rem;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .shopping-list-page .shopping-category-scroll::-webkit-scrollbar,
+  .admin-shopping-page .shopping-category-scroll::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .shopping-list-page .shopping-filter-chip,
+  .admin-shopping-page .shopping-filter-chip {
+    min-height: 2.75rem;
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    border: 1px solid rgb(255 45 149 / .46);
+    border-radius: 999px;
+    background: #FFF7FA;
+    color: #1f1f1f;
+    padding: .55rem 1rem;
+    font-size: .82rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+  }
+
+  .shopping-list-page .shopping-filter-chip:hover,
+  .admin-shopping-page .shopping-filter-chip:hover {
+    border-color: #FF2D95;
+    background: #FFEAF4;
+  }
+
+  .shopping-list-page .shopping-filter-chip.is-active,
+  .admin-shopping-page .shopping-filter-chip.is-active {
+    border-color: #FF2D95;
+    background: #FF2D95;
+    color: #FFFFFF;
+    box-shadow: 0 12px 22px -16px rgb(255 45 149 / .85);
+  }
+
+  .admin-shopping-page .shopping-category-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    border-top: 1px solid rgb(255 45 149 / .22);
+    padding-top: .85rem;
+  }
+
+  .admin-shopping-page .shopping-category-create-form,
+  .admin-shopping-page .shopping-category-edit-form,
+  .admin-shopping-page .shopping-category-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+  }
+
+  .admin-shopping-page .btn-secondary.compact {
+    min-height: 2.35rem;
+    min-width: 2.35rem;
+    padding: .45rem .65rem;
+    border-color: rgb(255 45 149 / .55) !important;
+    background: #FFFFFF !important;
+    color: #1f1f1f !important;
+  }
+
+  .admin-shopping-page .btn-secondary.compact:hover {
+    border-color: #FF2D95 !important;
+    background: #FFEAF4 !important;
+  }
+
+  @media (max-width: 640px) {
+    .shopping-list-page .shopping-hero-card,
+    .admin-shopping-page .shopping-hero-card {
+      min-height: 13rem;
+    }
+
+    .shopping-list-page .shopping-hero-image,
+    .admin-shopping-page .shopping-hero-image {
+      height: 13rem;
+    }
+
+    .shopping-list-page .shopping-hero-copy,
+    .admin-shopping-page .shopping-hero-copy {
+      left: .75rem;
+      right: .75rem;
+      bottom: -.35rem;
+      padding: .72rem .85rem;
+    }
   }
 }
