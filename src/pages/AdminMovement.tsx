@@ -9,6 +9,7 @@ export default function AdminMovement() {
       backTo="/app/admin"
       title="Movimiento y ejercicio"
       categories={MOVEMENT_CATEGORIES}
+      className="admin-movement-page"
     />
   );
 }

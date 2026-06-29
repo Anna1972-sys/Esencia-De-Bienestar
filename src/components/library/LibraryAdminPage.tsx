@@ -41,6 +41,8 @@ type Props = {
   enableVisibility?: boolean;
   enableSubtitle?: boolean;
   quickSections?: readonly string[];
+  showHeader?: boolean;
+  categoryFilter?: string | null;
 };
 
 async function uploadFile(file: File, folder: string, base: string) {
@@ -62,11 +64,13 @@ export default function LibraryAdminPage({
   enableVisibility = false,
   enableSubtitle = false,
   quickSections = [],
+  showHeader = true,
+  categoryFilter = null,
 }: Props) {
   const empty: Form = {
     title: "",
     subtitle: "",
-    category: categories[0]?.key ?? "",
+    category: categoryFilter ?? categories[0]?.key ?? "",
     cover_image: "",
     blocks: [],
     sort_order: 0,
@@ -76,6 +80,7 @@ export default function LibraryAdminPage({
   const [items, setItems] = useState<any[]>([]);
   const [f, setF] = useState<Form>(empty);
   const [busy, setBusy] = useState(false);
+  const visibleItems = categoryFilter ? items.filter((item) => item.category === categoryFilter) : items;
 
   const load = () =>
     (supabase as any)
@@ -85,6 +90,11 @@ export default function LibraryAdminPage({
       .order("created_at", { ascending: false })
       .then(({ data }: any) => setItems(data ?? []));
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [table]);
+  useEffect(() => {
+    if (categoryFilter && !f.id) {
+      setF((current) => ({ ...current, category: categoryFilter }));
+    }
+  }, [categoryFilter, f.id]);
 
   const reset = () => setF(empty);
 
@@ -176,7 +186,7 @@ export default function LibraryAdminPage({
 
   return (
     <div className={`pb-28 ${className}`}>
-      <AdminPageHeader title={title} backTo={backTo} />
+      {showHeader && <AdminPageHeader title={title} backTo={backTo} />}
 
 
       <form onSubmit={save} className="card-soft library-admin-container p-4 space-y-3 mb-5">
@@ -340,7 +350,7 @@ export default function LibraryAdminPage({
         </div>
       </form>
 
-      <div className="space-y-2">{items.map(i => (
+      <div className="space-y-2">{visibleItems.map(i => (
         <div key={i.id} className="card-soft library-admin-container p-3 flex items-center justify-between gap-2">
           {i.cover_image && <img src={i.cover_image} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />}
           <div className="min-w-0 flex-1">

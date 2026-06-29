@@ -216,13 +216,13 @@ export default function AdminInternalFoods() {
   const updateForm = (patch: Partial<FormState>) => setForm(prev => ({ ...prev, ...patch }));
 
   return (
-    <div className="pb-28 max-w-3xl mx-auto">
+    <div className="admin-internal-foods-page pb-28 max-w-3xl mx-auto">
       <AdminPageHeader
         title="Alimentos internos"
         subtitle="Base editable que el cálculo nutricional consulta antes de USDA y FatSecret."
       />
 
-      <form onSubmit={save} className="card-soft p-4 space-y-4 mb-5">
+      <form onSubmit={save} className="card-soft admin-internal-foods-container p-4 space-y-4 mb-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-serif text-lg">{editingId ? "Editar alimento" : "Nuevo alimento"}</h2>
@@ -296,7 +296,7 @@ export default function AdminInternalFoods() {
         </button>
       </form>
 
-      <section className="card-soft p-4">
+      <section className="card-soft admin-internal-foods-container p-4">
         <div className="flex items-center gap-2 mb-3">
           <Search className="h-4 w-4 muted" />
           <input className="field" placeholder="Buscar alimento, categoría, fuente o sinónimo…" value={query} onChange={e => setQuery(e.target.value)} />
@@ -309,7 +309,7 @@ export default function AdminInternalFoods() {
 
         <div className="space-y-2">
           {filtered.map(food => (
-            <div key={food.id} className={`rounded-2xl border p-3 bg-white ${food.is_active ? "border-border" : "border-dashed opacity-60"}`}>
+            <div key={food.id} className={`admin-internal-food-row rounded-2xl border p-3 ${food.is_active ? "border-border" : "border-dashed opacity-60"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">

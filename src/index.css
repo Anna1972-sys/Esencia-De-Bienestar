@@ -436,11 +436,45 @@
 
   .admin-nutrition-page .admin-nutrition-panel,
   .admin-nutrition-page .admin-nutrition-form,
-  .admin-nutrition-page .admin-nutrition-category-row,
   .admin-nutrition-page .library-admin-container,
   .admin-nutrition-page .library-admin-inner-container {
     background: #FFF7FA !important;
     border-color: #FF2D95 !important;
+  }
+  .admin-nutrition-page .admin-nutrition-category-row {
+    background: hsl(0 0% 9% / .98) !important;
+    color: hsl(0 0% 96%);
+    border-color: #FF2D95 !important;
+    box-shadow: 0 14px 30px -22px hsl(0 0% 0% / .9);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .admin-nutrition-page .admin-nutrition-category-row.is-active {
+    border-width: 2px;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / .28), 0 16px 34px -22px hsl(0 0% 0% / .9);
+    transform: translateY(-1px);
+  }
+  .admin-nutrition-page .admin-nutrition-category-image {
+    filter: brightness(1.05) contrast(1.02);
+  }
+  .admin-nutrition-page .admin-nutrition-category-row .font-medium {
+    color: #FF2D95;
+    font-weight: 800;
+  }
+  .admin-nutrition-page .admin-nutrition-category-row .muted {
+    color: hsl(0 0% 90% / .82);
+  }
+  .admin-nutrition-page .admin-nutrition-card-action {
+    min-height: 28px;
+    border-radius: 999px;
+    border: 1px solid #FF2D95;
+    background: hsl(0 0% 100% / .96);
+    color: hsl(0 0% 10%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .admin-nutrition-page .admin-nutrition-card-action:disabled {
+    opacity: .35;
   }
 
   .admin-products .admin-products-panel,
@@ -1344,6 +1378,29 @@
   .progress-page .progress-date-days button.is-selected {
     background: #FF2D95;
     color: #FFFFFF;
+  }
+
+  .admin-internal-foods-page .admin-internal-foods-container,
+  .admin-internal-foods-page .admin-internal-food-row {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .admin-products .admin-products-panel,
+  .admin-products .admin-products-form,
+  .admin-products .admin-product-row,
+  .admin-products .admin-measure-row,
+  .admin-products .rounded-2xl.bg-secondary\/70,
+  .admin-products .rounded-\[22px\].bg-secondary\/60,
+  .admin-products .rounded-2xl.bg-white\/90 {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .admin-movement-page .library-admin-container,
+  .admin-movement-page .library-admin-inner-container {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
   }
 
   .shopping-list-page .shopping-hero-card,
