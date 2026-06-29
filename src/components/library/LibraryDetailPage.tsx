@@ -21,9 +21,10 @@ type Props = {
   table: string;
   basePath: string;
   categories: readonly LibraryCategory[];
+  visibleOnly?: boolean;
 };
 
-export default function LibraryDetailPage({ table, basePath, categories }: Props) {
+export default function LibraryDetailPage({ table, basePath, categories, visibleOnly = false }: Props) {
   const { id } = useParams();
   const [it, setIt] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,10 +37,10 @@ export default function LibraryDetailPage({ table, basePath, categories }: Props
       .eq("id", id)
       .maybeSingle()
       .then(({ data }: any) => {
-        setIt(data);
+        setIt(visibleOnly && data?.visible === false ? null : data);
         setLoading(false);
       });
-  }, [id, table]);
+  }, [id, table, visibleOnly]);
 
   if (loading) return <div className="muted">Cargando…</div>;
   if (!it)

@@ -17,11 +17,13 @@ const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
 type Form = {
   id?: string;
   title: string;
+  subtitle: string;
   category: string;
   cover_image: string;
   blocks: ContentBlock[];
   sort_order: AdminNumberValue;
   tags: string[];
+  visible: boolean;
 };
 
 const TAG_SUGGESTIONS = [
@@ -35,6 +37,10 @@ type Props = {
   backTo: string;                 // e.g. "/app/admin"
   title: string;                  // page heading
   categories: readonly LibraryCategory[];
+  className?: string;
+  enableVisibility?: boolean;
+  enableSubtitle?: boolean;
+  quickSections?: readonly string[];
 };
 
 async function uploadFile(file: File, folder: string, base: string) {
@@ -46,8 +52,27 @@ async function uploadFile(file: File, folder: string, base: string) {
   return data.signedUrl;
 }
 
-export default function LibraryAdminPage({ table, storageFolder, backTo, title, categories }: Props) {
-  const empty: Form = { title: "", category: categories[0]?.key ?? "", cover_image: "", blocks: [], sort_order: 0, tags: [] };
+export default function LibraryAdminPage({
+  table,
+  storageFolder,
+  backTo,
+  title,
+  categories,
+  className = "",
+  enableVisibility = false,
+  enableSubtitle = false,
+  quickSections = [],
+}: Props) {
+  const empty: Form = {
+    title: "",
+    subtitle: "",
+    category: categories[0]?.key ?? "",
+    cover_image: "",
+    blocks: [],
+    sort_order: 0,
+    tags: [],
+    visible: true,
+  };
   const [items, setItems] = useState<any[]>([]);
   const [f, setF] = useState<Form>(empty);
   const [busy, setBusy] = useState(false);
@@ -69,11 +94,13 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
     setBusy(true);
     const payload: any = {
       title: f.title,
+      ...(enableSubtitle ? { subtitle: f.subtitle || null } : {}),
       category: f.category,
       cover_image: f.cover_image || null,
       blocks: f.blocks,
       sort_order: numberOrFallback(f.sort_order),
       tags: f.tags ?? [],
+      ...(enableVisibility ? { visible: f.visible } : {}),
     };
     const res = f.id
       ? await (supabase as any).from(table).update(payload).eq("id", f.id)
@@ -105,11 +132,13 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
     setF({
       id: it.id,
       title: it.title ?? "",
+      subtitle: it.subtitle ?? "",
       category: it.category ?? categories[0].key,
       cover_image: it.cover_image ?? "",
       blocks: Array.isArray(it.blocks) ? it.blocks : [],
       sort_order: it.sort_order ?? 0,
       tags: Array.isArray(it.tags) ? it.tags : [],
+      visible: it.visible !== false,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -120,6 +149,14 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
   };
 
   const addBlock = (b: ContentBlock) => setF(s => ({ ...s, blocks: [...s.blocks, b] }));
+  const addQuickSection = (label: string) => setF(s => ({
+    ...s,
+    blocks: [
+      ...s.blocks,
+      { type: "title", value: label },
+      { type: "text", value: "" },
+    ],
+  }));
   const updateBlock = (i: number, patch: any) => setF(s => ({ ...s, blocks: s.blocks.map((b, idx) => idx === i ? { ...b, ...patch } : b) }));
   const removeBlock = (i: number) => setF(s => ({ ...s, blocks: s.blocks.filter((_, idx) => idx !== i) }));
   const moveBlock = (i: number, dir: -1 | 1) => setF(s => {
@@ -138,11 +175,11 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
   };
 
   return (
-    <div className="pb-28">
+    <div className={`pb-28 ${className}`}>
       <AdminPageHeader title={title} backTo={backTo} />
 
 
-      <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
+      <form onSubmit={save} className="card-soft library-admin-container p-4 space-y-3 mb-5">
         <div className="font-medium">{f.id ? "Editar publicación" : "Nueva publicación"}</div>
 
         <div>
@@ -156,12 +193,32 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
 
         <input className="field" placeholder="Título" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} required />
 
+        {enableSubtitle && (
+          <input
+            className="field"
+            placeholder="Subtítulo breve"
+            value={f.subtitle}
+            onChange={e => setF({ ...f, subtitle: e.target.value })}
+          />
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           <select className="field" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>
             {categories.map(c => <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>)}
           </select>
           <input className="field" type="number" placeholder="Orden" value={f.sort_order} onChange={e => setF({ ...f, sort_order: numberInputValue(e.target.value) })} />
         </div>
+
+        {enableVisibility && (
+          <label className="flex items-center justify-between rounded-xl border border-[#FF2D95]/40 bg-white px-3 py-2 text-sm">
+            <span>Visible para clientes</span>
+            <input
+              type="checkbox"
+              checked={f.visible}
+              onChange={e => setF({ ...f, visible: e.target.checked })}
+            />
+          </label>
+        )}
 
         <div>
           <label className="text-xs muted">Etiquetas</label>
@@ -207,7 +264,7 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
           <div className="text-xs muted mb-2">Contenido (se mostrará en el mismo orden)</div>
           <div className="space-y-2">
             {f.blocks.map((b, i) => (
-              <div key={i} className="border rounded-xl p-2 bg-background">
+              <div key={i} className="library-admin-inner-container border rounded-xl p-2 bg-background">
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-xs muted uppercase">{b.type}</div>
                   <div className="flex gap-1">
@@ -251,6 +308,11 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-3">
+            {quickSections.map((label) => (
+              <button key={label} type="button" className="btn-secondary" onClick={() => addQuickSection(label)}>
+                <Type className="h-4 w-4" /> {label}
+              </button>
+            ))}
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "title", value: "" })}><Heading className="h-4 w-4" /> Título</button>
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "subtitle", value: "" })}><Heading2 className="h-4 w-4" /> Subtítulo</button>
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "text", value: "" })}><Type className="h-4 w-4" /> Texto</button>
@@ -279,11 +341,14 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
       </form>
 
       <div className="space-y-2">{items.map(i => (
-        <div key={i.id} className="card-soft p-3 flex items-center justify-between gap-2">
+        <div key={i.id} className="card-soft library-admin-container p-3 flex items-center justify-between gap-2">
           {i.cover_image && <img src={i.cover_image} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />}
           <div className="min-w-0 flex-1">
             <div className="font-medium text-sm truncate">{i.title}</div>
-            <div className="text-xs muted truncate">{categories.find(c => c.key === i.category)?.label ?? i.category ?? "Sin categoría"}</div>
+            <div className="text-xs muted truncate">
+              {categories.find(c => c.key === i.category)?.label ?? i.category ?? "Sin categoría"}
+              {enableVisibility && i.visible === false ? " · Oculto" : ""}
+            </div>
           </div>
           <button onClick={() => moveItem(i.id, -1)} className="shrink-0 p-1" aria-label="Subir"><ArrowUp className="h-4 w-4" /></button>
           <button onClick={() => moveItem(i.id, 1)} className="shrink-0 p-1" aria-label="Bajar"><ArrowDown className="h-4 w-4" /></button>

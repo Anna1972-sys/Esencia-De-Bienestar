@@ -5,7 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, BookOpen, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type LibraryCategory = { key: string; label: string; emoji: string; image?: string };
+export type LibraryCategory = {
+  key: string;
+  label: string;
+  emoji?: string | null;
+  image?: string;
+  subtitle?: string | null;
+  visible?: boolean | null;
+};
 
 type Props = {
   table: string;
@@ -15,6 +22,7 @@ type Props = {
   categories: readonly LibraryCategory[];
   variant?: "default" | "nutrition" | "movement";
   hero?: ReactNode;
+  visibleOnly?: boolean;
 };
 
 function blocksToText(blocks: any): string {
@@ -31,7 +39,7 @@ function blocksToText(blocks: any): string {
     .toLowerCase();
 }
 
-export default function LibraryPage({ table, basePath, title, subtitle, categories, variant = "default", hero }: Props) {
+export default function LibraryPage({ table, basePath, title, subtitle, categories, variant = "default", hero, visibleOnly = false }: Props) {
   const [items, setItems] = useState<any[]>([]);
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -42,8 +50,11 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
       .select("*")
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false })
-      .then(({ data }: any) => setItems(data ?? []));
-  }, [table]);
+      .then(({ data }: any) => {
+        const rows = data ?? [];
+        setItems(visibleOnly ? rows.filter((item: any) => item.visible !== false) : rows);
+      });
+  }, [table, visibleOnly]);
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -62,9 +73,14 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
     );
   };
 
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.visible !== false),
+    [categories]
+  );
+
   const filtered = cat ? items.filter((i) => i.category === cat && matches(i)) : [];
   const globalResults = !cat && term ? items.filter(matches) : [];
-  const current = cat ? categories.find((c) => c.key === cat) ?? null : null;
+  const current = cat ? visibleCategories.find((c) => c.key === cat) ?? null : null;
 
   const SearchBar = (
     <div className="relative mb-4">
@@ -96,7 +112,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
       <div className="p-4 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-medium truncate">{it.title}</div>
-          <div className="text-xs muted truncate">{label ?? categories.find((c) => c.key === it.category)?.label}</div>
+          <div className="text-xs muted truncate">{label ?? visibleCategories.find((c) => c.key === it.category)?.label}</div>
           {Array.isArray(it.tags) && it.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {it.tags.slice(0, 4).map((t: string) => (
@@ -161,20 +177,21 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
             )
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {categories.map((c) => (
+              {visibleCategories.map((c) => (
                 <button
                   key={c.key}
                   onClick={() => setCat(c.key)}
-                  className="card-soft p-4 text-left hover:shadow-glow transition"
+                  className={variant === "nutrition" ? "nutrition-category-card text-left hover:shadow-glow transition" : "card-soft p-4 text-left hover:shadow-glow transition"}
                 >
                   {(variant === "nutrition" || variant === "movement") && c.image ? (
-                    <div className="mb-3 overflow-hidden rounded-2xl border border-[#FF2D95]">
+                    <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
                       <img src={c.image} alt="" loading="lazy" className="h-28 w-full object-cover" />
                     </div>
                   ) : (
                     <div className="text-2xl mb-1">{c.emoji}</div>
                   )}
                   <div className="font-medium text-sm">{c.label}</div>
+                  {c.subtitle && <div className="text-xs mt-1 nutrition-category-subtitle">{c.subtitle}</div>}
                   <div className="text-xs muted mt-1 inline-flex items-center gap-1">
                     <BookOpen className="h-3 w-3" /> {counts[c.key] ?? 0}
                   </div>

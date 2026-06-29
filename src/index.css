@@ -409,6 +409,39 @@
     background: hsl(0 0% 98%);
     color: hsl(0 0% 10%);
   }
+  .wellness-nutrition .nutrition-category-card {
+    min-height: 208px;
+    padding: .75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    background: hsl(0 0% 9% / .98);
+    color: hsl(0 0% 96%);
+    border: 1px solid #FF2D95;
+    border-radius: 1.5rem;
+    box-shadow: 0 14px 30px -22px hsl(0 0% 0% / .9);
+  }
+  .wellness-nutrition .nutrition-category-card .font-medium {
+    color: #FF2D95;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .wellness-nutrition .nutrition-category-card .nutrition-category-subtitle,
+  .wellness-nutrition .nutrition-category-card .muted {
+    color: hsl(0 0% 90% / .82);
+  }
+  .wellness-nutrition .nutrition-category-image img {
+    filter: brightness(1.04) contrast(1.02);
+  }
+
+  .admin-nutrition-page .admin-nutrition-panel,
+  .admin-nutrition-page .admin-nutrition-form,
+  .admin-nutrition-page .admin-nutrition-category-row,
+  .admin-nutrition-page .library-admin-container,
+  .admin-nutrition-page .library-admin-inner-container {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
 
   .admin-products .admin-products-panel,
   .admin-products .admin-products-form {
