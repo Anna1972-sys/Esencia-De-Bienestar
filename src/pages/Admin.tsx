@@ -8,7 +8,7 @@ import userRecipesImage from "@/assets/cat-comidas.jpg";
 import videosImage from "@/assets/challenge-videos.png";
 import movementImage from "@/assets/home-movimiento.png";
 import nutritionImage from "@/assets/home-nutrition-premium-light.png";
-import macroSpecialistImage from "@/assets/admin-macro-specialist.jpg";
+import macroSpecialistImage from "@/assets/admin-macro-specialist-clean.jpg";
 import internalFoodsImage from "@/assets/resource-alimentacion.png";
 import productsImage from "@/assets/home-productos-te-jardin.png";
 import usersAdminImage from "@/assets/home-admin.png";
@@ -25,7 +25,6 @@ type Item = {
   label: string;
   desc: string;
   image: string;
-  imageClass?: string;
 };
 
 const groups: { title: string; items: Item[] }[] = [
@@ -34,7 +33,7 @@ const groups: { title: string; items: Item[] }[] = [
     items: [
       { to: "/app/admin/recetas",            label: "Recetas",                 desc: "Crear y editar recetas", image: recipesImage },
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
-      { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage, imageClass: "object-top" },
+      { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage },
       { to: "/app/admin/alimentos-internos", label: "Alimentos internos", desc: "Base nutricional editable", image: internalFoodsImage },
       { to: "/app/admin/productos",          label: "Salud y Bienestar",      desc: "Todo sobre Herbalife", image: productsImage },
       
@@ -140,7 +139,7 @@ export default function Admin() {
                   to={s.to}
                   className="challenge-premium admin-card group relative overflow-hidden rounded-[28px] hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <img src={s.image} alt="" className={`admin-card-image transition-transform duration-500 group-hover:scale-105 ${s.imageClass ?? ""}`} />
+                  <img src={s.image} alt="" className="admin-card-image transition-transform duration-500 group-hover:scale-105" />
                   <div className="admin-card-body flex items-center gap-3 px-4 py-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[15px] leading-tight text-foreground">{s.label}</div>
