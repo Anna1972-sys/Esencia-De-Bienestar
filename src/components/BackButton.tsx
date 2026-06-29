@@ -11,6 +11,7 @@ export default function BackButton({
   fallbackTo = "/app",
   type = "button",
   onClick,
+  className,
   ...props
 }: Props) {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export default function BackButton({
   };
 
   return (
-    <button type={type} onClick={goBack} {...props}>
+    <button type={type} onClick={goBack} className={`back-button ${className ?? ""}`} {...props}>
       {children}
     </button>
   );
