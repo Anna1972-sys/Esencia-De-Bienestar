@@ -104,7 +104,7 @@ function Tile({
       to={to}
       className="wellness-tile relative rounded-[28px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center pt-5 pb-5 px-4 min-h-[240px]"
     >
-      <div className="relative grid place-items-center h-36 w-full">
+      <div className="relative grid place-items-center h-[152px] w-full">
         <div className="home-card-image-frame">
           <img
             src={image}
