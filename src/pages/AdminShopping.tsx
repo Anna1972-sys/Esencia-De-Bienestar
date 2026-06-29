@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Users, Package, ChevronDown, ChevronRight, ArrowDownAZ } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
+import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
 
 type Category = { id: string; name: string; sort_order: number };
 type Template = { id: string; name: string; category: string | null; sort_order: number };
@@ -20,7 +21,7 @@ export default function AdminShopping() {
   const [clientItems, setClientItems] = useState<ClientItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
 
-  const [catForm, setCatForm] = useState<{ id?: string; name: string; sort_order: number; _origName?: string }>({ name: "", sort_order: 0 });
+  const [catForm, setCatForm] = useState<{ id?: string; name: string; sort_order: AdminNumberValue; _origName?: string }>({ name: "", sort_order: 0 });
   const [itemForm, setItemForm] = useState<{ id?: string; name: string; category: string; sort_order: number }>({ name: "", category: "", sort_order: 0 });
 
   const [query, setQuery] = useState("");
@@ -146,7 +147,7 @@ export default function AdminShopping() {
     if (!newName) return;
     if (catForm.id) {
       const oldName = catForm._origName;
-      const { error } = await (supabase as any).from("shopping_categories").update({ name: newName, sort_order: catForm.sort_order }).eq("id", catForm.id);
+      const { error } = await (supabase as any).from("shopping_categories").update({ name: newName, sort_order: numberOrFallback(catForm.sort_order) }).eq("id", catForm.id);
       if (error) return toast.error(error.message);
       // Propagate rename to items and templates
       if (oldName && oldName !== newName) {
@@ -154,7 +155,7 @@ export default function AdminShopping() {
         await (supabase as any).from("shopping_list_items").update({ category: newName }).eq("category", oldName);
       }
     } else {
-      const { error } = await (supabase as any).from("shopping_categories").insert({ name: newName, sort_order: catForm.sort_order });
+      const { error } = await (supabase as any).from("shopping_categories").insert({ name: newName, sort_order: numberOrFallback(catForm.sort_order) });
       if (error) return toast.error(error.message);
     }
     toast.success("Categoría guardada");
@@ -325,7 +326,7 @@ export default function AdminShopping() {
             <div className="font-medium text-sm">Nueva categoría</div>
             <div className="flex gap-2 flex-wrap">
               <input className="field flex-1 min-w-[180px]" placeholder="Nombre" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
-              <input className="field w-28" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: Number(e.target.value) || 0 })} />
+              <input className="field w-28" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
               <button className="btn-primary"><Plus className="h-4 w-4" /> Añadir</button>
             </div>
           </form>
@@ -340,7 +341,7 @@ export default function AdminShopping() {
                   <div className="text-xs muted">Editando categoría: <span className="font-medium text-foreground">{catForm._origName}</span></div>
                   <div className="flex gap-2 flex-wrap items-center">
                     <input autoFocus className="field flex-1 min-w-[180px]" placeholder="Nombre" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
-                    <input className="field w-24" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: Number(e.target.value) || 0 })} />
+                    <input className="field w-24" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
                     <button type="submit" className="btn-primary">Guardar</button>
                     <button type="button" className="btn-secondary" onClick={resetCat}>Cancelar</button>
                   </div>

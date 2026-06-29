@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { Home, Sparkles, BookHeart, Package, ShoppingBag, User } from "lucide-react";
+import { selectInitialZero } from "@/lib/adminNumberInput";
+import type { FocusEvent } from "react";
 
 const items = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
@@ -13,10 +15,17 @@ const items = [
 export default function Layout() {
   const location = useLocation();
   const isAdminArea = location.pathname.startsWith("/app/admin");
+  const handleAdminNumberFocus = (event: FocusEvent<HTMLElement>) => {
+    if (!isAdminArea) return;
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.type === "number") {
+      selectInitialZero(target);
+    }
+  };
 
   return (
     <div className="app-shell relative">
-      <main className={`px-5 pt-6 animate-fade-in ${isAdminArea ? "admin-area" : ""}`}>
+      <main className={`px-5 pt-6 animate-fade-in ${isAdminArea ? "admin-area" : ""}`} onFocusCapture={handleAdminNumberFocus}>
         <Outlet />
       </main>
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md px-4 pb-5 pt-2 z-40">

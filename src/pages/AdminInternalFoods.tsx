@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { Calculator, Edit3, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,8 +21,14 @@ type InternalFood = {
   is_active: boolean;
 };
 
-type FormState = Omit<InternalFood, "id" | "synonyms"> & {
+type FormState = Omit<InternalFood, "id" | "synonyms" | "base_quantity" | "calories" | "protein" | "carbs" | "fat" | "fiber"> & {
   synonyms: string;
+  base_quantity: AdminNumberValue;
+  calories: AdminNumberValue;
+  protein: AdminNumberValue;
+  carbs: AdminNumberValue;
+  fat: AdminNumberValue;
+  fiber: AdminNumberValue;
 };
 
 const emptyForm: FormState = {
@@ -155,13 +162,13 @@ export default function AdminInternalFoods() {
     const payload = {
       name: form.name.trim(),
       synonyms: textToSynonyms(form.synonyms),
-      base_quantity: Number(form.base_quantity) || 100,
+      base_quantity: numberOrFallback(form.base_quantity, 100),
       base_unit: form.base_unit,
-      calories: Number(form.calories) || 0,
-      protein: Number(form.protein) || 0,
-      carbs: Number(form.carbs) || 0,
-      fat: Number(form.fat) || 0,
-      fiber: Number(form.fiber) || 0,
+      calories: numberOrFallback(form.calories),
+      protein: numberOrFallback(form.protein),
+      carbs: numberOrFallback(form.carbs),
+      fat: numberOrFallback(form.fat),
+      fiber: numberOrFallback(form.fiber),
       category: form.category.trim() || "general",
       source: "Tabla interna",
       is_active: form.is_active,
@@ -247,7 +254,7 @@ export default function AdminInternalFoods() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <label className="space-y-1">
             <span className="text-xs muted">Cantidad base</span>
-            <input className="field" type="number" min="0" step="0.1" value={form.base_quantity} onChange={e => updateForm({ base_quantity: Number(e.target.value) })} />
+            <input className="field" type="number" min="0" step="0.1" value={form.base_quantity} onChange={e => updateForm({ base_quantity: numberInputValue(e.target.value) })} />
           </label>
           <label className="space-y-1">
             <span className="text-xs muted">Unidad base</span>
@@ -273,7 +280,7 @@ export default function AdminInternalFoods() {
           ] as const).map(([key, label]) => (
             <label key={key} className="space-y-1">
               <span className="text-xs muted">{label}</span>
-              <input className="field" type="number" step="0.1" value={form[key]} onChange={e => updateForm({ [key]: Number(e.target.value) } as Partial<FormState>)} />
+              <input className="field" type="number" step="0.1" value={form[key]} onChange={e => updateForm({ [key]: numberInputValue(e.target.value) } as Partial<FormState>)} />
             </label>
           ))}
         </div>

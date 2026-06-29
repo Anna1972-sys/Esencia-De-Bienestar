@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,12 +18,12 @@ type ProductCategory = {
 type ProductMeasure = {
   id?: string;
   name: string;
-  grams: number;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  fiber: number;
+  grams: AdminNumberValue;
+  calories: AdminNumberValue;
+  protein: AdminNumberValue;
+  carbs: AdminNumberValue;
+  fat: AdminNumberValue;
+  fiber: AdminNumberValue;
   source: string;
   verification_status: "verificado" | "pendiente";
   is_default: boolean;
@@ -68,8 +69,16 @@ type Product = {
   product_measures?: ProductMeasure[];
 };
 
-type ProductForm = Omit<Product, "id" | "slug" | "product_measures"> & {
+type ProductForm = Omit<Product, "id" | "slug" | "product_measures" | "calories" | "protein" | "carbs" | "fat" | "fiber" | "sugars" | "salt" | "sort_order"> & {
   id?: string;
+  calories: AdminNumberValue;
+  protein: AdminNumberValue;
+  carbs: AdminNumberValue;
+  fat: AdminNumberValue;
+  fiber: AdminNumberValue;
+  sugars: AdminNumberValue;
+  salt: AdminNumberValue;
+  sort_order: AdminNumberValue;
   aliasesText: string;
   micronutrientsText: string;
   measures: ProductMeasure[];
@@ -146,7 +155,6 @@ function measureFromProductNutrition(measure: ProductMeasure, product: ProductFo
   const factor = grams / 100;
   return {
     ...measure,
-    grams,
     calories: round1(toNumber(product.calories) * factor),
     protein: round1(toNumber(product.protein) * factor),
     carbs: round1(toNumber(product.carbs) * factor),
@@ -766,11 +774,32 @@ function TextArea({ label, value, onChange }: { label: string; value: string; on
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function NumberField({ label, value, onChange }: { label: string; value: AdminNumberValue; onChange: (value: AdminNumberValue) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setDraft(String(value));
+    }
+  }, [value]);
+
   return (
     <label className="block">
       <span className="text-[11px] muted">{label}</span>
-      <input className="field mt-1" type="number" step="0.01" value={value} onChange={e => onChange(toNumber(e.target.value))} />
+      <input
+        ref={inputRef}
+        className="field mt-1"
+        type="number"
+        step="0.01"
+        value={draft}
+        onFocus={e => selectInitialZero(e.currentTarget)}
+        onChange={e => {
+          const next = e.target.value;
+          setDraft(next);
+          onChange(next);
+        }}
+      />
     </label>
   );
 }

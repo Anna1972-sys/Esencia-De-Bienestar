@@ -9,6 +9,7 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import type { ContentBlock } from "@/lib/movementCategories";
 import type { LibraryCategory } from "./LibraryPage";
+import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
@@ -19,7 +20,7 @@ type Form = {
   category: string;
   cover_image: string;
   blocks: ContentBlock[];
-  sort_order: number;
+  sort_order: AdminNumberValue;
   tags: string[];
 };
 
@@ -71,7 +72,7 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
       category: f.category,
       cover_image: f.cover_image || null,
       blocks: f.blocks,
-      sort_order: f.sort_order ?? 0,
+      sort_order: numberOrFallback(f.sort_order),
       tags: f.tags ?? [],
     };
     const res = f.id
@@ -159,7 +160,7 @@ export default function LibraryAdminPage({ table, storageFolder, backTo, title, 
           <select className="field" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>
             {categories.map(c => <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>)}
           </select>
-          <input className="field" type="number" placeholder="Orden" value={f.sort_order} onChange={e => setF({ ...f, sort_order: Number(e.target.value) || 0 })} />
+          <input className="field" type="number" placeholder="Orden" value={f.sort_order} onChange={e => setF({ ...f, sort_order: numberInputValue(e.target.value) })} />
         </div>
 
         <div>

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, Pencil, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import { numberInputValue, numberOrFallback } from "@/lib/adminNumberInput";
 
 export type Field = {
   key: string;
@@ -45,6 +46,10 @@ export default function SimpleListAdmin({ table, title, subtitle, fields, primar
     e.preventDefault();
     setBusy(true);
     const payload = { ...f };
+    for (const field of fields) {
+      if (field.type === "number") payload[field.key] = numberOrFallback(payload[field.key]);
+    }
+    payload.sort_order = numberOrFallback(payload.sort_order);
     const { id, ...rest } = payload;
     const res = id
       ? await (supabase as any).from(table).update(rest).eq("id", id)
@@ -95,13 +100,13 @@ export default function SimpleListAdmin({ table, title, subtitle, fields, primar
                 <label htmlFor={field.key} className="text-sm">{field.placeholder ?? "Activado"}</label>
               </div>
             ) : (
-              <input className="field" type={field.type === "number" ? "number" : "text"} placeholder={field.placeholder} value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: field.type === "number" ? Number(e.target.value) || 0 : e.target.value })} required={field.required} />
+              <input className="field" type={field.type === "number" ? "number" : "text"} placeholder={field.placeholder} value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: field.type === "number" ? numberInputValue(e.target.value) : e.target.value })} required={field.required} />
             )}
           </div>
         ))}
         <div>
           <label className="text-xs muted">Orden</label>
-          <input className="field" type="number" value={f.sort_order ?? 0} onChange={(e) => setF({ ...f, sort_order: Number(e.target.value) || 0 })} />
+          <input className="field" type="number" value={f.sort_order ?? 0} onChange={(e) => setF({ ...f, sort_order: numberInputValue(e.target.value) })} />
         </div>
         <div className="flex gap-2">
           <button className="btn-primary flex-1" disabled={busy}><Plus className="h-4 w-4" /> {f.id ? "Guardar" : "Añadir"}</button>
