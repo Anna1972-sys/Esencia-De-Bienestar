@@ -222,6 +222,13 @@ export default function AdminRecipes() {
   };
 
   const applyMacros = (data: any) => {
+    console.info("[admin-recipes] macros calculados", {
+      found: data?.found,
+      notFound: data?.notFound,
+      missingGrams: data?.missingGrams,
+      warnings: data?.warnings,
+      debug: data?.debug,
+    });
     const macros = macrosFromSpecialist(data);
     updateForm({
       calories: numberText(macros.calories),
@@ -250,6 +257,11 @@ export default function AdminRecipes() {
     if (missingQty.length) toast.warning(`Hay ingredientes sin gramos o cantidad clara: ${missingQty[0]}`);
     setCalculating(true);
     try {
+      console.info("[admin-recipes] recalculando macros del formulario", {
+        ingredients,
+        servings: Number(form.servings) || 1,
+        category: form.category,
+      });
       const data = await calculateWithMacroSpecialist({
         ingredientsText: form.ingredients,
         servings: Number(form.servings) || 1,
@@ -257,6 +269,7 @@ export default function AdminRecipes() {
       });
       return applyMacros(data);
     } catch (err: any) {
+      console.error("[admin-recipes] error recalculando macros del formulario", err);
       toast.error(err.message || "Error recalculando macros");
       return null;
     } finally {
@@ -362,6 +375,13 @@ export default function AdminRecipes() {
     if (!ingredientsText.trim()) { toast.error("Esta receta no tiene ingredientes para recalcular"); return; }
     setCalculating(true);
     try {
+      console.info("[admin-recipes] recalculando macros de receta", {
+        recipeId: recipe.id,
+        title: recipe.title,
+        ingredientsText,
+        servings: Number(recipe.servings ?? recipe.macros?.servings) || 1,
+        category: recipe.category ?? "biblioteca",
+      });
       const data = await calculateWithMacroSpecialist({
         ingredientsText,
         servings: Number(recipe.servings ?? recipe.macros?.servings) || 1,
@@ -383,6 +403,12 @@ export default function AdminRecipes() {
       else toast.success("Receta recalculada");
       await load();
     } catch (err: any) {
+      console.error("[admin-recipes] error recalculando receta", {
+        recipeId: recipe.id,
+        title: recipe.title,
+        ingredientsText,
+        error: err,
+      });
       toast.error(err.message || "No se pudo recalcular la receta");
     } finally {
       setCalculating(false);

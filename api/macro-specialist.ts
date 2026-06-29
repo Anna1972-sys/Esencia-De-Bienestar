@@ -1168,19 +1168,35 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Método no permitido" });
   }
 
-  const session = await verifySession(req.headers.authorization);
-  if (!session.ok) return res.status(session.status).json({ error: session.error });
-  const sessionToken = "token" in session ? session.token : "";
+  let inputIngredients: IngredientInput[] = [];
+  let servings = 1;
 
-  const body = req.body ?? {};
-  const servings = Math.max(1, Math.round(Number(body.servings) || 1));
-  const inputIngredients: IngredientInput[] = Array.isArray(body.ingredients)
-    ? body.ingredients
-    : String(body.ingredientsText || "")
-      .split("\n")
-      .map((line: string) => line.trim())
-      .filter(Boolean)
-      .map(parseRawIngredient);
+  try {
+    const session = await verifySession(req.headers.authorization);
+    if (!session.ok) return res.status(session.status).json({ error: session.error });
+    const sessionToken = "token" in session ? session.token : "";
+
+    const body = req.body ?? {};
+    servings = Math.max(1, Math.round(Number(body.servings) || 1));
+    inputIngredients = Array.isArray(body.ingredients)
+      ? body.ingredients
+      : String(body.ingredientsText || "")
+        .split("\n")
+        .map((line: string) => line.trim())
+        .filter(Boolean)
+        .map(parseRawIngredient);
+
+    console.info("[macro-specialist] request", JSON.stringify({
+      servings,
+      category: body.category ?? "",
+      ingredients: inputIngredients.map(item => ({
+        raw: item.raw,
+        parsedName: item.name,
+        quantity: item.quantity ?? null,
+        unit: item.unit ?? null,
+        grams: item.grams ?? null,
+      })),
+    }));
 
   const externalApisConfigured = {
     products: false,
@@ -1448,4 +1464,31 @@ export default async function handler(req: any, res: any) {
   }));
 
   return res.status(200).json(responseBody);
+  } catch (err: any) {
+    const message = err?.message || String(err);
+    const failedIngredients = inputIngredients
+      .filter(item => !item.name || !Number.isFinite(Number(item.grams)) || Number(item.grams) <= 0)
+      .map(item => String(item.raw || item.name || "Ingrediente sin nombre"));
+
+    console.error("[macro-specialist] fatal error", JSON.stringify({
+      error: message,
+      stack: err?.stack,
+      servings,
+      ingredients: inputIngredients.map(item => ({
+        raw: item.raw,
+        parsedName: item.name,
+        quantity: item.quantity ?? null,
+        unit: item.unit ?? null,
+        grams: item.grams ?? null,
+      })),
+      failedIngredients,
+    }));
+
+    return res.status(500).json({
+      error: "Error interno calculando macros",
+      detail: message,
+      failedIngredient: failedIngredients[0] ?? null,
+      failedIngredients,
+    });
+  }
 }
