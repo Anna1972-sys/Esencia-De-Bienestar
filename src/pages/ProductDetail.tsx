@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, MousePointerClick } from "lucide-react";
 
 type ProductMeasure = {
   id: string;
@@ -61,6 +61,54 @@ function toEmbed(url: string) {
 const asArray = (value: unknown): string[] => Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 const toNumber = (value: unknown) => Number(value) || 0;
 
+type ProductBlockId =
+  | "main_image"
+  | "spoon_image"
+  | "gallery"
+  | "videos"
+  | "pdfs"
+  | "external_urls"
+  | "description"
+  | "benefits"
+  | "usage"
+  | "ingredients"
+  | "observations"
+  | "free_text"
+  | "nutrition"
+  | "measures";
+
+const PRODUCT_BLOCK_ORDER_KEY = "__product_block_order";
+
+const DEFAULT_PRODUCT_BLOCK_ORDER: ProductBlockId[] = [
+  "main_image",
+  "description",
+  "nutrition",
+  "benefits",
+  "usage",
+  "ingredients",
+  "observations",
+  "free_text",
+  "measures",
+  "spoon_image",
+  "gallery",
+  "videos",
+  "pdfs",
+  "external_urls",
+];
+
+function readProductBlockOrder(micronutrients: Record<string, unknown> | null | undefined): ProductBlockId[] {
+  const rawOrder = micronutrients?.[PRODUCT_BLOCK_ORDER_KEY];
+  const validIds = new Set(DEFAULT_PRODUCT_BLOCK_ORDER);
+  const saved = Array.isArray(rawOrder) ? rawOrder.filter((id): id is ProductBlockId => typeof id === "string" && validIds.has(id as ProductBlockId)) : [];
+  return [...saved, ...DEFAULT_PRODUCT_BLOCK_ORDER.filter(id => !saved.includes(id))];
+}
+
+function micronutrientsForDisplay(micronutrients: Record<string, unknown> | null | undefined) {
+  const next = { ...(micronutrients ?? {}) };
+  delete next[PRODUCT_BLOCK_ORDER_KEY];
+  return next;
+}
+
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
@@ -97,8 +145,165 @@ export default function ProductDetail() {
     </div>
   );
 
-  const micronutrients = Object.entries(product.micronutrients ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const micronutrients = Object.entries(micronutrientsForDisplay(product.micronutrients)).filter(([, value]) => value !== null && value !== undefined && value !== "");
   const hasNutrition = Boolean(product.calories || product.protein || product.carbs || product.fat || product.fiber);
+  const blockOrder = readProductBlockOrder(product.micronutrients);
+
+  const renderBlock = (blockId: ProductBlockId) => {
+    switch (blockId) {
+      case "main_image":
+        return (
+          <header className="challenge-premium rounded-[28px] overflow-hidden relative min-h-[280px] text-white">
+            {product.image_url ? (
+              <img src={product.image_url} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary via-fuchsia-400 to-purple-700" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
+            <div className="relative p-5 min-h-[280px] flex flex-col justify-end">
+              <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/80">{category?.name ?? "Producto"}</div>
+              <h1 className="font-serif text-4xl leading-none mt-1">{product.name}</h1>
+            </div>
+          </header>
+        );
+      case "description":
+        return <ContentBlock title="Descripción" value={product.description} />;
+      case "nutrition":
+        return (
+          <>
+            {hasNutrition ? (
+              <section className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                <Stat label="Kcal/100g" value={product.calories} />
+                <Stat label="Proteínas" value={`${product.protein}g`} />
+                <Stat label="Hidratos" value={`${product.carbs}g`} />
+                <Stat label="Grasas" value={`${product.fat}g`} />
+                <Stat label="Fibra" value={`${product.fiber}g`} />
+              </section>
+            ) : (
+              <section className="card-soft p-4">
+                <div className="font-medium">Información nutricional pendiente</div>
+                <p className="text-sm muted mt-1">Este producto está creado en la base, pero falta completar sus valores desde etiqueta oficial.</p>
+              </section>
+            )}
+            {(product.sugars > 0 || product.salt > 0 || micronutrients.length > 0 || product.source) && (
+              <section className="card-soft p-4 mt-5">
+                <h2 className="font-serif text-xl mb-3">Información nutricional ampliada</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                  {product.sugars > 0 && <Info label="Azúcares" value={`${product.sugars} g`} />}
+                  {product.salt > 0 && <Info label="Sal" value={`${product.salt} g`} />}
+                  <Info label="Estado" value={product.verification_status} />
+                  {product.source && <Info label="Fuente" value={product.source} />}
+                  {micronutrients.map(([key, value]) => <Info key={key} label={key.replace(/_/g, " ")} value={String(value)} />)}
+                </div>
+              </section>
+            )}
+          </>
+        );
+      case "benefits":
+        return <ContentBlock title="Beneficios" value={product.benefits} />;
+      case "usage":
+        return <ContentBlock title="Modo de empleo" value={product.usage} />;
+      case "ingredients":
+        return <ContentBlock title="Ingredientes" value={product.ingredients_text} />;
+      case "observations":
+        return <ContentBlock title="Observaciones" value={product.observations} />;
+      case "free_text":
+        return <ContentBlock title="Información adicional" value={product.free_text} />;
+      case "measures":
+        return product.product_measures.length > 0 ? (
+          <section className="card-soft p-4">
+            <h2 className="font-serif text-xl mb-3">Medidas habituales</h2>
+            <div className="space-y-2">
+              {product.product_measures
+                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                .map(measure => (
+                  <div key={measure.id} className="rounded-2xl bg-secondary p-3">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="font-medium">{measure.name}</div>
+                      <div className="text-xs muted">{measure.grams} g {measure.is_default ? "· principal" : ""}</div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1 text-[11px] text-center">
+                      <Stat label="Kcal" value={measure.calories} />
+                      <Stat label="Prot" value={`${measure.protein}g`} />
+                      <Stat label="Hidr" value={`${measure.carbs}g`} />
+                      <Stat label="Grasa" value={`${measure.fat}g`} />
+                      <Stat label="Fibra" value={`${measure.fiber}g`} />
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </section>
+        ) : null;
+      case "spoon_image":
+        return product.spoon_image_url ? (
+          <section className="card-soft p-4">
+            <h2 className="font-serif text-xl mb-3">Cuchara oficial Herbalife</h2>
+            <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
+              <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
+              <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
+            </div>
+            <a href={product.spoon_image_url} target="_blank" rel="noreferrer" className="block">
+              <img src={product.spoon_image_url} alt="Equivalencia cuchara Herbalife" className="w-full rounded-2xl" />
+            </a>
+          </section>
+        ) : null;
+      case "gallery":
+        return product.gallery_urls.length > 0 ? (
+          <section>
+            <h2 className="font-serif text-xl mb-3">Galería</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {product.gallery_urls.map((url, index) => (
+                <img key={`${url}-${index}`} src={url} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
+              ))}
+            </div>
+          </section>
+        ) : null;
+      case "videos":
+        return product.video_urls.length > 0 ? (
+          <section className="space-y-3">
+            <h2 className="font-serif text-xl">Vídeos</h2>
+            {product.video_urls.map((url, index) => (
+              <div key={`${url}-${index}`} className="overflow-hidden rounded-2xl bg-black">
+                {isEmbeddable(url) ? (
+                  <div className="aspect-video">
+                    <iframe src={toEmbed(url)} className="h-full w-full" allowFullScreen />
+                  </div>
+                ) : (
+                  <video src={url} controls className="w-full" />
+                )}
+              </div>
+            ))}
+          </section>
+        ) : null;
+      case "pdfs":
+        return product.pdf_urls.length > 0 ? (
+          <section className="space-y-2">
+            <h2 className="font-serif text-xl">PDFs</h2>
+            {product.pdf_urls.map((url, index) => (
+              <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
+                <div className="h-10 w-10 rounded-xl bg-gradient-rosa text-white grid place-items-center"><FileText className="h-5 w-5" /></div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm truncate">Abrir PDF {index + 1}</div>
+                  <div className="text-xs muted truncate">{url}</div>
+                </div>
+              </a>
+            ))}
+          </section>
+        ) : null;
+      case "external_urls":
+        return product.external_urls.length > 0 ? (
+          <section className="space-y-2">
+            <h2 className="font-serif text-xl">Enlaces</h2>
+            {product.external_urls.map((url, index) => (
+              <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
+                <ExternalLink className="h-5 w-5 text-primary" />
+                <span className="text-sm truncate">{url}</span>
+              </a>
+            ))}
+          </section>
+        ) : null;
+    }
+  };
 
   return (
     <article className="pb-8 space-y-5">
@@ -106,140 +311,11 @@ export default function ProductDetail() {
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
 
-      <header className="challenge-premium rounded-[28px] overflow-hidden relative min-h-[280px] text-white">
-        {product.image_url ? (
-          <img src={product.image_url} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary via-fuchsia-400 to-purple-700" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
-        <div className="relative p-5 min-h-[280px] flex flex-col justify-end">
-          <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/80">{category?.name ?? "Producto"}</div>
-          <h1 className="font-serif text-4xl leading-none mt-1">{product.name}</h1>
-          {product.description && <p className="text-sm text-white/82 mt-3 leading-relaxed">{product.description}</p>}
-        </div>
-      </header>
+      {blockOrder.map(blockId => {
+        const block = renderBlock(blockId);
+        return block ? <div key={blockId}>{block}</div> : null;
+      })}
 
-      {hasNutrition ? (
-        <section className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-          <Stat label="Kcal/100g" value={product.calories} />
-          <Stat label="Proteínas" value={`${product.protein}g`} />
-          <Stat label="Hidratos" value={`${product.carbs}g`} />
-          <Stat label="Grasas" value={`${product.fat}g`} />
-          <Stat label="Fibra" value={`${product.fiber}g`} />
-        </section>
-      ) : (
-        <section className="card-soft p-4">
-          <div className="font-medium">Información nutricional pendiente</div>
-          <p className="text-sm muted mt-1">Este producto está creado en la base, pero falta completar sus valores desde etiqueta oficial.</p>
-        </section>
-      )}
-
-      <ContentBlock title="Beneficios" value={product.benefits} />
-      <ContentBlock title="Modo de empleo" value={product.usage} />
-      <ContentBlock title="Ingredientes" value={product.ingredients_text} />
-      <ContentBlock title="Observaciones" value={product.observations} />
-      <ContentBlock title="Información adicional" value={product.free_text} />
-
-      {(product.sugars > 0 || product.salt > 0 || micronutrients.length > 0 || product.source) && (
-        <section className="card-soft p-4">
-          <h2 className="font-serif text-xl mb-3">Información nutricional ampliada</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-            {product.sugars > 0 && <Info label="Azúcares" value={`${product.sugars} g`} />}
-            {product.salt > 0 && <Info label="Sal" value={`${product.salt} g`} />}
-            <Info label="Estado" value={product.verification_status} />
-            {product.source && <Info label="Fuente" value={product.source} />}
-            {micronutrients.map(([key, value]) => <Info key={key} label={key.replace(/_/g, " ")} value={String(value)} />)}
-          </div>
-        </section>
-      )}
-
-      {product.product_measures.length > 0 && (
-        <section className="card-soft p-4">
-          <h2 className="font-serif text-xl mb-3">Medidas habituales</h2>
-          <div className="space-y-2">
-            {product.product_measures
-              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-              .map(measure => (
-                <div key={measure.id} className="rounded-2xl bg-secondary p-3">
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="font-medium">{measure.name}</div>
-                    <div className="text-xs muted">{measure.grams} g {measure.is_default ? "· principal" : ""}</div>
-                  </div>
-                  <div className="grid grid-cols-5 gap-1 text-[11px] text-center">
-                    <Stat label="Kcal" value={measure.calories} />
-                    <Stat label="Prot" value={`${measure.protein}g`} />
-                    <Stat label="Hidr" value={`${measure.carbs}g`} />
-                    <Stat label="Grasa" value={`${measure.fat}g`} />
-                    <Stat label="Fibra" value={`${measure.fiber}g`} />
-                  </div>
-                </div>
-              ))}
-          </div>
-        </section>
-      )}
-
-      {product.spoon_image_url && (
-        <section className="card-soft p-4">
-          <h2 className="font-serif text-xl mb-3">Cuchara oficial Herbalife</h2>
-          <img src={product.spoon_image_url} alt="Equivalencia cuchara Herbalife" className="w-full rounded-2xl" />
-        </section>
-      )}
-
-      {product.gallery_urls.length > 0 && (
-        <section>
-          <h2 className="font-serif text-xl mb-3">Galería</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {product.gallery_urls.map((url, index) => (
-              <img key={`${url}-${index}`} src={url} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {product.video_urls.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-serif text-xl">Vídeos</h2>
-          {product.video_urls.map((url, index) => (
-            <div key={`${url}-${index}`} className="overflow-hidden rounded-2xl bg-black">
-              {isEmbeddable(url) ? (
-                <div className="aspect-video">
-                  <iframe src={toEmbed(url)} className="h-full w-full" allowFullScreen />
-                </div>
-              ) : (
-                <video src={url} controls className="w-full" />
-              )}
-            </div>
-          ))}
-        </section>
-      )}
-
-      {product.pdf_urls.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-serif text-xl">PDFs</h2>
-          {product.pdf_urls.map((url, index) => (
-            <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
-              <div className="h-10 w-10 rounded-xl bg-gradient-rosa text-white grid place-items-center"><FileText className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm truncate">Abrir PDF {index + 1}</div>
-                <div className="text-xs muted truncate">{url}</div>
-              </div>
-            </a>
-          ))}
-        </section>
-      )}
-
-      {product.external_urls.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-serif text-xl">Enlaces</h2>
-          {product.external_urls.map((url, index) => (
-            <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
-              <ExternalLink className="h-5 w-5 text-primary" />
-              <span className="text-sm truncate">{url}</span>
-            </a>
-          ))}
-        </section>
-      )}
     </article>
   );
 }

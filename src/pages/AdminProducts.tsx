@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
-import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 
 type ProductCategory = {
@@ -81,7 +81,60 @@ type ProductForm = Omit<Product, "id" | "slug" | "product_measures" | "calories"
   sort_order: AdminNumberValue;
   aliasesText: string;
   micronutrientsText: string;
+  blockOrder: ProductBlockId[];
   measures: ProductMeasure[];
+};
+
+type ProductBlockId =
+  | "main_image"
+  | "spoon_image"
+  | "gallery"
+  | "videos"
+  | "pdfs"
+  | "external_urls"
+  | "description"
+  | "benefits"
+  | "usage"
+  | "ingredients"
+  | "observations"
+  | "free_text"
+  | "nutrition"
+  | "measures";
+
+const PRODUCT_BLOCK_ORDER_KEY = "__product_block_order";
+
+const DEFAULT_PRODUCT_BLOCK_ORDER: ProductBlockId[] = [
+  "main_image",
+  "description",
+  "nutrition",
+  "benefits",
+  "usage",
+  "ingredients",
+  "observations",
+  "free_text",
+  "measures",
+  "spoon_image",
+  "gallery",
+  "videos",
+  "pdfs",
+  "external_urls",
+];
+
+const PRODUCT_BLOCK_LABELS: Record<ProductBlockId, string> = {
+  main_image: "Imagen principal",
+  spoon_image: "Imagen cuchara oficial",
+  gallery: "Galería de imágenes",
+  videos: "Vídeos",
+  pdfs: "PDFs",
+  external_urls: "URLs externas",
+  description: "Descripción",
+  benefits: "Beneficios",
+  usage: "Modo de empleo",
+  ingredients: "Ingredientes",
+  observations: "Observaciones",
+  free_text: "Texto libre",
+  nutrition: "Información nutricional",
+  measures: "Medidas habituales",
 };
 
 const emptyMeasure: ProductMeasure = {
@@ -124,6 +177,7 @@ const emptyProduct: ProductForm = {
   salt: 0,
   micronutrients: {},
   micronutrientsText: "{}",
+  blockOrder: DEFAULT_PRODUCT_BLOCK_ORDER,
   source: "Pendiente de etiqueta oficial",
   verification_status: "pendiente",
   nutrition_effective_from: null,
@@ -149,6 +203,28 @@ const toNumber = (value: unknown) => Number(String(value ?? "").replace(",", "."
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
 const textToArray = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 const round1 = (value: number) => Math.round(value * 10) / 10;
+
+function readProductBlockOrder(micronutrients: Record<string, unknown> | null | undefined): ProductBlockId[] {
+  const rawOrder = micronutrients?.[PRODUCT_BLOCK_ORDER_KEY];
+  const validIds = new Set(DEFAULT_PRODUCT_BLOCK_ORDER);
+  const saved = Array.isArray(rawOrder) ? rawOrder.filter((id): id is ProductBlockId => typeof id === "string" && validIds.has(id as ProductBlockId)) : [];
+  return [...saved, ...DEFAULT_PRODUCT_BLOCK_ORDER.filter(id => !saved.includes(id))];
+}
+
+function micronutrientsForEditor(micronutrients: Record<string, unknown> | null | undefined) {
+  const next = { ...(micronutrients ?? {}) };
+  delete next[PRODUCT_BLOCK_ORDER_KEY];
+  return next;
+}
+
+function moveBlockOrder(order: ProductBlockId[], blockId: ProductBlockId, direction: -1 | 1) {
+  const index = order.indexOf(blockId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= order.length) return order;
+  const next = [...order];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
 
 function measureFromProductNutrition(measure: ProductMeasure, product: ProductForm): ProductMeasure {
   const grams = toNumber(measure.grams);
@@ -309,7 +385,7 @@ export default function AdminProducts() {
       fiber: toNumber(form.fiber),
       sugars: toNumber(form.sugars),
       salt: toNumber(form.salt),
-      micronutrients,
+      micronutrients: { ...micronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder },
       source: form.source || "Pendiente de etiqueta oficial",
       verification_status: form.verification_status,
       nutrition_effective_from: form.nutrition_effective_from || new Date().toISOString(),
@@ -382,7 +458,8 @@ export default function AdminProducts() {
       observations: product.observations ?? "",
       free_text: product.free_text ?? "",
       spoon_image_url: product.spoon_image_url ?? "",
-      micronutrientsText: JSON.stringify(product.micronutrients ?? {}, null, 2),
+      micronutrientsText: JSON.stringify(micronutrientsForEditor(product.micronutrients), null, 2),
+      blockOrder: readProductBlockOrder(product.micronutrients),
       source: product.source ?? "Pendiente de etiqueta oficial",
       verification_status: product.verification_status ?? "pendiente",
       nutrition_effective_from: product.nutrition_effective_from ?? null,
@@ -610,9 +687,34 @@ export default function AdminProducts() {
             icon={<ImageIcon className="h-4 w-4" />}
             onUpload={file => uploadInto(file, "spoon")}
             onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
-            hint="Se usará solo la imagen real que suba la administradora."
+            hint="Pulsa aquí para comprobar la medida de la cuchara oficial."
+            highlightHint
           />
         </div>
+
+        <section className="rounded-[22px] bg-secondary/60 p-3">
+          <div className="flex items-start gap-2 mb-3">
+            <MousePointerClick className="h-4 w-4 text-primary mt-0.5" />
+            <div>
+              <h3 className="font-serif text-xl leading-none">Orden visual de la ficha</h3>
+              <p className="text-xs muted mt-1">Mueve cada bloque para decidir cómo lo verá la clienta dentro del producto.</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {form.blockOrder.map((blockId, index) => (
+              <div key={blockId} className="rounded-2xl bg-white/90 border border-primary/20 p-2 flex items-center gap-2">
+                <span className="h-7 w-7 rounded-full bg-primary/10 text-primary text-xs font-bold grid place-items-center">{index + 1}</span>
+                <span className="text-sm font-medium flex-1">{PRODUCT_BLOCK_LABELS[blockId]}</span>
+                <button type="button" className="p-2 rounded-xl bg-white border border-primary/20 disabled:opacity-35" disabled={index === 0} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, -1) }))} aria-label={`Subir ${PRODUCT_BLOCK_LABELS[blockId]}`}>
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <button type="button" className="p-2 rounded-xl bg-white border border-primary/20 disabled:opacity-35" disabled={index === form.blockOrder.length - 1} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, 1) }))} aria-label={`Bajar ${PRODUCT_BLOCK_LABELS[blockId]}`}>
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
         <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
@@ -828,6 +930,7 @@ function MediaUploader({
   accept,
   icon,
   hint,
+  highlightHint,
   onUpload,
   onUrl,
 }: {
@@ -836,6 +939,7 @@ function MediaUploader({
   accept: string;
   icon: React.ReactNode;
   hint?: string;
+  highlightHint?: boolean;
   onUpload: (file: File) => void;
   onUrl: (url: string) => void;
 }) {
@@ -850,7 +954,12 @@ function MediaUploader({
         </label>
         <input className="field flex-1" placeholder="O pegar URL" value={url} onChange={e => onUrl(e.target.value)} />
       </div>
-      {hint && <p className="text-[11px] muted mt-2">{hint}</p>}
+      {hint && (
+        <p className={highlightHint ? "mt-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2" : "text-[11px] muted mt-2"}>
+          {highlightHint && <MousePointerClick className="h-4 w-4 text-primary shrink-0" />}
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
