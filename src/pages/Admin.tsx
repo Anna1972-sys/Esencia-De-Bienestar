@@ -36,7 +36,7 @@ const groups: { title: string; items: Item[] }[] = [
       { to: "/app/admin/recetas-usuarias",   label: "Recetas generadas por usuarios",     desc: "Revisar recetas creadas con IA", image: userRecipesImage },
       { to: "/app/admin/especialista-macros", label: "Especialista en Macros", desc: "Probar cálculos nutricionales", image: macroSpecialistImage, imageClass: "object-top" },
       { to: "/app/admin/alimentos-internos", label: "Alimentos internos", desc: "Base nutricional editable", image: internalFoodsImage },
-      { to: "/app/admin/productos",          label: "Salud y Bienestar",      desc: "todo sobre herbalife", image: productsImage },
+      { to: "/app/admin/productos",          label: "Salud y Bienestar",      desc: "Todo sobre Herbalife", image: productsImage },
       
       { to: "/app/admin/recursos",           label: "Vídeos y guías",          desc: "Contenido en vídeo", image: videosImage },
       { to: "/app/admin/movimiento",         label: "Movimiento y ejercicio",  desc: "Entrenamientos y rutinas", image: movementImage },
