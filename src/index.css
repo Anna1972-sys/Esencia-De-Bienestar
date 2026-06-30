@@ -1412,6 +1412,11 @@
     border-color: #FF2D95 !important;
   }
 
+  .admin-movement-page .library-admin-cover-card {
+    height: 9.5rem;
+    box-shadow: 0 16px 28px -24px hsl(325 45% 24% / .32);
+  }
+
   .admin-movement-page .btn-secondary,
   .admin-movement-page .btn-ghost {
     background: #FFD6EA !important;

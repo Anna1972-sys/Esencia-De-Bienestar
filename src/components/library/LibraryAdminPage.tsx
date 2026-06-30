@@ -43,6 +43,7 @@ type Props = {
   quickSections?: readonly string[];
   showHeader?: boolean;
   categoryFilter?: string | null;
+  headerImage?: string;
 };
 
 async function uploadFile(file: File, folder: string, base: string) {
@@ -66,6 +67,7 @@ export default function LibraryAdminPage({
   quickSections = [],
   showHeader = true,
   categoryFilter = null,
+  headerImage,
 }: Props) {
   const empty: Form = {
     title: "",
@@ -187,6 +189,12 @@ export default function LibraryAdminPage({
   return (
     <div className={`pb-28 ${className}`}>
       {showHeader && <AdminPageHeader title={title} backTo={backTo} />}
+
+      {headerImage && (
+        <section className="library-admin-cover-card mb-4 overflow-hidden rounded-[26px] border border-[#FF2D95] bg-[#FFF7FA]">
+          <img src={headerImage} alt="" className="h-full w-full object-cover" />
+        </section>
+      )}
 
 
       <form onSubmit={save} className="card-soft library-admin-container p-4 space-y-3 mb-5">

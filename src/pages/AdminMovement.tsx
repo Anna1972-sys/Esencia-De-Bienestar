@@ -1,5 +1,6 @@
 import LibraryAdminPage from "@/components/library/LibraryAdminPage";
 import { MOVEMENT_CATEGORIES } from "@/lib/movementCategories";
+import movementCover from "@/assets/home-movimiento.png";
 
 export default function AdminMovement() {
   return (
@@ -10,6 +11,7 @@ export default function AdminMovement() {
       title="Movimiento y ejercicio"
       categories={MOVEMENT_CATEGORIES}
       className="admin-movement-page"
+      headerImage={movementCover}
     />
   );
 }
