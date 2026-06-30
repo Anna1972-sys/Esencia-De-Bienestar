@@ -195,7 +195,7 @@ export default function LibraryAdminPage({
         <div>
           <label className="text-xs muted">Imagen principal de portada</label>
           {f.cover_image && <img src={f.cover_image} alt="" className="w-full h-40 object-cover rounded-xl mt-1 mb-2" />}
-          <label className="btn-secondary inline-flex cursor-pointer">
+          <label className="btn-secondary library-cover-upload-button inline-flex cursor-pointer">
             <Upload className="h-4 w-4" /> {f.cover_image ? "Cambiar" : "Subir"} portada
             <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && onCover(e.target.files[0])} />
           </label>
