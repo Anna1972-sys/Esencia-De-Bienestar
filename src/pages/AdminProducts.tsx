@@ -710,12 +710,12 @@ export default function AdminProducts() {
           <div className="space-y-2">
             {form.blockOrder.map((blockId, index) => (
               <div key={blockId} className="rounded-2xl bg-white/90 border border-primary/20 p-2 flex items-center gap-2">
-                <span className="h-7 w-7 rounded-full bg-primary/10 text-primary text-xs font-bold grid place-items-center">{index + 1}</span>
+                <span className="admin-product-order-index h-7 w-7 rounded-full text-xs font-bold grid place-items-center">{index + 1}</span>
                 <span className="text-sm font-medium flex-1">{PRODUCT_BLOCK_LABELS[blockId]}</span>
-                <button type="button" className="p-2 rounded-xl bg-white border border-primary/20 disabled:opacity-35" disabled={index === 0} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, -1) }))} aria-label={`Subir ${PRODUCT_BLOCK_LABELS[blockId]}`}>
+                <button type="button" className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35" disabled={index === 0} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, -1) }))} aria-label={`Subir ${PRODUCT_BLOCK_LABELS[blockId]}`}>
                   <ArrowUp className="h-4 w-4" />
                 </button>
-                <button type="button" className="p-2 rounded-xl bg-white border border-primary/20 disabled:opacity-35" disabled={index === form.blockOrder.length - 1} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, 1) }))} aria-label={`Bajar ${PRODUCT_BLOCK_LABELS[blockId]}`}>
+                <button type="button" className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35" disabled={index === form.blockOrder.length - 1} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, 1) }))} aria-label={`Bajar ${PRODUCT_BLOCK_LABELS[blockId]}`}>
                   <ArrowDown className="h-4 w-4" />
                 </button>
               </div>
@@ -898,7 +898,7 @@ function NumberField({ label, value, onChange }: { label: string; value: AdminNu
       <span className="text-[11px] muted">{label}</span>
       <input
         ref={inputRef}
-        className="field mt-1"
+        className="field admin-product-number-field mt-1"
         type="number"
         step="0.01"
         value={draft}

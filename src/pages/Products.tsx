@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, Image as ImageIcon, Search } from "lucide-react";
+import productsHeroImage from "@/assets/home-productos-te-jardin.png";
 
 type ProductCategory = {
   id: string;
@@ -76,6 +77,14 @@ export default function Products() {
         <h1 className="heading-lg">Suplementación inteligente</h1>
         <p className="muted text-sm mt-2">Consulta productos, guías de uso e información nutricional.</p>
       </header>
+
+      <section className="products-client-hero-card mb-5">
+        <img src={productsHeroImage} alt="" className="products-client-hero-image" />
+        <div className="products-client-hero-copy">
+          <h2>Salud y Bienestar</h2>
+          <p>Suplementación inteligente</p>
+        </div>
+      </section>
 
       <div className="relative mb-4">
         <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />

@@ -71,6 +71,12 @@ export default function AdminPageHeader({
       {cover && (
         <section className={`admin-section-cover-card admin-section-cover-${cover.key} mt-4 overflow-hidden rounded-[26px] border border-[#FF2D95] bg-[#FFF7FA]`}>
           <img src={cover.image} alt="" className="h-full w-full object-cover" />
+          {cover.key === "products" && (
+            <div className="admin-section-cover-copy">
+              <h2>Salud y Bienestar</h2>
+              <p>Suplementación inteligente</p>
+            </div>
+          )}
         </section>
       )}
     </div>
