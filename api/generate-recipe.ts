@@ -147,6 +147,21 @@ function numberOrZero(value: unknown): number {
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
 }
 
+function numericValueIsPresent(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n);
+}
+
+function hasCompleteProductNutrition(product: any) {
+  if (product?.verification_status !== "verificado") return false;
+  return [product?.calories, product?.protein, product?.carbs, product?.fat, product?.fiber].every(numericValueIsPresent);
+}
+
+function hasCompleteMeasureNutrition(measure: any) {
+  if (measure?.verification_status !== "verificado") return false;
+  return [measure?.grams, measure?.calories, measure?.protein, measure?.carbs, measure?.fat, measure?.fiber].every(numericValueIsPresent);
+}
+
 function matchesInternalFood(input: string, food: InternalFoodContext) {
   const normalizedInput = normalizeName(input);
   const names = [food.name, ...(food.synonyms ?? [])].map(normalizeName).filter(Boolean);
@@ -235,7 +250,7 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
   const { data, error } = await (supabase as any)
     .schema("public")
     .from("products")
-    .select("name,aliases,calories,protein,carbs,fat,fiber,product_measures(name,grams,calories,protein,carbs,fat,fiber,is_default),product_categories(name)")
+    .select("name,aliases,verification_status,calories,protein,carbs,fat,fiber,product_measures(name,grams,calories,protein,carbs,fat,fiber,verification_status,is_default),product_categories(name)")
     .eq("is_active", true)
     .eq("available_for_recipes", true)
     .eq("informative_only", false);
@@ -243,6 +258,7 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
   if (error || !Array.isArray(data)) return [];
 
   return data
+    .filter((product: any) => hasCompleteProductNutrition(product) || (product.product_measures ?? []).some(hasCompleteMeasureNutrition))
     .map((product: any) => ({
       name: String(product.name ?? ""),
       aliases: Array.isArray(product.aliases) ? product.aliases.map(String).filter(Boolean) : [],
@@ -253,7 +269,7 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
       fat: numberOrZero(product.fat),
       fiber: numberOrZero(product.fiber),
       measures: Array.isArray(product.product_measures)
-        ? product.product_measures.map((measure: any) => ({
+        ? product.product_measures.filter(hasCompleteMeasureNutrition).map((measure: any) => ({
           name: String(measure.name ?? ""),
           grams: numberOrZero(measure.grams),
           calories: numberOrZero(measure.calories),

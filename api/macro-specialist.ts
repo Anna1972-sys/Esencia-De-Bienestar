@@ -391,7 +391,7 @@ function hasUsableMacros(value: Pick<FoodMacro, "kcal" | "protein" | "carbs" | "
 function calculateProductMacros(input: IngredientInput, product: ProductRow, explicitGrams: number | null) {
   const productMacro = productFoodMacro(product);
   if (explicitGrams && Number.isFinite(explicitGrams) && explicitGrams > 0) {
-    if (!hasUsableMacros(productMacro)) return null;
+    if (!hasCompleteVerifiedProductNutrition(product) || !hasUsableMacros(productMacro)) return null;
     return {
       grams: explicitGrams,
       matchedAs: product.name,
@@ -404,8 +404,8 @@ function calculateProductMacros(input: IngredientInput, product: ProductRow, exp
   if (!measureMatch) return null;
   const grams = numberValue(measureMatch.measure.grams) * Math.max(0.01, measureMatch.quantity);
   const measureMacro = measureFoodMacro(measureMatch.measure);
-  const hasMeasureMacros = hasUsableMacros(measureMacro);
-  if (!hasMeasureMacros && !hasUsableMacros(productMacro)) return null;
+  const hasMeasureMacros = hasCompleteVerifiedMeasureNutrition(measureMatch.measure) && hasUsableMacros(measureMacro);
+  if (!hasMeasureMacros && !hasCompleteVerifiedProductNutrition(product)) return null;
   const macros = hasMeasureMacros
     ? {
       kcal: measureMacro.kcal * measureMatch.quantity,
@@ -567,7 +567,10 @@ async function loadProducts(token: string, attempts?: any[]) {
     });
     return [];
   }
-  return (data ?? []) as ProductRow[];
+  return ((data ?? []) as ProductRow[]).filter(product => {
+    if (hasCompleteVerifiedProductNutrition(product)) return true;
+    return (product.product_measures ?? []).some(hasCompleteVerifiedMeasureNutrition);
+  });
 }
 
 async function getFatSecretToken() {
@@ -603,6 +606,21 @@ async function getFatSecretToken() {
 function numberValue(value: any) {
   const n = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(n) ? n : 0;
+}
+
+function numericValueIsPresent(value: any) {
+  const n = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(n);
+}
+
+function hasCompleteVerifiedProductNutrition(product: ProductRow) {
+  if (product.verification_status !== "verificado") return false;
+  return [product.calories, product.protein, product.carbs, product.fat, product.fiber].every(numericValueIsPresent);
+}
+
+function hasCompleteVerifiedMeasureNutrition(measure: ProductMeasureRow) {
+  if (measure.verification_status !== "verificado") return false;
+  return [measure.grams, measure.calories, measure.protein, measure.carbs, measure.fat, measure.fiber].every(numericValueIsPresent);
 }
 
 function servingToMacros(serving: any, amount: number): MacroValues | null {
