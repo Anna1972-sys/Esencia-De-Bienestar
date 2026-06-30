@@ -1,10 +1,18 @@
-import { Download, ExternalLink, Film, Play } from "lucide-react";
+import { Download, ExternalLink, Film, Image as ImageIcon, Play } from "lucide-react";
 import { ContentBlock, ContentItem, embedUrl, legacyItems } from "@/lib/challengeExtras";
 import { mediaUrl } from "@/lib/mediaStorage";
 
 export default function ChallengeContentView({ block }: { block: ContentBlock }) {
   const ordered = block.blocks?.length ? block.blocks : legacyItems(block);
-  if (ordered.length) return <div className="space-y-4">{ordered.map((item) => <ContentCard key={item.id} item={item} />)}</div>;
+  if (ordered.length) {
+    const resources = ordered.filter(item => item.type === "image" || item.type === "video" || item.type === "file" || item.type === "link");
+    return (
+      <div className="space-y-4">
+        <ResourcesAvailable items={resources} />
+        {ordered.map((item) => <ContentCard key={item.id} item={item} />)}
+      </div>
+    );
+  }
 
   const sections = block.sections ?? [];
   const images = block.images ?? [];
@@ -23,6 +31,8 @@ export default function ChallengeContentView({ block }: { block: ContentBlock })
 
   return (
     <div className="space-y-5">
+      <ResourcesAvailable items={legacyItems(block).filter(item => item.type === "image" || item.type === "video" || item.type === "file" || item.type === "link")} />
+
       {images.length > 0 && (
         <section className="space-y-2">
           {images.length === 1 ? (
@@ -84,6 +94,58 @@ export default function ChallengeContentView({ block }: { block: ContentBlock })
         </section>
       )}
     </div>
+  );
+}
+
+function resourceUrl(item: ContentItem) {
+  if (item.type === "image") return mediaUrl(item.url);
+  if (item.type === "video") return item.video.kind === "upload" ? mediaUrl(item.video.url) : item.video.url;
+  if (item.type === "file") return mediaUrl(item.file.url);
+  if (item.type === "link") return item.url;
+  return "#";
+}
+
+function resourceLabel(item: ContentItem) {
+  if (item.type === "image") return item.title || "Ver imagen";
+  if (item.type === "video") return item.title || "Ver vídeo";
+  if (item.type === "file") return item.title || item.file.name || "Ver PDF";
+  if (item.type === "link") return item.title || "Abrir enlace";
+  return "Abrir recurso";
+}
+
+function resourceIcon(item: ContentItem) {
+  if (item.type === "image") return <ImageIcon className="h-4 w-4" />;
+  if (item.type === "video") return <Film className="h-4 w-4" />;
+  if (item.type === "file") return <Download className="h-4 w-4" />;
+  return <ExternalLink className="h-4 w-4" />;
+}
+
+function ResourcesAvailable({ items }: { items: ContentItem[] }) {
+  if (!items.length) return null;
+  return (
+    <section className="card-elegant p-5">
+      <h2 className="font-serif text-lg mb-3 flex items-center gap-2" style={{ color: "hsl(var(--plum))" }}>
+        <Download className="h-4 w-4" />
+        Recursos disponibles
+      </h2>
+      <div className="grid gap-2">
+        {items.map((item) => (
+          <a
+            key={item.id}
+            href={resourceUrl(item)}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary justify-between"
+          >
+            <span className="inline-flex items-center gap-2">
+              {resourceIcon(item)}
+              {resourceLabel(item)}
+            </span>
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 
