@@ -1414,7 +1414,26 @@
 
   .admin-movement-page .library-admin-cover-card {
     height: 9.5rem;
+    background: #FFF7FA !important;
     box-shadow: 0 16px 28px -24px hsl(325 45% 24% / .32);
+  }
+
+  .admin-movement-page .library-admin-cover-card img {
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #FFF7FA;
+  }
+
+  .admin-section-cover-card {
+    height: 9.5rem;
+    background: #FFF7FA !important;
+    box-shadow: 0 16px 28px -24px hsl(325 45% 24% / .32);
+  }
+
+  .admin-section-cover-card img {
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #FFF7FA;
   }
 
   .admin-movement-page .btn-secondary,
