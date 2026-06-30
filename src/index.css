@@ -442,15 +442,15 @@
     border-color: #FF2D95 !important;
   }
   .admin-nutrition-page .admin-nutrition-category-row {
-    background: hsl(0 0% 9% / .98) !important;
-    color: hsl(0 0% 96%);
+    background: #FFF7FA !important;
+    color: hsl(var(--foreground));
     border-color: #FF2D95 !important;
-    box-shadow: 0 14px 30px -22px hsl(0 0% 0% / .9);
+    box-shadow: 0 14px 30px -24px hsl(325 45% 24% / .28);
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
   }
   .admin-nutrition-page .admin-nutrition-category-row.is-active {
     border-width: 2px;
-    box-shadow: 0 0 0 2px hsl(var(--primary) / .28), 0 16px 34px -22px hsl(0 0% 0% / .9);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / .28), 0 16px 34px -24px hsl(325 45% 24% / .32);
     transform: translateY(-1px);
   }
   .admin-nutrition-page .admin-nutrition-category-image {
@@ -461,12 +461,12 @@
     font-weight: 800;
   }
   .admin-nutrition-page .admin-nutrition-category-row .muted {
-    color: hsl(0 0% 90% / .82);
+    color: hsl(var(--muted-foreground));
   }
   .admin-nutrition-page .admin-nutrition-new-category-card,
   .admin-nutrition-page .admin-nutrition-new-category-form {
-    background: hsl(0 0% 9% / .98) !important;
-    color: hsl(0 0% 96%);
+    background: #FFF7FA !important;
+    color: hsl(var(--foreground));
     border-color: #FF2D95 !important;
   }
   .admin-nutrition-page .admin-nutrition-new-category-form .font-medium {
@@ -1607,6 +1607,39 @@
   }
 
   .recipe-detail-page .recipe-add-button:hover {
+    background: #F0128A !important;
+    border-color: #F0128A !important;
+  }
+
+  .admin-user-recipes-page .card-soft,
+  .admin-macro-specialist-page .card-soft,
+  .admin-internal-foods-page .card-soft,
+  .admin-internal-foods-page .admin-internal-food-row,
+  .admin-resources-page .card-soft {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .admin-user-recipes-page .admin-user-filter-select {
+    background: #FF2D95 !important;
+    border-color: #FF2D95 !important;
+    color: #FFFFFF !important;
+    font-weight: 800;
+  }
+
+  .admin-user-recipes-page .admin-user-filter-select option {
+    background: #FFFFFF;
+    color: hsl(var(--foreground));
+  }
+
+  .admin-resources-page .admin-resource-category-chip {
+    border-color: #FF2D95 !important;
+    background: #FF2D95 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 10px 18px -16px rgb(255 45 149 / .85);
+  }
+
+  .admin-resources-page .admin-resource-category-chip:hover {
     background: #F0128A !important;
     border-color: #F0128A !important;
   }

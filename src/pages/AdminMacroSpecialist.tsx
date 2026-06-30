@@ -38,7 +38,7 @@ export default function AdminMacroSpecialist() {
   };
 
   return (
-    <div className="pb-28">
+    <div className="admin-macro-specialist-page pb-28">
       <AdminPageHeader
         title="Especialista en macros"
         subtitle="Herramienta de prueba para calcular macros sin modificar recetas existentes."

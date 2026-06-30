@@ -70,11 +70,31 @@ const SEARCH_FAMILIES: Record<string, string[]> = {
   lácteos: ["lacteo", "lacteos", "leche", "yogur", "kefir", "queso", "cottage", "burgos", "requeson", "skyr"],
 };
 
-const getSessionHeaders = async () => {
+const getSessionHeaders = async (refresh = false) => {
+  if (refresh) await supabase.auth.refreshSession().catch(() => null);
   const { data: sessionData } = await supabase.auth.getSession();
   return sessionData.session?.access_token
     ? { Authorization: `Bearer ${sessionData.session.access_token}` }
     : {};
+};
+
+const fetchInternalFoodsApi = async (init: RequestInit = {}) => {
+  const buildRequest = async (refresh = false) => fetch("/api/internal-foods", {
+    ...init,
+    headers: {
+      ...((init.headers as Record<string, string> | undefined) ?? {}),
+      ...(await getSessionHeaders(refresh)),
+    },
+  });
+
+  let response = await buildRequest(false);
+  if (response.status === 401) {
+    const payload = await response.clone().json().catch(() => null);
+    if (/sesión|session/i.test(String(payload?.error ?? ""))) {
+      response = await buildRequest(true);
+    }
+  }
+  return response;
 };
 
 export default function AdminInternalFoods() {
@@ -87,9 +107,7 @@ export default function AdminInternalFoods() {
 
   const loadFoods = async () => {
     setLoading(true);
-    const response = await fetch("/api/internal-foods", {
-      headers: await getSessionHeaders(),
-    });
+    const response = await fetchInternalFoodsApi();
     const payload = await response.json().catch(() => null);
     setLoading(false);
     if (!response.ok) {
@@ -175,11 +193,10 @@ export default function AdminInternalFoods() {
       updated_at: new Date().toISOString(),
     };
 
-    const response = await fetch("/api/internal-foods", {
+    const response = await fetchInternalFoodsApi({
       method: editingId ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(await getSessionHeaders()),
       },
       body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
     });
@@ -196,11 +213,10 @@ export default function AdminInternalFoods() {
 
   const remove = async (food: InternalFood) => {
     if (!confirm(`¿Eliminar "${food.name}" de Alimentos internos?`)) return;
-    const response = await fetch("/api/internal-foods", {
+    const response = await fetchInternalFoodsApi({
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        ...(await getSessionHeaders()),
       },
       body: JSON.stringify({ id: food.id }),
     });

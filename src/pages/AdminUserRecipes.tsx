@@ -198,13 +198,13 @@ export default function AdminUserRecipes() {
   };
 
   return (
-    <div className="pb-28">
+    <div className="admin-user-recipes-page pb-28">
       <AdminPageHeader title="Recetas generadas por usuarios" subtitle="Revisa las recetas creadas con IA y publícalas manualmente si encajan en la Biblioteca oficial." />
 
 
       <div className="card-soft p-3 mb-4 space-y-2">
         <input className="field" placeholder="Buscar por título…" value={search} onChange={e => setSearch(e.target.value)} />
-        <select className="field" value={filterUser} onChange={e => setFilterUser(e.target.value)}>
+        <select className="field admin-user-filter-select" value={filterUser} onChange={e => setFilterUser(e.target.value)}>
           <option value="">Todos los usuarios</option>
           {userOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>

@@ -312,7 +312,7 @@ export default function AdminResources() {
 
 
   return (
-    <div className="pb-28">
+    <div className="admin-resources-page pb-28">
       <AdminPageHeader title="Vídeos y guías" subtitle="Contenido educativo y recursos" />
 
 
@@ -520,7 +520,7 @@ export default function AdminResources() {
                   if (it) moveToCategory(it, c.id);
                   setDragItemId(null); setDropOver(null);
                 }}
-                className={`text-xs px-3 py-1.5 rounded-full transition border ${
+                className={`admin-resource-category-chip text-xs px-3 py-1.5 rounded-full transition border ${
                   isDrop ? "border-primary bg-primary/15 text-primary scale-105"
                   : isFilter ? "border-primary bg-primary text-white"
                   : "border-border bg-muted"
@@ -551,7 +551,7 @@ export default function AdminResources() {
                     if (it) moveToCategory(it, s.id);
                     setDragItemId(null); setDropOver(null);
                   }}
-                  className={`text-[11px] px-2.5 py-1 rounded-full transition border ${
+                  className={`admin-resource-category-chip text-[11px] px-2.5 py-1 rounded-full transition border ${
                     isDrop ? "border-primary bg-primary/15 text-primary scale-105"
                     : isFilter ? "border-primary bg-primary text-white"
                     : "border-border bg-background"

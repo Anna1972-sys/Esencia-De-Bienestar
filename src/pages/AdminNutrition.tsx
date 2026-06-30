@@ -340,13 +340,13 @@ export default function AdminNutrition() {
                     >
                       <button type="button" onClick={() => openCategory(category.key)} className="admin-nutrition-category-open h-full w-full text-left flex flex-col">
                         {image ? (
-                          <div className="p-2 pb-0 bg-black">
+                          <div className="p-2 pb-0 bg-[#FFF7FA]">
                             <img src={image} alt="" className="h-14 w-full rounded-xl object-cover admin-nutrition-category-image" />
                           </div>
                         ) : (
-                          <div className="h-14 w-full bg-black" />
+                          <div className="h-14 w-full bg-[#FFF7FA]" />
                         )}
-                        <div className="flex-1 px-2 py-2 text-center bg-black">
+                        <div className="flex-1 px-2 py-2 text-center bg-[#FFF7FA]">
                           <div className="font-medium text-[12px] leading-tight line-clamp-2">{category.label}</div>
                           <div className="text-[10px] muted leading-tight line-clamp-2 mt-1">{category.subtitle || "Contenido"}</div>
                         </div>
