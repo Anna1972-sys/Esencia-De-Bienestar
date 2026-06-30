@@ -1576,6 +1576,41 @@
     background: #FFEAF4 !important;
   }
 
+  .admin-recipes-page .card-soft {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .admin-recipes-page .admin-recipes-add-button {
+    background: #FF2D95 !important;
+    border-color: #FF2D95 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 12px 24px -18px rgb(255 45 149 / .85);
+  }
+
+  .admin-recipes-page .admin-recipes-add-button:hover {
+    background: #F0128A !important;
+    border-color: #F0128A !important;
+  }
+
+  .library-recipes-page .card-soft,
+  .library-recipes-page .recipe-premium,
+  .recipe-detail-page .card-soft {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .recipe-detail-page .recipe-add-button {
+    background: #FF2D95 !important;
+    border-color: #FF2D95 !important;
+    color: #FFFFFF !important;
+  }
+
+  .recipe-detail-page .recipe-add-button:hover {
+    background: #F0128A !important;
+    border-color: #F0128A !important;
+  }
+
   @media (max-width: 640px) {
     .shopping-list-page .shopping-hero-card,
     .admin-shopping-page .shopping-hero-card {

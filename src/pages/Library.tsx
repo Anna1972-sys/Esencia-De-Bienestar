@@ -121,7 +121,7 @@ export default function Library() {
 
 
   return (
-    <div className="pb-28">
+    <div className="library-recipes-page pb-28">
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>

@@ -426,7 +426,7 @@ export default function AdminRecipes() {
   }, [items, filterCat, query]);
 
   return (
-    <div className="pb-28">
+    <div className="admin-recipes-page pb-28">
       <AdminPageHeader title="Recetas oficiales" subtitle="Edita, duplica, recalcula y revisa las recetas visibles en la Biblioteca oficial." />
 
       <form onSubmit={submit} className="card-soft p-4 space-y-3 mb-5">
@@ -457,7 +457,7 @@ export default function AdminRecipes() {
               </button>
             </div>
           )}
-          <label className="btn-ghost w-full cursor-pointer">
+          <label className="btn-ghost admin-recipes-add-button w-full cursor-pointer">
             <Upload className="h-4 w-4" />
             {uploading ? "Subiendo…" : (form.image_url ? "Cambiar imagen" : "Subir imagen")}
             <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />

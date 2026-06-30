@@ -57,7 +57,7 @@ export default function RecipeDetail() {
   if (loading) return <div className="muted text-sm">Cargando…</div>;
   if (notFound || !r) {
     return (
-      <div className="pb-28">
+      <div className="recipe-detail-page pb-28">
         <BackButton fallbackTo="/app/biblioteca" className="text-sm muted inline-flex items-center gap-1 mb-3">
           <ArrowLeft className="h-4 w-4" /> Volver
         </BackButton>
@@ -77,7 +77,7 @@ export default function RecipeDetail() {
   const cover = r.image_url || videoThumb || getCategoryImage(r.category);
 
   return (
-    <div className="pb-28">
+    <div className="recipe-detail-page pb-28">
       <BackButton fallbackTo="/app/biblioteca" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
@@ -116,7 +116,7 @@ export default function RecipeDetail() {
         <>
           <h2 className="font-semibold mb-2 flex items-center justify-between">
             <span>Ingredientes</span>
-            <button onClick={addAllToShopping} disabled={adding} className="btn-ghost text-xs">
+            <button onClick={addAllToShopping} disabled={adding} className="btn-ghost recipe-add-button text-xs">
               <ShoppingBag className="h-3.5 w-3.5" /> {adding ? "Añadiendo…" : "Añadir a la lista"}
             </button>
           </h2>
