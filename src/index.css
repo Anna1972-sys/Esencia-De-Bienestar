@@ -1408,8 +1408,31 @@
 
   .admin-movement-page .library-admin-container,
   .admin-movement-page .library-admin-inner-container {
-    background: #FFF7FA !important;
+    background: #FFEAF4 !important;
     border-color: #FF2D95 !important;
+  }
+
+  .admin-movement-page .btn-secondary,
+  .admin-movement-page .btn-ghost {
+    background: #FF2D95 !important;
+    border-color: #FF2D95 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 10px 18px -16px rgb(255 45 149 / .85);
+  }
+
+  .admin-movement-page .btn-secondary:hover,
+  .admin-movement-page .btn-ghost:hover {
+    background: #F0128A !important;
+    border-color: #F0128A !important;
+    color: #FFFFFF !important;
+  }
+
+  .admin-movement-page .btn-secondary.text-destructive,
+  .admin-movement-page .btn-ghost.text-destructive,
+  .admin-movement-page .text-destructive.btn-secondary,
+  .admin-movement-page .text-destructive.btn-ghost {
+    background: #FFFFFF !important;
+    color: hsl(var(--destructive)) !important;
   }
 
   .shopping-list-page .shopping-hero-card,
