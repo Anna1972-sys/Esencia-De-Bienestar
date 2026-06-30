@@ -688,7 +688,7 @@
     height: 176px;
     width: 100%;
     object-fit: cover;
-    object-position: center center;
+    object-position: center top;
     display: block;
     flex-shrink: 0;
     border: 0 !important;
@@ -1427,7 +1427,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover !important;
-    object-position: center center !important;
+    object-position: center top !important;
     display: block;
   }
 
@@ -1442,7 +1442,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover !important;
-    object-position: center center !important;
+    object-position: center top !important;
     display: block;
   }
 
