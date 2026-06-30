@@ -1733,6 +1733,23 @@
     object-position: center 32% !important;
   }
 
+  .admin-section-cover-challenges {
+    height: 250px;
+  }
+
+  .admin-section-cover-challenges img {
+    object-position: center 42% !important;
+  }
+
+  .admin-section-cover-challenges::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 48%;
+    background: linear-gradient(to top, rgb(0 0 0 / .48), rgb(0 0 0 / .18), transparent);
+    pointer-events: none;
+  }
+
   .admin-section-cover-products::after {
     content: "";
     position: absolute;

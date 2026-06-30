@@ -77,6 +77,12 @@ export default function AdminPageHeader({
               <p>Suplementación inteligente</p>
             </div>
           )}
+          {cover.key === "challenges" && (
+            <div className="admin-section-cover-copy">
+              <h2>Retos de 5 días</h2>
+              <p>Acepta el reto</p>
+            </div>
+          )}
         </section>
       )}
     </div>
