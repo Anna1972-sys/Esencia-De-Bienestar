@@ -1444,6 +1444,10 @@
     color: #FFFFFF !important;
   }
 
+  .admin-movement-page .library-cover-label {
+    display: none !important;
+  }
+
   .admin-movement-page .btn-secondary.text-destructive,
   .admin-movement-page .btn-ghost.text-destructive,
   .admin-movement-page .text-destructive.btn-secondary,
