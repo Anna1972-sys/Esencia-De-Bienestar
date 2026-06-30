@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { NUTRITION_CATEGORIES } from "@/lib/nutritionCategories";
 import hidratacionImage from "@/assets/nutrition/hidratacion.png";
 import proteinasImage from "@/assets/nutrition/proteinas.png";
 import recuperacionImage from "@/assets/nutrition/recuperacion-realimentacion.png";
@@ -159,6 +160,7 @@ function formFromItem(item: any): ContentForm {
 export default function AdminNutrition() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [schemaError, setSchemaError] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [contentForm, setContentForm] = useState<ContentForm>(emptyContent);
@@ -173,9 +175,21 @@ export default function AdminNutrition() {
     if (error) {
       console.error("[nutrition_categories]", error);
       toast.error(error.message);
-      setCategories([]);
+      setSchemaError(error.message);
+      setCategories(
+        NUTRITION_CATEGORIES.map((category, index) => ({
+          id: category.key,
+          key: category.key,
+          label: category.label,
+          subtitle: category.subtitle,
+          image_url: categoryImages[category.key] ?? null,
+          visible: true,
+          sort_order: index + 1,
+        }))
+      );
       return;
     }
+    setSchemaError("");
     setCategories(data ?? []);
   };
 
@@ -185,7 +199,11 @@ export default function AdminNutrition() {
       .select("*")
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
+    if (error) {
+      console.error("[nutrition_items]", error);
+      toast.error(error.message);
+      setSchemaError((current) => current || error.message);
+    }
     else setItems(data ?? []);
   };
 
@@ -207,8 +225,14 @@ export default function AdminNutrition() {
   const resetContent = () => setContentForm(emptyContent);
 
   const openCategory = (key: string) => {
-    setActiveCategory((current) => (current === key ? null : key));
+    const shouldOpen = activeCategory !== key;
+    setActiveCategory(shouldOpen ? key : null);
     resetContent();
+    if (shouldOpen) {
+      window.setTimeout(() => {
+        document.getElementById(`nutrition-panel-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
   };
 
   const saveCategory = async (event: React.FormEvent) => {
@@ -287,6 +311,17 @@ export default function AdminNutrition() {
     <div className="pb-28 admin-nutrition-page">
       <AdminPageHeader title="Nutrición deportiva" backTo="/app/admin" />
 
+      {schemaError && (
+        <div className="card-soft admin-nutrition-panel mb-4 border border-[#FF2D95] bg-white p-3 text-sm text-foreground">
+          <div className="font-semibold text-[#FF2D95]">Falta aplicar la migración de Nutrición deportiva en Supabase</div>
+          <p className="mt-1">
+            Se muestran las categorías base para poder revisar la pantalla, pero crear categorías o publicar contenido no funcionará hasta que existan
+            <span className="font-semibold"> nutrition_categories</span> y <span className="font-semibold">nutrition_items</span>.
+          </p>
+          <p className="mt-1 text-xs muted">{schemaError}</p>
+        </div>
+      )}
+
       <div className="card-soft admin-nutrition-panel p-4 mb-4">
         <h2 className="font-serif text-xl mb-1">Categorías de Nutrición deportiva</h2>
         <p className="text-sm muted mb-4">Pulsa una categoría para gestionar su contenido.</p>
@@ -322,8 +357,10 @@ export default function AdminNutrition() {
               </div>
 
               {activeCategoryData && row.some((category) => category.key === activeCategory) && (
-                <section className="card-soft admin-nutrition-panel p-4">
+                <section id={`nutrition-panel-${activeCategoryData.key}`} className="card-soft admin-nutrition-panel admin-nutrition-content-panel p-4">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-[#FF2D95] font-bold mb-1">{activeCategoryData.label}</div>
+                  <h3 className="font-serif text-xl mb-2">Añadir contenido</h3>
+                  <p className="text-sm muted mb-3">Completa los campos que necesites y publica el contenido dentro de esta categoría.</p>
                   <form onSubmit={saveContent} className="admin-nutrition-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
                     <div>
                       <label className="text-xs muted">Imagen principal</label>
@@ -333,14 +370,38 @@ export default function AdminNutrition() {
                         <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "covers", (url) => setContentForm((current) => ({ ...current, cover_image: url })))} />
                       </label>
                     </div>
-                    <input className="field" placeholder="Título" value={contentForm.title} onChange={(event) => setContentForm({ ...contentForm, title: event.target.value })} required />
-                    <input className="field" placeholder="Subtítulo" value={contentForm.subtitle} onChange={(event) => setContentForm({ ...contentForm, subtitle: event.target.value })} />
-                    <textarea className="field min-h-24" placeholder="Descripción" value={contentForm.description} onChange={(event) => setContentForm({ ...contentForm, description: event.target.value })} />
-                    <textarea className="field min-h-20" placeholder="Beneficios" value={contentForm.benefits} onChange={(event) => setContentForm({ ...contentForm, benefits: event.target.value })} />
-                    <textarea className="field min-h-20" placeholder="Modo de uso" value={contentForm.usage} onChange={(event) => setContentForm({ ...contentForm, usage: event.target.value })} />
-                    <textarea className="field min-h-20" placeholder="Ingredientes (opcional)" value={contentForm.ingredients} onChange={(event) => setContentForm({ ...contentForm, ingredients: event.target.value })} />
-                    <textarea className="field min-h-20" placeholder="Observaciones" value={contentForm.observations} onChange={(event) => setContentForm({ ...contentForm, observations: event.target.value })} />
-                    <textarea className="field min-h-24" placeholder="Texto libre" value={contentForm.free_text} onChange={(event) => setContentForm({ ...contentForm, free_text: event.target.value })} />
+                    <label className="block">
+                      <span className="text-xs muted">Título</span>
+                      <input className="field mt-1" placeholder="Título" value={contentForm.title} onChange={(event) => setContentForm({ ...contentForm, title: event.target.value })} required />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Subtítulo</span>
+                      <input className="field mt-1" placeholder="Subtítulo" value={contentForm.subtitle} onChange={(event) => setContentForm({ ...contentForm, subtitle: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Descripción</span>
+                      <textarea className="field min-h-24 mt-1" placeholder="Descripción" value={contentForm.description} onChange={(event) => setContentForm({ ...contentForm, description: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Beneficios</span>
+                      <textarea className="field min-h-20 mt-1" placeholder="Beneficios" value={contentForm.benefits} onChange={(event) => setContentForm({ ...contentForm, benefits: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Modo de uso</span>
+                      <textarea className="field min-h-20 mt-1" placeholder="Modo de uso" value={contentForm.usage} onChange={(event) => setContentForm({ ...contentForm, usage: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Ingredientes (opcional)</span>
+                      <textarea className="field min-h-20 mt-1" placeholder="Ingredientes (opcional)" value={contentForm.ingredients} onChange={(event) => setContentForm({ ...contentForm, ingredients: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Observaciones</span>
+                      <textarea className="field min-h-20 mt-1" placeholder="Observaciones" value={contentForm.observations} onChange={(event) => setContentForm({ ...contentForm, observations: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Texto libre</span>
+                      <textarea className="field min-h-24 mt-1" placeholder="Texto libre" value={contentForm.free_text} onChange={(event) => setContentForm({ ...contentForm, free_text: event.target.value })} />
+                    </label>
 
                     <div className="rounded-2xl border border-[#FF2D95] bg-white p-3">
                       <div className="font-medium text-sm mb-2">Galería de imágenes</div>
@@ -356,7 +417,10 @@ export default function AdminNutrition() {
                     </div>
 
                     <div className="grid gap-2">
-                      <input className="field" placeholder="Vídeo o URL de vídeo" value={contentForm.video_url} onChange={(event) => setContentForm({ ...contentForm, video_url: event.target.value })} />
+                      <label className="block">
+                        <span className="text-xs muted">Vídeo</span>
+                        <input className="field mt-1" placeholder="Vídeo o URL de vídeo" value={contentForm.video_url} onChange={(event) => setContentForm({ ...contentForm, video_url: event.target.value })} />
+                      </label>
                       <label className="btn-secondary cursor-pointer">
                         <Video className="h-4 w-4" /> Subir vídeo
                         <input type="file" accept="video/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "videos", (url) => setContentForm((current) => ({ ...current, video_url: url })))} />
@@ -364,17 +428,23 @@ export default function AdminNutrition() {
                     </div>
 
                     <div className="grid gap-2">
-                      <input className="field" placeholder="PDF o URL de PDF" value={contentForm.pdf_url} onChange={(event) => setContentForm({ ...contentForm, pdf_url: event.target.value })} />
+                      <label className="block">
+                        <span className="text-xs muted">PDF</span>
+                        <input className="field mt-1" placeholder="PDF o URL de PDF" value={contentForm.pdf_url} onChange={(event) => setContentForm({ ...contentForm, pdf_url: event.target.value })} />
+                      </label>
                       <label className="btn-secondary cursor-pointer">
                         <FileText className="h-4 w-4" /> Subir PDF
                         <input type="file" accept="application/pdf" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "pdfs", (url) => setContentForm((current) => ({ ...current, pdf_url: url })))} />
                       </label>
                     </div>
 
-                    <div className="relative">
-                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 muted" />
-                      <input className="field pl-9" placeholder="Enlace externo" value={contentForm.external_url} onChange={(event) => setContentForm({ ...contentForm, external_url: event.target.value })} />
-                    </div>
+                    <label className="block">
+                      <span className="text-xs muted">Enlace externo</span>
+                      <div className="relative mt-1">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 muted" />
+                        <input className="field pl-9" placeholder="Enlace externo" value={contentForm.external_url} onChange={(event) => setContentForm({ ...contentForm, external_url: event.target.value })} />
+                      </div>
+                    </label>
 
                     <label className="flex items-center justify-between rounded-xl border border-[#FF2D95]/40 bg-white px-3 py-2 text-sm">
                       <span>Visible para clientes</span>
