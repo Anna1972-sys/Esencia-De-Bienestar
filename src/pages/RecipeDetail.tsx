@@ -9,6 +9,7 @@ import { getCategoryImage, getCategoryLabel } from "@/lib/libraryCategories";
 import BackButton from "@/components/BackButton";
 
 import { videoEmbedUrl, videoThumbnail } from "@/components/VideoField";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 type Recipe = {
   id: string;
@@ -74,7 +75,7 @@ export default function RecipeDetail() {
   const macros = r.macros || {};
   const hasMacros = Number(macros.protein) > 0 || Number(macros.carbs) > 0 || Number(macros.fat) > 0 || Number(macros.calories) > 0 || Number(macros.fiber) > 0;
   const videoThumb = r.video_url ? videoThumbnail(r.video_url) : null;
-  const cover = r.image_url || videoThumb || getCategoryImage(r.category);
+  const cover = r.image_url ? mediaUrl(r.image_url) : videoThumb || getCategoryImage(r.category);
 
   return (
     <div className="recipe-detail-page pb-28">
@@ -85,7 +86,7 @@ export default function RecipeDetail() {
         <div className="rounded-2xl overflow-hidden mb-4 aspect-video bg-black">
           {videoEmbedUrl(r.video_url)
             ? <iframe src={videoEmbedUrl(r.video_url)!} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" />
-            : <video src={r.video_url} controls preload="metadata" poster={r.image_url || undefined} className="w-full h-full" />}
+            : <video src={mediaUrl(r.video_url)} controls preload="metadata" poster={r.image_url ? mediaUrl(r.image_url) : undefined} className="w-full h-full" />}
         </div>
       ) : cover ? (
         <div className="rounded-2xl overflow-hidden mb-4 aspect-[4/3] bg-muted">

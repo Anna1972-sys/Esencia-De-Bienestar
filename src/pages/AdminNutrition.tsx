@@ -11,8 +11,7 @@ import alimentacionImage from "@/assets/nutrition/alimentacion-deportiva.png";
 import planesImage from "@/assets/nutrition/planes-guias.png";
 import { FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Trash2, Upload, Video } from "lucide-react";
 import { toast } from "sonner";
-
-const SIGNED_TTL = 60 * 60 * 24 * 7;
+import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
 
 type Category = {
   id: string;
@@ -99,12 +98,7 @@ function slugify(value: string) {
 }
 
 async function uploadFile(file: File, folder: string) {
-  const path = `nutrition/${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-  const { error } = await supabase.storage.from("resource-media").upload(path, file);
-  if (error) throw error;
-  const { data, error: signedError } = await supabase.storage.from("resource-media").createSignedUrl(path, SIGNED_TTL);
-  if (signedError) throw signedError;
-  return data.signedUrl;
+  return uploadMediaToStorage("nutrition-media", folder, file);
 }
 
 function buildBlocks(form: ContentForm) {
@@ -341,7 +335,7 @@ export default function AdminNutrition() {
                       <button type="button" onClick={() => openCategory(category.key)} className="admin-nutrition-category-open h-full w-full text-left flex flex-col">
                         {image ? (
                           <div className="p-2 pb-0 bg-[#FFF7FA]">
-                            <img src={image} alt="" className="h-14 w-full rounded-xl object-cover admin-nutrition-category-image" />
+                            <img src={mediaUrl(image)} alt="" className="h-14 w-full rounded-xl object-cover admin-nutrition-category-image" />
                           </div>
                         ) : (
                           <div className="h-14 w-full bg-[#FFF7FA]" />
@@ -364,7 +358,7 @@ export default function AdminNutrition() {
                   <form onSubmit={saveContent} className="admin-nutrition-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
                     <div>
                       <label className="text-xs muted">Imagen principal</label>
-                      {contentForm.cover_image && <img src={contentForm.cover_image} alt="" className="h-32 w-full rounded-2xl object-cover mb-2" />}
+                      {contentForm.cover_image && <img src={mediaUrl(contentForm.cover_image)} alt="" className="h-32 w-full rounded-2xl object-cover mb-2" />}
                       <label className="btn-primary inline-flex cursor-pointer">
                         <Upload className="h-4 w-4" /> Subir imagen principal
                         <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "covers", (url) => setContentForm((current) => ({ ...current, cover_image: url })))} />
@@ -407,7 +401,7 @@ export default function AdminNutrition() {
                       <div className="font-medium text-sm mb-2">Galería de imágenes</div>
                       {contentForm.gallery.length > 0 && (
                         <div className="grid grid-cols-3 gap-2 mb-2">
-                          {contentForm.gallery.map((url) => <img key={url} src={url} alt="" className="h-20 w-full rounded-xl object-cover" />)}
+                          {contentForm.gallery.map((url) => <img key={url} src={mediaUrl(url)} alt="" className="h-20 w-full rounded-xl object-cover" />)}
                         </div>
                       )}
                       <label className="btn-secondary cursor-pointer">
@@ -458,7 +452,7 @@ export default function AdminNutrition() {
                     <div className="mt-4 space-y-2">
                       {visibleItems.map((item) => (
                         <div key={item.id} className="rounded-2xl border border-[#FF2D95] bg-white p-3 flex items-center gap-3">
-                          {item.cover_image && <img src={item.cover_image} alt="" className="h-12 w-12 rounded-xl object-cover" />}
+                          {item.cover_image && <img src={mediaUrl(item.cover_image)} alt="" className="h-12 w-12 rounded-xl object-cover" />}
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-sm truncate">{item.title}</div>
                             <div className="text-xs muted truncate">{item.subtitle || "Contenido"}</div>
@@ -483,7 +477,7 @@ export default function AdminNutrition() {
       <div className="card-soft admin-nutrition-panel admin-nutrition-new-category-card p-4">
         <form onSubmit={saveCategory} className="admin-nutrition-form admin-nutrition-new-category-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
           <div className="font-medium">Nueva categoría</div>
-          {categoryForm.image_url && <img src={categoryForm.image_url} alt="" className="h-24 w-full rounded-2xl object-cover" />}
+          {categoryForm.image_url && <img src={mediaUrl(categoryForm.image_url)} alt="" className="h-24 w-full rounded-2xl object-cover" />}
           <label className="btn-primary inline-flex cursor-pointer">
             <Upload className="h-4 w-4" /> Subir imagen
             <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "categories", (url) => setCategoryForm((current) => ({ ...current, image_url: url })))} />

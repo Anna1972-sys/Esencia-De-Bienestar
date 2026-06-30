@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
+import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
-const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
 
 type Category = {
   id: string;
@@ -33,12 +33,7 @@ type Form = {
 const empty: Form = { title: "", category_id: "", cover_image: "", blocks: [], is_pinned: false };
 
 async function uploadFile(file: File, folder: string) {
-  const path = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-  const { error } = await supabase.storage.from("resource-media").upload(path, file);
-  if (error) throw error;
-  const { data, error: sErr } = await supabase.storage.from("resource-media").createSignedUrl(path, SIGNED_TTL);
-  if (sErr) throw sErr;
-  return data.signedUrl;
+  return uploadMediaToStorage("resource-media", folder, file);
 }
 
 export default function AdminResources() {
@@ -330,7 +325,7 @@ export default function AdminResources() {
 
         <div>
           <label className="text-xs muted">Imagen principal de portada</label>
-          {f.cover_image && <img src={f.cover_image} alt="" className="w-full h-40 object-cover rounded-xl mt-1 mb-2" />}
+          {f.cover_image && <img src={mediaUrl(f.cover_image)} alt="" className="w-full h-40 object-cover rounded-xl mt-1 mb-2" />}
           <label className="btn-secondary inline-flex cursor-pointer">
             <Upload className="h-4 w-4" /> {f.cover_image ? "Cambiar" : "Subir"} portada
             <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && onCover(e.target.files[0])} />
@@ -374,7 +369,7 @@ export default function AdminResources() {
                 )}
                 {b.type === "image" && (
                   <>
-                    <img src={(b as any).url} alt="" className="w-full max-h-48 object-cover rounded-lg" />
+                    <img src={mediaUrl((b as any).url)} alt="" className="w-full max-h-48 object-cover rounded-lg" />
                     <input className="field mt-2" placeholder="Pie de imagen (opcional)" value={(b as any).caption ?? ""} onChange={e => updateBlock(i, { caption: e.target.value })} />
                   </>
                 )}
@@ -385,7 +380,7 @@ export default function AdminResources() {
                   </>
                 )}
                 {b.type === "pdf" && (
-                  <div className="text-sm truncate"><a className="text-primary underline" href={(b as any).url} target="_blank" rel="noreferrer">{(b as any).name ?? "PDF"}</a></div>
+                  <div className="text-sm truncate"><a className="text-primary underline" href={mediaUrl((b as any).url)} target="_blank" rel="noreferrer">{(b as any).name ?? "PDF"}</a></div>
                 )}
               </div>
             ))}
@@ -647,7 +642,7 @@ export default function AdminResources() {
                   aria-label="Seleccionar"
                 />
                 <GripVertical className="h-4 w-4 muted cursor-grab shrink-0" />
-                {i.cover_image && <img src={i.cover_image} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />}
+                {i.cover_image && <img src={mediaUrl(i.cover_image)} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate flex items-center gap-1">
                     {i.is_pinned && <Pin className="h-3 w-3 text-primary fill-primary" />}

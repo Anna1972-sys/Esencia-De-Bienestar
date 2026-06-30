@@ -10,6 +10,7 @@ import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
 import imgMentalidad from "@/assets/resource-mentalidad.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 type Category = {
   id: string;
@@ -155,7 +156,7 @@ export default function Resources() {
                 const cat = itemCategory(it);
                 return (
                   <Link key={it.id} to={`/app/recursos/${it.id}`} className="card-soft overflow-hidden block hover:shadow-glow transition">
-                    {it.cover_image && <img src={it.cover_image} alt="" className="w-full h-40 object-cover" />}
+                    {it.cover_image && <img src={mediaUrl(it.cover_image)} alt="" className="w-full h-40 object-cover" />}
                     <div className="p-4 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="font-medium truncate flex items-center gap-1.5">

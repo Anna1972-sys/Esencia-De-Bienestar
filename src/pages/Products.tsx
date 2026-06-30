@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, Image as ImageIcon, Search } from "lucide-react";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 type ProductCategory = {
   id: string;
@@ -118,7 +119,7 @@ export default function Products() {
                 className="wellness-tile group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
               >
                 {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <img src={mediaUrl(product.image_url)} alt={product.name} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 ) : (
                   <div className="h-44 w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
                     <ImageIcon className="h-8 w-8 text-primary/70" />

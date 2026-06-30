@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel, getCategoryImage } from "@/lib/libraryCategories";
 import BackButton from "@/components/BackButton";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 type Recipe = {
   id: string;
@@ -200,7 +201,7 @@ export default function Library() {
             <div className="space-y-3">
               {filtered.map(r => {
                 const category = normalizeCategory(r.category);
-                const cover = r.image_url || getCategoryImage(category);
+                const cover = r.image_url ? mediaUrl(r.image_url) : getCategoryImage(category);
                 return (
                   <button
                     key={r.id}

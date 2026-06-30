@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Trash2, ShoppingBag, ArrowLeft, ChefHat } from "lucide-react";
 import { toast } from "sonner";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 const macroValue = (macros: any, key: string) => Number(macros?.[key] ?? 0);
 const hasNutrition = (macros: any) =>
@@ -70,7 +71,7 @@ export default function SavedRecipes() {
                     </div>
                     {r.image_url && (
                       <img
-                        src={r.image_url}
+                        src={mediaUrl(r.image_url)}
                         alt={r.title}
                         loading="lazy"
                         className="relative h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"

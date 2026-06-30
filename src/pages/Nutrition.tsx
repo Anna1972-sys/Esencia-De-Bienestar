@@ -10,6 +10,7 @@ import suplementacionImage from "@/assets/nutrition/suplementacion.png";
 import alimentacionImage from "@/assets/nutrition/alimentacion-deportiva.png";
 import planesImage from "@/assets/nutrition/planes-guias.png";
 import nutritionHeroImage from "@/assets/nutrition/home-tortitas-h24.png";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 const categoryImages: Record<string, string> = {
   nutricion: proteinasImage,
@@ -46,7 +47,7 @@ export default function Nutrition() {
           .filter((category: any) => category.visible !== false)
           .map((category: any) => ({
             ...category,
-            image: category.image_url || categoryImages[category.key],
+            image: mediaUrl(category.image_url || categoryImages[category.key]),
           })));
       });
   }, []);

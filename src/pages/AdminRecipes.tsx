@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import VideoField from "@/components/VideoField";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
+import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar esta receta oficial? Esta acción no se puede deshacer.";
 const QTY_RE = /\d/;
@@ -205,13 +206,8 @@ export default function AdminRecipes() {
     if (!file) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("recipe-images").upload(path, file, { upsert: false });
-      if (upErr) throw upErr;
-      const { data: signed, error: signErr } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
-      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("No se pudo preparar la imagen");
-      updateForm({ image_url: signed.signedUrl });
+      const ref = await uploadMediaToStorage("recipe-images", "covers", file);
+      updateForm({ image_url: ref });
       toast.success("Imagen subida");
     } catch (err: any) {
       toast.error(err.message || "Error al subir imagen");
@@ -451,7 +447,7 @@ export default function AdminRecipes() {
         <div className="space-y-2">
           {form.image_url && (
             <div className="relative rounded-xl overflow-hidden aspect-video bg-muted">
-              <img src={form.image_url} alt="" className="w-full h-full object-cover" />
+              <img src={mediaUrl(form.image_url)} alt="" className="w-full h-full object-cover" />
               <button type="button" onClick={() => updateForm({ image_url: "" })} className="absolute top-2 right-2 bg-white/90 rounded-full p-1 shadow">
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -464,7 +460,13 @@ export default function AdminRecipes() {
           </label>
         </div>
 
-        <VideoField value={form.video_url} onChange={url => updateForm({ video_url: url })} label="Vídeo (opcional)" />
+        <VideoField
+          value={form.video_url}
+          onChange={url => updateForm({ video_url: url })}
+          label="Vídeo (opcional)"
+          bucket="resource-media"
+          folder="recipes/videos"
+        />
 
         <div className="grid grid-cols-2 gap-2">
           <input className="field" placeholder="Tiempo en minutos" value={form.prep_time} onChange={e => updateForm({ prep_time: e.target.value })} />
@@ -535,7 +537,7 @@ export default function AdminRecipes() {
           return (
             <div key={recipe.id} className="card-soft p-3 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                {recipe.image_url && <img src={recipe.image_url} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />}
+                {recipe.image_url && <img src={mediaUrl(recipe.image_url)} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate flex items-center gap-1">
                     {status === "featured" && <Star className="h-3 w-3 text-primary fill-primary" />}

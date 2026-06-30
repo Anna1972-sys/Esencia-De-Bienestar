@@ -5,6 +5,7 @@ import { ArrowLeft, FileText, ExternalLink } from "lucide-react";
 import type { ContentBlock } from "@/lib/movementCategories";
 import type { LibraryCategory } from "./LibraryPage";
 import BackButton from "@/components/BackButton";
+import { mediaUrl } from "@/lib/mediaStorage";
 
 function isEmbeddable(url: string) {
   return /youtube\.com|youtu\.be|vimeo\.com/.test(url);
@@ -63,7 +64,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
       </BackButton>
 
       {it.cover_image && (
-        <img src={it.cover_image} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />
+        <img src={mediaUrl(it.cover_image)} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />
       )}
       {cat && (
         <div className="text-xs muted mb-1">
@@ -85,7 +86,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
           if (b.type === "image")
             return (
               <figure key={i}>
-                <img src={b.url} alt={b.caption ?? ""} className="w-full rounded-xl" />
+                <img src={mediaUrl(b.url)} alt={b.caption ?? ""} className="w-full rounded-xl" />
                 {b.caption && <figcaption className="text-xs muted text-center mt-1">{b.caption}</figcaption>}
               </figure>
             );
@@ -98,7 +99,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
                     <iframe src={toEmbed(b.url)} className="w-full h-full" allowFullScreen />
                   </div>
                 ) : (
-                  <video src={b.url} controls className="w-full rounded-xl" />
+                  <video src={mediaUrl(b.url)} controls className="w-full rounded-xl" />
                 )}
                 {b.caption && <figcaption className="text-xs muted text-center mt-1">{b.caption}</figcaption>}
               </figure>
@@ -108,7 +109,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
             return (
               <a
                 key={i}
-                href={b.url}
+                href={mediaUrl(b.url)}
                 target="_blank"
                 rel="noreferrer"
                 className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition"
