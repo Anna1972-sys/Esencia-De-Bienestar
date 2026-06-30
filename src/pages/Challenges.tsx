@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft } from "lucide-react";
 import challengeHero from "@/assets/home-retos.png";
+import { DEFAULT_CHALLENGE } from "@/lib/challengeExtras";
 
 export default function Challenges() {
   const { user } = useAuth();
@@ -13,18 +14,29 @@ export default function Challenges() {
   const [progress, setProgress] = useState<Record<string, Set<number>>>({});
 
   useEffect(() => {
-    supabase.from("challenges").select("*").order("created_at", { ascending: false }).then(({ data }) => setItems(data ?? []));
+    supabase.from("challenges").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      setItems(data?.length ? data : [DEFAULT_CHALLENGE]);
+    });
   }, []);
 
   useEffect(() => {
     if (!user) return;
+    const storedDefaultProgress = localStorage.getItem(`challenge-progress:${DEFAULT_CHALLENGE.id}:${user.id}`);
+    if (storedDefaultProgress) {
+      try {
+        const days = JSON.parse(storedDefaultProgress);
+        if (Array.isArray(days)) setProgress(current => ({ ...current, [DEFAULT_CHALLENGE.id]: new Set(days) }));
+      } catch {
+        // Ignore invalid local progress.
+      }
+    }
     supabase.from("challenge_progress").select("challenge_id, day").eq("user_id", user.id).then(({ data }) => {
       const map: Record<string, Set<number>> = {};
       (data ?? []).forEach((r: any) => {
         if (!map[r.challenge_id]) map[r.challenge_id] = new Set();
         map[r.challenge_id].add(r.day);
       });
-      setProgress(map);
+      setProgress(current => ({ ...current, ...map }));
     });
   }, [user]);
 

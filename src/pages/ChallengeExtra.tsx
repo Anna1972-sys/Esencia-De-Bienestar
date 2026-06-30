@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
-import { EXTRAS, ExtraKey, ContentBlock } from "@/lib/challengeExtras";
+import { DEFAULT_CHALLENGE, DEFAULT_CHALLENGE_ID, EXTRAS, ExtraKey, ContentBlock } from "@/lib/challengeExtras";
 import ChallengeContentView from "@/components/ChallengeContentView";
 import BackButton from "@/components/BackButton";
 import menuImage from "@/assets/challenge-menu.png";
@@ -25,7 +25,9 @@ export default function ChallengeExtra() {
 
   useEffect(() => {
     if (!id) return;
-    supabase.from("challenges").select("*").eq("id", id).maybeSingle().then(({ data }) => setC(data));
+    supabase.from("challenges").select("*").eq("id", id).maybeSingle().then(({ data }) => {
+      setC(data ?? (id === DEFAULT_CHALLENGE_ID ? DEFAULT_CHALLENGE : null));
+    });
   }, [id]);
 
   const meta = EXTRAS.find(e => e.key === key);

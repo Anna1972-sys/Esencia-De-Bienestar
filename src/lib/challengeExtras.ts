@@ -26,6 +26,30 @@ export type ContentBlock = {
   files?: FileItem[];
 };
 
+export const DEFAULT_CHALLENGE_ID = "reto-5-dias-default";
+
+export const DEFAULT_CHALLENGE = {
+  id: DEFAULT_CHALLENGE_ID,
+  title: "Reto de 5 días",
+  description: "",
+  icon: "🌸",
+  days: [
+    { day: 1 },
+    { day: 2 },
+    { day: 3 },
+    { day: 4 },
+    { day: 5 },
+  ],
+  extras: {
+    menu: {},
+    shopping: {},
+    videos: {},
+    downloads: {},
+    faq: {},
+  },
+  created_at: "2026-06-12T20:40:07.000Z",
+};
+
 export function emptyBlock(): ContentBlock {
   return { title: "", blocks: [], sections: [], images: [], videos: [], files: [] };
 }

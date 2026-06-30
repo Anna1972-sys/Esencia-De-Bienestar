@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import BackButton from "@/components/BackButton";
-import { EXTRAS } from "@/lib/challengeExtras";
+import { DEFAULT_CHALLENGE, DEFAULT_CHALLENGE_ID, EXTRAS } from "@/lib/challengeExtras";
 import menuImage from "@/assets/challenge-menu.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
 import videosImage from "@/assets/challenge-videos.png";
@@ -36,7 +36,18 @@ export default function ChallengeDetail() {
 
   useEffect(() => {
     if (!id) return;
-    supabase.from("challenges").select("*").eq("id", id).maybeSingle().then(({ data }) => setC(data));
+    supabase.from("challenges").select("*").eq("id", id).maybeSingle().then(({ data }) => {
+      setC(data ?? (id === DEFAULT_CHALLENGE_ID ? DEFAULT_CHALLENGE : null));
+    });
+    if (user && id === DEFAULT_CHALLENGE_ID) {
+      try {
+        const days = JSON.parse(localStorage.getItem(`challenge-progress:${id}:${user.id}`) || "[]");
+        setProgress(new Set(Array.isArray(days) ? days : []));
+      } catch {
+        setProgress(new Set());
+      }
+      return;
+    }
     if (user) supabase.from("challenge_progress").select("day").eq("user_id", user.id).eq("challenge_id", id)
       .then(({ data }) => setProgress(new Set((data ?? []).map((r: any) => r.day))));
   }, [id, user]);

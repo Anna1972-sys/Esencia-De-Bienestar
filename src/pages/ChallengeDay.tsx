@@ -6,7 +6,7 @@ import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ChallengeContentView from "@/components/ChallengeContentView";
 import BackButton from "@/components/BackButton";
-import { ContentBlock } from "@/lib/challengeExtras";
+import { ContentBlock, DEFAULT_CHALLENGE, DEFAULT_CHALLENGE_ID } from "@/lib/challengeExtras";
 
 type Day = ContentBlock & { day: number };
 
@@ -20,7 +20,18 @@ export default function ChallengeDay() {
 
   useEffect(() => {
     if (!id) return;
-    supabase.from("challenges").select("*").eq("id", id).maybeSingle().then(({ data }) => setC(data));
+    supabase.from("challenges").select("*").eq("id", id).maybeSingle().then(({ data }) => {
+      setC(data ?? (id === DEFAULT_CHALLENGE_ID ? DEFAULT_CHALLENGE : null));
+    });
+    if (user && id === DEFAULT_CHALLENGE_ID) {
+      try {
+        const days = JSON.parse(localStorage.getItem(`challenge-progress:${id}:${user.id}`) || "[]");
+        setProgress(new Set(Array.isArray(days) ? days : []));
+      } catch {
+        setProgress(new Set());
+      }
+      return;
+    }
     if (user) supabase.from("challenge_progress").select("day").eq("user_id", user.id).eq("challenge_id", id)
       .then(({ data }) => setProgress(new Set((data ?? []).map((r: any) => r.day))));
   }, [id, user]);
@@ -49,6 +60,19 @@ export default function ChallengeDay() {
 
   const complete = async () => {
     if (!user) return;
+    if (id === DEFAULT_CHALLENGE_ID) {
+      const ns = new Set(progress);
+      if (done) {
+        ns.delete(dayN);
+        toast("Día desmarcado");
+      } else {
+        ns.add(dayN);
+        toast.success("¡Día completado! ✨");
+      }
+      localStorage.setItem(`challenge-progress:${id}:${user.id}`, JSON.stringify([...ns]));
+      setProgress(ns);
+      return;
+    }
     if (done) {
       await supabase.from("challenge_progress").delete().eq("user_id", user.id).eq("challenge_id", id!).eq("day", dayN);
       const ns = new Set(progress); ns.delete(dayN); setProgress(ns);
