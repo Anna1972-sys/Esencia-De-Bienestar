@@ -116,14 +116,12 @@ export default function Products() {
               <Link
                 key={product.id}
                 to={`/app/productos/${product.id}`}
-                className="product-client-card wellness-tile group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
+                className="wellness-tile group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
               >
                 {product.image_url ? (
-                  <div className="product-client-card-image">
-                    <img src={mediaUrl(product.image_url)} alt={product.name} className="transition-transform duration-500 group-hover:scale-105" />
-                  </div>
+                  <img src={mediaUrl(product.image_url)} alt={product.name} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 ) : (
-                  <div className="product-client-card-image product-client-card-placeholder">
+                  <div className="h-44 w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
                     <ImageIcon className="h-8 w-8 text-primary/70" />
                   </div>
                 )}
@@ -141,7 +139,6 @@ export default function Products() {
                     {product.informative_only && <span className="chip">Informativo</span>}
                     <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status ?? "pendiente"}</span>
                   </div>
-                  <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Ver contenido</span>
                 </div>
               </Link>
             );

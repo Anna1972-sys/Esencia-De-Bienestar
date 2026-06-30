@@ -3,7 +3,7 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
-import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Pencil, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 
 type ProductCategory = {
@@ -552,7 +552,7 @@ export default function AdminProducts() {
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
-      <section className="grid grid-cols-1 gap-4 mb-5">
+      <section className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] gap-4 mb-5">
         <form onSubmit={saveCategory} className="card-soft admin-products-panel p-4 space-y-4">
           <div>
             <h2 className="font-serif text-xl">{editingCategory ? "Editar categoría" : "Nueva categoría"}</h2>
@@ -591,70 +591,30 @@ export default function AdminProducts() {
             </select>
           </div>
           {loading ? <div className="muted text-sm">Cargando productos…</div> : (
-            <div className="grid grid-cols-1 gap-4 max-h-[680px] overflow-auto pr-1">
+            <div className="space-y-3 max-h-[470px] overflow-auto pr-1">
               {filteredProducts.map(product => (
-                <div key={product.id} className="admin-product-card-stack">
-                  <article className="admin-product-info-card rounded-[24px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
-                    <div className="admin-product-card-image">
-                      {product.image_url ? (
-                        <img src={mediaUrl(product.image_url)} alt={product.name} />
-                      ) : (
-                        <div className="admin-product-card-placeholder">
-                          <ImageIcon className="h-7 w-7 text-primary" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="admin-product-card-body">
-                      <div className="min-w-0">
-                        <h3 className="admin-product-card-title">{product.name}</h3>
-                        <p className="admin-product-card-category">
-                          {product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}
-                        </p>
-                      </div>
-
-                      <div className="admin-product-card-status">
-                        <span className={product.is_active ? "admin-product-status is-active" : "admin-product-status is-inactive"}>
-                          {product.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                        <span className={product.verification_status === "verificado" ? "admin-product-chip is-verified" : "admin-product-chip"}>
-                          {product.verification_status}
-                        </span>
-                      </div>
-
-                      <div className="admin-product-card-tags">
-                        {product.visible_to_clients && <span className="admin-product-chip">Clientes</span>}
-                        {product.available_for_recipes && <span className="admin-product-chip">Recetas</span>}
-                        {product.informative_only && <span className="admin-product-chip">Informativo</span>}
-                        {!product.visible_to_clients && !product.available_for_recipes && !product.informative_only && (
-                          <span className="admin-product-chip">Interno</span>
-                        )}
+                <div key={product.id} className="admin-product-row rounded-[22px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    {product.image_url ? <img src={mediaUrl(product.image_url)} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-gradient-rosa/20 grid place-items-center"><ImageIcon className="h-5 w-5 text-primary" /></div>}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{product.name}</div>
+                      <div className="text-xs muted truncate">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
+                      <div className="flex flex-wrap gap-1.5 mt-2 text-[10px]">
+                        <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
+                        <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
+                        {product.visible_to_clients && <span className="chip-lavender">Clientes</span>}
+                        {product.available_for_recipes && <span className="chip-lavender">Recetas</span>}
+                        {product.informative_only && <span className="chip">Solo informativo</span>}
                       </div>
                     </div>
-                  </article>
-
-                  <section className="admin-product-actions-card rounded-[24px] bg-white/90 border border-primary/10 shadow-sm">
-                    <button type="button" className="admin-product-action" onClick={() => editProduct(product)}>
-                      <Pencil className="h-4 w-4" />
-                      Editar
-                    </button>
-                    <a className="admin-product-action" href={`/app/productos/${product.id}`} target="_blank" rel="noreferrer">
-                      <Eye className="h-4 w-4" />
-                      Ver
-                    </a>
-                    <button type="button" className="admin-product-action" onClick={() => duplicateProduct(product)}>
-                      <FileText className="h-4 w-4" />
-                      Duplicar
-                    </button>
-                    <button type="button" className="admin-product-action" onClick={() => toggleProduct(product)}>
-                      {product.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      {product.is_active ? "Desactivar" : "Activar"}
-                    </button>
-                    <button type="button" className="admin-product-action is-danger" onClick={() => deleteProduct(product)}>
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </button>
-                  </section>
+                  </div>
+                  <div className="grid grid-cols-5 border-t border-border/60 text-xs">
+                    <button className="py-2 hover:bg-secondary" onClick={() => editProduct(product)}>Editar</button>
+                    <button className="py-2 hover:bg-secondary" onClick={() => duplicateProduct(product)}>Duplicar</button>
+                    <button className="py-2 hover:bg-secondary" onClick={() => toggleProduct(product)}>{product.is_active ? "Desactivar" : "Activar"}</button>
+                    <button className="py-2 hover:bg-secondary text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
+                    <div className="py-2 text-center muted">{product.calories} kcal</div>
+                  </div>
                 </div>
               ))}
               {!filteredProducts.length && <div className="text-sm muted text-center p-6">No hay productos que coincidan.</div>}

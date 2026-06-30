@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ExternalLink, ShoppingBag, Video } from "lucide-react";
+import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { classifyShoppingItem } from "@/lib/shoppingCategories";
@@ -104,21 +104,6 @@ export default function RecipeDetail() {
         </div>
       )}
       {r.description && <p className="muted text-sm mb-3">{r.description}</p>}
-      {r.video_url && (
-        <section className="card-soft p-4 mb-4">
-          <h2 className="font-medium text-sm flex items-center gap-2 mb-3">
-            <Video className="h-4 w-4 text-primary" />
-            Recursos disponibles
-          </h2>
-          <a href={mediaUrl(r.video_url)} target="_blank" rel="noreferrer" className="btn-secondary justify-between">
-            <span className="inline-flex items-center gap-2">
-              <Video className="h-4 w-4" />
-              Ver vídeo
-            </span>
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        </section>
-      )}
       {hasMacros && (
         <div className="card-soft p-3 mb-4 grid grid-cols-5 gap-2 text-center text-xs">
           <div className="nutrition-stat"><div className="font-semibold">{macros.calories ?? 0}</div><div className="muted">Kcal</div></div>

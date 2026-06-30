@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ExternalLink, FileText, Image as ImageIcon, MousePointerClick, Video } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, MousePointerClick } from "lucide-react";
 import { mediaUrl } from "@/lib/mediaStorage";
 
 type ProductMeasure = {
@@ -149,12 +149,6 @@ export default function ProductDetail() {
   const micronutrients = Object.entries(micronutrientsForDisplay(product.micronutrients)).filter(([, value]) => value !== null && value !== undefined && value !== "");
   const hasNutrition = Boolean(product.calories || product.protein || product.carbs || product.fat || product.fiber);
   const blockOrder = readProductBlockOrder(product.micronutrients);
-  const availableResources = [
-    ...product.gallery_urls.map((url, index) => ({ type: "image" as const, url, label: `Ver imagen ${index + 1}`, href: mediaUrl(url) })),
-    ...product.video_urls.map((url, index) => ({ type: "video" as const, url, label: `Ver vídeo ${index + 1}`, href: isEmbeddable(url) ? url : mediaUrl(url) })),
-    ...product.pdf_urls.map((url, index) => ({ type: "pdf" as const, url, label: `Abrir PDF ${index + 1}`, href: mediaUrl(url) })),
-    ...product.external_urls.map((url, index) => ({ type: "link" as const, url, label: `Abrir enlace ${index + 1}`, href: url })),
-  ];
 
   const renderBlock = (blockId: ProductBlockId) => {
     switch (blockId) {
@@ -320,39 +314,7 @@ export default function ProductDetail() {
 
       {blockOrder.map(blockId => {
         const block = renderBlock(blockId);
-        return block ? (
-          <div key={blockId}>
-            {block}
-            {blockId === "main_image" && availableResources.length > 0 && (
-              <section className="card-soft p-4 mt-5">
-                <h2 className="font-medium text-sm flex items-center gap-2 mb-3">
-                  <FileText className="h-4 w-4 text-primary" />
-                  Recursos disponibles
-                </h2>
-                <div className="grid gap-2">
-                  {availableResources.map((resource, index) => (
-                    <a
-                      key={`${resource.type}-${index}-${resource.url}`}
-                      href={resource.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn-secondary justify-between"
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        {resource.type === "image" && <ImageIcon className="h-4 w-4" />}
-                        {resource.type === "video" && <Video className="h-4 w-4" />}
-                        {resource.type === "pdf" && <FileText className="h-4 w-4" />}
-                        {resource.type === "link" && <ExternalLink className="h-4 w-4" />}
-                        {resource.label}
-                      </span>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-        ) : null;
+        return block ? <div key={blockId}>{block}</div> : null;
       })}
 
     </article>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, FileText, Image as ImageIcon, Pin, Search, Video } from "lucide-react";
+import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgEducacion from "@/assets/resource-educacion.png";
 import imgAlimentacion from "@/assets/resource-alimentacion.png";
@@ -46,44 +46,6 @@ function getCategoryCard(category: Category) {
   if (value.includes("mentalidad") || value.includes("habito")) return CATEGORY_CARDS.mentalidad;
   if (value.includes("video")) return CATEGORY_CARDS.videos;
   return CATEGORY_CARDS.guias;
-}
-
-function blocksToText(blocks: any): string {
-  if (!Array.isArray(blocks)) return "";
-  return blocks
-    .map((b) => {
-      if (!b) return "";
-      if (b.type === "text") return b.value ?? "";
-      if (b.type === "link") return b.label ?? "";
-      if (b.type === "image" || b.type === "video") return b.caption ?? "";
-      return "";
-    })
-    .join(" ")
-    .toLowerCase();
-}
-
-function firstMediaFromBlocks(blocks: any): string | null {
-  if (!Array.isArray(blocks)) return null;
-  const media = blocks.find((b) => b?.type === "image" && b.url) ?? blocks.find((b) => b?.type === "video" && b.url);
-  return media?.url ?? null;
-}
-
-function firstTextFromBlocks(blocks: any): string {
-  if (!Array.isArray(blocks)) return "";
-  return blocks.find((b) => b?.type === "text" && b.value)?.value ?? "";
-}
-
-function shortText(value?: string | null, max = 130) {
-  const text = (value ?? "").toString().replace(/\s+/g, " ").trim();
-  return text.length > max ? `${text.slice(0, max).trim()}…` : text;
-}
-
-function contentType(item: any) {
-  const blocks = Array.isArray(item.blocks) ? item.blocks : [];
-  if (blocks.some((b) => b?.type === "pdf" && b.url)) return { label: "PDF", icon: <FileText className="h-3.5 w-3.5" /> };
-  if (blocks.some((b) => b?.type === "video" && b.url) || item.url) return { label: "Vídeo", icon: <Video className="h-3.5 w-3.5" /> };
-  if (item.cover_image || blocks.some((b) => b?.type === "image" && b.url)) return { label: "Imagen", icon: <ImageIcon className="h-3.5 w-3.5" /> };
-  return { label: "Texto", icon: <FileText className="h-3.5 w-3.5" /> };
 }
 
 export default function Resources() {
@@ -146,7 +108,7 @@ export default function Resources() {
       list = list.filter(i => {
         const cat = itemCategory(i);
         const parent = cat?.parent_id ? cats.find(c => c.id === cat.parent_id) : null;
-        const haystack = [i.title, i.category, cat?.name, parent?.name, blocksToText(i.blocks)].filter(Boolean).join(" ").toLowerCase();
+        const haystack = [i.title, i.category, cat?.name, parent?.name].filter(Boolean).join(" ").toLowerCase();
         return haystack.includes(q);
       });
     }
@@ -192,35 +154,18 @@ export default function Resources() {
             <div className="space-y-3">
               {filteredItems.map(it => {
                 const cat = itemCategory(it);
-                const cover = it.cover_image || firstMediaFromBlocks(it.blocks);
-                const type = contentType(it);
-                const description = shortText(it.subtitle || it.body || firstTextFromBlocks(it.blocks) || "Abre la publicación para consultar todo el contenido.");
-                const date = it.created_at ? new Date(it.created_at).toLocaleDateString("es-ES") : "";
                 return (
                   <Link key={it.id} to={`/app/recursos/${it.id}`} className="card-soft overflow-hidden block hover:shadow-glow transition">
-                    {cover ? (
-                      <img src={mediaUrl(cover)} alt="" className="w-full h-40 object-cover" />
-                    ) : (
-                      <div className="w-full h-40 bg-gradient-to-br from-[#FFF7FA] to-[#F7D8EA] grid place-items-center text-primary text-sm font-medium">
-                        Recurso
-                      </div>
-                    )}
-                    <div className="p-4 flex items-start justify-between gap-3">
+                    {it.cover_image && <img src={mediaUrl(it.cover_image)} alt="" className="w-full h-40 object-cover" />}
+                    <div className="p-4 flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-medium leading-tight flex items-center gap-1.5">
+                        <div className="font-medium truncate flex items-center gap-1.5">
                           {it.is_pinned && <Pin className="h-3 w-3 text-primary fill-primary shrink-0" />}
-                          {it.title || "Publicación sin título"}
+                          {it.title}
                         </div>
-                        <div className="text-xs muted mt-1">{cat?.icon} {cat?.name ?? "Sin categoría"}</div>
-                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] text-foreground border border-primary/25">
-                          {type.icon}
-                          {type.label}
-                        </div>
-                        {description && <p className="text-sm muted mt-2 line-clamp-2">{description}</p>}
-                        {date && <div className="text-[11px] muted mt-2">{date}</div>}
-                        <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Ver contenido</span>
+                        <div className="text-xs muted truncate">{cat?.icon} {cat?.name ?? "Sin categoría"}</div>
                       </div>
-                      <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />
+                      <ChevronRight className="h-4 w-4 muted shrink-0" />
                     </div>
                   </Link>
                 );
