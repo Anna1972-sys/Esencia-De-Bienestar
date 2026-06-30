@@ -108,36 +108,39 @@ export default function Products() {
       {filtered.length === 0 ? (
         <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-5">
           {filtered.map(product => {
             const category = product.category_id ? categoryById.get(product.category_id) : null;
             return (
               <Link
                 key={product.id}
                 to={`/app/productos/${product.id}`}
-                className="wellness-tile group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
+                className="product-client-list-card wellness-tile group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
               >
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                ) : (
-                  <div className="h-44 w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
-                    <ImageIcon className="h-8 w-8 text-primary/70" />
-                  </div>
-                )}
-                <div className="p-4">
+                <div className="product-client-list-image">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
+                      <ImageIcon className="h-8 w-8 text-primary/70" />
+                    </div>
+                  )}
+                </div>
+                <div className="product-client-list-info">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-primary truncate">{category?.name ?? "Producto"}</div>
-                      <h2 className="font-sans font-bold text-lg leading-tight mt-1">{product.name}</h2>
+                      <h2 className="font-sans font-bold text-xl leading-tight">{product.name}</h2>
+                      {category?.name && <div className="text-xs muted mt-1 truncate">{category.name}</div>}
                     </div>
-                    <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />
+                    <ChevronRight className="h-5 w-5 muted shrink-0 mt-1" />
                   </div>
-                  {product.description && <p className="text-xs muted mt-2 line-clamp-2">{product.description}</p>}
-                  <div className="flex flex-wrap gap-1.5 mt-3">
+                  {product.description && <p className="text-sm muted mt-3 line-clamp-3">{product.description}</p>}
+                  <div className="flex flex-wrap gap-1.5 mt-4">
                     {product.available_for_recipes && <span className="chip-lavender">Recetas</span>}
                     {product.informative_only && <span className="chip">Informativo</span>}
                     <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status ?? "pendiente"}</span>
                   </div>
+                  <span className="btn-primary mt-5 w-max px-4 py-2 text-xs">Ver producto</span>
                 </div>
               </Link>
             );

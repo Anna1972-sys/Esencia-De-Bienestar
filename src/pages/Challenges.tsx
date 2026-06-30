@@ -58,8 +58,8 @@ export default function Challenges() {
             <Link key={c.id} to={`/app/retos/${c.id}`}
               className="challenge-premium block overflow-hidden rounded-[28px] bg-white/90 transition hover:-translate-y-0.5"
             >
-              <div className="relative h-48 overflow-hidden">
-                <img src={challengeHero} alt="" className="h-full w-full object-cover" />
+              <div className="app-photo-cover-frame relative overflow-hidden">
+                <img src={challengeHero} alt="" className="app-photo-cover-image" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                   <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/70">Reto de 5 días</p>

@@ -346,7 +346,7 @@ export default function AdminNutrition() {
                         ) : (
                           <div className="h-14 w-full bg-[#FFF7FA]" />
                         )}
-                        <div className="flex-1 px-2 py-2 text-center bg-[#FFF7FA]">
+                        <div className="flex-1 px-2 py-2 text-center bg-black">
                           <div className="font-medium text-[12px] leading-tight line-clamp-2">{category.label}</div>
                           <div className="text-[10px] muted leading-tight line-clamp-2 mt-1">{category.subtitle || "Contenido"}</div>
                         </div>
@@ -364,11 +364,32 @@ export default function AdminNutrition() {
                   <form onSubmit={saveContent} className="admin-nutrition-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
                     <div>
                       <label className="text-xs muted">Imagen principal</label>
-                      {contentForm.cover_image && <img src={contentForm.cover_image} alt="" className="h-32 w-full rounded-2xl object-cover mb-2" />}
-                      <label className="btn-primary inline-flex cursor-pointer">
-                        <Upload className="h-4 w-4" /> Subir imagen principal
-                        <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "covers", (url) => setContentForm((current) => ({ ...current, cover_image: url })))} />
-                      </label>
+                      {contentForm.cover_image && (
+                        <div className="relative mb-2 overflow-hidden rounded-2xl">
+                          <img src={contentForm.cover_image} alt="" className="h-32 w-full object-cover" />
+                          <button
+                            type="button"
+                            className="admin-nutrition-delete-button absolute right-2 top-2"
+                            onClick={() => setContentForm((current) => ({ ...current, cover_image: "" }))}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Borrar
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <label className="btn-primary inline-flex cursor-pointer">
+                          <Upload className="h-4 w-4" /> Subir imagen principal
+                          <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "covers", (url) => setContentForm((current) => ({ ...current, cover_image: url })))} />
+                        </label>
+                        <button
+                          type="button"
+                          className="admin-nutrition-delete-button"
+                          disabled={!contentForm.cover_image}
+                          onClick={() => setContentForm((current) => ({ ...current, cover_image: "" }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar
+                        </button>
+                      </div>
                     </div>
                     <label className="block">
                       <span className="text-xs muted">Título</span>
@@ -407,13 +428,35 @@ export default function AdminNutrition() {
                       <div className="font-medium text-sm mb-2">Galería de imágenes</div>
                       {contentForm.gallery.length > 0 && (
                         <div className="grid grid-cols-3 gap-2 mb-2">
-                          {contentForm.gallery.map((url) => <img key={url} src={url} alt="" className="h-20 w-full rounded-xl object-cover" />)}
+                          {contentForm.gallery.map((url) => (
+                            <div key={url} className="relative overflow-hidden rounded-xl">
+                              <img src={url} alt="" className="h-20 w-full object-cover" />
+                              <button
+                                type="button"
+                                className="admin-nutrition-delete-icon absolute right-1 top-1"
+                                aria-label="Borrar imagen"
+                                onClick={() => setContentForm((current) => ({ ...current, gallery: current.gallery.filter((item) => item !== url) }))}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
-                      <label className="btn-secondary cursor-pointer">
-                        <ImageIcon className="h-4 w-4" /> Añadir imagen
-                        <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "gallery", (url) => setContentForm((current) => ({ ...current, gallery: [...current.gallery, url] })))} />
-                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <label className="btn-secondary cursor-pointer">
+                          <ImageIcon className="h-4 w-4" /> Añadir imagen
+                          <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "gallery", (url) => setContentForm((current) => ({ ...current, gallery: [...current.gallery, url] })))} />
+                        </label>
+                        <button
+                          type="button"
+                          className="admin-nutrition-delete-button"
+                          disabled={contentForm.gallery.length === 0}
+                          onClick={() => setContentForm((current) => ({ ...current, gallery: [] }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar galería
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid gap-2">
@@ -421,10 +464,20 @@ export default function AdminNutrition() {
                         <span className="text-xs muted">Vídeo</span>
                         <input className="field mt-1" placeholder="Vídeo o URL de vídeo" value={contentForm.video_url} onChange={(event) => setContentForm({ ...contentForm, video_url: event.target.value })} />
                       </label>
-                      <label className="btn-secondary cursor-pointer">
-                        <Video className="h-4 w-4" /> Subir vídeo
-                        <input type="file" accept="video/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "videos", (url) => setContentForm((current) => ({ ...current, video_url: url })))} />
-                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <label className="btn-secondary cursor-pointer">
+                          <Video className="h-4 w-4" /> Subir vídeo
+                          <input type="file" accept="video/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "videos", (url) => setContentForm((current) => ({ ...current, video_url: url })))} />
+                        </label>
+                        <button
+                          type="button"
+                          className="admin-nutrition-delete-button"
+                          disabled={!contentForm.video_url}
+                          onClick={() => setContentForm((current) => ({ ...current, video_url: "" }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar vídeo
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid gap-2">
@@ -432,10 +485,20 @@ export default function AdminNutrition() {
                         <span className="text-xs muted">PDF</span>
                         <input className="field mt-1" placeholder="PDF o URL de PDF" value={contentForm.pdf_url} onChange={(event) => setContentForm({ ...contentForm, pdf_url: event.target.value })} />
                       </label>
-                      <label className="btn-secondary cursor-pointer">
-                        <FileText className="h-4 w-4" /> Subir PDF
-                        <input type="file" accept="application/pdf" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "pdfs", (url) => setContentForm((current) => ({ ...current, pdf_url: url })))} />
-                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <label className="btn-secondary cursor-pointer">
+                          <FileText className="h-4 w-4" /> Subir PDF
+                          <input type="file" accept="application/pdf" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "pdfs", (url) => setContentForm((current) => ({ ...current, pdf_url: url })))} />
+                        </label>
+                        <button
+                          type="button"
+                          className="admin-nutrition-delete-button"
+                          disabled={!contentForm.pdf_url}
+                          onClick={() => setContentForm((current) => ({ ...current, pdf_url: "" }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar PDF
+                        </button>
+                      </div>
                     </div>
 
                     <label className="block">
@@ -445,6 +508,14 @@ export default function AdminNutrition() {
                         <input className="field pl-9" placeholder="Enlace externo" value={contentForm.external_url} onChange={(event) => setContentForm({ ...contentForm, external_url: event.target.value })} />
                       </div>
                     </label>
+                    <button
+                      type="button"
+                      className="admin-nutrition-delete-button w-max"
+                      disabled={!contentForm.external_url}
+                      onClick={() => setContentForm((current) => ({ ...current, external_url: "" }))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Borrar enlace
+                    </button>
 
                     <label className="flex items-center justify-between rounded-xl border border-[#FF2D95]/40 bg-white px-3 py-2 text-sm">
                       <span>Visible para clientes</span>
@@ -466,8 +537,8 @@ export default function AdminNutrition() {
                           <button type="button" className="text-primary" onClick={() => setContentForm(formFromItem(item))} aria-label="Editar contenido">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button type="button" className="text-destructive" onClick={() => removeContent(item.id)} aria-label="Eliminar contenido">
-                            <Trash2 className="h-4 w-4" />
+                          <button type="button" className="admin-nutrition-delete-button" onClick={() => removeContent(item.id)} aria-label="Eliminar contenido">
+                            <Trash2 className="h-3.5 w-3.5" /> Borrar
                           </button>
                         </div>
                       ))}
@@ -483,11 +554,32 @@ export default function AdminNutrition() {
       <div className="card-soft admin-nutrition-panel admin-nutrition-new-category-card p-4">
         <form onSubmit={saveCategory} className="admin-nutrition-form admin-nutrition-new-category-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
           <div className="font-medium">Nueva categoría</div>
-          {categoryForm.image_url && <img src={categoryForm.image_url} alt="" className="h-24 w-full rounded-2xl object-cover" />}
-          <label className="btn-primary inline-flex cursor-pointer">
-            <Upload className="h-4 w-4" /> Subir imagen
-            <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "categories", (url) => setCategoryForm((current) => ({ ...current, image_url: url })))} />
-          </label>
+          {categoryForm.image_url && (
+            <div className="relative overflow-hidden rounded-2xl">
+              <img src={categoryForm.image_url} alt="" className="h-24 w-full object-cover" />
+              <button
+                type="button"
+                className="admin-nutrition-delete-button absolute right-2 top-2"
+                onClick={() => setCategoryForm((current) => ({ ...current, image_url: "" }))}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Borrar
+              </button>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <label className="btn-primary inline-flex cursor-pointer">
+              <Upload className="h-4 w-4" /> Subir imagen
+              <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "categories", (url) => setCategoryForm((current) => ({ ...current, image_url: url })))} />
+            </label>
+            <button
+              type="button"
+              className="admin-nutrition-delete-button"
+              disabled={!categoryForm.image_url}
+              onClick={() => setCategoryForm((current) => ({ ...current, image_url: "" }))}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
+          </div>
           <input className="field" placeholder="Nombre" value={categoryForm.label} onChange={(event) => setCategoryForm({ ...categoryForm, label: event.target.value })} required />
           <input className="field" placeholder="Subtítulo" value={categoryForm.subtitle} onChange={(event) => setCategoryForm({ ...categoryForm, subtitle: event.target.value })} />
           <label className="flex items-center justify-between rounded-xl border border-[#FF2D95]/40 bg-white px-3 py-2 text-sm">

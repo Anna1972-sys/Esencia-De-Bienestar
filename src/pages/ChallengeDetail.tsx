@@ -128,7 +128,9 @@ export default function ChallengeDetail() {
           return (
             <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
               className="challenge-premium overflow-hidden block rounded-[24px] bg-white/90 transition hover:-translate-y-1">
-              <img src={detail.image} alt={e.label} className="w-full aspect-[4/3] object-cover" />
+              <div className="app-photo-cover-frame">
+                <img src={detail.image} alt={e.label} className="app-photo-cover-image" />
+              </div>
               <div className="p-3.5">
                 <div className="font-sans font-bold text-sm leading-tight text-foreground">{e.label}</div>
                 <p className="text-[10.5px] mt-1 text-muted-foreground">{detail.subtitle}</p>

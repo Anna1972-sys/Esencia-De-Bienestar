@@ -439,12 +439,12 @@
   .admin-nutrition-page .admin-nutrition-form,
   .admin-nutrition-page .library-admin-container,
   .admin-nutrition-page .library-admin-inner-container {
-    background: #FFF7FA !important;
+    background: #FFEAF4 !important;
     border-color: #FF2D95 !important;
   }
   .admin-nutrition-page .admin-nutrition-category-row {
-    background: #FFF7FA !important;
-    color: hsl(var(--foreground));
+    background: #1F1F1F !important;
+    color: #FFFFFF;
     border-color: #FF2D95 !important;
     box-shadow: 0 14px 30px -24px hsl(325 45% 24% / .28);
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
@@ -462,11 +462,67 @@
     font-weight: 800;
   }
   .admin-nutrition-page .admin-nutrition-category-row .muted {
-    color: hsl(var(--muted-foreground));
+    color: hsl(0 0% 90% / .82);
+  }
+  .admin-nutrition-page .admin-nutrition-category-row .bg-black {
+    background: #1F1F1F !important;
+  }
+  .admin-nutrition-page .admin-nutrition-form .rounded-2xl.border,
+  .admin-nutrition-page .admin-nutrition-form label.rounded-xl {
+    background: #FFEAF4 !important;
+    border-color: #FF2D95 !important;
+  }
+  .admin-nutrition-delete-button,
+  .admin-nutrition-delete-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    border-radius: 999px;
+    border: 1px solid #FF2D95;
+    background: #FF2D95;
+    color: #FFFFFF;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 10px 18px -14px rgb(255 45 149 / .82);
+    transition: background .18s ease, transform .18s ease;
+  }
+  .admin-nutrition-delete-button {
+    min-height: 2rem;
+    padding: .45rem .75rem;
+  }
+  .admin-nutrition-delete-icon {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+  }
+  .admin-nutrition-delete-button:hover,
+  .admin-nutrition-delete-icon:hover {
+    background: #F0128A;
+    transform: translateY(-1px);
+  }
+  .admin-nutrition-delete-button:disabled,
+  .admin-nutrition-delete-icon:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  .admin-nutrition-category-photo {
+    height: 132px;
+    overflow: hidden;
+  }
+  .admin-nutrition-category-photo img {
+    height: 100% !important;
+    width: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    display: block;
   }
   .admin-nutrition-page .admin-nutrition-new-category-card,
   .admin-nutrition-page .admin-nutrition-new-category-form {
-    background: #FFF7FA !important;
+    background: #FFEAF4 !important;
     color: hsl(var(--foreground));
     border-color: #FF2D95 !important;
   }
@@ -529,6 +585,139 @@
     color: hsl(338 90% 96%);
     background: #2A151F;
     border-color: #2A151F;
+  }
+
+  .product-client-list-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+    min-height: 17rem;
+  }
+
+  .product-client-list-image {
+    min-height: 17rem;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(330 80% 98%), hsl(0 0% 100%));
+    display: grid;
+    place-items: center;
+  }
+
+  .product-client-list-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+  }
+
+  .product-client-list-info {
+    min-width: 0;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .admin-product-list-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-product-list-main {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+    align-items: center;
+  }
+
+  .admin-product-list-image {
+    height: 9.5rem;
+    width: 9.5rem;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(330 80% 98%), hsl(0 0% 100%));
+    border: 1px solid hsl(var(--primary) / .18);
+  }
+
+  .admin-product-list-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+  }
+
+  .admin-product-list-content {
+    min-width: 0;
+  }
+
+  .admin-product-list-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .65rem;
+    padding: 0 1rem 1rem;
+  }
+
+  .admin-product-action-button {
+    min-height: 2.85rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--primary) / .55);
+    background: hsl(0 0% 100% / .94);
+    color: hsl(var(--foreground));
+    font-size: .78rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .55rem .7rem;
+    white-space: nowrap;
+    transition: background .2s ease, border-color .2s ease, transform .2s ease;
+  }
+
+  .admin-product-action-button:hover {
+    background: #FFF7FA;
+    border-color: #FF2D95;
+    transform: translateY(-1px);
+  }
+
+  .admin-section-cover-products img {
+    object-fit: cover !important;
+    object-position: center 32% !important;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  @media (max-width: 640px) {
+    .product-client-list-card {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+
+    .product-client-list-image {
+      min-height: 16rem;
+      height: 16rem;
+    }
+
+    .product-client-list-info {
+      padding: 1rem;
+    }
+
+    .admin-product-list-main {
+      grid-template-columns: 1fr;
+      gap: .85rem;
+    }
+
+    .admin-product-list-image {
+      width: 100%;
+      height: 13rem;
+    }
+
+    .admin-product-list-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   .admin-area {
@@ -1416,23 +1605,26 @@
     border-color: #FF2D95 !important;
   }
 
+  .library-admin-cover-card,
   .admin-movement-page .library-admin-cover-card {
-    height: 9.5rem;
+    height: 220px;
     background: #FFF7FA !important;
     box-shadow: 0 16px 28px -24px hsl(325 45% 24% / .32);
     overflow: hidden;
   }
 
+  .library-admin-cover-card img,
   .admin-movement-page .library-admin-cover-card img {
     width: 100%;
     height: 100%;
     object-fit: cover !important;
-    object-position: center top !important;
+    object-position: center center !important;
     display: block;
+    border-radius: inherit;
   }
 
   .admin-section-cover-card {
-    height: 9.5rem;
+    height: 220px;
     background: #FFF7FA !important;
     box-shadow: 0 16px 28px -24px hsl(325 45% 24% / .32);
     overflow: hidden;
@@ -1442,8 +1634,44 @@
     width: 100%;
     height: 100%;
     object-fit: cover !important;
-    object-position: center top !important;
+    object-position: center center !important;
     display: block;
+    border-radius: inherit;
+  }
+
+  .admin-section-cover-products img {
+    object-position: center 32% !important;
+  }
+
+  .app-photo-cover-frame {
+    height: 220px !important;
+    width: 100%;
+    overflow: hidden;
+    border-radius: inherit;
+  }
+
+  .app-photo-cover-image,
+  .app-content-cover-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    display: block;
+  }
+
+  .app-content-cover-image {
+    height: 220px !important;
+  }
+
+  .app-category-card {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .library-recipe-thumb {
+    width: 8.5rem;
+    height: 8.5rem;
+    overflow: hidden;
   }
 
   .admin-movement-page .btn-secondary,
@@ -1769,5 +1997,14 @@
       bottom: -.35rem;
       padding: .72rem .85rem;
     }
+  }
+
+  .admin-nutrition-page .admin-nutrition-panel,
+  .admin-nutrition-page .admin-nutrition-content-panel,
+  .admin-nutrition-page .admin-nutrition-form,
+  .admin-nutrition-page .admin-nutrition-new-category-card,
+  .admin-nutrition-page .admin-nutrition-new-category-form {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
   }
 }

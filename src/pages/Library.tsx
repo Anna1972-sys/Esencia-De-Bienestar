@@ -149,13 +149,13 @@ export default function Library() {
                 onClick={() => setSelectedCat(id)}
                 className="card-soft overflow-hidden text-left hover:shadow-md transition flex flex-col"
               >
-                <div className="aspect-square w-full overflow-hidden bg-muted">
+                <div className="app-photo-cover-frame w-full overflow-hidden bg-muted">
                   {image ? (
                     <img
                       src={image}
                       alt={label}
                       loading="lazy"
-                      className="w-full h-full object-cover"
+                      className="app-photo-cover-image"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                     />
                   ) : (
@@ -208,8 +208,8 @@ export default function Library() {
                     className="recipe-premium rounded-[22px] bg-white/90 w-full text-left transition overflow-hidden flex"
                   >
                     {cover && (
-                      <div className="w-28 h-28 shrink-0 bg-muted">
-                        <img src={cover} alt={r.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      <div className="library-recipe-thumb shrink-0 bg-muted">
+                        <img src={cover} alt={r.title} loading="lazy" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                       </div>
                     )}
                     <div className="p-3 flex-1 min-w-0">

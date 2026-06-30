@@ -556,7 +556,7 @@ export default function AdminProducts() {
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
-      <section className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] gap-4 mb-5">
+      <section className="grid grid-cols-1 gap-5 mb-5">
         <form onSubmit={saveCategory} className="card-soft admin-products-panel p-4 space-y-4">
           <div>
             <h2 className="font-serif text-xl">{editingCategory ? "Editar categoría" : "Nueva categoría"}</h2>
@@ -595,15 +595,23 @@ export default function AdminProducts() {
             </select>
           </div>
           {loading ? <div className="muted text-sm">Cargando productos…</div> : (
-            <div className="space-y-3 max-h-[470px] overflow-auto pr-1">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {filteredProducts.map(product => (
-                <div key={product.id} className="admin-product-row rounded-[22px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
-                  <div className="flex gap-3 p-3">
-                    {product.image_url ? <img src={product.image_url} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-gradient-rosa/20 grid place-items-center"><ImageIcon className="h-5 w-5 text-primary" /></div>}
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium truncate">{product.name}</div>
-                      <div className="text-xs muted truncate">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
-                      <div className="flex flex-wrap gap-1.5 mt-2 text-[10px]">
+                <div key={product.id} className="admin-product-row admin-product-list-card rounded-[26px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
+                  <div className="admin-product-list-main">
+                    <div className="admin-product-list-image">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-rosa/20 grid place-items-center">
+                          <ImageIcon className="h-6 w-6 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="admin-product-list-content">
+                      <div className="font-sans font-extrabold text-lg leading-tight">{product.name}</div>
+                      <div className="text-sm muted mt-1">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
+                      <div className="flex flex-wrap gap-1.5 mt-3 text-[10px]">
                         <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
                         <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
                         {product.visible_to_clients && <span className="chip-lavender">Clientes</span>}
@@ -612,12 +620,11 @@ export default function AdminProducts() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-5 border-t border-border/60 text-xs">
-                    <button className="py-2 hover:bg-secondary" onClick={() => editProduct(product)}>Editar</button>
-                    <button className="py-2 hover:bg-secondary" onClick={() => duplicateProduct(product)}>Duplicar</button>
-                    <button className="py-2 hover:bg-secondary" onClick={() => toggleProduct(product)}>{product.is_active ? "Desactivar" : "Activar"}</button>
-                    <button className="py-2 hover:bg-secondary text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
-                    <div className="py-2 text-center muted">{product.calories} kcal</div>
+                  <div className="admin-product-list-actions">
+                    <button className="admin-product-action-button" onClick={() => editProduct(product)}>Editar</button>
+                    <button className="admin-product-action-button" onClick={() => duplicateProduct(product)}>Duplicar</button>
+                    <button className="admin-product-action-button" onClick={() => toggleProduct(product)}>{product.is_active ? "Desactivar" : "Activar"}</button>
+                    <button className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
                   </div>
                 </div>
               ))}

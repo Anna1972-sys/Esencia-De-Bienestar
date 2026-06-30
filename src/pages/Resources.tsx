@@ -155,7 +155,7 @@ export default function Resources() {
                 const cat = itemCategory(it);
                 return (
                   <Link key={it.id} to={`/app/recursos/${it.id}`} className="card-soft overflow-hidden block hover:shadow-glow transition">
-                    {it.cover_image && <img src={it.cover_image} alt="" className="w-full h-40 object-cover" />}
+                    {it.cover_image && <img src={it.cover_image} alt="" className="app-content-cover-image" />}
                     <div className="p-4 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="font-medium truncate flex items-center gap-1.5">
@@ -197,10 +197,10 @@ export default function Resources() {
                 <button
                   key={c.id}
                   onClick={() => setActiveTop(c.id)}
-                  className="wellness-tile group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
                 >
-                  <div className="h-44 w-full overflow-hidden bg-black">
-                    <img src={card.image} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                    <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
                   </div>
                   <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
                     <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
