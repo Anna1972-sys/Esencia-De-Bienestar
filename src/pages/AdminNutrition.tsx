@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { NUTRITION_CATEGORIES } from "@/lib/nutritionCategories";
 import hidratacionImage from "@/assets/nutrition/hidratacion.png";
 import proteinasImage from "@/assets/nutrition/proteinas.png";
 import recuperacionImage from "@/assets/nutrition/recuperacion-realimentacion.png";
@@ -172,18 +171,9 @@ export default function AdminNutrition() {
       .order("sort_order", { ascending: true });
 
     if (error) {
+      console.error("[nutrition_categories]", error);
       toast.error(error.message);
-      setCategories(
-        NUTRITION_CATEGORIES.map((category, index) => ({
-          id: category.key,
-          key: category.key,
-          label: category.label,
-          subtitle: category.subtitle,
-          image_url: categoryImages[category.key] ?? null,
-          visible: true,
-          sort_order: index + 1,
-        }))
-      );
+      setCategories([]);
       return;
     }
     setCategories(data ?? []);
