@@ -1644,6 +1644,35 @@
     border-color: #F0128A !important;
   }
 
+  .admin-challenges-page .card-soft,
+  .admin-challenges-page .card-elegant,
+  .admin-challenges-page section,
+  .admin-challenges-page .rounded-2xl.bg-card\/60,
+  .admin-challenges-page .rounded-2xl.bg-card\/70 {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
+  }
+
+  .admin-challenges-page .btn-ghost,
+  .admin-challenges-page .btn-secondary {
+    background: #FF2D95 !important;
+    border-color: #FF2D95 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 10px 18px -16px rgb(255 45 149 / .85);
+  }
+
+  .admin-challenges-page .btn-ghost:hover,
+  .admin-challenges-page .btn-secondary:hover {
+    background: #F0128A !important;
+    border-color: #F0128A !important;
+    color: #FFFFFF !important;
+  }
+
+  .admin-challenges-page .btn-ghost.text-destructive {
+    background: #FFFFFF !important;
+    color: hsl(var(--destructive)) !important;
+  }
+
   @media (max-width: 640px) {
     .shopping-list-page .shopping-hero-card,
     .admin-shopping-page .shopping-hero-card {

@@ -114,7 +114,7 @@ export default function AdminChallenges() {
   ];
 
   return (
-    <div className="pb-28 space-y-4">
+    <div className="admin-challenges-page pb-28 space-y-4">
       <AdminPageHeader title="Retos de 5 días" subtitle="Crear y editar retos" />
 
 
