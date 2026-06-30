@@ -269,7 +269,8 @@
   .home-card-image {
     height: 100%;
     width: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center center;
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
@@ -685,7 +686,8 @@
   .admin-dashboard .admin-card-image {
     height: 176px;
     width: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center center;
     flex-shrink: 0;
     border: 0 !important;
     outline: 0 !important;
