@@ -10,9 +10,9 @@ import { toast } from "sonner";
 import type { ContentBlock } from "@/lib/movementCategories";
 import type { LibraryCategory } from "./LibraryPage";
 import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
-import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
+const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
 
 type Form = {
   id?: string;
@@ -47,7 +47,12 @@ type Props = {
 };
 
 async function uploadFile(file: File, folder: string, base: string) {
-  return uploadMediaToStorage("resource-media", `${base}/${folder}`, file);
+  const path = `${base}/${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const { error } = await supabase.storage.from("resource-media").upload(path, file);
+  if (error) throw error;
+  const { data, error: sErr } = await supabase.storage.from("resource-media").createSignedUrl(path, SIGNED_TTL);
+  if (sErr) throw sErr;
+  return data.signedUrl;
 }
 
 export default function LibraryAdminPage({
@@ -197,7 +202,7 @@ export default function LibraryAdminPage({
 
         <div>
           <label className="library-cover-label text-xs muted">Imagen principal de portada</label>
-          {f.cover_image && <img src={mediaUrl(f.cover_image)} alt="" className="w-full h-40 object-cover rounded-xl mt-1 mb-2" />}
+          {f.cover_image && <img src={f.cover_image} alt="" className="w-full h-40 object-cover rounded-xl mt-1 mb-2" />}
           <label className="btn-secondary library-cover-upload-button inline-flex cursor-pointer">
             <Upload className="h-4 w-4" /> {f.cover_image ? "Cambiar" : "Subir"} portada
             <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && onCover(e.target.files[0])} />
@@ -297,7 +302,7 @@ export default function LibraryAdminPage({
                 )}
                 {b.type === "image" && (
                   <>
-                    <img src={mediaUrl((b as any).url)} alt="" className="w-full max-h-48 object-cover rounded-lg" />
+                    <img src={(b as any).url} alt="" className="w-full max-h-48 object-cover rounded-lg" />
                     <input className="field mt-2" placeholder="Pie de imagen (opcional)" value={(b as any).caption ?? ""} onChange={e => updateBlock(i, { caption: e.target.value })} />
                   </>
                 )}
@@ -308,7 +313,7 @@ export default function LibraryAdminPage({
                   </>
                 )}
                 {b.type === "pdf" && (
-                  <div className="text-sm truncate"><a className="text-primary underline" href={mediaUrl((b as any).url)} target="_blank" rel="noreferrer">{(b as any).name ?? "Archivo"}</a></div>
+                  <div className="text-sm truncate"><a className="text-primary underline" href={(b as any).url} target="_blank" rel="noreferrer">{(b as any).name ?? "Archivo"}</a></div>
                 )}
                 {(b.type === "link" || b.type === "button") && (
                   <div className="grid gap-2">
@@ -355,7 +360,7 @@ export default function LibraryAdminPage({
 
       <div className="space-y-2">{visibleItems.map(i => (
         <div key={i.id} className="card-soft library-admin-container p-3 flex items-center justify-between gap-2">
-          {i.cover_image && <img src={mediaUrl(i.cover_image)} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />}
+          {i.cover_image && <img src={i.cover_image} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />}
           <div className="min-w-0 flex-1">
             <div className="font-medium text-sm truncate">{i.title}</div>
             <div className="text-xs muted truncate">

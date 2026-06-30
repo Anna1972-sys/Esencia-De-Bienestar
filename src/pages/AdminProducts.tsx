@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
-import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
 import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -245,7 +244,12 @@ function measuresFromProductNutrition(measures: ProductMeasure[], product: Produ
 }
 
 async function uploadProductFile(file: File, folder: string) {
-  return uploadMediaToStorage("product-media", folder, file);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${folder}/${crypto.randomUUID()}-${safeName}`;
+  const { error } = await supabase.storage.from("product-media").upload(path, file, { upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from("product-media").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export default function AdminProducts() {
@@ -595,7 +599,7 @@ export default function AdminProducts() {
               {filteredProducts.map(product => (
                 <div key={product.id} className="admin-product-row rounded-[22px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
                   <div className="flex gap-3 p-3">
-                    {product.image_url ? <img src={mediaUrl(product.image_url)} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-gradient-rosa/20 grid place-items-center"><ImageIcon className="h-5 w-5 text-primary" /></div>}
+                    {product.image_url ? <img src={product.image_url} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-gradient-rosa/20 grid place-items-center"><ImageIcon className="h-5 w-5 text-primary" /></div>}
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">{product.name}</div>
                       <div className="text-xs muted truncate">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
@@ -942,7 +946,7 @@ function MediaUploader({
   return (
     <div className="rounded-[22px] bg-secondary/70 p-3">
       <div className="flex items-center gap-2 text-sm font-medium mb-2">{icon}{title}</div>
-      {url && <img src={mediaUrl(url)} alt="" className="w-full h-40 object-cover rounded-2xl mb-2" />}
+      {url && <img src={url} alt="" className="w-full h-40 object-cover rounded-2xl mb-2" />}
       <div className="flex flex-col sm:flex-row gap-2">
         <label className="btn-primary cursor-pointer justify-center">
           <Upload className="h-4 w-4" /> Subir

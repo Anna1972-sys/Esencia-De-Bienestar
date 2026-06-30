@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileText, PlayCircle } from "lucide-react";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import BackButton from "@/components/BackButton";
-import { mediaUrl } from "@/lib/mediaStorage";
 
 function isEmbeddable(url: string) {
   return /youtube\.com|youtu\.be|vimeo\.com/.test(url);
@@ -49,7 +48,7 @@ export default function ResourceDetail() {
     <article className="pb-8">
       <BackButton fallbackTo="/app/recursos" className="text-sm muted inline-flex items-center gap-1 mb-3"><ArrowLeft className="h-4 w-4" /> Volver</BackButton>
 
-      {it.cover_image && <img src={mediaUrl(it.cover_image)} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />}
+      {it.cover_image && <img src={it.cover_image} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />}
       {cat && <div className="text-xs muted mb-1">{cat.icon} {cat.name}</div>}
       <h1 className="heading-lg mb-4">{it.title}</h1>
 
@@ -58,7 +57,7 @@ export default function ResourceDetail() {
           if (b.type === "text") return <p key={i} className="whitespace-pre-wrap leading-relaxed">{b.value}</p>;
           if (b.type === "image") return (
             <figure key={i}>
-              <img src={mediaUrl(b.url)} alt={b.caption ?? ""} className="w-full rounded-xl" />
+              <img src={b.url} alt={b.caption ?? ""} className="w-full rounded-xl" />
               {b.caption && <figcaption className="text-xs muted text-center mt-1">{b.caption}</figcaption>}
             </figure>
           );
@@ -71,14 +70,14 @@ export default function ResourceDetail() {
                     <iframe src={toEmbed(b.url)} className="w-full h-full" allowFullScreen />
                   </div>
                 ) : (
-                  <video src={mediaUrl(b.url)} controls className="w-full rounded-xl" />
+                  <video src={b.url} controls className="w-full rounded-xl" />
                 )}
                 {b.caption && <figcaption className="text-xs muted text-center mt-1">{b.caption}</figcaption>}
               </figure>
             );
           }
           if (b.type === "pdf") return (
-            <a key={i} href={mediaUrl(b.url)} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
+            <a key={i} href={b.url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
               <div className="h-10 w-10 rounded-xl bg-gradient-rosa text-white grid place-items-center"><FileText className="h-5 w-5" /></div>
               <div className="min-w-0">
                 <div className="font-medium text-sm truncate">{b.name ?? "Descargar PDF"}</div>

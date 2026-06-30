@@ -7,7 +7,6 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import { LIBRARY_CATEGORIES } from "@/lib/libraryCategories";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
-import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
 
 type Visibility = "private" | "community" | "featured";
 
@@ -216,7 +215,7 @@ export default function AdminUserRecipes() {
           <div key={r.id} className="card-soft p-3">
             <div className="flex items-center gap-3">
               {r.image_url
-                ? <img src={mediaUrl(r.image_url)} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                ? <img src={r.image_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
                 : <div className="h-12 w-12 rounded-lg bg-secondary shrink-0" />}
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-sm truncate">{r.title}</div>
@@ -287,8 +286,12 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
     if (!file) return;
     setUploading(true);
     try {
-      const ref = await uploadMediaToStorage("recipe-images", "covers", file);
-      setImageUrl(ref);
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("recipe-images").upload(path, file);
+      if (error) throw error;
+      const { data: signed } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
+      setImageUrl(signed?.signedUrl ?? "");
       toast.success("Imagen subida");
     } catch (err: any) {
       toast.error(err.message);
@@ -310,7 +313,7 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
         <div className="p-4 space-y-3">
           {imageUrl && (
             <div className="relative rounded-xl overflow-hidden aspect-video bg-muted">
-              <img src={mediaUrl(imageUrl)} alt="" className="w-full h-full object-cover" />
+              <img src={imageUrl} alt="" className="w-full h-full object-cover" />
               <button onClick={() => setImageUrl("")} className="absolute top-2 right-2 bg-white/90 rounded-full p-1"><X className="h-3.5 w-3.5" /></button>
             </div>
           )}

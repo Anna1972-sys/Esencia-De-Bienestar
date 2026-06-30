@@ -1,11 +1,19 @@
 import { useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowDown, ArrowUp, ExternalLink, FileUp, Film, ImagePlus, Link2, Trash2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { ContentBlock, ContentItem, FileItem, VideoItem } from "@/lib/challengeExtras";
-import { mediaUrl, uploadMediaToStorage } from "@/lib/mediaStorage";
+
+const SIGNED_TTL = 60 * 60 * 24 * 7;
 
 async function uploadToBucket(file: File, prefix: string): Promise<string> {
-  return uploadMediaToStorage("challenge-media", prefix, file);
+  const ext = file.name.split(".").pop() ?? "bin";
+  const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("challenge-media").upload(path, file);
+  if (error) throw error;
+  const { data, error: signError } = await supabase.storage.from("challenge-media").createSignedUrl(path, SIGNED_TTL);
+  if (signError || !data) throw signError ?? new Error("No se pudo preparar el archivo");
+  return data.signedUrl;
 }
 
 type Props = { block: ContentBlock; onChange: (patch: Partial<ContentBlock>) => void; pathKey: string; titleLabel?: string; showTitle?: boolean };
@@ -92,7 +100,7 @@ function EditorCard({ item, index, total, onUpdate, onMove, onRemove }: { item: 
   return <div className="rounded-2xl border border-border/70 bg-card/70 p-3 space-y-2">
     <div className="flex items-center justify-between"><span className="text-[10px] font-bold tracking-wider uppercase muted">{labels[item.type]} · bloque {index + 1}</span><div className="flex gap-1"><button type="button" disabled={!index} onClick={() => onMove(index, -1)} className="muted disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" disabled={index === total - 1} onClick={() => onMove(index, 1)} className="muted disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button><button type="button" onClick={() => onRemove(item.id)} className="text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></div></div>
     {item.type === "text" && <><input className="field" placeholder="Título o subtítulo" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><textarea className="field min-h-28" placeholder="Párrafos y listas (una línea por punto)" value={item.body ?? ""} onChange={e => onUpdate(item.id, { body: e.target.value })} /></>}
-    {item.type === "image" && <><img src={mediaUrl(item.url)} alt="" className="h-32 w-full object-cover rounded-xl" /><input className="field" placeholder="Pie de imagen (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /></>}
+    {item.type === "image" && <><img src={item.url} alt="" className="h-32 w-full object-cover rounded-xl" /><input className="field" placeholder="Pie de imagen (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /></>}
     {item.type === "video" && <><input className="field" placeholder="Título del vídeo (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><div className="text-xs muted truncate">{item.video.url}</div></>}
     {item.type === "file" && <><input className="field" placeholder="Título del PDF (opcional)" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><div className="text-xs muted truncate">{item.file.name}</div></>}
     {item.type === "link" && <><input className="field" placeholder="Título del enlace" value={item.title ?? ""} onChange={e => onUpdate(item.id, { title: e.target.value })} /><input className="field" placeholder="Descripción breve (opcional)" value={item.description ?? ""} onChange={e => onUpdate(item.id, { description: e.target.value })} /><div className="text-xs muted truncate inline-flex gap-1 items-center"><ExternalLink className="h-3 w-3" /> {item.url}</div></>}

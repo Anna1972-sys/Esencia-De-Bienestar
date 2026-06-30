@@ -1,27 +1,43 @@
 import { useRef, useState } from "react";
 import { Film, Link2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { mediaUrl, uploadMediaToStorage, videoEmbedUrlFromMedia, videoThumbnailFromMedia } from "@/lib/mediaStorage";
+import { supabase } from "@/integrations/supabase/client";
+
+const SIGNED_TTL = 60 * 60 * 24 * 7;
 
 type Props = {
   /** Storage bucket. Must enforce admin-only writes via RLS. */
   bucket?: string;
   /** Folder/prefix inside the bucket. */
   folder?: string;
-  /** Current value (stable Storage reference OR external video URL). */
+  /** Current value (signed URL of uploaded file OR youtube/vimeo URL). */
   value: string;
   onChange: (url: string) => void;
   label?: string;
 };
 
+function youtubeId(url: string) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+  return m?.[1] ?? null;
+}
+function vimeoId(url: string) {
+  const m = url.match(/vimeo\.com\/(\d+)/);
+  return m?.[1] ?? null;
+}
 function isUploadedFile(url: string) {
-  return /\/storage\/v1\/object\//.test(url) || /^storage:\/\//.test(url) || /^blob:/.test(url);
+  return /\/storage\/v1\/object\//.test(url) || /^blob:/.test(url);
 }
 export function videoEmbedUrl(url: string): string | null {
-  return videoEmbedUrlFromMedia(url);
+  const y = youtubeId(url);
+  if (y) return `https://www.youtube.com/embed/${y}`;
+  const v = vimeoId(url);
+  if (v) return `https://player.vimeo.com/video/${v}`;
+  return null;
 }
 export function videoThumbnail(url: string): string | null {
-  return videoThumbnailFromMedia(url);
+  const y = youtubeId(url);
+  if (y) return `https://img.youtube.com/vi/${y}/hqdefault.jpg`;
+  return null;
 }
 
 export default function VideoField({
@@ -40,8 +56,13 @@ export default function VideoField({
     if (!file) return;
     setBusy(true);
     try {
-      const ref = await uploadMediaToStorage(bucket, folder, file);
-      onChange(ref);
+      const ext = file.name.split(".").pop() || "mp4";
+      const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: signed, error: sErr } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_TTL);
+      if (sErr || !signed) throw sErr ?? new Error("No se pudo firmar el vídeo");
+      onChange(signed.signedUrl);
       toast.success("Vídeo subido");
     } catch (err: any) {
       toast.error(err.message || "Error al subir vídeo");
@@ -77,7 +98,7 @@ export default function VideoField({
           {embed ? (
             <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" />
           ) : uploaded ? (
-            <video src={mediaUrl(value)} controls preload="metadata" className="w-full h-full" />
+            <video src={value} controls preload="metadata" className="w-full h-full" />
           ) : thumb ? (
             <img src={thumb} className="w-full h-full object-cover" />
           ) : (

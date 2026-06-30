@@ -4,7 +4,6 @@ import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, BookOpen, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { mediaUrl } from "@/lib/mediaStorage";
 
 export type LibraryCategory = {
   key: string;
@@ -109,7 +108,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
       to={`${basePath}/${it.id}`}
       className="card-soft overflow-hidden block hover:shadow-glow transition"
     >
-      {it.cover_image && <img src={mediaUrl(it.cover_image)} alt="" className="w-full h-40 object-cover" />}
+      {it.cover_image && <img src={it.cover_image} alt="" className="w-full h-40 object-cover" />}
       <div className="p-4 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-medium truncate">{it.title}</div>
@@ -186,7 +185,7 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                 >
                   {(variant === "nutrition" || variant === "movement") && c.image ? (
                     <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
-                      <img src={mediaUrl(c.image)} alt="" loading="lazy" className="h-28 w-full object-cover" />
+                      <img src={c.image} alt="" loading="lazy" className="h-28 w-full object-cover" />
                     </div>
                   ) : (
                     <div className="text-2xl mb-1">{c.emoji}</div>

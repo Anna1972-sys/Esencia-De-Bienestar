@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ExternalLink, FileText, MousePointerClick } from "lucide-react";
-import { mediaUrl } from "@/lib/mediaStorage";
 
 type ProductMeasure = {
   id: string;
@@ -156,7 +155,7 @@ export default function ProductDetail() {
         return (
           <header className="challenge-premium rounded-[28px] overflow-hidden relative min-h-[280px] text-white">
             {product.image_url ? (
-              <img src={mediaUrl(product.image_url)} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
+              <img src={product.image_url} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-primary via-fuchsia-400 to-purple-700" />
             )}
@@ -243,8 +242,8 @@ export default function ProductDetail() {
               <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
               <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
             </div>
-            <a href={mediaUrl(product.spoon_image_url)} target="_blank" rel="noreferrer" className="block">
-              <img src={mediaUrl(product.spoon_image_url)} alt="Equivalencia cuchara Herbalife" className="w-full rounded-2xl" />
+            <a href={product.spoon_image_url} target="_blank" rel="noreferrer" className="block">
+              <img src={product.spoon_image_url} alt="Equivalencia cuchara Herbalife" className="w-full rounded-2xl" />
             </a>
           </section>
         ) : null;
@@ -254,7 +253,7 @@ export default function ProductDetail() {
             <h2 className="font-serif text-xl mb-3">Galería</h2>
             <div className="grid grid-cols-2 gap-3">
               {product.gallery_urls.map((url, index) => (
-                <img key={`${url}-${index}`} src={mediaUrl(url)} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
+                <img key={`${url}-${index}`} src={url} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
               ))}
             </div>
           </section>
@@ -270,7 +269,7 @@ export default function ProductDetail() {
                     <iframe src={toEmbed(url)} className="h-full w-full" allowFullScreen />
                   </div>
                 ) : (
-                  <video src={mediaUrl(url)} controls className="w-full" />
+                  <video src={url} controls className="w-full" />
                 )}
               </div>
             ))}
@@ -281,7 +280,7 @@ export default function ProductDetail() {
           <section className="space-y-2">
             <h2 className="font-serif text-xl">PDFs</h2>
             {product.pdf_urls.map((url, index) => (
-              <a key={`${url}-${index}`} href={mediaUrl(url)} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
+              <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
                 <div className="h-10 w-10 rounded-xl bg-gradient-rosa text-white grid place-items-center"><FileText className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate">Abrir PDF {index + 1}</div>
