@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
 import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +51,7 @@ const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategor
 
 export default function RecipeGenerator() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<RecipeGeneratorCategory[]>(DEFAULT_RECIPE_GENERATOR_CATEGORIES);
   const [category, setCategory] = useState<RecipeCategory>(DEFAULT_RECIPE_GENERATOR_CATEGORIES[0].id);
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -60,6 +62,7 @@ export default function RecipeGenerator() {
   const [avoid, setAvoid] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
 
@@ -102,6 +105,7 @@ export default function RecipeGenerator() {
     setDraft("");
     setIngredients(finalIngredients);
     setResult(null);
+    setSavedRecipeId(null);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -129,14 +133,20 @@ export default function RecipeGenerator() {
         throw new Error(data.error);
       }
 
-      const enrichedRecipe = await withSpecialistMacros(
-        data.result,
-        category,
-        [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
-        [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
-      );
+      let enrichedRecipe = data.result;
+      try {
+        enrichedRecipe = await withSpecialistMacros(
+          data.result,
+          category,
+          [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
+          [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
+        );
+      } catch (macroError: any) {
+        console.error("[recipe-generator] no se pudieron recalcular macros al generar", macroError);
+        toast.warning("Receta generada. Revisa los macros si es necesario.");
+      }
       setResult(enrichedRecipe);
-      toast.success("Receta generada");
+      await saveRecipe(enrichedRecipe, { navigateAfterSave: false, successMessage: "Receta generada y guardada en Mis recetas" });
     } catch (err: any) {
       toast.error(err?.message || "Error generando receta");
     } finally {
@@ -144,20 +154,34 @@ export default function RecipeGenerator() {
     }
   };
 
-  const saveRecipe = async (r: any) => {
-    if (!user) return;
+  const saveRecipe = async (
+    r: any,
+    options: { navigateAfterSave?: boolean; successMessage?: string } = {},
+  ) => {
+    if (!user) {
+      toast.error("No hay sesión activa. Vuelve a iniciar sesión para guardar la receta.");
+      return;
+    }
+    if (savedRecipeId) {
+      toast.success("Esta receta ya está guardada en Mis recetas");
+      if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
+      return;
+    }
     const servings = Number(r.servings) || 1;
     let enrichedRecipe = r;
-    try {
-      enrichedRecipe = await withSpecialistMacros(
-        r,
-        category,
-        [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
-        [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
-      );
-    } catch (err: any) {
-      toast.error(err?.message || "No se pudieron calcular los macros de la receta");
-      return;
+    const alreadyHasMacros = ["calories", "protein", "carbs", "fat", "fiber"].some(key => Number(r?.macros?.[key] ?? 0) > 0);
+    if (!alreadyHasMacros) {
+      try {
+        enrichedRecipe = await withSpecialistMacros(
+          r,
+          category,
+          [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
+          [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
+        );
+      } catch (err: any) {
+        console.error("[recipe-generator] se guarda sin recalcular macros", err);
+        toast.warning("No se pudieron recalcular los macros, pero la receta se guardará igualmente.");
+      }
     }
     let macros: any = enrichedRecipe.macros ?? {};
     macros = {
@@ -168,7 +192,9 @@ export default function RecipeGenerator() {
       nutrition_reference: enrichedRecipe.nutrition_reference ?? macros.nutrition_reference ?? "",
     };
 
-    const { data, error } = await supabase.from("recipes").insert({
+    const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const { error } = await supabase.from("recipes").insert({
+      id: recipeId,
       user_id: user.id,
       title: enrichedRecipe.title,
       description: enrichedRecipe.description,
@@ -184,11 +210,12 @@ export default function RecipeGenerator() {
       is_featured: false,
       visibility: "private",
       is_high_protein: Number(macros?.protein ?? 0) >= 25,
-    } as any).select().single();
+    } as any);
 
     if (error) return toast.error(error.message);
-    toast.success("Guardada en Mis recetas");
-    return data;
+    setSavedRecipeId(recipeId);
+    toast.success(options.successMessage ?? "Guardada en Mis recetas");
+    if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
   };
 
   return (
@@ -279,12 +306,12 @@ export default function RecipeGenerator() {
 
       </div>
 
-      {result && <RecipeCard recipe={result} categories={categories} onSave={() => saveRecipe(result)} />}
+      {result && <RecipeCard recipe={result} categories={categories} saved={Boolean(savedRecipeId)} onSave={() => saveRecipe(result)} />}
     </div>
   );
 }
 
-function RecipeCard({ recipe, categories, onSave }: { recipe: any; categories: RecipeGeneratorCategory[]; onSave: () => void }) {
+function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; categories: RecipeGeneratorCategory[]; saved: boolean; onSave: () => void }) {
   const perServing = recipe.macros ?? {};
   const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
   const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
@@ -321,7 +348,9 @@ function RecipeCard({ recipe, categories, onSave }: { recipe: any; categories: R
 
       <h3 className="font-serif text-base mt-4 mb-1">Preparación</h3>
       <ol className="text-sm space-y-2 list-decimal pl-5">{(recipe.steps ?? []).map((s: string, k: number) => <li key={k}>{s}</li>)}</ol>
-      <button onClick={onSave} className="btn-primary w-full mt-5">Guardar en mis recetas</button>
+      <button onClick={onSave} disabled={saved} className="btn-primary w-full mt-5 disabled:opacity-70">
+        {saved ? "Guardada en Mis recetas" : "Guardar en mis recetas"}
+      </button>
     </div>
   );
 }

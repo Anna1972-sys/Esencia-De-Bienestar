@@ -20,7 +20,14 @@ export default function SavedRecipes() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("recipes").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    if (error) {
+      console.error("[mis-recetas] error cargando recetas", error);
+      toast.error(`No se pudieron cargar tus recetas: ${error.message}`);
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     setItems(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, [user]);
@@ -42,7 +49,7 @@ export default function SavedRecipes() {
     if (error) toast.error(error.message); else toast.success("Añadido a la lista");
   };
 
-  const filtered = items.filter(r => r.title.toLowerCase().includes(q.toLowerCase()));
+  const filtered = items.filter(r => String(r.title ?? "").toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div>
