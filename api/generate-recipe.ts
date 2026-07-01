@@ -148,6 +148,7 @@ function numberOrZero(value: unknown): number {
 }
 
 function numericValueIsPresent(value: unknown) {
+  if (value === null || value === undefined || value === "") return false;
   const n = Number(value);
   return Number.isFinite(n);
 }

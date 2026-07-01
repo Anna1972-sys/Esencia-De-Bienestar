@@ -23,7 +23,10 @@ type ProductMeasure = {
   protein: AdminNumberValue;
   carbs: AdminNumberValue;
   fat: AdminNumberValue;
+  saturated_fat?: AdminNumberValue;
   fiber: AdminNumberValue;
+  sugars?: AdminNumberValue;
+  salt?: AdminNumberValue;
   source: string;
   verification_status: "verificado" | "pendiente";
   is_default: boolean;
@@ -48,17 +51,35 @@ type Product = {
   ingredients_text: string | null;
   observations: string | null;
   free_text: string | null;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  fiber: number;
-  sugars: number;
-  salt: number;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  saturated_fat: number | null;
+  fiber: number | null;
+  sugars: number | null;
+  salt: number | null;
+  serving_size: string | null;
+  serving_grams: number | null;
+  serving_calories: number | null;
+  serving_protein: number | null;
+  serving_carbs: number | null;
+  serving_sugars: number | null;
+  serving_fat: number | null;
+  serving_saturated_fat: number | null;
+  serving_fiber: number | null;
+  serving_salt: number | null;
+  kcal_per_gram: number | null;
+  protein_per_gram: number | null;
+  carbs_per_gram: number | null;
+  fat_per_gram: number | null;
+  fiber_per_gram: number | null;
   micronutrients: Record<string, unknown>;
   source: string;
   verification_status: "verificado" | "pendiente";
   nutrition_effective_from: string | null;
+  nutrition_verified_at: string | null;
+  label_file_url: string | null;
   is_active: boolean;
   visible_to_clients: boolean;
   available_for_recipes: boolean;
@@ -69,15 +90,30 @@ type Product = {
   product_measures?: ProductMeasure[];
 };
 
-type ProductForm = Omit<Product, "id" | "slug" | "product_measures" | "calories" | "protein" | "carbs" | "fat" | "fiber" | "sugars" | "salt" | "sort_order"> & {
+type ProductForm = Omit<Product, "id" | "slug" | "product_measures" | "calories" | "protein" | "carbs" | "fat" | "saturated_fat" | "fiber" | "sugars" | "salt" | "serving_grams" | "serving_calories" | "serving_protein" | "serving_carbs" | "serving_sugars" | "serving_fat" | "serving_saturated_fat" | "serving_fiber" | "serving_salt" | "kcal_per_gram" | "protein_per_gram" | "carbs_per_gram" | "fat_per_gram" | "fiber_per_gram" | "sort_order"> & {
   id?: string;
   calories: AdminNumberValue;
   protein: AdminNumberValue;
   carbs: AdminNumberValue;
   fat: AdminNumberValue;
+  saturated_fat: AdminNumberValue;
   fiber: AdminNumberValue;
   sugars: AdminNumberValue;
   salt: AdminNumberValue;
+  serving_grams: AdminNumberValue;
+  serving_calories: AdminNumberValue;
+  serving_protein: AdminNumberValue;
+  serving_carbs: AdminNumberValue;
+  serving_sugars: AdminNumberValue;
+  serving_fat: AdminNumberValue;
+  serving_saturated_fat: AdminNumberValue;
+  serving_fiber: AdminNumberValue;
+  serving_salt: AdminNumberValue;
+  kcal_per_gram: AdminNumberValue;
+  protein_per_gram: AdminNumberValue;
+  carbs_per_gram: AdminNumberValue;
+  fat_per_gram: AdminNumberValue;
+  fiber_per_gram: AdminNumberValue;
   sort_order: AdminNumberValue;
   aliasesText: string;
   micronutrientsText: string;
@@ -140,11 +176,14 @@ const PRODUCT_BLOCK_LABELS: Record<ProductBlockId, string> = {
 const emptyMeasure: ProductMeasure = {
   name: "gramos",
   grams: 100,
-  calories: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-  fiber: 0,
+  calories: "",
+  protein: "",
+  carbs: "",
+  fat: "",
+  saturated_fat: "",
+  fiber: "",
+  sugars: "",
+  salt: "",
   source: "Pendiente de etiqueta oficial",
   verification_status: "pendiente",
   is_default: true,
@@ -168,19 +207,37 @@ const emptyProduct: ProductForm = {
   ingredients_text: "",
   observations: "",
   free_text: "",
-  calories: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-  fiber: 0,
-  sugars: 0,
-  salt: 0,
+  calories: "",
+  protein: "",
+  carbs: "",
+  fat: "",
+  saturated_fat: "",
+  fiber: "",
+  sugars: "",
+  salt: "",
+  serving_size: "",
+  serving_grams: "",
+  serving_calories: "",
+  serving_protein: "",
+  serving_carbs: "",
+  serving_sugars: "",
+  serving_fat: "",
+  serving_saturated_fat: "",
+  serving_fiber: "",
+  serving_salt: "",
+  kcal_per_gram: "",
+  protein_per_gram: "",
+  carbs_per_gram: "",
+  fat_per_gram: "",
+  fiber_per_gram: "",
   micronutrients: {},
   micronutrientsText: "{}",
   blockOrder: DEFAULT_PRODUCT_BLOCK_ORDER,
   source: "Pendiente de etiqueta oficial",
   verification_status: "pendiente",
   nutrition_effective_from: null,
+  nutrition_verified_at: null,
+  label_file_url: "",
   is_active: true,
   visible_to_clients: true,
   available_for_recipes: true,
@@ -200,9 +257,16 @@ const slugify = (value: string) =>
     .replace(/^-|-$/g, "") || `producto-${Date.now()}`;
 
 const toNumber = (value: unknown) => Number(String(value ?? "").replace(",", ".")) || 0;
+const toNullableNumber = (value: unknown): number | null => {
+  if (value === "" || value === null || value === undefined) return null;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const toFormNumber = (value: unknown): AdminNumberValue => value === null || value === undefined ? "" : toNumber(value);
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
 const textToArray = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 const round1 = (value: number) => Math.round(value * 10) / 10;
+const round4 = (value: number | null) => value === null ? "" : Math.round(value * 10000) / 10000;
 
 function readProductBlockOrder(micronutrients: Record<string, unknown> | null | undefined): ProductBlockId[] {
   const rawOrder = micronutrients?.[PRODUCT_BLOCK_ORDER_KEY];
@@ -229,18 +293,55 @@ function moveBlockOrder(order: ProductBlockId[], blockId: ProductBlockId, direct
 function measureFromProductNutrition(measure: ProductMeasure, product: ProductForm): ProductMeasure {
   const grams = toNumber(measure.grams);
   const factor = grams / 100;
+  const scale = (value: AdminNumberValue) => {
+    const parsed = toNullableNumber(value);
+    return parsed === null ? "" : round1(parsed * factor);
+  };
   return {
     ...measure,
-    calories: round1(toNumber(product.calories) * factor),
-    protein: round1(toNumber(product.protein) * factor),
-    carbs: round1(toNumber(product.carbs) * factor),
-    fat: round1(toNumber(product.fat) * factor),
-    fiber: round1(toNumber(product.fiber) * factor),
+    calories: scale(product.calories),
+    protein: scale(product.protein),
+    carbs: scale(product.carbs),
+    fat: scale(product.fat),
+    saturated_fat: scale(product.saturated_fat),
+    fiber: scale(product.fiber),
+    sugars: scale(product.sugars),
+    salt: scale(product.salt),
   };
 }
 
 function measuresFromProductNutrition(measures: ProductMeasure[], product: ProductForm) {
   return measures.map(measure => measureFromProductNutrition(measure, product));
+}
+
+function nutritionFromServing(form: ProductForm) {
+  const servingGrams = toNullableNumber(form.serving_grams);
+  if (!servingGrams || servingGrams <= 0) return form;
+  const scale = (value: AdminNumberValue) => {
+    const parsed = toNullableNumber(value);
+    return parsed === null ? "" : round1((parsed / servingGrams) * 100);
+  };
+  const next = {
+    ...form,
+    calories: toNullableNumber(form.calories) === null ? scale(form.serving_calories) : form.calories,
+    protein: toNullableNumber(form.protein) === null ? scale(form.serving_protein) : form.protein,
+    carbs: toNullableNumber(form.carbs) === null ? scale(form.serving_carbs) : form.carbs,
+    sugars: toNullableNumber(form.sugars) === null ? scale(form.serving_sugars) : form.sugars,
+    fat: toNullableNumber(form.fat) === null ? scale(form.serving_fat) : form.fat,
+    saturated_fat: toNullableNumber(form.saturated_fat) === null ? scale(form.serving_saturated_fat) : form.saturated_fat,
+    fiber: toNullableNumber(form.fiber) === null ? scale(form.serving_fiber) : form.fiber,
+    salt: toNullableNumber(form.salt) === null ? scale(form.serving_salt) : form.salt,
+  };
+  return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
+}
+
+function perGram(value: AdminNumberValue, servingValue?: AdminNumberValue, servingGrams?: AdminNumberValue) {
+  const per100 = toNullableNumber(value);
+  if (per100 !== null) return round4(per100 / 100);
+  const portion = toNullableNumber(servingValue);
+  const grams = toNullableNumber(servingGrams);
+  if (portion !== null && grams && grams > 0) return round4(portion / grams);
+  return "";
 }
 
 async function uploadProductFile(file: File, folder: string) {
@@ -250,6 +351,15 @@ async function uploadProductFile(file: File, folder: string) {
   if (error) throw error;
   const { data } = supabase.storage.from("product-media").getPublicUrl(path);
   return data.publicUrl;
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function AdminProducts() {
@@ -263,6 +373,7 @@ export default function AdminProducts() {
   const [filterCategory, setFilterCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [readingLabel, setReadingLabel] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -361,40 +472,64 @@ export default function AdminProducts() {
     }
 
     setSaving(true);
+    const preparedForm = nutritionFromServing(form);
+    const kcalPerGram = perGram(preparedForm.calories, preparedForm.serving_calories, preparedForm.serving_grams);
+    const proteinPerGram = perGram(preparedForm.protein, preparedForm.serving_protein, preparedForm.serving_grams);
+    const carbsPerGram = perGram(preparedForm.carbs, preparedForm.serving_carbs, preparedForm.serving_grams);
+    const fatPerGram = perGram(preparedForm.fat, preparedForm.serving_fat, preparedForm.serving_grams);
+    const fiberPerGram = perGram(preparedForm.fiber, preparedForm.serving_fiber, preparedForm.serving_grams);
     const payload = {
-      category_id: form.category_id || null,
-      name: form.name.trim(),
-      slug: form.id ? undefined : slugify(form.name),
-      aliases: textToArray(form.aliasesText),
-      line: form.line || null,
-      image_url: form.image_url || null,
-      gallery_urls: form.gallery_urls,
-      video_urls: form.video_urls,
-      pdf_urls: form.pdf_urls,
-      external_urls: form.external_urls,
-      description: form.description || null,
-      benefits: form.benefits || null,
-      usage: form.usage || null,
-      ingredients_text: form.ingredients_text || null,
-      observations: form.observations || null,
-      free_text: form.free_text || null,
-      calories: toNumber(form.calories),
-      protein: toNumber(form.protein),
-      carbs: toNumber(form.carbs),
-      fat: toNumber(form.fat),
-      fiber: toNumber(form.fiber),
-      sugars: toNumber(form.sugars),
-      salt: toNumber(form.salt),
+      category_id: preparedForm.category_id || null,
+      name: preparedForm.name.trim(),
+      slug: preparedForm.id ? undefined : slugify(preparedForm.name),
+      aliases: textToArray(preparedForm.aliasesText),
+      line: preparedForm.line || null,
+      image_url: preparedForm.image_url || null,
+      gallery_urls: preparedForm.gallery_urls,
+      video_urls: preparedForm.video_urls,
+      pdf_urls: preparedForm.pdf_urls,
+      external_urls: preparedForm.external_urls,
+      description: preparedForm.description || null,
+      benefits: preparedForm.benefits || null,
+      usage: preparedForm.usage || null,
+      ingredients_text: preparedForm.ingredients_text || null,
+      observations: preparedForm.observations || null,
+      free_text: preparedForm.free_text || null,
+      serving_size: preparedForm.serving_size || null,
+      serving_grams: toNullableNumber(preparedForm.serving_grams),
+      serving_calories: toNullableNumber(preparedForm.serving_calories),
+      serving_protein: toNullableNumber(preparedForm.serving_protein),
+      serving_carbs: toNullableNumber(preparedForm.serving_carbs),
+      serving_sugars: toNullableNumber(preparedForm.serving_sugars),
+      serving_fat: toNullableNumber(preparedForm.serving_fat),
+      serving_saturated_fat: toNullableNumber(preparedForm.serving_saturated_fat),
+      serving_fiber: toNullableNumber(preparedForm.serving_fiber),
+      serving_salt: toNullableNumber(preparedForm.serving_salt),
+      calories: toNullableNumber(preparedForm.calories),
+      protein: toNullableNumber(preparedForm.protein),
+      carbs: toNullableNumber(preparedForm.carbs),
+      fat: toNullableNumber(preparedForm.fat),
+      saturated_fat: toNullableNumber(preparedForm.saturated_fat),
+      fiber: toNullableNumber(preparedForm.fiber),
+      sugars: toNullableNumber(preparedForm.sugars),
+      salt: toNullableNumber(preparedForm.salt),
+      kcal_per_gram: toNullableNumber(kcalPerGram),
+      protein_per_gram: toNullableNumber(proteinPerGram),
+      carbs_per_gram: toNullableNumber(carbsPerGram),
+      fat_per_gram: toNullableNumber(fatPerGram),
+      fiber_per_gram: toNullableNumber(fiberPerGram),
       micronutrients: { ...micronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder },
-      source: form.source || "Pendiente de etiqueta oficial",
-      verification_status: form.verification_status,
-      nutrition_effective_from: form.nutrition_effective_from || new Date().toISOString(),
-      is_active: form.is_active,
-      visible_to_clients: form.visible_to_clients,
-      available_for_recipes: form.available_for_recipes,
-      informative_only: form.informative_only,
-      spoon_image_url: form.spoon_image_url || null,
-      sort_order: toNumber(form.sort_order),
+      source: preparedForm.source || "Pendiente de etiqueta oficial",
+      verification_status: preparedForm.verification_status,
+      nutrition_effective_from: preparedForm.nutrition_effective_from || new Date().toISOString(),
+      nutrition_verified_at: preparedForm.verification_status === "verificado" ? (preparedForm.nutrition_verified_at || new Date().toISOString()) : null,
+      label_file_url: preparedForm.label_file_url || null,
+      is_active: preparedForm.is_active,
+      visible_to_clients: preparedForm.visible_to_clients,
+      available_for_recipes: preparedForm.available_for_recipes,
+      informative_only: preparedForm.informative_only,
+      spoon_image_url: preparedForm.spoon_image_url || null,
+      sort_order: toNumber(preparedForm.sort_order),
       updated_at: new Date().toISOString(),
     };
     const cleanedPayload = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
@@ -409,19 +544,22 @@ export default function AdminProducts() {
 
     const productId = productResult.data.id;
     await (supabase as any).from("product_measures").delete().eq("product_id", productId);
-    const calculatedMeasures = measuresFromProductNutrition(form.measures, form);
+    const calculatedMeasures = measuresFromProductNutrition(preparedForm.measures, preparedForm);
     const measures = calculatedMeasures
       .filter(measure => measure.name.trim())
       .map((measure, index) => ({
         product_id: productId,
         name: measure.name.trim(),
-        grams: toNumber(measure.grams),
-        calories: toNumber(measure.calories),
-        protein: toNumber(measure.protein),
-        carbs: toNumber(measure.carbs),
-        fat: toNumber(measure.fat),
-        fiber: toNumber(measure.fiber),
-        source: measure.source || form.source || "Pendiente de etiqueta oficial",
+        grams: toNullableNumber(measure.grams),
+        calories: toNullableNumber(measure.calories),
+        protein: toNullableNumber(measure.protein),
+        carbs: toNullableNumber(measure.carbs),
+        fat: toNullableNumber(measure.fat),
+        saturated_fat: toNullableNumber(measure.saturated_fat),
+        fiber: toNullableNumber(measure.fiber),
+        sugars: toNullableNumber(measure.sugars),
+        salt: toNullableNumber(measure.salt),
+        source: measure.source || preparedForm.source || "Pendiente de etiqueta oficial",
         verification_status: measure.verification_status,
         is_default: Boolean(measure.is_default),
         sort_order: index,
@@ -457,12 +595,37 @@ export default function AdminProducts() {
       ingredients_text: product.ingredients_text ?? "",
       observations: product.observations ?? "",
       free_text: product.free_text ?? "",
+      serving_size: product.serving_size ?? "",
+      serving_grams: toFormNumber(product.serving_grams),
+      serving_calories: toFormNumber(product.serving_calories),
+      serving_protein: toFormNumber(product.serving_protein),
+      serving_carbs: toFormNumber(product.serving_carbs),
+      serving_sugars: toFormNumber(product.serving_sugars),
+      serving_fat: toFormNumber(product.serving_fat),
+      serving_saturated_fat: toFormNumber(product.serving_saturated_fat),
+      serving_fiber: toFormNumber(product.serving_fiber),
+      serving_salt: toFormNumber(product.serving_salt),
+      calories: toFormNumber(product.calories),
+      protein: toFormNumber(product.protein),
+      carbs: toFormNumber(product.carbs),
+      fat: toFormNumber(product.fat),
+      saturated_fat: toFormNumber(product.saturated_fat),
+      fiber: toFormNumber(product.fiber),
+      sugars: toFormNumber(product.sugars),
+      salt: toFormNumber(product.salt),
+      kcal_per_gram: toFormNumber(product.kcal_per_gram),
+      protein_per_gram: toFormNumber(product.protein_per_gram),
+      carbs_per_gram: toFormNumber(product.carbs_per_gram),
+      fat_per_gram: toFormNumber(product.fat_per_gram),
+      fiber_per_gram: toFormNumber(product.fiber_per_gram),
       spoon_image_url: product.spoon_image_url ?? "",
+      label_file_url: product.label_file_url ?? "",
       micronutrientsText: JSON.stringify(micronutrientsForEditor(product.micronutrients), null, 2),
       blockOrder: readProductBlockOrder(product.micronutrients),
       source: product.source ?? "Pendiente de etiqueta oficial",
       verification_status: product.verification_status ?? "pendiente",
       nutrition_effective_from: product.nutrition_effective_from ?? null,
+      nutrition_verified_at: product.nutrition_verified_at ?? null,
       measures: measures.length ? measures.map(normalizeMeasure) : [emptyMeasure],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -535,11 +698,67 @@ export default function AdminProducts() {
     }));
   };
 
-  const updateNutrition = (patch: Partial<Pick<ProductForm, "calories" | "protein" | "carbs" | "fat" | "fiber" | "sugars" | "salt">>) => {
+  const updateNutrition = (patch: Partial<Pick<ProductForm, "calories" | "protein" | "carbs" | "fat" | "saturated_fat" | "fiber" | "sugars" | "salt">>) => {
     setForm(prev => {
       const next = { ...prev, ...patch };
       return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
     });
+  };
+
+  const readNutritionLabel = async (file: File) => {
+    try {
+      setReadingLabel(true);
+      const labelUrl = await uploadProductFile(file, "labels");
+      const dataUrl = await fileToDataUrl(file);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch("/api/read-nutrition-label", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type,
+          dataUrl,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "No se pudo leer la etiqueta");
+      setForm(prev => {
+        const next: ProductForm = {
+          ...prev,
+          label_file_url: labelUrl,
+          serving_size: payload.serving_size ?? prev.serving_size ?? "",
+          serving_grams: payload.serving_grams ?? prev.serving_grams,
+          serving_calories: payload.serving_calories ?? prev.serving_calories,
+          serving_protein: payload.serving_protein ?? prev.serving_protein,
+          serving_carbs: payload.serving_carbs ?? prev.serving_carbs,
+          serving_sugars: payload.serving_sugars ?? prev.serving_sugars,
+          serving_fat: payload.serving_fat ?? prev.serving_fat,
+          serving_saturated_fat: payload.serving_saturated_fat ?? prev.serving_saturated_fat,
+          serving_fiber: payload.serving_fiber ?? prev.serving_fiber,
+          serving_salt: payload.serving_salt ?? prev.serving_salt,
+          calories: payload.calories ?? prev.calories,
+          protein: payload.protein ?? prev.protein,
+          carbs: payload.carbs ?? prev.carbs,
+          sugars: payload.sugars ?? prev.sugars,
+          fat: payload.fat ?? prev.fat,
+          saturated_fat: payload.saturated_fat ?? prev.saturated_fat,
+          fiber: payload.fiber ?? prev.fiber,
+          salt: payload.salt ?? prev.salt,
+          source: payload.source || prev.source || `Etiqueta nutricional: ${file.name}`,
+          verification_status: "pendiente",
+          nutrition_verified_at: null,
+        };
+        return nutritionFromServing(next);
+      });
+      toast.success("Etiqueta leída. Revisa los datos antes de verificar.");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo leer la etiqueta nutricional");
+    } finally {
+      setReadingLabel(false);
+    }
   };
 
   const markDefaultMeasure = (index: number) => {
@@ -552,7 +771,7 @@ export default function AdminProducts() {
   return (
     <div className="admin-products pb-28 max-w-5xl mx-auto">
       <AdminPageHeader
-        title="Productos"
+        title="Productos Herbalife Prime"
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
@@ -654,6 +873,13 @@ export default function AdminProducts() {
             <option value="pendiente">Pendiente</option>
             <option value="verificado">Verificado</option>
           </select>
+          <input
+            className="field"
+            type="datetime-local"
+            value={form.nutrition_verified_at ? form.nutrition_verified_at.slice(0, 16) : ""}
+            onChange={e => setForm({ ...form, nutrition_verified_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+            aria-label="Fecha de verificación"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -677,6 +903,34 @@ export default function AdminProducts() {
             />
           </label>
         </div>
+
+        <section className="rounded-[22px] bg-secondary/60 p-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div>
+              <h3 className="font-serif text-xl leading-none">Etiqueta nutricional oficial</h3>
+              <p className="text-xs muted mt-1">Lee una etiqueta como ayuda. El producto seguirá en Pendiente hasta que lo revises y lo marques como Verificado.</p>
+            </div>
+            <label className="btn-primary cursor-pointer justify-center">
+              <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*,application/pdf"
+                disabled={readingLabel}
+                onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
+              />
+            </label>
+          </div>
+          {form.label_file_url && (
+            <a href={form.label_file_url} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold underline">
+              Ver etiqueta guardada
+            </a>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <input className="field md:col-span-2" placeholder="Tamaño de ración oficial (ej. 2 cucharas rasas / 26 g)" value={form.serving_size ?? ""} onChange={e => setForm({ ...form, serving_size: e.target.value })} />
+            <NumberField label="Gramos por ración" value={form.serving_grams} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_grams: value }))} />
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MediaUploader
@@ -738,15 +992,38 @@ export default function AdminProducts() {
         </div>
 
         <section>
+          <h3 className="font-serif text-xl mb-2">Información nutricional por ración oficial</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <NumberField label="Calorías/ración" value={form.serving_calories} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_calories: value }))} />
+            <NumberField label="Proteínas/ración" value={form.serving_protein} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_protein: value }))} />
+            <NumberField label="Hidratos/ración" value={form.serving_carbs} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_carbs: value }))} />
+            <NumberField label="Azúcares/ración" value={form.serving_sugars} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_sugars: value }))} />
+            <NumberField label="Grasas/ración" value={form.serving_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fat: value }))} />
+            <NumberField label="Saturadas/ración" value={form.serving_saturated_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_saturated_fat: value }))} />
+            <NumberField label="Fibra/ración" value={form.serving_fiber} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fiber: value }))} />
+            <NumberField label="Sal/ración" value={form.serving_salt} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_salt: value }))} />
+          </div>
+
           <h3 className="font-serif text-xl mb-2">Información nutricional por 100 g</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} />
             <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} />
             <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} />
             <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} />
+            <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} />
             <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} />
             <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} />
             <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} />
+          </div>
+          <div className="rounded-[22px] bg-secondary/70 p-3 mt-4">
+            <h4 className="font-bold text-sm mb-2">Cálculo automático por gramo</h4>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <ReadonlyMacro label="Kcal/g" value={perGram(form.calories, form.serving_calories, form.serving_grams) || "—"} />
+              <ReadonlyMacro label="Proteína/g" value={perGram(form.protein, form.serving_protein, form.serving_grams) || "—"} />
+              <ReadonlyMacro label="Hidratos/g" value={perGram(form.carbs, form.serving_carbs, form.serving_grams) || "—"} />
+              <ReadonlyMacro label="Grasa/g" value={perGram(form.fat, form.serving_fat, form.serving_grams) || "—"} />
+              <ReadonlyMacro label="Fibra/g" value={perGram(form.fiber, form.serving_fiber, form.serving_grams) || "—"} />
+            </div>
           </div>
           <label className="block text-xs muted mt-3 mb-1">Micronutrientes opcionales (JSON)</label>
           <textarea className="field min-h-24 font-mono text-xs" value={form.micronutrientsText} onChange={e => setForm({ ...form, micronutrientsText: e.target.value })} placeholder='{"calcium_mg": 120, "iron_mg": 2}' />
@@ -835,17 +1112,35 @@ function normalizeProduct(item: any): Product {
     video_urls: asTextArray(item.video_urls),
     pdf_urls: asTextArray(item.pdf_urls),
     external_urls: asTextArray(item.external_urls),
-    calories: toNumber(item.calories),
-    protein: toNumber(item.protein),
-    carbs: toNumber(item.carbs),
-    fat: toNumber(item.fat),
-    fiber: toNumber(item.fiber),
-    sugars: toNumber(item.sugars),
-    salt: toNumber(item.salt),
+    serving_size: item.serving_size ?? null,
+    serving_grams: toNullableNumber(item.serving_grams),
+    serving_calories: toNullableNumber(item.serving_calories),
+    serving_protein: toNullableNumber(item.serving_protein),
+    serving_carbs: toNullableNumber(item.serving_carbs),
+    serving_sugars: toNullableNumber(item.serving_sugars),
+    serving_fat: toNullableNumber(item.serving_fat),
+    serving_saturated_fat: toNullableNumber(item.serving_saturated_fat),
+    serving_fiber: toNullableNumber(item.serving_fiber),
+    serving_salt: toNullableNumber(item.serving_salt),
+    calories: toNullableNumber(item.calories),
+    protein: toNullableNumber(item.protein),
+    carbs: toNullableNumber(item.carbs),
+    fat: toNullableNumber(item.fat),
+    saturated_fat: toNullableNumber(item.saturated_fat),
+    fiber: toNullableNumber(item.fiber),
+    sugars: toNullableNumber(item.sugars),
+    salt: toNullableNumber(item.salt),
+    kcal_per_gram: toNullableNumber(item.kcal_per_gram),
+    protein_per_gram: toNullableNumber(item.protein_per_gram),
+    carbs_per_gram: toNullableNumber(item.carbs_per_gram),
+    fat_per_gram: toNullableNumber(item.fat_per_gram),
+    fiber_per_gram: toNullableNumber(item.fiber_per_gram),
     micronutrients: item.micronutrients ?? {},
     source: item.source ?? "Pendiente de etiqueta oficial",
     verification_status: item.verification_status === "verificado" ? "verificado" : "pendiente",
     nutrition_effective_from: item.nutrition_effective_from ?? null,
+    nutrition_verified_at: item.nutrition_verified_at ?? null,
+    label_file_url: item.label_file_url ?? null,
     is_active: item.is_active !== false,
     visible_to_clients: item.visible_to_clients !== false,
     available_for_recipes: item.available_for_recipes !== false,
@@ -861,12 +1156,15 @@ function normalizeMeasure(item: any): ProductMeasure {
   return {
     id: item.id,
     name: item.name ?? "",
-    grams: toNumber(item.grams),
-    calories: toNumber(item.calories),
-    protein: toNumber(item.protein),
-    carbs: toNumber(item.carbs),
-    fat: toNumber(item.fat),
-    fiber: toNumber(item.fiber),
+    grams: toFormNumber(item.grams),
+    calories: toFormNumber(item.calories),
+    protein: toFormNumber(item.protein),
+    carbs: toFormNumber(item.carbs),
+    fat: toFormNumber(item.fat),
+    saturated_fat: toFormNumber(item.saturated_fat),
+    fiber: toFormNumber(item.fiber),
+    sugars: toFormNumber(item.sugars),
+    salt: toFormNumber(item.salt),
     source: item.source ?? "Pendiente de etiqueta oficial",
     verification_status: item.verification_status === "verificado" ? "verificado" : "pendiente",
     is_default: Boolean(item.is_default),

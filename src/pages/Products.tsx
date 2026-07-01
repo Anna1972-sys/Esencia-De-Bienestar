@@ -117,14 +117,14 @@ export default function Products() {
       {filtered.length === 0 ? (
         <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
       ) : (
-        <div className="grid grid-cols-1 gap-5">
+        <div className="products-client-grid">
           {filtered.map(product => {
             const category = product.category_id ? categoryById.get(product.category_id) : null;
             return (
               <Link
                 key={product.id}
                 to={`/app/productos/${product.id}`}
-                className="product-client-list-card wellness-tile group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
+                className="product-client-list-card group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
               >
                 <div className="product-client-list-image">
                   {product.image_url ? (
@@ -136,20 +136,19 @@ export default function Products() {
                   )}
                 </div>
                 <div className="product-client-list-info">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="font-sans font-bold text-xl leading-tight">{product.name}</h2>
-                      {category?.name && <div className="text-xs muted mt-1 truncate">{category.name}</div>}
-                    </div>
-                    <ChevronRight className="h-5 w-5 muted shrink-0 mt-1" />
+                  <div className="min-w-0">
+                    <h2 className="product-client-list-title">{product.name}</h2>
+                    {category?.name && <div className="product-client-list-category">{category.name}</div>}
                   </div>
-                  {product.description && <p className="text-sm muted mt-3 line-clamp-3">{product.description}</p>}
-                  <div className="flex flex-wrap gap-1.5 mt-4">
-                    {product.available_for_recipes && <span className="chip-lavender">Recetas</span>}
-                    {product.informative_only && <span className="chip">Informativo</span>}
-                    <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status ?? "pendiente"}</span>
+                  <div className="product-client-list-meta">
+                    {product.available_for_recipes && <span className="product-client-list-chip">Recetas</span>}
+                    <span className={product.verification_status === "verificado" ? "product-client-list-chip product-client-list-chip-verified" : "product-client-list-chip"}>{product.verification_status ?? "pendiente"}</span>
                   </div>
-                  <span className="btn-primary mt-5 w-max px-4 py-2 text-xs">Ver producto</span>
+                </div>
+                <div className="product-client-list-footer">
+                  <span className="product-client-list-button">
+                    Ver producto <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
                 </div>
               </Link>
             );

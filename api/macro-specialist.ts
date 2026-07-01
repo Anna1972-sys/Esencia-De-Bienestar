@@ -609,6 +609,7 @@ function numberValue(value: any) {
 }
 
 function numericValueIsPresent(value: any) {
+  if (value === null || value === undefined || value === "") return false;
   const n = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(n);
 }
