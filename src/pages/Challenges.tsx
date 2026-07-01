@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft } from "lucide-react";
 import challengeHero from "@/assets/home-retos.png";
@@ -58,7 +57,7 @@ export default function Challenges() {
             <Link key={c.id} to={`/app/retos/${c.id}`}
               className="challenge-premium block overflow-hidden rounded-[28px] bg-white/90 transition hover:-translate-y-0.5"
             >
-              <div className="app-photo-cover-frame relative overflow-hidden">
+              <div className="app-photo-cover-frame client-challenge-cover-frame relative overflow-hidden">
                 <img src={challengeHero} alt="" className="app-photo-cover-image" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
@@ -77,7 +76,6 @@ export default function Challenges() {
                   </div>
                   <span className="btn-primary shrink-0 px-4 py-2 text-xs">
                     {done === 0 ? "Comenzar" : done === total ? "Repasar" : "Continuar"}
-                    <ChevronRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </div>

@@ -1792,6 +1792,10 @@
     border-radius: inherit;
   }
 
+  .client-challenge-cover-frame {
+    height: 175px !important;
+  }
+
   .app-photo-cover-image,
   .app-content-cover-image {
     width: 100% !important;

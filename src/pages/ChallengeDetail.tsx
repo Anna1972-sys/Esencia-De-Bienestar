@@ -77,8 +77,8 @@ export default function ChallengeDetail() {
             <div className="flex items-center justify-between text-[10px] tracking-wide text-white/75">
               <span>Tu recorrido</span><span>{progress.size} de {total} días</span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/25 overflow-hidden mt-2">
-              <div className="h-full transition-all duration-500 bg-white" style={{ width: `${pct}%` }} />
+            <div className="h-1.5 rounded-full overflow-hidden mt-2" style={{ background: "rgb(229 231 235 / 0.75)" }}>
+              <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, background: "#FF2D95" }} />
             </div>
           </div>
         </div>

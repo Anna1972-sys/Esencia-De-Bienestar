@@ -13,10 +13,10 @@ import SavedRecipes from "@/pages/SavedRecipes";
 import Library from "@/pages/Library";
 import RecipeDetail from "@/pages/RecipeDetail";
 import ShoppingList from "@/pages/ShoppingList";
-import Challenges from "@/pages/Challenges";
 import ChallengeDetail from "@/pages/ChallengeDetail";
 import ChallengeDay from "@/pages/ChallengeDay";
 import ChallengeExtra from "@/pages/ChallengeExtra";
+import { DEFAULT_CHALLENGE_ID } from "@/lib/challengeExtras";
 import Resources from "@/pages/Resources";
 import ResourceDetail from "@/pages/ResourceDetail";
 import Products from "@/pages/Products";
@@ -92,7 +92,7 @@ export default function App() {
               <Route path="biblioteca" element={<Library />} />
               <Route path="biblioteca/:id" element={<RecipeDetail />} />
               <Route path="lista-compra" element={<ShoppingList />} />
-              <Route path="retos" element={<Challenges />} />
+              <Route path="retos" element={<Navigate to={`/app/retos/${DEFAULT_CHALLENGE_ID}`} replace />} />
               <Route path="retos/:id" element={<ChallengeDetail />} />
               <Route path="retos/:id/dia/:day" element={<ChallengeDay />} />
               <Route path="retos/:id/extra/:key" element={<ChallengeExtra />} />
