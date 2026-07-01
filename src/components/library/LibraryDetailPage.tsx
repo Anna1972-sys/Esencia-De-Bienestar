@@ -60,6 +60,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
     ["image", "video", "pdf", "link", "button"].includes(b?.type) && (b.url || b.label)
   );
   const textBlocks = blocks.filter((b: any) => !["image", "video", "pdf", "link", "button"].includes(b?.type));
+  const orderedBlocks = table === "nutrition_items" ? blocks : textBlocks;
   const description = it.description || it.subtitle || "";
 
   const resourceHref = (b: any) => {
@@ -149,6 +150,41 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
           {b.label || "Abrir"}
         </a>
       );
+    if (b.type === "section") {
+      const hasMedia = b.image_url || b.video_url || b.pdf_url || b.external_url;
+      return (
+        <section key={i} className="card-soft p-5 space-y-4">
+          {b.title && <h2 className="heading-md">{b.title}</h2>}
+          {b.text && <p className="whitespace-pre-wrap leading-relaxed">{b.text}</p>}
+          {b.image_url && <img src={mediaUrl(b.image_url)} alt={b.title ?? ""} className="w-full rounded-xl" />}
+          {b.video_url && (
+            isEmbeddable(b.video_url) ? (
+              <div className="aspect-video w-full rounded-xl overflow-hidden bg-black">
+                <iframe src={toEmbed(b.video_url)} className="w-full h-full" allowFullScreen />
+              </div>
+            ) : (
+              <video src={mediaUrl(b.video_url)} controls className="w-full rounded-xl" />
+            )
+          )}
+          {hasMedia && (
+            <div className="grid gap-2">
+              {b.pdf_url && (
+                <a href={mediaUrl(b.pdf_url)} target="_blank" rel="noreferrer" className="btn-secondary justify-between">
+                  <span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" /> Ver PDF</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+              {b.external_url && (
+                <a href={b.external_url} target="_blank" rel="noreferrer" className="btn-secondary justify-between">
+                  <span className="inline-flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Abrir enlace</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+            </div>
+          )}
+        </section>
+      );
+    }
     return null;
   };
 
@@ -170,8 +206,8 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
       {description && <p className="mb-5 leading-relaxed muted">{description}</p>}
 
       <div className="space-y-4">
-        {textBlocks.map(renderBlock)}
-        {attachmentBlocks.length > 0 && (
+        {orderedBlocks.map(renderBlock)}
+        {table !== "nutrition_items" && attachmentBlocks.length > 0 && (
           <section className="card-soft p-4">
             <h2 className="font-medium text-sm flex items-center gap-2 mb-3">
               <FileText className="h-4 w-4 text-primary" />

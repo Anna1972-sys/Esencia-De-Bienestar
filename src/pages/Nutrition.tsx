@@ -79,11 +79,19 @@ function firstBlockByType(blocks: any, types: string[]) {
 }
 
 function firstMediaFromBlocks(blocks: any) {
-  return firstBlockByType(blocks, ["image", "video"])?.url ?? null;
+  const direct = firstBlockByType(blocks, ["image", "video"])?.url;
+  if (direct) return direct;
+  if (!Array.isArray(blocks)) return null;
+  const section = blocks.find((block) => block?.type === "section" && (block.image_url || block.video_url));
+  return section?.image_url || section?.video_url || null;
 }
 
 function firstTextFromBlocks(blocks: any) {
-  return firstBlockByType(blocks, ["text"])?.value ?? "";
+  const direct = firstBlockByType(blocks, ["text"])?.value;
+  if (direct) return direct;
+  if (!Array.isArray(blocks)) return "";
+  const section = blocks.find((block) => block?.type === "section" && block.text);
+  return section?.text ?? "";
 }
 
 function shortText(value?: string | null, max = 130) {
