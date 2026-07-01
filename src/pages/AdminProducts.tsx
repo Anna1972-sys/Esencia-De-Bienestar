@@ -1321,9 +1321,9 @@ function TextArea({ label, value, onChange }: { label: string; value: string; on
   return (
     <section className="card-soft p-4">
       <label className="block">
-      <span className="flex items-center justify-between gap-3">
-        <span className="font-serif text-xl">{label}</span>
-        <button type="button" className="btn-primary text-xs py-2" onClick={() => onChange("")}>
+      <span className="space-y-2 block">
+        <span className="font-serif text-xl block leading-tight">{label}</span>
+        <button type="button" className="btn-primary admin-product-clear-button" onClick={() => onChange("")}>
           <Trash2 className="h-3.5 w-3.5" /> Borrar
         </button>
       </span>
@@ -1404,10 +1404,10 @@ function MediaUploader({
 }) {
   return (
     <div className="rounded-[22px] bg-secondary/70 p-3">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 text-sm font-medium">{icon}{title}</div>
+      <div className="space-y-2 mb-2">
+        <div className="flex items-center gap-2 text-sm font-medium leading-tight">{icon}{title}</div>
         {onClear && (
-          <button type="button" className="btn-primary text-xs py-2" onClick={onClear}>
+          <button type="button" className="btn-primary admin-product-clear-button" onClick={onClear}>
             <Trash2 className="h-3.5 w-3.5" /> Borrar
           </button>
         )}
@@ -1454,9 +1454,9 @@ function MultiUrlEditor({
   const [draft, setDraft] = useState("");
   return (
     <section className="rounded-[22px] bg-secondary/60 p-3">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 font-medium text-sm">{icon}{title}</div>
-        <button type="button" className="btn-primary text-xs py-2" onClick={onClear}>
+      <div className="space-y-2 mb-2">
+        <div className="flex items-center gap-2 font-medium text-sm leading-tight">{icon}{title}</div>
+        <button type="button" className="btn-primary admin-product-clear-button" onClick={onClear}>
           <Trash2 className="h-3.5 w-3.5" /> Borrar
         </button>
       </div>

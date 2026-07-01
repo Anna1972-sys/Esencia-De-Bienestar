@@ -2015,6 +2015,22 @@
     height: .85rem !important;
   }
 
+  .admin-products .admin-product-clear-button {
+    width: fit-content !important;
+    max-width: 100% !important;
+    min-height: 1.8rem !important;
+    padding: .28rem .58rem !important;
+    font-size: .66rem !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+  }
+
+  .admin-products .admin-product-clear-button svg {
+    width: .72rem !important;
+    height: .72rem !important;
+  }
+
   .admin-movement-page .library-admin-container,
   .admin-movement-page .library-admin-inner-container {
     background: #FFF7FA !important;
