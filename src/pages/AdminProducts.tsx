@@ -840,7 +840,7 @@ export default function AdminProducts() {
   return (
     <div className="admin-products pb-28 max-w-5xl mx-auto">
       <AdminPageHeader
-        title="Productos Herbalife Prime"
+        title="Herbalife Nutrición"
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
