@@ -367,6 +367,7 @@ export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
+  const [categoryImageUrl, setCategoryImageUrl] = useState("");
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyProduct);
   const [query, setQuery] = useState("");
@@ -417,6 +418,7 @@ export default function AdminProducts() {
     setEditingCategory(null);
     setCategoryName("");
     setCategoryDescription("");
+    setCategoryImageUrl("");
   };
 
   const saveCategory = async (event: React.FormEvent) => {
@@ -427,6 +429,7 @@ export default function AdminProducts() {
       name,
       slug: editingCategory?.slug || slugify(name),
       description: categoryDescription.trim() || null,
+      image_url: categoryImageUrl.trim() || null,
       is_active: true,
       updated_at: new Date().toISOString(),
     };
@@ -443,6 +446,26 @@ export default function AdminProducts() {
     setEditingCategory(category);
     setCategoryName(category.name);
     setCategoryDescription(category.description ?? "");
+    setCategoryImageUrl(category.image_url ?? "");
+  };
+
+  const uploadCategoryImage = async (file: File, category?: ProductCategory) => {
+    try {
+      setSaving(true);
+      const url = await uploadProductFile(file, "categories");
+      const targetCategory = category ?? editingCategory;
+      if (targetCategory) {
+        const { error } = await (supabase as any).from("product_categories").update({ image_url: url, updated_at: new Date().toISOString() }).eq("id", targetCategory.id);
+        if (error) throw error;
+        toast.success("Imagen de categoría actualizada");
+        load();
+      }
+      setCategoryImageUrl(url);
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo subir la imagen");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleCategory = async (category: ProductCategory) => {
@@ -705,6 +728,52 @@ export default function AdminProducts() {
     });
   };
 
+  const clearServingNutrition = () => {
+    setForm(prev => nutritionFromServing({
+      ...prev,
+      serving_size: "",
+      serving_grams: "",
+      serving_calories: "",
+      serving_protein: "",
+      serving_carbs: "",
+      serving_sugars: "",
+      serving_fat: "",
+      serving_saturated_fat: "",
+      serving_fiber: "",
+      serving_salt: "",
+    }));
+  };
+
+  const clearPer100Nutrition = () => {
+    setForm(prev => {
+      const next = {
+        ...prev,
+        calories: "",
+        protein: "",
+        carbs: "",
+        fat: "",
+        saturated_fat: "",
+        fiber: "",
+        sugars: "",
+        salt: "",
+      };
+      return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
+    });
+  };
+
+  const clearProductBasics = () => {
+    setForm(prev => ({
+      ...prev,
+      name: "",
+      category_id: "",
+      line: "",
+      verification_status: "pendiente",
+      nutrition_verified_at: null,
+      aliasesText: "",
+      source: "Pendiente de etiqueta oficial",
+    }));
+  };
+
   const readNutritionLabel = async (file: File) => {
     try {
       setReadingLabel(true);
@@ -777,26 +846,67 @@ export default function AdminProducts() {
 
       <section className="grid grid-cols-1 gap-5 mb-5">
         <form onSubmit={saveCategory} className="card-soft admin-products-panel p-4 space-y-4">
-          <div>
-            <h2 className="font-serif text-xl">{editingCategory ? "Editar categoría" : "Nueva categoría"}</h2>
-            <p className="text-xs muted">Crea carpetas libremente: control de peso, hidratación, deportiva…</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-xl">{editingCategory ? "Editar categoría" : "Nueva categoría"}</h2>
+              <p className="text-xs muted">Crea carpetas libremente: control de peso, hidratación, deportiva…</p>
+            </div>
+            <button type="button" className="btn-primary text-xs py-2" onClick={resetCategory}>
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
           </div>
           <input className="field" placeholder="Nombre de categoría" value={categoryName} onChange={e => setCategoryName(e.target.value)} />
           <textarea className="field min-h-20" placeholder="Descripción opcional" value={categoryDescription} onChange={e => setCategoryDescription(e.target.value)} />
+          <div className="rounded-2xl bg-white/80 border border-primary/20 p-3 space-y-2">
+            <div className="text-xs font-bold text-primary">Imagen de categoría</div>
+            {categoryImageUrl && <img src={categoryImageUrl} alt="" className="h-28 w-full rounded-2xl object-cover" />}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <label className="btn-primary cursor-pointer justify-center">
+                <ImageIcon className="h-4 w-4" /> Subir imagen
+                <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && uploadCategoryImage(e.target.files[0])} />
+              </label>
+              <input className="field flex-1" placeholder="O pegar URL de imagen" value={categoryImageUrl} onChange={e => setCategoryImageUrl(e.target.value)} />
+              {categoryImageUrl && <button type="button" className="btn-primary" onClick={() => setCategoryImageUrl("")}><Trash2 className="h-4 w-4" /> Borrar</button>}
+            </div>
+          </div>
           <div className="flex gap-2">
             <button className="btn-primary" disabled={saving}><Save className="h-4 w-4" /> Guardar categoría</button>
             {editingCategory && <button type="button" className="btn-secondary" onClick={resetCategory}><X className="h-4 w-4" /> Cancelar</button>}
           </div>
           <div className="space-y-2 pt-2">
             {categories.map(category => (
-              <div key={category.id} className="rounded-2xl bg-secondary/70 p-3 flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm truncate">{category.name}</div>
-                  <div className="text-[11px] muted">{category.is_active ? "Activa" : "Oculta"} · {category.slug}</div>
+              <div key={category.id} className="rounded-2xl bg-secondary/70 p-3 grid grid-cols-[64px_1fr_auto_auto] items-center gap-3">
+                <div className="h-16 w-16 rounded-2xl overflow-hidden border border-primary/20 bg-white">
+                  {category.image_url ? (
+                    <img src={category.image_url} alt={category.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full grid place-items-center bg-gradient-rosa/20"><ImageIcon className="h-5 w-5 text-primary" /></div>
+                  )}
                 </div>
-                <button type="button" className="p-2 rounded-xl bg-white" onClick={() => editCategory(category)} aria-label="Editar categoría"><Save className="h-4 w-4" /></button>
-                <button type="button" className="p-2 rounded-xl bg-white" onClick={() => toggleCategory(category)} aria-label="Activar o desactivar">{category.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
-                <button type="button" className="p-2 rounded-xl bg-white text-destructive" onClick={() => deleteCategory(category)} aria-label="Eliminar categoría"><Trash2 className="h-4 w-4" /></button>
+                <div className="min-w-0">
+                  <div className="font-medium text-sm truncate">{category.name}</div>
+                  <div className="text-[11px] muted line-clamp-2">{category.description || "Sin descripción"}</div>
+                  <div className="text-[11px] text-primary font-bold mt-1">{category.is_active ? "Activa" : "Oculta"}</div>
+                </div>
+                <button type="button" className="btn-primary text-xs py-2" onClick={() => deleteCategory(category)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                </button>
+                <details className="relative">
+                  <summary className="list-none cursor-pointer rounded-full border border-primary bg-white px-3 py-2 text-primary font-black">⋮</summary>
+                  <div className="absolute right-0 z-20 mt-2 w-48 rounded-2xl border border-primary bg-white p-2 shadow-xl space-y-1">
+                    <button type="button" className="w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-[#FFF7FA]" onClick={() => editCategory(category)}>Editar categoría</button>
+                    <label className="block w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-[#FFF7FA] cursor-pointer">
+                      Cambiar imagen
+                      <input type="file" className="hidden" accept="image/*" onChange={e => {
+                        if (e.target.files?.[0]) {
+                          uploadCategoryImage(e.target.files[0], category);
+                        }
+                      }} />
+                    </label>
+                    <button type="button" className="w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-[#FFF7FA]" onClick={() => toggleCategory(category)}>{category.is_active ? "Ocultar" : "Mostrar"}</button>
+                    <button type="button" className="w-full text-left rounded-xl px-3 py-2 text-sm text-destructive hover:bg-[#FFF7FA]" onClick={() => deleteCategory(category)}>Eliminar categoría</button>
+                  </div>
+                </details>
               </div>
             ))}
           </div>
@@ -830,7 +940,7 @@ export default function AdminProducts() {
                     <div className="admin-product-list-content">
                       <div className="font-sans font-extrabold text-lg leading-tight">{product.name}</div>
                       <div className="text-sm muted mt-1">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
-                      <div className="flex flex-wrap gap-1.5 mt-3 text-[10px]">
+                      <div className="admin-product-list-tags text-[10px]">
                         <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
                         <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
                         {product.visible_to_clients && <span className="chip-lavender">Clientes</span>}
@@ -840,10 +950,10 @@ export default function AdminProducts() {
                     </div>
                   </div>
                   <div className="admin-product-list-actions">
-                    <button className="admin-product-action-button" onClick={() => editProduct(product)}>Editar</button>
-                    <button className="admin-product-action-button" onClick={() => duplicateProduct(product)}>Duplicar</button>
-                    <button className="admin-product-action-button" onClick={() => toggleProduct(product)}>{product.is_active ? "Desactivar" : "Activar"}</button>
-                    <button className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
+                    <button type="button" className="admin-product-action-button" onClick={() => editProduct(product)}>Editar</button>
+                    <button type="button" className="admin-product-action-button" onClick={() => duplicateProduct(product)}>Duplicar</button>
+                    <button type="button" className="admin-product-action-button" onClick={() => toggleProduct(product)}>{product.is_active ? "Desactivar" : "Activar"}</button>
+                    <button type="button" className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
                   </div>
                 </div>
               ))}
@@ -853,13 +963,19 @@ export default function AdminProducts() {
         </div>
       </section>
 
-      <form onSubmit={saveProduct} className="card-soft admin-products-form p-4 sm:p-5 space-y-5">
+      <form onSubmit={saveProduct} className="space-y-5">
+        <section className="card-soft p-4 sm:p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-serif text-2xl">{form.id ? "Editar producto" : "Nuevo producto"}</h2>
             <p className="text-xs muted">Información visible, materiales, nutrición por 100 g y medidas habituales.</p>
           </div>
-          {form.id && <button type="button" className="btn-secondary" onClick={resetProduct}><Plus className="h-4 w-4" /> Nuevo</button>}
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button type="button" className="btn-primary text-xs py-2" onClick={clearProductBasics}>
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
+            {form.id && <button type="button" className="btn-secondary" onClick={resetProduct}><Plus className="h-4 w-4" /> Nuevo</button>}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -903,6 +1019,7 @@ export default function AdminProducts() {
             />
           </label>
         </div>
+        </section>
 
         <section className="rounded-[22px] bg-secondary/60 p-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
@@ -910,16 +1027,21 @@ export default function AdminProducts() {
               <h3 className="font-serif text-xl leading-none">Etiqueta nutricional oficial</h3>
               <p className="text-xs muted mt-1">Lee una etiqueta como ayuda. El producto seguirá en Pendiente hasta que lo revises y lo marques como Verificado.</p>
             </div>
-            <label className="btn-primary cursor-pointer justify-center">
-              <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
-              <input
-                type="file"
-                className="hidden"
-                accept="image/*,application/pdf"
-                disabled={readingLabel}
-                onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
-              />
-            </label>
+            <div className="flex flex-wrap gap-2">
+              <label className="btn-primary cursor-pointer justify-center">
+                <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*,application/pdf"
+                  disabled={readingLabel}
+                  onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
+                />
+              </label>
+              <button type="button" className="btn-primary" onClick={() => setForm(prev => ({ ...prev, label_file_url: "" }))}>
+                <Trash2 className="h-4 w-4" /> Borrar
+              </button>
+            </div>
           </div>
           {form.label_file_url && (
             <a href={form.label_file_url} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold underline">
@@ -940,6 +1062,7 @@ export default function AdminProducts() {
             icon={<ImageIcon className="h-4 w-4" />}
             onUpload={file => uploadInto(file, "main")}
             onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
+            onClear={() => setForm(prev => ({ ...prev, image_url: "" }))}
           />
           <MediaUploader
             title="Imagen cuchara oficial Herbalife"
@@ -948,6 +1071,7 @@ export default function AdminProducts() {
             icon={<ImageIcon className="h-4 w-4" />}
             onUpload={file => uploadInto(file, "spoon")}
             onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
+            onClear={() => setForm(prev => ({ ...prev, spoon_image_url: "" }))}
             hint="Pulsa aquí para comprobar la medida de la cuchara oficial."
             highlightHint
           />
@@ -956,10 +1080,13 @@ export default function AdminProducts() {
         <section className="rounded-[22px] bg-secondary/60 p-3">
           <div className="flex items-start gap-2 mb-3">
             <MousePointerClick className="h-4 w-4 text-primary mt-0.5" />
-            <div>
+            <div className="flex-1">
               <h3 className="font-serif text-xl leading-none">Orden visual de la ficha</h3>
               <p className="text-xs muted mt-1">Mueve cada bloque para decidir cómo lo verá la clienta dentro del producto.</p>
             </div>
+            <button type="button" className="btn-primary text-xs py-2" onClick={() => setForm(prev => ({ ...prev, blockOrder: DEFAULT_PRODUCT_BLOCK_ORDER }))}>
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
           </div>
           <div className="space-y-2">
             {form.blockOrder.map((blockId, index) => (
@@ -977,10 +1104,10 @@ export default function AdminProducts() {
           </div>
         </section>
 
-        <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
-        <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
-        <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onRemove={index => removeUrl("pdf_urls", index)} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
-        <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onRemove={index => removeUrl("external_urls", index)} />
+        <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
+        <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} onClear={() => setForm(prev => ({ ...prev, video_urls: [] }))} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
+        <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onRemove={index => removeUrl("pdf_urls", index)} onClear={() => setForm(prev => ({ ...prev, pdf_urls: [] }))} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
+        <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onRemove={index => removeUrl("external_urls", index)} onClear={() => setForm(prev => ({ ...prev, external_urls: [] }))} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <TextArea label="Descripción" value={form.description ?? ""} onChange={value => setForm({ ...form, description: value })} />
@@ -991,8 +1118,13 @@ export default function AdminProducts() {
           <TextArea label="Texto libre" value={form.free_text ?? ""} onChange={value => setForm({ ...form, free_text: value })} />
         </div>
 
-        <section>
-          <h3 className="font-serif text-xl mb-2">Información nutricional por ración oficial</h3>
+        <section className="card-soft p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h3 className="font-serif text-xl">Información nutricional por ración oficial</h3>
+            <button type="button" className="btn-primary text-xs py-2" onClick={clearServingNutrition}>
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
             <NumberField label="Calorías/ración" value={form.serving_calories} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_calories: value }))} />
             <NumberField label="Proteínas/ración" value={form.serving_protein} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_protein: value }))} />
@@ -1004,7 +1136,12 @@ export default function AdminProducts() {
             <NumberField label="Sal/ración" value={form.serving_salt} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_salt: value }))} />
           </div>
 
-          <h3 className="font-serif text-xl mb-2">Información nutricional por 100 g</h3>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h3 className="font-serif text-xl">Información nutricional por 100 g</h3>
+            <button type="button" className="btn-primary text-xs py-2" onClick={clearPer100Nutrition}>
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} />
             <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} />
@@ -1029,7 +1166,7 @@ export default function AdminProducts() {
           <textarea className="field min-h-24 font-mono text-xs" value={form.micronutrientsText} onChange={e => setForm({ ...form, micronutrientsText: e.target.value })} placeholder='{"calcium_mg": 120, "iron_mg": 2}' />
         </section>
 
-        <section>
+        <section className="card-soft p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div>
               <h3 className="font-serif text-xl">Medidas habituales</h3>
@@ -1086,11 +1223,19 @@ export default function AdminProducts() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <section className="card-soft p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="font-serif text-xl">Visibilidad y estado</h3>
+            <button type="button" className="btn-primary text-xs py-2" onClick={() => setForm(prev => ({ ...prev, visible_to_clients: true, available_for_recipes: true, informative_only: false, is_active: true }))}>
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Toggle label="Visible para clientes" checked={form.visible_to_clients} onChange={checked => setForm({ ...form, visible_to_clients: checked })} />
           <Toggle label="Disponible para recetas" checked={form.available_for_recipes} onChange={checked => setForm({ ...form, available_for_recipes: checked })} />
           <Toggle label="Solo informativo" checked={form.informative_only} onChange={checked => setForm({ ...form, informative_only: checked })} />
           <Toggle label="Producto activo" checked={form.is_active} onChange={checked => setForm({ ...form, is_active: checked })} />
+          </div>
         </section>
 
         <button className="btn-primary w-full" disabled={saving}>
@@ -1174,10 +1319,17 @@ function normalizeMeasure(item: any): ProductMeasure {
 
 function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block">
-      <span className="text-xs muted">{label}</span>
+    <section className="card-soft p-4">
+      <label className="block">
+      <span className="flex items-center justify-between gap-3">
+        <span className="font-serif text-xl">{label}</span>
+        <button type="button" className="btn-primary text-xs py-2" onClick={() => onChange("")}>
+          <Trash2 className="h-3.5 w-3.5" /> Borrar
+        </button>
+      </span>
       <textarea className="field min-h-28 mt-1" value={value} onChange={e => onChange(e.target.value)} />
-    </label>
+      </label>
+    </section>
   );
 }
 
@@ -1238,6 +1390,7 @@ function MediaUploader({
   highlightHint,
   onUpload,
   onUrl,
+  onClear,
 }: {
   title: string;
   url: string;
@@ -1247,10 +1400,18 @@ function MediaUploader({
   highlightHint?: boolean;
   onUpload: (file: File) => void;
   onUrl: (url: string) => void;
+  onClear?: () => void;
 }) {
   return (
     <div className="rounded-[22px] bg-secondary/70 p-3">
-      <div className="flex items-center gap-2 text-sm font-medium mb-2">{icon}{title}</div>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2 text-sm font-medium">{icon}{title}</div>
+        {onClear && (
+          <button type="button" className="btn-primary text-xs py-2" onClick={onClear}>
+            <Trash2 className="h-3.5 w-3.5" /> Borrar
+          </button>
+        )}
+      </div>
       {url && <img src={url} alt="" className="w-full h-40 object-cover rounded-2xl mb-2" />}
       <div className="flex flex-col sm:flex-row gap-2">
         <label className="btn-primary cursor-pointer justify-center">
@@ -1277,6 +1438,7 @@ function MultiUrlEditor({
   accept,
   onAdd,
   onRemove,
+  onClear,
   onUpload,
 }: {
   title: string;
@@ -1286,17 +1448,25 @@ function MultiUrlEditor({
   accept?: string;
   onAdd: (url: string) => void;
   onRemove: (index: number) => void;
+  onClear?: () => void;
   onUpload?: (file: File) => void;
 }) {
   const [draft, setDraft] = useState("");
   return (
     <section className="rounded-[22px] bg-secondary/60 p-3">
-      <div className="flex items-center gap-2 font-medium text-sm mb-2">{icon}{title}</div>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2 font-medium text-sm">{icon}{title}</div>
+        <button type="button" className="btn-primary text-xs py-2" onClick={onClear}>
+          <Trash2 className="h-3.5 w-3.5" /> Borrar
+        </button>
+      </div>
       <div className="space-y-2 mb-3">
         {urls.map((url, index) => (
           <div key={`${url}-${index}`} className="rounded-xl bg-white p-2 flex items-center gap-2 text-xs">
             <span className="truncate flex-1">{url}</span>
-            <button type="button" className="p-1 text-destructive" onClick={() => onRemove(index)}><Trash2 className="h-3.5 w-3.5" /></button>
+            <button type="button" className="btn-primary text-[11px] py-1.5 px-2" onClick={() => onRemove(index)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+            </button>
           </div>
         ))}
       </div>

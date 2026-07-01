@@ -893,21 +893,21 @@
   }
 
   .admin-product-list-card {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(9.5rem, 42%) minmax(0, 1fr) 6.25rem;
+    gap: .85rem;
+    align-items: stretch;
+    padding: 1rem;
   }
 
   .admin-product-list-main {
-    display: grid;
-    grid-template-columns: 9.5rem minmax(0, 1fr);
-    gap: 1rem;
-    padding: 1rem;
-    align-items: center;
+    display: contents;
   }
 
   .admin-product-list-image {
-    height: 9.5rem;
-    width: 9.5rem;
+    height: 100%;
+    min-height: 10.25rem;
+    width: 100%;
     border-radius: 1.25rem;
     overflow: hidden;
     background: linear-gradient(135deg, hsl(330 80% 98%), hsl(0 0% 100%));
@@ -917,34 +917,55 @@
   .admin-product-list-image img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
     display: block;
+    border-radius: inherit;
   }
 
   .admin-product-list-content {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .admin-product-list-actions {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: .65rem;
-    padding: 0 1rem 1rem;
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: .42rem;
+    padding: 0;
+  }
+
+  .admin-product-list-tags {
+    margin-top: .8rem;
+    display: grid;
+    grid-auto-rows: 2.05rem;
+    gap: .42rem;
+    align-content: center;
+  }
+
+  .admin-product-list-tags .chip,
+  .admin-product-list-tags .chip-lavender {
+    width: fit-content;
+    min-height: 2.05rem;
+    display: inline-flex;
+    align-items: center;
   }
 
   .admin-product-action-button {
-    min-height: 2.85rem;
+    min-height: 2.05rem;
     border-radius: 999px;
     border: 1px solid hsl(var(--primary) / .55);
     background: hsl(0 0% 100% / .94);
     color: hsl(var(--foreground));
-    font-size: .78rem;
+    font-size: .66rem;
     font-weight: 800;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: .55rem .7rem;
+    padding: .38rem .48rem;
     white-space: nowrap;
     transition: background .2s ease, border-color .2s ease, transform .2s ease;
   }
@@ -1043,6 +1064,32 @@
     .product-detail-hero-copy {
       padding: .04rem .15rem .22rem;
     }
+
+    .admin-product-list-card {
+      grid-template-columns: minmax(8rem, 42%) minmax(0, 1fr) 5.8rem;
+      gap: .65rem;
+      padding: .85rem;
+    }
+
+    .admin-product-list-image {
+      min-height: 9.25rem;
+    }
+
+    .admin-product-list-tags {
+      grid-auto-rows: 1.92rem;
+      gap: .36rem;
+    }
+
+    .admin-product-list-tags .chip,
+    .admin-product-list-tags .chip-lavender {
+      min-height: 1.92rem;
+    }
+
+    .admin-product-action-button {
+      min-height: 1.92rem;
+      font-size: .62rem;
+      padding: .28rem .36rem;
+    }
   }
 
   @media (max-width: 390px) {
@@ -1059,18 +1106,18 @@
       min-height: 14.5rem;
     }
 
-    .admin-product-list-main {
-      grid-template-columns: 1fr;
-      gap: .85rem;
+    .admin-product-list-card {
+      grid-template-columns: minmax(7rem, 40%) minmax(0, 1fr) 5.25rem;
+      gap: .5rem;
+      padding: .72rem;
     }
 
     .admin-product-list-image {
-      width: 100%;
-      height: 13rem;
+      min-height: 8.5rem;
     }
 
     .admin-product-list-actions {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr;
     }
   }
 
@@ -1944,6 +1991,9 @@
 
   .admin-products .admin-products-panel,
   .admin-products .admin-products-form,
+  .admin-products .card-soft,
+  .admin-products section.rounded-\[22px\],
+  .admin-products div.rounded-\[22px\],
   .admin-products .admin-product-row,
   .admin-products .admin-measure-row,
   .admin-products .rounded-2xl.bg-secondary\/70,
@@ -1951,6 +2001,18 @@
   .admin-products .rounded-2xl.bg-white\/90 {
     background: #FFF7FA !important;
     border-color: #FF2D95 !important;
+  }
+
+  .admin-products .btn-primary {
+    min-height: 2.05rem !important;
+    padding: .38rem .72rem !important;
+    font-size: .72rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .admin-products .btn-primary svg {
+    width: .85rem !important;
+    height: .85rem !important;
   }
 
   .admin-movement-page .library-admin-container,
