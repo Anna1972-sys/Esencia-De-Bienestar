@@ -25,6 +25,21 @@ type InternalFoodContext = {
   fiber: number;
 };
 
+type FoodItemContext = {
+  id: string;
+  source_type: string;
+  nombre: string;
+  nombre_normalizado: string;
+  aliases: string[];
+  categoria: string;
+  estado: string;
+  kcal_100g: number;
+  proteina_100g: number;
+  hidratos_100g: number;
+  grasa_100g: number;
+  fibra_100g: number;
+};
+
 type ProductContext = {
   name: string;
   aliases: string[];
@@ -169,6 +184,12 @@ function matchesInternalFood(input: string, food: InternalFoodContext) {
   return names.some(name => normalizedInput === name || normalizedInput.includes(name) || name.includes(normalizedInput));
 }
 
+function matchesFoodItem(input: string, food: FoodItemContext) {
+  const normalizedInput = normalizeName(input);
+  const names = [food.nombre, food.nombre_normalizado, ...(food.aliases ?? [])].map(normalizeName).filter(Boolean);
+  return names.some(name => normalizedInput === name || normalizedInput.includes(name) || name.includes(normalizedInput));
+}
+
 function matchesProduct(input: string, product: ProductContext) {
   const normalizedInput = normalizeName(input);
   const normalizedProduct = normalizeName(product.name);
@@ -179,6 +200,21 @@ function matchesProduct(input: string, product: ProductContext) {
     normalizedProduct.includes(normalizedInput) ||
     normalizedAliases.some(alias => normalizedInput.includes(alias) || alias.includes(normalizedInput))
   ));
+}
+
+function foodItemToInternalContext(food: FoodItemContext): InternalFoodContext {
+  return {
+    name: food.nombre,
+    synonyms: food.aliases ?? [],
+    category: food.categoria,
+    base_quantity: 100,
+    base_unit: "g",
+    calories: numberOrZero(food.kcal_100g),
+    protein: numberOrZero(food.proteina_100g),
+    carbs: numberOrZero(food.hidratos_100g),
+    fat: numberOrZero(food.grasa_100g),
+    fiber: numberOrZero(food.fibra_100g),
+  };
 }
 
 async function loadInternalFoodsForIngredients(authHeader: string | undefined, ingredients: string[]) {
@@ -227,6 +263,57 @@ async function loadInternalFoodsForIngredients(authHeader: string | undefined, i
       fat: numberOrZero(food.fat),
       fiber: numberOrZero(food.fiber),
     }));
+}
+
+async function loadFoodItemsForIngredients(authHeader: string | undefined, ingredients: string[]) {
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+  if (!token || ingredients.length === 0) return [];
+
+  const supabaseUrl = pickSupabaseUrl(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL);
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLIC_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    db: { schema: "public" },
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data, error } = await (supabase as any)
+    .schema("public")
+    .from("food_items")
+    .select("id,source_type,nombre,nombre_normalizado,aliases,categoria,estado,kcal_100g,proteina_100g,hidratos_100g,grasa_100g,fibra_100g")
+    .eq("is_active", true)
+    .eq("verificado", true);
+
+  if (error || !Array.isArray(data)) return [];
+
+  return (data as FoodItemContext[])
+    .filter(food => ingredients.some(ingredient => matchesFoodItem(ingredient, food)))
+    .slice(0, 20)
+    .map(foodItemToInternalContext);
+}
+
+async function loadRecognizedFoodsForIngredients(authHeader: string | undefined, ingredients: string[]) {
+  const foodItems = await loadFoodItemsForIngredients(authHeader, ingredients);
+  const matchedIngredients = new Set(
+    ingredients
+      .filter(ingredient => foodItems.some(food => matchesInternalFood(ingredient, food)))
+      .map(normalizeName),
+  );
+  const missingIngredients = ingredients.filter(ingredient => !matchedIngredients.has(normalizeName(ingredient)));
+
+  if (missingIngredients.length === 0) return foodItems;
+
+  const fallbackFoods = await loadInternalFoodsForIngredients(authHeader, missingIngredients);
+  const existingNames = new Set(foodItems.map(food => normalizeName(food.name)));
+  const mergedFallback = fallbackFoods.filter(food => !existingNames.has(normalizeName(food.name)));
+  return [...foodItems, ...mergedFallback].slice(0, 20);
 }
 
 async function loadProductsForIngredients(authHeader: string | undefined, ingredients: string[]) {
@@ -474,7 +561,7 @@ export default async function handler(req: any, res: any) {
     dislikes: body.dislikes,
     avoid: body.avoid,
   };
-  const internalFoods = await loadInternalFoodsForIngredients(req.headers.authorization, ingredients);
+  const internalFoods = await loadRecognizedFoodsForIngredients(req.headers.authorization, ingredients);
   const products = await loadProductsForIngredients(req.headers.authorization, ingredients);
 
   let issues: string[] = [];

@@ -1,11 +1,12 @@
-# CSV oficial BEDCA
+# Archivo oficial BEDCA
 
-Coloca aquí el CSV oficial de BEDCA cuando lo tengas disponible.
+Coloca aquí el CSV o XML oficial de BEDCA cuando lo tengas disponible.
 
-Nombre recomendado:
+Nombres recomendados:
 
 ```text
 bedca_official.csv
+bedca_official.xml
 ```
 
 No se incluye ningún CSV real en el repositorio para evitar cargar datos no verificados o inventados.
