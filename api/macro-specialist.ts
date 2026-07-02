@@ -683,6 +683,10 @@ function asksForPreparedFood(query: string) {
     hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa|with|and|con|y|mixed|mix|mixto|mezcla|cookie|cookies|bread|cake|cereal|snack|crackers|biscuit|barrita|barritas|dulce|pan|galleta|galletas)\b/);
 }
 
+function asksForDerivedFood(query: string) {
+  return hasRankingTerm(query, /\b(flour|powder|starch|flakes|instant|concentrate|extract|dehydrated|dried|harina|fecula|fécula|almidon|almidón|polvo|copos|instantaneo|instantáneo|concentrado|extracto|deshidratado|deshidratada|seco|seca|secos|secas)\b/);
+}
+
 function isFriedOrUltraProcessedFoodName(foodName: string) {
   return hasRankingTerm(foodName, /\b(fried|fries|french fries|chips|chip|crisps|snack|frito|frita|fritos|fritas|empanado|empanada|rebozado|rebozada|breaded|battered)\b/);
 }
@@ -695,6 +699,10 @@ function isCommercialOrPackagedFoodName(foodName: string) {
   return hasRankingTerm(foodName, /\b(cookie|cookies|bread|cake|cakes|cereal|cereals|snack|snacks|chips|crackers|cracker|biscuit|biscuits|bar|bars|barrita|barritas|dulce|dulces|pan|galleta|galletas|bolleria|bolleria|pastry|pastries|candy|candies|syrup|drink|beverage|bebida|zumo|juice|product|commercial|brand|branded)\b/);
 }
 
+function isDerivedFoodName(foodName: string) {
+  return hasRankingTerm(foodName, /\b(flour|powder|starch|flakes|instant|concentrate|extract|dehydrated|dried|harina|fecula|fécula|almidon|almidón|polvo|copos|instantaneo|instantáneo|concentrado|extracto|deshidratado|deshidratada|seco|seca|secos|secas)\b/);
+}
+
 function isCookedSimpleFoodName(foodName: string) {
   return hasRankingTerm(foodName, /\b(cooked|boiled|steamed|baked|roasted|grilled|broiled|hervido|hervida|cocido|cocida|asado|asada|horno|vapor|plancha)\b/);
 }
@@ -705,6 +713,7 @@ function isRawOrPlainFoodName(foodName: string) {
 
 function isGenericSimpleFoodQuery(query: string) {
   if (asksForPreparedFood(query)) return false;
+  if (asksForDerivedFood(query)) return false;
   const tokens = normalizeFoodRankingText(query)
     .split(" ")
     .filter(token => token.length > 1)
@@ -724,14 +733,18 @@ function hasExtraFoodAfterConnector(foodName: string, query: string) {
 function processingScore(foodName: string, query: string) {
   const explicitFried = asksForFriedOrProcessedFood(query);
   const explicitPrepared = asksForPreparedFood(query);
+  const explicitDerived = asksForDerivedFood(query);
   const fried = isFriedOrUltraProcessedFoodName(foodName);
   const prepared = isPreparedFoodName(foodName);
   const commercial = isCommercialOrPackagedFoodName(foodName);
+  const derived = isDerivedFoodName(foodName);
   const cooked = isCookedSimpleFoodName(foodName);
   const raw = isRawOrPlainFoodName(foodName);
 
   if (fried && !explicitFried) return -180;
   if (fried && explicitFried) return 28;
+  if (derived && isGenericSimpleFoodQuery(query) && !explicitDerived) return -220;
+  if (derived && explicitDerived) return 30;
   if (hasExtraFoodAfterConnector(foodName, query) && !explicitPrepared) return -160;
   if (commercial && isGenericSimpleFoodQuery(query) && !explicitPrepared) return -140;
   if (prepared && !explicitPrepared) return -70;
@@ -747,7 +760,9 @@ function processingScore(foodName: string, query: string) {
 
 function isDisallowedDefaultProcessedMatch(foodName: string, query: string) {
   if (asksForPreparedFood(query)) return false;
+  if (asksForDerivedFood(query)) return false;
   return isFriedOrUltraProcessedFoodName(foodName) ||
+    (isGenericSimpleFoodQuery(query) && isDerivedFoodName(foodName)) ||
     isPreparedFoodName(foodName) ||
     (isGenericSimpleFoodQuery(query) && isCommercialOrPackagedFoodName(foodName)) ||
     hasExtraFoodAfterConnector(foodName, query);
