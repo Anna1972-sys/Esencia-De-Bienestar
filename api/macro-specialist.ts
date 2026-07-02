@@ -680,7 +680,7 @@ function asksForFriedOrProcessedFood(query: string) {
 
 function asksForPreparedFood(query: string) {
   return asksForFriedOrProcessedFood(query) ||
-    hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa|with|and|con|y|mixed|mixto|mezcla)\b/);
+    hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa|with|and|con|y|mixed|mix|mixto|mezcla|cookie|cookies|bread|cake|cereal|snack|crackers|biscuit|barrita|barritas|dulce|pan|galleta|galletas)\b/);
 }
 
 function isFriedOrUltraProcessedFoodName(foodName: string) {
@@ -688,7 +688,11 @@ function isFriedOrUltraProcessedFoodName(foodName: string) {
 }
 
 function isPreparedFoodName(foodName: string) {
-  return hasRankingTerm(foodName, /\b(prepared|recipe|dish|meal|restaurant|fast food|sandwich|pizza|burger|hamburger|casserole|sauce|dressing|mayonnaise|salad|soup|with|and|mixed|mixture|blend|preparado|preparada|plato|receta|salsa|ensalada|mayonesa|sopa|con|y|mixto|mixta|mezcla)\b/);
+  return hasRankingTerm(foodName, /\b(prepared|recipe|dish|meal|restaurant|fast food|sandwich|pizza|burger|hamburger|casserole|sauce|dressing|mayonnaise|salad|soup|with|and|mixed|mix|mixture|blend|preparado|preparada|plato|receta|salsa|ensalada|mayonesa|sopa|con|y|mixto|mixta|mezcla)\b/);
+}
+
+function isCommercialOrPackagedFoodName(foodName: string) {
+  return hasRankingTerm(foodName, /\b(cookie|cookies|bread|cake|cakes|cereal|cereals|snack|snacks|chips|crackers|cracker|biscuit|biscuits|bar|bars|barrita|barritas|dulce|dulces|pan|galleta|galletas|bolleria|bolleria|pastry|pastries|candy|candies|syrup|drink|beverage|bebida|zumo|juice|product|commercial|brand|branded)\b/);
 }
 
 function isCookedSimpleFoodName(foodName: string) {
@@ -722,12 +726,14 @@ function processingScore(foodName: string, query: string) {
   const explicitPrepared = asksForPreparedFood(query);
   const fried = isFriedOrUltraProcessedFoodName(foodName);
   const prepared = isPreparedFoodName(foodName);
+  const commercial = isCommercialOrPackagedFoodName(foodName);
   const cooked = isCookedSimpleFoodName(foodName);
   const raw = isRawOrPlainFoodName(foodName);
 
   if (fried && !explicitFried) return -180;
   if (fried && explicitFried) return 28;
   if (hasExtraFoodAfterConnector(foodName, query) && !explicitPrepared) return -160;
+  if (commercial && isGenericSimpleFoodQuery(query) && !explicitPrepared) return -140;
   if (prepared && !explicitPrepared) return -70;
   if (prepared && explicitPrepared) return 16;
   if (raw) return 34;
@@ -743,7 +749,15 @@ function isDisallowedDefaultProcessedMatch(foodName: string, query: string) {
   if (asksForPreparedFood(query)) return false;
   return isFriedOrUltraProcessedFoodName(foodName) ||
     isPreparedFoodName(foodName) ||
+    (isGenericSimpleFoodQuery(query) && isCommercialOrPackagedFoodName(foodName)) ||
     hasExtraFoodAfterConnector(foodName, query);
+}
+
+function isCommercialProviderFood(food: any, query: string) {
+  if (!isGenericSimpleFoodQuery(query) || asksForPreparedFood(query)) return false;
+  const type = normalizeFoodRankingText(String(food?.food_type ?? food?.foodType ?? food?.type ?? ""));
+  const brand = normalizeFoodRankingText(String(food?.brand_name ?? food?.brandName ?? food?.brand ?? ""));
+  return Boolean(brand) || /\b(brand|branded|commercial|restaurant|generic meal)\b/.test(type);
 }
 
 function requiresExactFatSecretMatch(query: string) {
@@ -871,6 +885,7 @@ function isAllowedUsdaFood(food: any, query: string) {
   const normalizedQuery = normalizeName(query);
   if (!description) return false;
   if (dataType.includes("branded")) return false;
+  if (isCommercialProviderFood(food, query)) return false;
 
   if (requiresExactFatSecretMatch(query)) {
     const isOliveOil = description === "olive oil" || description.startsWith("oil olive") || description.startsWith("olive oil");
@@ -991,7 +1006,10 @@ function isAllowedExactOliveOilName(foodName: string) {
 
 function filterAllowedProviderFoods(foods: any[], query: string, attempts?: any[], provider?: string) {
   if (!requiresExactFatSecretMatch(query)) {
-    const allowedFoods = foods.filter(food => !isDisallowedDefaultProcessedMatch(food?.food_name ?? "", query));
+    const allowedFoods = foods.filter(food =>
+      !isCommercialProviderFood(food, query) &&
+      !isDisallowedDefaultProcessedMatch(food?.food_name ?? "", query),
+    );
     const rejected = foods.filter(food => !allowedFoods.includes(food));
     if (rejected.length) {
       attempts?.push({
