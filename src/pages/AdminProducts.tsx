@@ -248,8 +248,8 @@ const emptyProduct: ProductForm = {
   measures: [emptyMeasure],
 };
 
-const slugify = (value: string) =>
-  value
+const slugify = (value: unknown) =>
+  String(value ?? "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -396,7 +396,7 @@ export default function AdminProducts() {
   const categoryById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
   const filteredProducts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = String(query ?? "").trim().toLowerCase();
     return products.filter(product => {
       if (filterCategory && product.category_id !== filterCategory) return false;
       if (!normalized) return true;

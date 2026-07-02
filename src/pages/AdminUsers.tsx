@@ -90,7 +90,7 @@ export default function AdminUsers() {
   };
 
   const visible = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = String(q ?? "").trim().toLowerCase();
     let list = rows.filter((r) => {
       if (needle) {
         const hay = `${r.display_name ?? ""} ${r.email ?? ""}`.toLowerCase();

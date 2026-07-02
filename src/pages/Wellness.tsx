@@ -505,7 +505,7 @@ function MetricInput({
   const parseNumericValue = (raw: number | string | null | undefined) => {
     if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
     if (typeof raw === "string") {
-      const lower = raw.trim().toLowerCase();
+      const lower = String(raw ?? "").trim().toLowerCase();
       const isLiters = unit === "water" && /\bl\b/.test(lower) && !/\bml\b/.test(lower);
       const normalized = lower
         .replace(/\s+/g, "")

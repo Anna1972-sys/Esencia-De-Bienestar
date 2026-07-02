@@ -98,7 +98,7 @@ export default function AdminUserRecipes() {
   const visible = useMemo(() => {
     return recipes.filter(r =>
       (!filterUser || r.user_id === filterUser) &&
-      (!search || r.title.toLowerCase().includes(search.toLowerCase()))
+      (!search || String(r.title ?? "").toLowerCase().includes(String(search ?? "").toLowerCase()))
     );
   }, [recipes, filterUser, search]);
 

@@ -92,19 +92,19 @@ export default function AdminShopping() {
   }, [clientItems, cats]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = String(query ?? "").trim().toLowerCase();
     return items
       .filter((it) => {
         if (filterCat === "all") return true;
         if (filterCat === UNCAT) return !it.category;
         return it.category === filterCat;
       })
-      .filter((it) => (q ? it.name.toLowerCase().includes(q) : true))
+      .filter((it) => (q ? String(it.name ?? "").toLowerCase().includes(q) : true))
       .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
   }, [items, query, filterCat]);
 
   const cFiltered = useMemo(() => {
-    const q = cQuery.trim().toLowerCase();
+    const q = String(cQuery ?? "").trim().toLowerCase();
     const known = new Set(cats.map((c) => c.name));
     return clientItems
       .filter((it) => {
@@ -113,7 +113,7 @@ export default function AdminShopping() {
         return it.category === cFilterCat;
       })
       .filter((it) => cFilterUser === "all" || it.user_id === cFilterUser)
-      .filter((it) => (q ? it.name.toLowerCase().includes(q) : true))
+      .filter((it) => (q ? String(it.name ?? "").toLowerCase().includes(q) : true))
       .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
   }, [clientItems, cQuery, cFilterCat, cFilterUser, cats]);
 

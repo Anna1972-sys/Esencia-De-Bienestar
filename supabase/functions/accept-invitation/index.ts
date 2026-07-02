@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     if (!inv || inv.status !== "pending" || new Date(inv.expires_at) < new Date()) {
       return new Response(JSON.stringify({ ok: false, error: "Invitación no válida" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    if (inv.email && inv.email.toLowerCase() !== String(email).toLowerCase()) {
+    if (inv.email && String(inv.email ?? "").toLowerCase() !== String(email ?? "").toLowerCase()) {
       return new Response(JSON.stringify({ ok: false, error: "El correo no coincide con la invitación" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
           console.error("listUsers error", listErr);
           break;
         }
-        existing = list.users.find((u) => (u.email ?? "").toLowerCase() === String(email).toLowerCase());
+        existing = list.users.find((u) => String(u.email ?? "").toLowerCase() === String(email ?? "").toLowerCase());
         if (!list.users.length || list.users.length < 200) break;
       }
       if (!existing) {

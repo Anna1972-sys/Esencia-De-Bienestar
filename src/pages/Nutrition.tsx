@@ -64,11 +64,10 @@ const categoryImages: Record<string, string> = {
 };
 
 function normalizeKey(value?: string | null) {
-  return (value ?? "")
-    .toString()
+  return String(value ?? "")
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -194,7 +193,7 @@ export default function Nutrition() {
     return next;
   }, [categories, items]);
 
-  const term = query.trim().toLowerCase();
+  const term = String(query ?? "").trim().toLowerCase();
   const visibleItems = useMemo(() => {
     if (!activeCategory) return [];
     return items

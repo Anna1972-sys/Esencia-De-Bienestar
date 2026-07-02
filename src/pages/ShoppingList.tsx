@@ -89,7 +89,7 @@ export default function ShoppingList() {
   // Map of personal items keyed by "name|category" for matching templates
   const personalByKey = useMemo(() => {
     const m = new Map<string, Item>();
-    for (const i of items) m.set(`${i.name.toLowerCase()}|${i.category ?? ""}`, i);
+    for (const i of items) m.set(`${String(i.name ?? "").toLowerCase()}|${i.category ?? ""}`, i);
     return m;
   }, [items]);
 
@@ -101,7 +101,7 @@ export default function ShoppingList() {
 
   const toggleTemplate = async (t: Template, currentlyChecked: boolean) => {
     if (!user) return;
-    const key = `${t.name.toLowerCase()}|${t.category ?? ""}`;
+    const key = `${String(t.name ?? "").toLowerCase()}|${t.category ?? ""}`;
     const existing = personalByKey.get(key);
     if (currentlyChecked && existing) {
       // uncheck → remove the personal "checked marker"
@@ -127,7 +127,7 @@ export default function ShoppingList() {
     const usedPersonalIds = new Set<string>();
 
     for (const t of templates) {
-      const key = `${t.name.toLowerCase()}|${t.category ?? ""}`;
+      const key = `${String(t.name ?? "").toLowerCase()}|${t.category ?? ""}`;
       const personal = personalByKey.get(key);
       if (personal) usedPersonalIds.add(personal.id);
       rows.push({
@@ -162,9 +162,9 @@ export default function ShoppingList() {
       filter === "all" ? allRows
       : filter === UNCATEGORIZED ? allRows.filter(r => !r.category || !catNames.has(r.category))
       : allRows.filter(r => r.category === filter);
-    const q = query.trim().toLowerCase();
+    const q = String(query ?? "").trim().toLowerCase();
     if (!q) return byCategory;
-    return byCategory.filter(r => r.name.toLowerCase().includes(q));
+    return byCategory.filter(r => String(r.name ?? "").toLowerCase().includes(q));
   }, [allRows, filter, catNames, query]);
 
   const grouped = useMemo(() => {

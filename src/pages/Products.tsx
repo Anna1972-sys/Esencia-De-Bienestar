@@ -54,7 +54,7 @@ export default function Products() {
   }, []);
 
   const categoryById = useMemo(() => new Map(categories.map(category => [category.id, category])), [categories]);
-  const q = query.trim().toLowerCase();
+  const q = String(query ?? "").trim().toLowerCase();
 
   const filtered = useMemo(() => {
     return products.filter(product => {

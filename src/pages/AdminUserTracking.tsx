@@ -127,9 +127,9 @@ export default function AdminUserTracking() {
   }, [photos]);
 
   const filteredClients = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = String(q ?? "").trim().toLowerCase();
     let list = clients;
-    if (needle) list = list.filter(c => (c.display_name ?? "").toLowerCase().includes(needle) || (c.email ?? "").toLowerCase().includes(needle));
+    if (needle) list = list.filter(c => String(c.display_name ?? "").toLowerCase().includes(needle) || String(c.email ?? "").toLowerCase().includes(needle));
     return [...list].sort((a, b) => {
       const la = lastUpdates[a.id] ? +new Date(lastUpdates[a.id]) : 0;
       const lb = lastUpdates[b.id] ? +new Date(lastUpdates[b.id]) : 0;

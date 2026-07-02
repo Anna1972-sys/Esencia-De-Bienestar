@@ -15,8 +15,8 @@ export const DEFAULT_RECIPE_GENERATOR_CATEGORIES: RecipeGeneratorCategory[] = [
 
 const STORAGE_KEY = "esencia.recipeGeneratorCategories";
 
-export function slugifyRecipeCategory(value: string) {
-  return value
+export function slugifyRecipeCategory(value: unknown) {
+  return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -29,8 +29,8 @@ export function normalizeRecipeGeneratorCategories(categories: RecipeGeneratorCa
   const seen = new Set<string>();
   return categories
     .map((item, index) => {
-      const label = item.label.trim();
-      const idBase = item.id.trim() || slugifyRecipeCategory(label) || `tipo_${index + 1}`;
+      const label = String(item.label ?? "").trim();
+      const idBase = String(item.id ?? "").trim() || slugifyRecipeCategory(label) || `tipo_${index + 1}`;
       let id = slugifyRecipeCategory(idBase) || `tipo_${index + 1}`;
       let suffix = 2;
       while (seen.has(id)) {
@@ -41,7 +41,7 @@ export function normalizeRecipeGeneratorCategories(categories: RecipeGeneratorCa
       return {
         id,
         label,
-        description: item.description.trim(),
+        description: String(item.description ?? "").trim(),
       };
     })
     .filter(item => item.label);

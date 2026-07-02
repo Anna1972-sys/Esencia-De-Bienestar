@@ -87,6 +87,7 @@ export async function calculateWithMacroSpecialist(input: MacroSpecialistInput):
       const details = [
         data?.error,
         data?.detail,
+        data?.stack ? `Stack: ${data.stack}` : "",
         data?.failedIngredient ? `Ingrediente: ${data.failedIngredient}` : "",
         data?.failedIngredients?.length ? `Ingredientes: ${data.failedIngredients.join(", ")}` : "",
       ].filter(Boolean).join(" · ");

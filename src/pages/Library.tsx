@@ -85,16 +85,16 @@ export default function Library() {
   }, [items]);
 
   const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
+    const query = String(q ?? "").trim().toLowerCase();
     let list = items;
     if (selectedCat) list = list.filter(r => normalizeCategory(r.category) === selectedCat);
     if (query) {
       list = list.filter(r => {
-        if (r.title?.toLowerCase().includes(query)) return true;
+        if (String(r.title ?? "").toLowerCase().includes(query)) return true;
         const ing = Array.isArray(r.ingredients) ? r.ingredients : [];
         return ing.some((i: any) => {
           const name = typeof i === "string" ? i : i?.name ?? "";
-          return name.toLowerCase().includes(query);
+          return String(name ?? "").toLowerCase().includes(query);
         });
       });
     }

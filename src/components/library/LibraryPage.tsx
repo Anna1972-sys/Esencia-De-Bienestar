@@ -48,8 +48,7 @@ function firstMediaFromBlocks(blocks: any): string | null {
 }
 
 function normalizeKey(value?: string | null) {
-  return (value ?? "")
-    .toString()
+  return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -85,12 +84,12 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
       });
   }, [table, visibleOnly]);
 
-  const term = q.trim().toLowerCase();
+  const term = String(q ?? "").trim().toLowerCase();
   const matches = (it: any) => {
     if (!term) return true;
-    const tags = (it.tags ?? []).map((t: string) => t.toLowerCase()).join(" ");
+    const tags = (it.tags ?? []).map((t: string) => String(t ?? "").toLowerCase()).join(" ");
     return (
-      (it.title ?? "").toLowerCase().includes(term) ||
+      String(it.title ?? "").toLowerCase().includes(term) ||
       tags.includes(term) ||
       blocksToText(it.blocks).includes(term)
     );

@@ -19,7 +19,7 @@ const KEYWORDS: Record<ShoppingCategoryId, string[]> = {
 };
 
 export function classifyShoppingItem(name: string): ShoppingCategoryId {
-  const n = name.toLowerCase().trim();
+  const n = String(name ?? "").toLowerCase().trim();
   for (const cat of Object.keys(KEYWORDS) as ShoppingCategoryId[]) {
     if (KEYWORDS[cat].some(k => n.includes(k))) return cat;
   }

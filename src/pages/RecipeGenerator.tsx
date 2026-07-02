@@ -24,6 +24,72 @@ const ingredientsToMacroText = (ingredients: any[] = []) =>
     .filter(Boolean)
     .join("\n");
 
+const noMacroIngredientWords = [
+  "agua",
+  "sal",
+  "pimienta",
+  "especia",
+  "especias",
+  "hierba",
+  "hierbas",
+  "aromatica",
+  "aromaticas",
+  "orégano",
+  "oregano",
+  "perejil",
+  "albahaca",
+  "tomillo",
+  "romero",
+  "comino",
+  "pimentón",
+  "pimenton",
+  "canela",
+  "edulcorante",
+  "edulcorantes",
+  "stevia",
+  "sacarina",
+];
+
+const normalizeIngredientText = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zñ\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const ingredientLabel = (item: any) =>
+  typeof item === "string" ? item : `${item.quantity ?? ""} ${item.name ?? ""}`.trim();
+
+const ingredientName = (item: any) =>
+  typeof item === "string" ? item : item?.name ?? ingredientLabel(item);
+
+const isNoMacroIngredient = (item: any) => {
+  const normalized = normalizeIngredientText(ingredientName(item));
+  if (!normalized) return false;
+  return noMacroIngredientWords.some(word => {
+    const normalizedWord = normalizeIngredientText(word);
+    return normalized === normalizedWord || normalized.includes(` ${normalizedWord} `) || normalized.startsWith(`${normalizedWord} `) || normalized.endsWith(` ${normalizedWord}`);
+  });
+};
+
+const seasoningNote = (items: any[]) => {
+  const names = items.map(ingredientName).map(normalizeIngredientText).join(" ");
+  const hasSalt = names.includes("sal");
+  const hasPepper = names.includes("pimienta");
+  const hasSpices = ["especia", "hierba", "oregano", "perejil", "albahaca", "tomillo", "romero", "comino", "pimenton"].some(word => names.includes(word));
+  if (hasSalt || hasPepper || hasSpices) {
+    const parts = [
+      hasSalt ? "sal" : "",
+      hasPepper ? "pimienta" : "",
+      hasSpices ? "especias o hierbas aromáticas" : "",
+    ].filter(Boolean);
+    return `${parts.join(", ").replace(/, ([^,]*)$/, " y $1")} al gusto.`;
+  }
+  return "Condimentar al gusto.";
+};
+
 const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategory, preferences?: string, restrictions?: string) => {
   const servings = Number(recipe?.servings) || 1;
   const ingredientsText = ingredientsToMacroText(recipe?.ingredients ?? []);
@@ -316,6 +382,11 @@ function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; catego
   const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
   const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
   const categoryLabel = categories.find(item => item.id === recipe.category)?.label ?? recipe.category;
+  const allIngredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+  const noMacroIngredients = allIngredients.filter(isNoMacroIngredient);
+  const macroIngredients = allIngredients.filter((item: any) => !isNoMacroIngredient(item));
+  const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+  const finalSeasoningNote = noMacroIngredients.length > 0 ? seasoningNote(noMacroIngredients) : "";
 
   return (
     <div className="card-soft p-5 animate-fade-in">
@@ -341,13 +412,16 @@ function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; catego
 
       <h3 className="font-serif text-base mt-4 mb-1">Ingredientes con gramos exactos</h3>
       <ul className="text-sm space-y-1 list-disc pl-5 muted">
-        {(recipe.ingredients ?? []).map((i: any, k: number) => (
-          <li key={k}>{typeof i === "string" ? i : `${i.quantity ?? ""} ${i.name ?? ""}`.trim()}</li>
+        {macroIngredients.map((i: any, k: number) => (
+          <li key={k}>{ingredientLabel(i)}</li>
         ))}
       </ul>
 
       <h3 className="font-serif text-base mt-4 mb-1">Preparación</h3>
-      <ol className="text-sm space-y-2 list-decimal pl-5">{(recipe.steps ?? []).map((s: string, k: number) => <li key={k}>{s}</li>)}</ol>
+      <ol className="text-sm space-y-2 list-decimal pl-5">
+        {steps.map((s: string, k: number) => <li key={k}>{s}</li>)}
+        {finalSeasoningNote && <li>{finalSeasoningNote}</li>}
+      </ol>
       <button onClick={onSave} disabled={saved} className="btn-primary w-full mt-5 disabled:opacity-70">
         {saved ? "Guardada en Mis recetas" : "Guardar en mis recetas"}
       </button>

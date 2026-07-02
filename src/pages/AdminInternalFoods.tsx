@@ -53,8 +53,8 @@ const textToSynonyms = (value: string) =>
     .split(",")
     .map(item => item.trim())
     .filter(Boolean);
-const normalizeText = (value: string) =>
-  value
+const normalizeText = (value: unknown) =>
+  String(value ?? "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");

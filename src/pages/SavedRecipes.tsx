@@ -16,6 +16,8 @@ export default function SavedRecipes() {
   const [items, setItems] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [confirmRecipe, setConfirmRecipe] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -32,9 +34,18 @@ export default function SavedRecipes() {
   };
   useEffect(() => { load(); }, [user]);
 
-  const remove = async (id: string) => {
-    await supabase.from("recipes").delete().eq("id", id);
-    setItems(items.filter(r => r.id !== id));
+  const remove = async (recipe: any) => {
+    if (!recipe?.id || !user) return;
+    setDeletingId(recipe.id);
+    const { error } = await supabase.from("recipes").delete().eq("id", recipe.id).eq("user_id", user.id);
+    setDeletingId(null);
+    if (error) {
+      toast.error(`No se pudo eliminar la receta: ${error.message}`);
+      return;
+    }
+    setItems(current => current.filter(r => r.id !== recipe.id));
+    setConfirmRecipe(null);
+    toast.success("Receta eliminada correctamente.");
   };
   const addToShopping = async (r: any) => {
     if (!user) return;
@@ -49,7 +60,7 @@ export default function SavedRecipes() {
     if (error) toast.error(error.message); else toast.success("Añadido a la lista");
   };
 
-  const filtered = items.filter(r => String(r.title ?? "").toLowerCase().includes(q.toLowerCase()));
+  const filtered = items.filter(r => String(r.title ?? "").toLowerCase().includes(String(q ?? "").toLowerCase()));
 
   return (
     <div>
@@ -88,20 +99,25 @@ export default function SavedRecipes() {
                   <div className="p-5 flex flex-col justify-center min-w-0">
                     <div className="flex justify-between items-start gap-2">
                       <div className="font-semibold text-lg leading-tight">{r.title}</div>
-                      {nutritionAvailable && isHighProtein && <span className="chip shrink-0">Alta proteína</span>}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {nutritionAvailable && isHighProtein && <span className="chip">Alta proteína</span>}
+                        <button
+                          type="button"
+                          aria-label="Eliminar receta"
+                          className="btn-ghost h-8 w-8 p-0 text-destructive"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setConfirmRecipe(r);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="text-[11px] leading-relaxed muted mt-2.5">
                       {r.prep_time ?? "—"} min · {nutritionAvailable ? nutritionLabel(macros) : "Nutrición no registrada"}
                     </div>
-                    {nutritionAvailable && (
-                      <div className="grid grid-cols-5 gap-1.5 mt-3 text-center text-[10px]">
-                        <Macro label="Kcal" value={macroValue(macros, "calories")} />
-                        <Macro label="Prot" value={`${macroValue(macros, "protein")}g`} />
-                        <Macro label="Hidr" value={`${macroValue(macros, "carbs")}g`} />
-                        <Macro label="Grasa" value={`${macroValue(macros, "fat")}g`} />
-                        <Macro label="Fibra" value={`${macroValue(macros, "fiber")}g`} />
-                      </div>
-                    )}
                   </div>
                 </div>
               </summary>
@@ -129,11 +145,37 @@ export default function SavedRecipes() {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => addToShopping(r)} className="btn-ghost text-xs"><ShoppingBag className="h-3 w-3" /> A la lista</button>
-                  <button onClick={() => remove(r.id)} className="btn-ghost text-xs text-destructive"><Trash2 className="h-3 w-3" /> Eliminar</button>
+                  <button onClick={() => setConfirmRecipe(r)} className="btn-ghost text-xs text-destructive"><Trash2 className="h-3 w-3" /> Eliminar</button>
                 </div>
               </div>
             </details>;
           })}
+        </div>
+      )}
+      {confirmRecipe && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4">
+          <div className="card-soft w-full max-w-sm p-5 shadow-xl">
+            <div className="font-semibold text-lg mb-2">Eliminar receta</div>
+            <p className="text-sm muted mb-4">¿Seguro que deseas eliminar esta receta?</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setConfirmRecipe(null)}
+                disabled={deletingId === confirmRecipe.id}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => remove(confirmRecipe)}
+                disabled={deletingId === confirmRecipe.id}
+              >
+                {deletingId === confirmRecipe.id ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

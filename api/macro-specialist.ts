@@ -180,9 +180,19 @@ function setCorsHeaders(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
-function normalizeName(value: string) {
-  return value
-    .toLowerCase()
+function safeLowerCase(value: unknown, functionName: string) {
+  console.info("[macro-specialist] toLowerCase guard", {
+    file: "api/macro-specialist.ts",
+    functionName,
+    value,
+    valueType: typeof value,
+    wasNullish: value === null || value === undefined,
+  });
+  return String(value ?? "").toLowerCase();
+}
+
+function normalizeName(value: unknown) {
+  return safeLowerCase(value, "normalizeName")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[•·●▪▫◦*]/g, " ")
@@ -194,9 +204,8 @@ function normalizeName(value: string) {
     .trim();
 }
 
-function normalizeFoodRankingText(value: string) {
-  return value
-    .toLowerCase()
+function normalizeFoodRankingText(value: unknown) {
+  return safeLowerCase(value, "normalizeFoodRankingText")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[•·●▪▫◦*]/g, " ")
@@ -206,7 +215,7 @@ function normalizeFoodRankingText(value: string) {
     .trim();
 }
 
-function cleanSearchName(value: string) {
+function cleanSearchName(value: unknown) {
   return normalizeName(value)
     .replace(/\b(de|del|la|el|los|las|virgen|extra)\b/g, " ")
     .replace(/\s+/g, " ")
@@ -219,14 +228,15 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
   for (const alias of food.aliases ?? []) FOOD_INDEX.set(normalizeName(alias), { key, food });
 }
 
-function parseRawIngredient(raw: string): IngredientInput {
-  const qtyMatch = raw.match(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
+function parseRawIngredient(raw: unknown): IngredientInput {
+  const rawText = String(raw ?? "").trim();
+  const qtyMatch = rawText.match(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
   const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
-  const unit = qtyMatch?.[2]?.toLowerCase();
-  const rawName = raw.replace(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
+  const unit = qtyMatch?.[2] ? safeLowerCase(qtyMatch[2], "parseRawIngredient.unit") : undefined;
+  const rawName = rawText.replace(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
   const name = simplifyFoodName(rawName);
   const grams = quantity && unit ? quantityToGrams(quantity, unit, name) : undefined;
-  return { raw, name, grams, quantity, unit };
+  return { raw: rawText, name, grams, quantity, unit };
 }
 
 function roundMacros(value: MacroValues) {
@@ -260,7 +270,7 @@ function calorieCheck(value: MacroValues) {
   };
 }
 
-function simplifyFoodName(value: string) {
+function simplifyFoodName(value: unknown) {
   const cleaned = cleanSearchName(value);
   const simplifications: Array<[RegExp, string]> = [
     [/\baceite\s+oliva\b.*/, "aceite de oliva"],
@@ -277,8 +287,8 @@ function simplifyFoodName(value: string) {
   return cleaned;
 }
 
-function quantityToGrams(quantity: number, unit: string, foodName: string) {
-  const normalizedUnit = unit.toLowerCase();
+function quantityToGrams(quantity: number, unit: unknown, foodName: unknown) {
+  const normalizedUnit = safeLowerCase(unit, "quantityToGrams.unit");
   if (["g", "gr", "gramos", "ml", "mililitros"].includes(normalizedUnit)) return quantity;
   if (["cucharada", "cucharadas", "cda", "cdas"].includes(normalizedUnit)) {
     if (normalizeName(foodName).includes("aceite")) return quantity * 15;
@@ -491,7 +501,7 @@ function findProductMeasure(input: IngredientInput, product: ProductRow) {
   }) ?? measures.find(measure => normalizeName(measure.name).includes("cuchara"));
   if (spoon && /\b(cuchara|cucharas)\b/.test(raw)) {
     if (/\b(1\s*2|media|medio)\s+cuchara\b/.test(raw)) return { measure: spoon, quantity: 0.5 };
-    if (input.quantity && String(input.unit ?? "").toLowerCase().includes("cuchara")) return { measure: spoon, quantity: Number(input.quantity) };
+    if (input.quantity && safeLowerCase(input.unit, "inferProductMeasureQuantity.inputUnit").includes("cuchara")) return { measure: spoon, quantity: Number(input.quantity) };
     return { measure: spoon, quantity: 1 };
   }
 
@@ -767,7 +777,7 @@ function hasCompleteVerifiedMeasureNutrition(measure: ProductMeasureRow) {
 
 function servingToMacros(serving: any, amount: number): MacroValues | null {
   const metricAmount = numberValue(serving?.metric_serving_amount);
-  const metricUnit = String(serving?.metric_serving_unit || "").toLowerCase();
+  const metricUnit = safeLowerCase(serving?.metric_serving_unit, "servingToMacros.metricUnit");
   if (!metricAmount || !["g", "ml"].includes(metricUnit)) return null;
 
   const factor = amount / metricAmount;
@@ -1164,7 +1174,7 @@ function usdaFoodToMacros(food: any, amount: number): MacroValues | null {
 
 function isAllowedUsdaFood(food: any, query: string) {
   const description = normalizeName(food?.description ?? "");
-  const dataType = String(food?.dataType ?? "").toLowerCase();
+  const dataType = safeLowerCase(food?.dataType, "isAllowedUsdaFood.dataType");
   const normalizedQuery = normalizeName(query);
   if (!description) return false;
   if (dataType.includes("branded")) return false;
@@ -1188,7 +1198,7 @@ function isAllowedUsdaFood(food: any, query: string) {
 function scoreUsdaFood(food: any, query: string) {
   const description = normalizeName(food?.description ?? "");
   const normalizedQuery = normalizeName(query);
-  const dataType = String(food?.dataType ?? "").toLowerCase();
+  const dataType = safeLowerCase(food?.dataType, "scoreUsdaFood.dataType");
   let score = scoreFood({ food_name: description }, normalizedQuery);
   score += cookingStateScore(food?.description ?? description, query);
   if (description === normalizedQuery) score += 80;
@@ -1365,7 +1375,7 @@ function pickBestFoodWithScore(foods: any[], query: string) {
 
 function pickBestServing(servings: any[], amount: number) {
   const metricServings = servings.filter(serving => {
-    const unit = String(serving?.metric_serving_unit || "").toLowerCase();
+    const unit = safeLowerCase(serving?.metric_serving_unit, "pickBestServing.metricUnit");
     return numberValue(serving?.metric_serving_amount) > 0 && ["g", "ml"].includes(unit);
   });
   if (!metricServings.length) return null;
@@ -2021,6 +2031,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({
       error: "Error interno calculando macros",
       detail: message,
+      stack: err?.stack ?? null,
       failedIngredient: failedIngredients[0] ?? null,
       failedIngredients,
     });

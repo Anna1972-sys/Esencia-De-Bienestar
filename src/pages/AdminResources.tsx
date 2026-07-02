@@ -219,7 +219,7 @@ export default function AdminResources() {
   };
 
   const visible = useMemo(() => {
-    const q = searchQ.trim().toLowerCase();
+    const q = String(searchQ ?? "").trim().toLowerCase();
     const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
     const toTs = dateTo ? new Date(dateTo).getTime() + 86399999 : null;
     let list = items.filter(i => {

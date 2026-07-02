@@ -416,7 +416,7 @@ export default function AdminRecipes() {
   };
 
   const visible = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = String(query ?? "").trim().toLowerCase();
     return items.filter(item => {
       const matchesCategory = !filterCat || item.category === filterCat;
       const matchesSearch = !term || [item.title, item.description, item.category, ...(item.tags ?? [])]

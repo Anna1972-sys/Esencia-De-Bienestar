@@ -93,7 +93,7 @@ export default function Resources() {
     return cats.some(c => ids.has(c.id) && (normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy));
   };
 
-  const q = query.trim().toLowerCase();
+  const q = String(query ?? "").trim().toLowerCase();
   const searching = q.length > 0;
 
   const filteredItems = useMemo(() => {
