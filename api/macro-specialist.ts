@@ -147,6 +147,14 @@ const BASIC_FOODS: Record<string, FoodMacro> = {
 
 let fatSecretToken: FatSecretToken | null = null;
 
+function setCorsHeaders(req: any, res: any) {
+  const origin = String(req.headers?.origin || "*");
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
 function normalizeName(value: string) {
   return value
     .toLowerCase()
@@ -156,6 +164,18 @@ function normalizeName(value: string) {
     .replace(/\([^)]*\)/g, "")
     .replace(/\b(g|gr|gramos|kg|ml|mililitros|unidad|unidades|cocido|cocida|crudo|cruda)\b/g, " ")
     .replace(/\bcon cafe\b/g, " ")
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeFoodRankingText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[•·●▪▫◦*]/g, " ")
+    .replace(/\([^)]*\)/g, " ")
     .replace(/[^a-z0-9ñ\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -650,6 +670,61 @@ function isBadLowFatMilkMatch(query: string, matchedName: string, macros: MacroV
   return (normalizedMatch === "leche" || normalizedMatch === "milk") && macros.fat > maxExpectedFat;
 }
 
+function hasRankingTerm(value: string, pattern: RegExp) {
+  return pattern.test(normalizeFoodRankingText(value));
+}
+
+function asksForFriedOrProcessedFood(query: string) {
+  return hasRankingTerm(query, /\b(frito|frita|fritos|fritas|fried|fries|french fries|chips|chip|crisps|snack|empanado|rebozado|breaded|battered)\b/);
+}
+
+function asksForPreparedFood(query: string) {
+  return asksForFriedOrProcessedFood(query) ||
+    hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa)\b/);
+}
+
+function isFriedOrUltraProcessedFoodName(foodName: string) {
+  return hasRankingTerm(foodName, /\b(fried|fries|french fries|chips|chip|crisps|snack|frito|frita|fritos|fritas|empanado|empanada|rebozado|rebozada|breaded|battered)\b/);
+}
+
+function isPreparedFoodName(foodName: string) {
+  return hasRankingTerm(foodName, /\b(prepared|recipe|dish|meal|restaurant|fast food|sandwich|pizza|burger|hamburger|casserole|sauce|dressing|mayonnaise|salad|soup|preparado|preparada|plato|receta|salsa|ensalada|mayonesa|sopa)\b/);
+}
+
+function isCookedSimpleFoodName(foodName: string) {
+  return hasRankingTerm(foodName, /\b(cooked|boiled|steamed|baked|roasted|grilled|broiled|hervido|hervida|cocido|cocida|asado|asada|horno|vapor|plancha)\b/);
+}
+
+function isRawOrPlainFoodName(foodName: string) {
+  return hasRankingTerm(foodName, /\b(raw|fresh|uncooked|crudo|cruda|fresco|fresca)\b/);
+}
+
+function processingScore(foodName: string, query: string) {
+  const explicitFried = asksForFriedOrProcessedFood(query);
+  const explicitPrepared = asksForPreparedFood(query);
+  const fried = isFriedOrUltraProcessedFoodName(foodName);
+  const prepared = isPreparedFoodName(foodName);
+  const cooked = isCookedSimpleFoodName(foodName);
+  const raw = isRawOrPlainFoodName(foodName);
+
+  if (fried && !explicitFried) return -180;
+  if (fried && explicitFried) return 28;
+  if (prepared && !explicitPrepared) return -70;
+  if (prepared && explicitPrepared) return 16;
+  if (raw) return 34;
+  if (cooked) return 24;
+
+  const normalized = normalizeFoodRankingText(foodName);
+  const tokenCount = normalized.split(" ").filter(Boolean).length;
+  if (tokenCount <= 3) return 22;
+  return 0;
+}
+
+function isDisallowedDefaultProcessedMatch(foodName: string, query: string) {
+  if (asksForPreparedFood(query)) return false;
+  return isFriedOrUltraProcessedFoodName(foodName) || isPreparedFoodName(foodName);
+}
+
 function requiresExactFatSecretMatch(query: string) {
   return ["aceite oliva", "olive oil", "extra virgin olive oil"].includes(normalizeName(query));
 }
@@ -687,6 +762,7 @@ function usdaSearchCandidates(name: string) {
     [/\barroz\s+integral\b/, "brown rice"],
     [/\barroz\b/, "rice"],
     [/\bpasta\b/, "pasta"],
+    [/\bpatatas?\b|\bpapas?\b/, "potato"],
     [/\bgarbanzos?\b/, "chickpeas"],
     [/\blentejas?\b/, "lentils"],
     [/\bleche\s+desnatada\b|\bleche\s+descremada\b|\bleche\s+sin\s+grasa\b/, "skim milk"],
@@ -781,8 +857,10 @@ function isAllowedUsdaFood(food: any, query: string) {
     return isOliveOil && !forbidden;
   }
 
+  if (isDisallowedDefaultProcessedMatch(food?.description ?? "", query)) return false;
+
   const compositeWords = /\b(soup|sandwich|pizza|restaurant|fast food|meal|dish|recipe|with sauce|in sauce|breaded|casserole|salad dressing|mayonnaise)\b/;
-  if (compositeWords.test(description)) return false;
+  if (compositeWords.test(description) && !asksForPreparedFood(query)) return false;
 
   const queryTokens = normalizedQuery.split(" ").filter(token => token.length > 2);
   return queryTokens.some(token => description.includes(token));
@@ -797,7 +875,7 @@ function scoreUsdaFood(food: any, query: string) {
   if (dataType.includes("foundation")) score += 18;
   if (dataType.includes("sr legacy")) score += 15;
   if (dataType.includes("survey")) score += 5;
-  if (/\b(raw|cooked|boiled|roasted|broiled|grilled|oil)\b/.test(description)) score += 4;
+  score += processingScore(food?.description ?? description, query);
   return score;
 }
 
@@ -890,8 +968,21 @@ function isAllowedExactOliveOilName(foodName: string) {
   ].includes(normalized);
 }
 
-function filterAllowedExactFoods(foods: any[], query: string, attempts?: any[], provider?: string) {
-  if (!requiresExactFatSecretMatch(query)) return foods;
+function filterAllowedProviderFoods(foods: any[], query: string, attempts?: any[], provider?: string) {
+  if (!requiresExactFatSecretMatch(query)) {
+    const allowedFoods = foods.filter(food => !isDisallowedDefaultProcessedMatch(food?.food_name ?? "", query));
+    const rejected = foods.filter(food => !allowedFoods.includes(food));
+    if (rejected.length) {
+      attempts?.push({
+        provider,
+        query,
+        rankingRule: "evitar_fritos_preparados_si_busqueda_generica",
+        acceptedCount: allowedFoods.length,
+        rejected: rejected.slice(0, 8).map(food => ({ foodId: food?.food_id, name: food?.food_name })),
+      });
+    }
+    return allowedFoods;
+  }
   const exactFoods = foods.filter(food => isAllowedExactOliveOilName(food?.food_name ?? ""));
   attempts?.push({
     provider,
@@ -916,11 +1007,15 @@ function scoreFood(food: any, query: string) {
   const normalizedFood = normalizeName(food?.food_name ?? "");
   const normalizedQuery = normalizeName(query);
   if (!normalizedFood || !normalizedQuery) return 0;
+  if (isDisallowedDefaultProcessedMatch(food?.food_name ?? "", query)) return -999;
   if (normalizedFood === normalizedQuery) return 100;
   const foodTokens = new Set(normalizedFood.split(" "));
   const queryTokens = normalizedQuery.split(" ").filter(Boolean);
   const overlap = queryTokens.filter(token => foodTokens.has(token)).length;
-  return overlap * 12 + (normalizedFood.includes(normalizedQuery) ? 25 : 0) + (normalizedQuery.includes(normalizedFood) ? 15 : 0);
+  return overlap * 12 +
+    (normalizedFood.includes(normalizedQuery) ? 25 : 0) +
+    (normalizedQuery.includes(normalizedFood) ? 15 : 0) +
+    processingScore(food?.food_name ?? "", query);
 }
 
 function pickBestFoodWithScore(foods: any[], query: string) {
@@ -970,7 +1065,7 @@ async function searchFatSecretV3(name: string, amount: number) {
     region: "ES",
     language: "es",
   });
-  const foods = filterAllowedExactFoods(asArray(searchPayload?.foods_search?.results?.food), query, undefined, "fatsecret-v3");
+  const foods = filterAllowedProviderFoods(asArray(searchPayload?.foods_search?.results?.food), query, undefined, "fatsecret-v3");
   if (!foods.length) return null;
 
   const best = pickBestFoodWithScore(foods, query);
@@ -1001,7 +1096,7 @@ async function searchFatSecretLegacy(name: string, amount: number) {
     format: "json",
     max_results: "8",
   });
-  const foods = filterAllowedExactFoods(asArray(searchPayload?.foods?.food), query, undefined, "fatsecret-legacy");
+  const foods = filterAllowedProviderFoods(asArray(searchPayload?.foods?.food), query, undefined, "fatsecret-legacy");
   if (!foods.length) return null;
   const best = pickBestFoodWithScore(foods, query);
   if (!best || best.score < 20) return null;
@@ -1081,7 +1176,7 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
     format: "json",
     max_results: "8",
   });
-  const foods = filterAllowedExactFoods(asArray(searchPayload?.foods?.food), query, attempts, "fatsecret-oauth1");
+  const foods = filterAllowedProviderFoods(asArray(searchPayload?.foods?.food), query, attempts, "fatsecret-oauth1");
   attempts?.push({ provider: "fatsecret-oauth1", query, resultCount: foods.length, results: foods.slice(0, 5).map(food => ({ foodId: food?.food_id, name: food?.food_name, score: scoreFood(food, query) })) });
   if (!foods.length) return null;
   const best = pickBestFoodWithScore(foods, query);
@@ -1182,6 +1277,12 @@ async function verifySession(authHeader: string | undefined) {
 }
 
 export default async function handler(req: any, res: any) {
+  setCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Método no permitido" });
