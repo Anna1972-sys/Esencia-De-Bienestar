@@ -37,6 +37,25 @@ type InternalFoodRow = {
   is_active: boolean;
 };
 
+type SpanishFoodRow = {
+  id: string;
+  nombre: string;
+  nombre_normalizado: string;
+  aliases: string[] | null;
+  categoria: string | null;
+  estado: "crudo" | "cocido" | "natural" | "procesado";
+  kcal_100g: number | string | null;
+  proteina_100g: number | string | null;
+  hidratos_100g: number | string | null;
+  grasa_100g: number | string | null;
+  fibra_100g: number | string | null;
+  azucares_100g?: number | string | null;
+  sal_100g?: number | string | null;
+  fuente: string | null;
+  verificado: boolean;
+  is_active: boolean;
+};
+
 type ProductMeasureRow = {
   id: string;
   name: string;
@@ -313,6 +332,70 @@ function findInternalFood(name: string, foods: InternalFoodRow[]) {
   return partial ? { key: partial.key, row: partial.food, food: foodFromInternalRow(partial.food) } : null;
 }
 
+function foodFromSpanishRow(row: SpanishFoodRow): FoodMacro {
+  return {
+    kcal: numberValue(row.kcal_100g),
+    protein: numberValue(row.proteina_100g),
+    carbs: numberValue(row.hidratos_100g),
+    fat: numberValue(row.grasa_100g),
+    fiber: numberValue(row.fibra_100g),
+    aliases: row.aliases ?? [],
+  };
+}
+
+function scaleSpanishFood(row: SpanishFoodRow, grams: number): MacroValues {
+  const factor = grams / 100;
+  return enforceMacroCalories({
+    kcal: 0,
+    protein: numberValue(row.proteina_100g) * factor,
+    carbs: numberValue(row.hidratos_100g) * factor,
+    fat: numberValue(row.grasa_100g) * factor,
+    fiber: numberValue(row.fibra_100g) * factor,
+    micronutrients: {
+      ...(numericValueIsPresent(row.azucares_100g) ? { azucares: numberValue(row.azucares_100g) * factor } : {}),
+      ...(numericValueIsPresent(row.sal_100g) ? { sal: numberValue(row.sal_100g) * factor } : {}),
+    },
+  });
+}
+
+function findSpanishFood(name: string, foods: SpanishFoodRow[]) {
+  const normalized = normalizeName(name);
+  const rankingQuery = normalizeFoodRankingText(name);
+  const requestedState = requestedCookingState(name);
+
+  const candidates = foods
+    .filter(food => food.is_active && food.verificado)
+    .flatMap(food => {
+      const keys = [food.nombre, food.nombre_normalizado, ...(food.aliases ?? [])].filter(Boolean);
+      return keys.map(key => {
+        const normalizedKey = normalizeName(key);
+        const rankingKey = normalizeFoodRankingText(key);
+        const exact = normalizedKey === normalized || rankingKey === rankingQuery;
+        const partial = normalizedKey && (normalized.includes(normalizedKey) || normalizedKey.includes(normalized));
+        const stateBonus = requestedState && food.estado === requestedState ? 40 : 0;
+        const defaultStateBonus =
+          !requestedState &&
+          defaultCookingStateForBaseFood(name) &&
+          food.estado === defaultCookingStateForBaseFood(name)
+            ? 24
+            : 0;
+        return {
+          key,
+          food,
+          normalized: normalizedKey,
+          exact,
+          partial,
+          score: (exact ? 120 : partial ? 55 : 0) + stateBonus + defaultStateBonus + processingScore(food.nombre, name),
+        };
+      });
+    })
+    .filter(candidate => candidate.score > 0)
+    .sort((a, b) => b.score - a.score || b.normalized.length - a.normalized.length);
+
+  const match = candidates[0];
+  return match ? { key: match.key, row: match.food, food: foodFromSpanishRow(match.food) } : null;
+}
+
 function productFoodMacro(row: ProductRow): FoodMacro {
   return {
     kcal: numberValue(row.calories),
@@ -566,6 +649,30 @@ async function loadInternalFoods(token: string, attempts?: any[]) {
     return INITIAL_INTERNAL_FOODS as InternalFoodRow[];
   }
   return (data ?? []) as InternalFoodRow[];
+}
+
+async function loadSpanishFoods(token: string, attempts?: any[]) {
+  const supabase = createSupabaseForToken(token);
+  if (!supabase) return [];
+  const { data, error } = await (supabase as any)
+    .schema("public")
+    .from("spanish_foods")
+    .select("id,nombre,nombre_normalizado,aliases,categoria,estado,kcal_100g,proteina_100g,hidratos_100g,grasa_100g,fibra_100g,azucares_100g,sal_100g,fuente,verificado,is_active")
+    .eq("is_active", true)
+    .eq("verificado", true)
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    attempts?.push({
+      provider: "alimentos_espanoles",
+      rejected: true,
+      reason: "no_se_pudo_leer_tabla",
+      error: error.message,
+      fallback: "usda_fatsecret",
+    });
+    return [];
+  }
+  return (data ?? []) as SpanishFoodRow[];
 }
 
 async function loadProducts(token: string, attempts?: any[]) {
@@ -1561,14 +1668,17 @@ export default async function handler(req: any, res: any) {
 
   const externalApisConfigured = {
     products: false,
+    spanishFoods: false,
     internalFoods: false,
     fatSecret: Boolean(getFatSecretCredentials()),
     usda: Boolean(getUsdaApiKey()),
   };
   const loadAttempts: any[] = [];
   const products = sessionToken ? await loadProducts(sessionToken, loadAttempts) : [];
+  const spanishFoods = sessionToken ? await loadSpanishFoods(sessionToken, loadAttempts) : [];
   const internalFoods = sessionToken ? await loadInternalFoods(sessionToken) : [];
   externalApisConfigured.products = products.length > 0;
+  externalApisConfigured.spanishFoods = spanishFoods.length > 0;
   externalApisConfigured.internalFoods = internalFoods.length > 0;
 
   const totals = zeroMacros();
@@ -1653,6 +1763,48 @@ export default async function handler(req: any, res: any) {
       debug.push(debugEntry);
       continue;
     }
+
+    const spanishMatch = findSpanishFood(name, spanishFoods);
+    if (spanishMatch) {
+      const itemMacros = scaleSpanishFood(spanishMatch.row, grams);
+      addMacros(totals, itemMacros);
+      debugEntry.status = "incluido";
+      debugEntry.source = "alimentos_espanoles";
+      debugEntry.matchedAs = spanishMatch.row.nombre;
+      debugEntry.foodId = spanishMatch.row.id;
+      debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.calorieCheck = calorieCheck(itemMacros);
+      debugEntry.attempts?.push({
+        provider: "alimentos_espanoles",
+        used: true,
+        matchedAs: spanishMatch.row.nombre,
+        matchedBy: spanishMatch.key,
+        category: spanishMatch.row.categoria,
+        state: spanishMatch.row.estado,
+        source: spanishMatch.row.fuente,
+        verified: spanishMatch.row.verificado,
+        skippedExternalApis: true,
+        macros: roundMacros(itemMacros),
+      });
+      found.push({
+        name,
+        matchedAs: spanishMatch.row.nombre,
+        displayName: spanishMatch.row.nombre,
+        grams,
+        source: "alimentos_espanoles",
+        foodId: spanishMatch.row.id,
+        macros: roundMacros(itemMacros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
+    debugEntry.attempts?.push({
+      provider: "alimentos_espanoles",
+      used: false,
+      reason: externalApisConfigured.spanishFoods ? "sin_coincidencia_verificada" : "tabla_no_disponible_o_vacia",
+      fallback: externalApisConfigured.usda ? "usda" : externalApisConfigured.fatSecret ? "fatsecret" : "alimentos_internos",
+    });
 
     const usdaMatch = externalApisConfigured.usda ? await searchUsdaFood(name, grams, debugEntry.attempts) : null;
     if (!externalApisConfigured.usda) {
@@ -1765,7 +1917,12 @@ export default async function handler(req: any, res: any) {
     debug.push(debugEntry);
   }
 
-  const externalSourceUsed = found.some(item => item.source === "productos" || item.source === "usda" || item.source === "fatsecret");
+  const externalSourceUsed = found.some(item =>
+    item.source === "productos" ||
+    item.source === "alimentos_espanoles" ||
+    item.source === "usda" ||
+    item.source === "fatsecret",
+  );
   const sourcesUsed = Array.from(new Set(found.map(item => item.source).filter(Boolean)));
   const status: MacroStatus =
     notFound.length || missingGrams.length
@@ -1803,7 +1960,7 @@ export default async function handler(req: any, res: any) {
           : sourcesUsed.join("_")
         : "tabla_interna_basica_por_100g",
     },
-    envPrepared: ["PRODUCTOS_PROPIOS", "FATSECRET_CONSUMER_KEY", "FATSECRET_CONSUMER_SECRET", "USDA_API_KEY"],
+    envPrepared: ["PRODUCTOS_PROPIOS", "ALIMENTOS_ESPANOLES_VERIFICADOS", "FATSECRET_CONSUMER_KEY", "FATSECRET_CONSUMER_SECRET", "USDA_API_KEY"],
   };
 
   console.info("[macro-specialist] calculation", JSON.stringify({
