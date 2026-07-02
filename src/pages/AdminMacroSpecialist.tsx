@@ -133,7 +133,7 @@ function MacroResult({ result }: { result: any }) {
             {result.found.map((item: any, index: number) => (
               <div key={index} className="rounded-2xl bg-secondary p-3 text-sm">
                 <div className="font-medium">{item.name} · {item.grams} g</div>
-                <div className="text-xs muted">Coincidencia: {item.matchedAs} · {item.macros?.kcal} kcal · {item.macros?.protein} g prot</div>
+                <div className="text-xs muted">Coincidencia: {item.displayName ?? item.matchedAs} · {item.macros?.kcal} kcal · {item.macros?.protein} g prot</div>
               </div>
             ))}
           </div>

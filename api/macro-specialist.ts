@@ -88,6 +88,7 @@ type IngredientDebugEntry = {
   status: string;
   source?: string;
   matchedAs?: string;
+  providerMatchedAs?: string;
   foodId?: string;
   macros?: Record<string, any>;
   calorieCheck?: { formulaKcal: number; displayedKcal: number; difference: number };
@@ -101,6 +102,8 @@ type FatSecretToken = {
 
 type ProviderMacroMatch = {
   matchedAs: string;
+  displayName: string;
+  providerMatchedAs: string;
   foodId?: string;
   macros: MacroValues;
   provider: "usda" | "fatsecret";
@@ -751,8 +754,7 @@ function readableMatchedFoodLabel(providerName: string, originalQuery: string) {
   }
 
   if (!label) return provider || originalQuery;
-  if (!provider || normalizeFoodRankingText(provider) === normalizeFoodRankingText(label)) return label;
-  return `${label} (${provider})`;
+  return label;
 }
 
 function isFriedOrUltraProcessedFoodName(foodName: string) {
@@ -1085,6 +1087,7 @@ async function searchUsdaFood(name: string, grams: number, attempts?: any[]): Pr
         query,
         used: true,
         matchedAs: readableMatchedFoodLabel(best.food?.description ?? query, name),
+        providerMatchedAs: best.food?.description ?? query,
         fdcId: best.food?.fdcId,
         dataType: best.food?.dataType,
         macros: roundMacros(macros),
@@ -1093,6 +1096,8 @@ async function searchUsdaFood(name: string, grams: number, attempts?: any[]): Pr
       return {
         provider: "usda",
         matchedAs: readableMatchedFoodLabel(best.food?.description ?? query, name),
+        displayName: readableMatchedFoodLabel(best.food?.description ?? query, name),
+        providerMatchedAs: best.food?.description ?? query,
         foodId: best.food?.fdcId ? String(best.food.fdcId) : undefined,
         macros,
       };
@@ -1236,6 +1241,8 @@ async function searchFatSecretV3(name: string, amount: number) {
   return {
     provider: "fatsecret",
     matchedAs: readableMatchedFoodLabel(bestFood.food_name ?? query, name),
+    displayName: readableMatchedFoodLabel(bestFood.food_name ?? query, name),
+    providerMatchedAs: bestFood.food_name ?? query,
     foodId: bestFood.food_id,
     serving,
     macros,
@@ -1272,6 +1279,8 @@ async function searchFatSecretLegacy(name: string, amount: number) {
   return {
     provider: "fatsecret",
     matchedAs: readableMatchedFoodLabel(foodPayload?.food?.food_name ?? bestFood.food_name ?? query, name),
+    displayName: readableMatchedFoodLabel(foodPayload?.food?.food_name ?? bestFood.food_name ?? query, name),
+    providerMatchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
     foodId: bestFood.food_id,
     serving,
     macros,
@@ -1362,6 +1371,8 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
   return {
     provider: "fatsecret",
     matchedAs: readableMatchedFoodLabel(foodPayload?.food?.food_name ?? bestFood.food_name ?? query, name),
+    displayName: readableMatchedFoodLabel(foodPayload?.food?.food_name ?? bestFood.food_name ?? query, name),
+    providerMatchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
     foodId: bestFood.food_id,
     serving,
     macros,
@@ -1585,13 +1596,16 @@ export default async function handler(req: any, res: any) {
       addMacros(totals, providerMatch.macros);
       debugEntry.status = "incluido";
       debugEntry.source = providerMatch.provider ?? "fatsecret";
-      debugEntry.matchedAs = providerMatch.matchedAs;
+      debugEntry.matchedAs = providerMatch.displayName ?? providerMatch.matchedAs;
+      debugEntry.providerMatchedAs = providerMatch.providerMatchedAs;
       debugEntry.foodId = providerMatch.foodId;
       debugEntry.macros = roundMacros(providerMatch.macros);
       debugEntry.calorieCheck = calorieCheck(providerMatch.macros);
       found.push({
         name,
-        matchedAs: providerMatch.matchedAs,
+        matchedAs: providerMatch.displayName ?? providerMatch.matchedAs,
+        displayName: providerMatch.displayName ?? providerMatch.matchedAs,
+        providerMatchedAs: providerMatch.providerMatchedAs,
         grams,
         source: providerMatch.provider ?? "fatsecret",
         foodId: providerMatch.foodId,
