@@ -680,7 +680,7 @@ function asksForFriedOrProcessedFood(query: string) {
 
 function asksForPreparedFood(query: string) {
   return asksForFriedOrProcessedFood(query) ||
-    hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa)\b/);
+    hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa|with|and|con|y|mixed|mixto|mezcla)\b/);
 }
 
 function isFriedOrUltraProcessedFoodName(foodName: string) {
@@ -688,7 +688,7 @@ function isFriedOrUltraProcessedFoodName(foodName: string) {
 }
 
 function isPreparedFoodName(foodName: string) {
-  return hasRankingTerm(foodName, /\b(prepared|recipe|dish|meal|restaurant|fast food|sandwich|pizza|burger|hamburger|casserole|sauce|dressing|mayonnaise|salad|soup|preparado|preparada|plato|receta|salsa|ensalada|mayonesa|sopa)\b/);
+  return hasRankingTerm(foodName, /\b(prepared|recipe|dish|meal|restaurant|fast food|sandwich|pizza|burger|hamburger|casserole|sauce|dressing|mayonnaise|salad|soup|with|and|mixed|mixture|blend|preparado|preparada|plato|receta|salsa|ensalada|mayonesa|sopa|con|y|mixto|mixta|mezcla)\b/);
 }
 
 function isCookedSimpleFoodName(foodName: string) {
@@ -697,6 +697,24 @@ function isCookedSimpleFoodName(foodName: string) {
 
 function isRawOrPlainFoodName(foodName: string) {
   return hasRankingTerm(foodName, /\b(raw|fresh|uncooked|crudo|cruda|fresco|fresca)\b/);
+}
+
+function isGenericSimpleFoodQuery(query: string) {
+  if (asksForPreparedFood(query)) return false;
+  const tokens = normalizeFoodRankingText(query)
+    .split(" ")
+    .filter(token => token.length > 1)
+    .filter(token => !["de", "del", "la", "el", "los", "las", "the", "of"].includes(token));
+  return tokens.length > 0 && tokens.length <= 3;
+}
+
+function hasCompositeConnector(foodName: string) {
+  return hasRankingTerm(foodName, /\b(with|and|plus|mixed|mixture|blend|combination|con|y|e|mixto|mixta|mezcla)\b/);
+}
+
+function hasExtraFoodAfterConnector(foodName: string, query: string) {
+  if (!isGenericSimpleFoodQuery(query)) return false;
+  return hasCompositeConnector(foodName);
 }
 
 function processingScore(foodName: string, query: string) {
@@ -709,6 +727,7 @@ function processingScore(foodName: string, query: string) {
 
   if (fried && !explicitFried) return -180;
   if (fried && explicitFried) return 28;
+  if (hasExtraFoodAfterConnector(foodName, query) && !explicitPrepared) return -160;
   if (prepared && !explicitPrepared) return -70;
   if (prepared && explicitPrepared) return 16;
   if (raw) return 34;
@@ -722,7 +741,9 @@ function processingScore(foodName: string, query: string) {
 
 function isDisallowedDefaultProcessedMatch(foodName: string, query: string) {
   if (asksForPreparedFood(query)) return false;
-  return isFriedOrUltraProcessedFoodName(foodName) || isPreparedFoodName(foodName);
+  return isFriedOrUltraProcessedFoodName(foodName) ||
+    isPreparedFoodName(foodName) ||
+    hasExtraFoodAfterConnector(foodName, query);
 }
 
 function requiresExactFatSecretMatch(query: string) {
