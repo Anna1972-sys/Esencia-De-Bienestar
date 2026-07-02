@@ -856,6 +856,54 @@ function isCommercialProviderFood(food: any, query: string) {
   return Boolean(brand) || /\b(brand|branded|commercial|restaurant|generic meal)\b/.test(type);
 }
 
+function macrosPer100(macros: MacroValues, grams: number): MacroValues {
+  const factor = grams > 0 ? 100 / grams : 1;
+  return {
+    kcal: macros.kcal * factor,
+    protein: macros.protein * factor,
+    carbs: macros.carbs * factor,
+    fat: macros.fat * factor,
+    fiber: macros.fiber * factor,
+    micronutrients: {},
+  };
+}
+
+function macroCompatibilityIssueForSimpleFood(query: string, macros: MacroValues, grams: number) {
+  if (!isGenericSimpleFoodQuery(query)) return null;
+  if (asksForPreparedFood(query) || asksForDerivedFood(query)) return null;
+  const expected = findFood(query)?.food;
+  if (!expected || !grams || grams <= 0) return null;
+
+  const per100 = macrosPer100(macros, grams);
+  const expectedKcal = Number(expected.kcal) || 0;
+  const expectedProtein = Number(expected.protein) || 0;
+  const expectedFat = Number(expected.fat) || 0;
+
+  if (expectedKcal > 0 && expectedKcal < 100) {
+    const maxKcal = Math.max(160, expectedKcal * 4);
+    const maxProtein = Math.max(12, expectedProtein * 8);
+    const maxFat = Math.max(8, expectedFat * 20 + 5);
+    if (per100.kcal > maxKcal || per100.protein > maxProtein || per100.fat > maxFat) {
+      return {
+        reason: "macros_incompatibles_con_alimento_simple",
+        expectedPer100: { kcal: expectedKcal, protein: expectedProtein, fat: expectedFat },
+        receivedPer100: roundMacros(per100),
+      };
+    }
+  }
+
+  const maxKcal = Math.max(220, expectedKcal * 4);
+  if (expectedKcal > 0 && per100.kcal > maxKcal) {
+    return {
+      reason: "calorias_demasiado_altas_para_alimento_simple",
+      expectedPer100: { kcal: expectedKcal, protein: expectedProtein, fat: expectedFat },
+      receivedPer100: roundMacros(per100),
+    };
+  }
+
+  return null;
+}
+
 function requiresExactFatSecretMatch(query: string) {
   return ["aceite oliva", "olive oil", "extra virgin olive oil"].includes(normalizeName(query));
 }
@@ -1081,6 +1129,18 @@ async function searchUsdaFood(name: string, grams: number, attempts?: any[]): Pr
         attempts?.push({ provider: "usda", query, rejected: true, reason: "sin_macros_validos", matchedAs: best.food?.description ?? query, fallback: "fatsecret" });
         continue;
       }
+      const compatibilityIssue = macroCompatibilityIssueForSimpleFood(name, macros, grams);
+      if (compatibilityIssue) {
+        attempts?.push({
+          provider: "usda",
+          query,
+          rejected: true,
+          matchedAs: best.food?.description ?? query,
+          ...compatibilityIssue,
+          fallback: "fatsecret",
+        });
+        continue;
+      }
 
       attempts?.push({
         provider: "usda",
@@ -1236,6 +1296,7 @@ async function searchFatSecretV3(name: string, amount: number) {
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
   if (!macros) return null;
+  if (macroCompatibilityIssueForSimpleFood(name, macros, amount)) return null;
   if (isBadLowFatMilkMatch(query, bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
@@ -1274,6 +1335,7 @@ async function searchFatSecretLegacy(name: string, amount: number) {
   const serving = pickBestServing(servings, amount);
   const macros = serving ? servingToMacros(serving, amount) : null;
   if (!macros) return null;
+  if (macroCompatibilityIssueForSimpleFood(name, macros, amount)) return null;
   if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) return null;
 
   return {
@@ -1361,6 +1423,17 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
   const macros = serving ? servingToMacros(serving, amount) : null;
   if (!macros) {
     attempts?.push({ provider: "fatsecret-oauth1", query, rejected: true, reason: "sin_serving_metrico", matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query });
+    return null;
+  }
+  const compatibilityIssue = macroCompatibilityIssueForSimpleFood(name, macros, amount);
+  if (compatibilityIssue) {
+    attempts?.push({
+      provider: "fatsecret-oauth1",
+      query,
+      rejected: true,
+      matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
+      ...compatibilityIssue,
+    });
     return null;
   }
   if (isBadLowFatMilkMatch(query, foodPayload?.food?.food_name ?? bestFood.food_name ?? "", macros, amount)) {
