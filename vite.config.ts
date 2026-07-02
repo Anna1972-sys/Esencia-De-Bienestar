@@ -55,6 +55,9 @@ function localApiPlugin() {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  for (const [key, value] of Object.entries(env)) {
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || "https://esencia-de-bienestar-49ii.vercel.app";
 
   return {

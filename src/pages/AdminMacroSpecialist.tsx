@@ -120,6 +120,7 @@ export default function AdminMacroSpecialist() {
   const [restrictions, setRestrictions] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [showManualManager, setShowManualManager] = useState(false);
   const [showManualFood, setShowManualFood] = useState(false);
   const [manualFoods, setManualFoods] = useState<ManualFoodItem[]>([]);
   const [manualQuery, setManualQuery] = useState("");
@@ -142,8 +143,8 @@ export default function AdminMacroSpecialist() {
   };
 
   useEffect(() => {
-    loadManualFoods();
-  }, [isAdmin]);
+    if (showManualManager) loadManualFoods();
+  }, [isAdmin, showManualManager]);
 
   const filteredManualFoods = useMemo(() => {
     const normalized = normalizeText(manualQuery.trim());
@@ -338,136 +339,147 @@ export default function AdminMacroSpecialist() {
         </button>
       </div>
 
+      {result && <MacroResult result={result} />}
+
       {isAdmin && (
         <section className="card-soft p-4 space-y-4 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="font-serif text-lg">Alimentos manuales</h2>
-              <p className="text-xs muted">Añade alimentos propios a food_items cuando no aparezcan en las bases de datos.</p>
+              <p className="text-xs muted">Módulo independiente para crear, editar, activar o desactivar alimentos de la base.</p>
             </div>
-            <button type="button" className="btn-primary" onClick={() => setShowManualFood(prev => !prev)}>
-              {showManualFood ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {showManualFood ? "Cerrar" : "Añadir alimento manual"}
+            <button type="button" className="btn-primary" onClick={() => setShowManualManager(prev => !prev)}>
+              {showManualManager ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showManualManager ? "Cerrar alimentos manuales" : "Gestionar alimentos manuales"}
             </button>
           </div>
 
-          {showManualFood && (
-            <form onSubmit={saveManualFood} className="rounded-2xl border border-primary/30 bg-white/70 p-3 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-medium">{editingManualId ? "Editar alimento manual" : "Nuevo alimento manual"}</h3>
-                {editingManualId && (
-                  <button type="button" className="btn-ghost text-xs" onClick={resetManualForm}>
-                    <X className="h-3.5 w-3.5" /> Cancelar edición
-                  </button>
-                )}
+          {showManualManager && (
+            <>
+              <div className="flex justify-end">
+                <button type="button" className="btn-primary" onClick={() => setShowManualFood(prev => !prev)}>
+                  {showManualFood ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  {showManualFood ? "Cerrar formulario" : "Añadir alimento manual"}
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="space-y-1">
-                  <span className="text-xs muted">Nombre del alimento</span>
-                  <input className="field" value={manualForm.nombre} onChange={e => updateManualForm({ nombre: e.target.value })} required />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs muted">Categoría</span>
-                  <input className="field" value={manualForm.categoria} onChange={e => updateManualForm({ categoria: e.target.value })} />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="space-y-1">
-                  <span className="text-xs muted">Alias opcionales</span>
-                  <input className="field" value={manualForm.aliases} onChange={e => updateManualForm({ aliases: e.target.value })} placeholder="Separados por comas" />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs muted">Estado</span>
-                  <select className="field" value={manualForm.estado} onChange={e => updateManualForm({ estado: e.target.value })}>
-                    <option value="crudo">Crudo</option>
-                    <option value="cocido">Cocido</option>
-                    <option value="natural">Natural</option>
-                    <option value="procesado">Procesado</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {([
-                  ["kcal_100g", "Kcal / 100 g", "1"],
-                  ["proteina_100g", "Proteínas", "0.1"],
-                  ["hidratos_100g", "Hidratos", "0.1"],
-                  ["grasa_100g", "Grasas", "0.1"],
-                  ["fibra_100g", "Fibra", "0.1"],
-                  ["azucares_100g", "Azúcares", "0.1"],
-                  ["sal_100g", "Sal", "0.01"],
-                ] as const).map(([key, label, step]) => (
-                  <label key={key} className="space-y-1">
-                    <span className="text-xs muted">{label}</span>
-                    <input
-                      className="field"
-                      type="number"
-                      step={step}
-                      min="0"
-                      value={manualForm[key]}
-                      onChange={e => updateManualForm({ [key]: e.target.value } as Partial<ManualFoodForm>)}
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={manualForm.is_active} onChange={e => updateManualForm({ is_active: e.target.checked })} className="h-4 w-4 accent-[hsl(330_80%_58%)]" />
-                Activo para buscador y cálculo de macros
-              </label>
-
-              <button className="btn-primary w-full" disabled={manualSaving}>
-                {manualSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingManualId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                {manualSaving ? "Guardando…" : editingManualId ? "Guardar alimento manual" : "Crear alimento manual"}
-              </button>
-            </form>
-          )}
-
-          <div className="rounded-2xl border border-primary/20 bg-white/60 p-3">
-            <div className="flex items-center gap-2 mb-3">
-              <Search className="h-4 w-4 muted" />
-              <input className="field" value={manualQuery} onChange={e => setManualQuery(e.target.value)} placeholder="Buscar alimentos manuales…" />
-            </div>
-            <div className="flex items-center justify-between text-xs muted mb-3">
-              <span>{manualLoading ? "Cargando…" : `${filteredManualFoods.length} alimentos manuales`}</span>
-              <span>Fuente: food_items</span>
-            </div>
-            <div className="space-y-2">
-              {filteredManualFoods.map(food => (
-                <div key={food.id} className={`rounded-2xl border p-3 ${food.is_active ? "border-border bg-secondary/60" : "border-dashed bg-muted/20 opacity-70"}`}>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Calculator className="h-4 w-4 text-primary" />
-                        <h3 className="font-medium truncate">{food.nombre}</h3>
-                        <span className="chip">{food.is_active ? "Activo" : "Inactivo"}</span>
-                      </div>
-                      <p className="text-xs muted mt-1">{food.categoria} · {food.estado} · {food.kcal_100g ?? "—"} kcal / 100 g</p>
-                      {(food.aliases ?? []).length > 0 && <p className="text-xs muted mt-1">Alias: {food.aliases.join(", ")}</p>}
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button type="button" className="btn-ghost text-xs" onClick={() => editManualFood(food)}>
-                        <Edit3 className="h-3.5 w-3.5" /> Editar
+              {showManualFood && (
+                <form onSubmit={saveManualFood} className="rounded-2xl border border-primary/30 bg-white/70 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-medium">{editingManualId ? "Editar alimento manual" : "Nuevo alimento manual"}</h3>
+                    {editingManualId && (
+                      <button type="button" className="btn-ghost text-xs" onClick={resetManualForm}>
+                        <X className="h-3.5 w-3.5" /> Cancelar edición
                       </button>
-                      <button type="button" className="btn-ghost text-xs" onClick={() => toggleManualFood(food)}>
-                        {food.is_active ? "Desactivar" : "Activar"}
-                      </button>
-                      <button type="button" className="btn-ghost text-xs text-destructive" onClick={() => deleteManualFood(food)}>
-                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                      </button>
-                    </div>
+                    )}
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="space-y-1">
+                      <span className="text-xs muted">Nombre del alimento</span>
+                      <input className="field" value={manualForm.nombre} onChange={e => updateManualForm({ nombre: e.target.value })} required />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs muted">Categoría</span>
+                      <input className="field" value={manualForm.categoria} onChange={e => updateManualForm({ categoria: e.target.value })} />
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="space-y-1">
+                      <span className="text-xs muted">Alias opcionales</span>
+                      <input className="field" value={manualForm.aliases} onChange={e => updateManualForm({ aliases: e.target.value })} placeholder="Separados por comas" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs muted">Estado</span>
+                      <select className="field" value={manualForm.estado} onChange={e => updateManualForm({ estado: e.target.value })}>
+                        <option value="crudo">Crudo</option>
+                        <option value="cocido">Cocido</option>
+                        <option value="natural">Natural</option>
+                        <option value="procesado">Procesado</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {([
+                      ["kcal_100g", "Kcal / 100 g", "1"],
+                      ["proteina_100g", "Proteínas", "0.1"],
+                      ["hidratos_100g", "Hidratos", "0.1"],
+                      ["grasa_100g", "Grasas", "0.1"],
+                      ["fibra_100g", "Fibra", "0.1"],
+                      ["azucares_100g", "Azúcares", "0.1"],
+                      ["sal_100g", "Sal", "0.01"],
+                    ] as const).map(([key, label, step]) => (
+                      <label key={key} className="space-y-1">
+                        <span className="text-xs muted">{label}</span>
+                        <input
+                          className="field"
+                          type="number"
+                          step={step}
+                          min="0"
+                          value={manualForm[key]}
+                          onChange={e => updateManualForm({ [key]: e.target.value } as Partial<ManualFoodForm>)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={manualForm.is_active} onChange={e => updateManualForm({ is_active: e.target.checked })} className="h-4 w-4 accent-[hsl(330_80%_58%)]" />
+                    Activo para buscador y cálculo de macros
+                  </label>
+
+                  <button className="btn-primary w-full" disabled={manualSaving}>
+                    {manualSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingManualId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    {manualSaving ? "Guardando…" : editingManualId ? "Guardar alimento manual" : "Crear alimento manual"}
+                  </button>
+                </form>
+              )}
+
+              <div className="rounded-2xl border border-primary/20 bg-white/60 p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Search className="h-4 w-4 muted" />
+                  <input className="field" value={manualQuery} onChange={e => setManualQuery(e.target.value)} placeholder="Buscar alimentos manuales…" />
                 </div>
-              ))}
-              {!manualLoading && filteredManualFoods.length === 0 && <p className="text-sm muted text-center py-4">Todavía no hay alimentos manuales.</p>}
-            </div>
-          </div>
+                <div className="flex items-center justify-between text-xs muted mb-3">
+                  <span>{manualLoading ? "Cargando…" : `${filteredManualFoods.length} alimentos manuales`}</span>
+                  <span>Fuente: food_items</span>
+                </div>
+                <div className="space-y-2">
+                  {filteredManualFoods.map(food => (
+                    <div key={food.id} className={`rounded-2xl border p-3 ${food.is_active ? "border-border bg-secondary/60" : "border-dashed bg-muted/20 opacity-70"}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Calculator className="h-4 w-4 text-primary" />
+                            <h3 className="font-medium truncate">{food.nombre}</h3>
+                            <span className="chip">{food.is_active ? "Activo" : "Inactivo"}</span>
+                          </div>
+                          <p className="text-xs muted mt-1">{food.categoria} · {food.estado} · {food.kcal_100g ?? "—"} kcal / 100 g</p>
+                          {(food.aliases ?? []).length > 0 && <p className="text-xs muted mt-1">Alias: {food.aliases.join(", ")}</p>}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button type="button" className="btn-ghost text-xs" onClick={() => editManualFood(food)}>
+                            <Edit3 className="h-3.5 w-3.5" /> Editar
+                          </button>
+                          <button type="button" className="btn-ghost text-xs" onClick={() => toggleManualFood(food)}>
+                            {food.is_active ? "Desactivar" : "Activar"}
+                          </button>
+                          <button type="button" className="btn-ghost text-xs text-destructive" onClick={() => deleteManualFood(food)}>
+                            <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {!manualLoading && filteredManualFoods.length === 0 && <p className="text-sm muted text-center py-4">Todavía no hay alimentos manuales.</p>}
+                </div>
+              </div>
+            </>
+          )}
         </section>
       )}
-
-      {result && <MacroResult result={result} />}
     </div>
   );
 }
