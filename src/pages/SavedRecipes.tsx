@@ -12,7 +12,7 @@ const nutritionLabel = (macros: any) =>
   macros?.nutrition_status === "verified" ? "Valores verificados" : "Valores estimados";
 
 export default function SavedRecipes() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,6 +36,11 @@ export default function SavedRecipes() {
 
   const remove = async (recipe: any) => {
     if (!recipe?.id || !user) return;
+    if (!isAdmin) {
+      toast.error("Solo la administradora puede eliminar recetas.");
+      setConfirmRecipe(null);
+      return;
+    }
     setDeletingId(recipe.id);
     const { error } = await supabase.from("recipes").delete().eq("id", recipe.id).eq("user_id", user.id);
     setDeletingId(null);
@@ -101,18 +106,20 @@ export default function SavedRecipes() {
                       <div className="font-semibold text-lg leading-tight">{r.title}</div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {nutritionAvailable && isHighProtein && <span className="chip">Alta proteína</span>}
-                        <button
-                          type="button"
-                          aria-label="Eliminar receta"
-                          className="btn-ghost h-8 w-8 p-0 text-destructive"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setConfirmRecipe(r);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            aria-label="Eliminar receta"
+                            className="btn-ghost h-8 w-8 p-0 text-destructive"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setConfirmRecipe(r);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="text-[11px] leading-relaxed muted mt-2.5">
@@ -145,7 +152,9 @@ export default function SavedRecipes() {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => addToShopping(r)} className="btn-ghost text-xs"><ShoppingBag className="h-3 w-3" /> A la lista</button>
-                  <button onClick={() => setConfirmRecipe(r)} className="btn-ghost text-xs text-destructive"><Trash2 className="h-3 w-3" /> Eliminar</button>
+                  {isAdmin && (
+                    <button onClick={() => setConfirmRecipe(r)} className="btn-ghost text-xs text-destructive"><Trash2 className="h-3 w-3" /> Eliminar</button>
+                  )}
                 </div>
               </div>
             </details>;

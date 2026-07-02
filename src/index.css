@@ -1804,6 +1804,10 @@
     background: #FFF7FA !important;
   }
 
+  .generator-result-card {
+    background: #FFF7FA !important;
+  }
+
   .wellness-generator,
   .wellness-generator .label,
   .wellness-generator .muted,

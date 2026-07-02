@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
-import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -116,7 +116,7 @@ const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategor
 };
 
 export default function RecipeGenerator() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [categories, setCategories] = useState<RecipeGeneratorCategory[]>(DEFAULT_RECIPE_GENERATOR_CATEGORIES);
   const [category, setCategory] = useState<RecipeCategory>(DEFAULT_RECIPE_GENERATOR_CATEGORIES[0].id);
@@ -129,6 +129,8 @@ export default function RecipeGenerator() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
+  const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
+  const [discardingGenerated, setDiscardingGenerated] = useState(false);
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
 
@@ -284,6 +286,26 @@ export default function RecipeGenerator() {
     if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
   };
 
+  const discardGeneratedRecipe = async () => {
+    if (!user || !savedRecipeId) {
+      setResult(null);
+      setSavedRecipeId(null);
+      setConfirmDiscardGenerated(false);
+      return;
+    }
+    setDiscardingGenerated(true);
+    const { error } = await supabase.from("recipes").delete().eq("id", savedRecipeId).eq("user_id", user.id);
+    setDiscardingGenerated(false);
+    if (error) {
+      toast.error(`No se pudo eliminar la receta: ${error.message}`);
+      return;
+    }
+    setResult(null);
+    setSavedRecipeId(null);
+    setConfirmDiscardGenerated(false);
+    toast.success("Receta descartada correctamente.");
+  };
+
   return (
     <div>
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
@@ -372,12 +394,36 @@ export default function RecipeGenerator() {
 
       </div>
 
-      {result && <RecipeCard recipe={result} categories={categories} saved={Boolean(savedRecipeId)} onSave={() => saveRecipe(result)} />}
+      {result && (
+        <RecipeCard
+          recipe={result}
+          categories={categories}
+          saved={Boolean(savedRecipeId)}
+          onSave={() => saveRecipe(result)}
+          onRequestDiscard={() => setConfirmDiscardGenerated(true)}
+        />
+      )}
+      {confirmDiscardGenerated && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4">
+          <div className="card-soft w-full max-w-sm p-5 shadow-xl">
+            <div className="font-semibold text-lg mb-2">Descartar receta</div>
+            <p className="text-sm muted mb-4">¿Seguro que deseas descartar esta receta generada?</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setConfirmDiscardGenerated(false)} disabled={discardingGenerated}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-primary" onClick={discardGeneratedRecipe} disabled={discardingGenerated}>
+                {discardingGenerated ? "Descartando…" : "Descartar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; categories: RecipeGeneratorCategory[]; saved: boolean; onSave: () => void }) {
+function RecipeCard({ recipe, categories, saved, onSave, onRequestDiscard }: { recipe: any; categories: RecipeGeneratorCategory[]; saved: boolean; onSave: () => void; onRequestDiscard: () => void }) {
   const perServing = recipe.macros ?? {};
   const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
   const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
@@ -389,7 +435,7 @@ function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; catego
   const finalSeasoningNote = noMacroIngredients.length > 0 ? seasoningNote(noMacroIngredients) : "";
 
   return (
-    <div className="card-soft p-5 animate-fade-in">
+    <div className="card-soft generator-result-card p-5 animate-fade-in">
       <div className="flex items-start justify-between gap-3 mb-1">
         <h2 className="heading-md">{recipe.title}</h2>
         {recipe.category && <span className="chip shrink-0">{categoryLabel}</span>}
@@ -425,6 +471,9 @@ function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; catego
       <button onClick={onSave} disabled={saved} className="btn-primary w-full mt-5 disabled:opacity-70">
         {saved ? "Guardada en Mis recetas" : "Guardar en mis recetas"}
       </button>
+      <button onClick={onRequestDiscard} className="btn-primary w-full mt-2">
+        <Trash2 className="h-4 w-4" /> Descartar receta generada
+      </button>
     </div>
   );
 }
@@ -432,11 +481,11 @@ function RecipeCard({ recipe, categories, saved, onSave }: { recipe: any; catego
 function NutritionStats({ values }: { values: any }) {
   return (
     <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
+      <Stat label="Kcal" value={`${values.calories ?? 0}`} />
       <Stat label="Prot" value={`${values.protein ?? 0}g`} />
       <Stat label="Hidratos" value={`${values.carbs ?? 0}g`} />
       <Stat label="Grasas" value={`${values.fat ?? 0}g`} />
       <Stat label="Fibra" value={`${values.fiber ?? 0}g`} />
-      <Stat label="Kcal" value={`${values.calories ?? 0}`} />
     </div>
   );
 }
