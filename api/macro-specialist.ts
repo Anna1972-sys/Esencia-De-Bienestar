@@ -687,6 +687,74 @@ function asksForDerivedFood(query: string) {
   return hasRankingTerm(query, /\b(flour|powder|starch|flakes|instant|concentrate|extract|dehydrated|dried|harina|fecula|fécula|almidon|almidón|polvo|copos|instantaneo|instantáneo|concentrado|extracto|deshidratado|deshidratada|seco|seca|secos|secas)\b/);
 }
 
+function requestedCookingState(query: string): "raw" | "cooked" | "boiled" | "grilled" | "fried" | null {
+  if (hasRankingTerm(query, /\b(frito|frita|fritos|fritas|fried|fries)\b/)) return "fried";
+  if (hasRankingTerm(query, /\b(plancha|grilled|grill)\b/)) return "grilled";
+  if (hasRankingTerm(query, /\b(hervido|hervida|boiled)\b/)) return "boiled";
+  if (hasRankingTerm(query, /\b(cocido|cocida|cooked|asado|asada|roasted|baked|horno)\b/)) return "cooked";
+  if (hasRankingTerm(query, /\b(crudo|cruda|raw|natural|fresco|fresca|fresh)\b/)) return "raw";
+  return null;
+}
+
+function defaultCookingStateForBaseFood(baseFood: string, originalQuery: string): "raw" | "cooked" | "boiled" | "grilled" | "fried" | null {
+  const requested = requestedCookingState(originalQuery);
+  if (requested) return requested;
+  const base = normalizeFoodRankingText(baseFood);
+  if (base.includes("rice")) return "cooked";
+  if (base.includes("potato")) return "boiled";
+  if (base.includes("chicken") || base.includes("turkey")) return "cooked";
+  return null;
+}
+
+function qualifySearchCandidate(baseFood: string, originalQuery: string) {
+  const state = defaultCookingStateForBaseFood(baseFood, originalQuery);
+  if (!state) return baseFood;
+  if (state === "boiled") return `${baseFood} boiled`;
+  if (state === "grilled") return `${baseFood} grilled`;
+  if (state === "fried") return `${baseFood} fried`;
+  return `${baseFood} ${state}`;
+}
+
+function readableMatchedFoodLabel(providerName: string, originalQuery: string) {
+  const provider = String(providerName || "").trim();
+  const normalizedProvider = normalizeFoodRankingText(provider);
+  const normalizedQuery = normalizeFoodRankingText(originalQuery);
+  const state = requestedCookingState(originalQuery) ??
+    (isFriedOrUltraProcessedFoodName(provider) ? "fried" :
+      isRawOrPlainFoodName(provider) ? "raw" :
+        hasRankingTerm(provider, /\b(boiled|hervido|hervida)\b/) ? "boiled" :
+          isCookedSimpleFoodName(provider) ? "cooked" : null);
+
+  let label = "";
+  if (/\b(rice|arroz)\b/.test(normalizedProvider) || /\barroz\b/.test(normalizedQuery)) {
+    label = state === "raw" ? "arroz blanco crudo" : "arroz blanco cocido";
+  } else if (/\b(potato|patata|papa)\b/.test(normalizedProvider) || /\b(patata|papa)\b/.test(normalizedQuery)) {
+    label = state === "fried" ? "patata frita" : state === "raw" ? "patata cruda" : "patata cocida";
+  } else if (/\b(chicken|pollo)\b/.test(normalizedProvider) || /\bpollo\b/.test(normalizedQuery)) {
+    label = state === "raw" ? "pechuga de pollo cruda" : state === "grilled" ? "pechuga de pollo a la plancha" : "pechuga de pollo cocinada";
+  } else if (/\b(tomato|tomate)\b/.test(normalizedProvider) || /\btomate\b/.test(normalizedQuery)) {
+    label = state === "cooked" || state === "boiled" ? "tomate cocinado" : "tomate natural";
+  } else if (/\b(zucchini|calabacin|calabacín)\b/.test(normalizedProvider) || /\bcalabacin\b/.test(normalizedQuery)) {
+    label = state === "cooked" || state === "boiled" || state === "grilled" ? "calabacín cocinado" : "calabacín crudo";
+  } else if (/\b(carrot|zanahoria)\b/.test(normalizedProvider) || /\bzanahoria\b/.test(normalizedQuery)) {
+    label = state === "cooked" || state === "boiled" ? "zanahoria cocida" : "zanahoria cruda";
+  } else if (/\b(onion|cebolla)\b/.test(normalizedProvider) || /\bcebolla\b/.test(normalizedQuery)) {
+    label = state === "cooked" || state === "grilled" ? "cebolla cocinada" : "cebolla cruda";
+  } else if (/\b(oats|oat|avena)\b/.test(normalizedProvider) || /\bavena\b/.test(normalizedQuery)) {
+    label = "copos de avena";
+  } else if (/\b(apple|manzana)\b/.test(normalizedProvider) || /\bmanzana\b/.test(normalizedQuery)) {
+    label = "manzana";
+  } else if (/\b(banana|plantain|platano|plátano)\b/.test(normalizedProvider) || /\b(platano|banana)\b/.test(normalizedQuery)) {
+    label = "plátano";
+  } else if (/\b(olive oil|aceite oliva)\b/.test(normalizedProvider) || /\baceite oliva\b/.test(normalizedQuery)) {
+    label = "aceite de oliva";
+  }
+
+  if (!label) return provider || originalQuery;
+  if (!provider || normalizeFoodRankingText(provider) === normalizeFoodRankingText(label)) return label;
+  return `${label} (${provider})`;
+}
+
 function isFriedOrUltraProcessedFoodName(foodName: string) {
   return hasRankingTerm(foodName, /\b(fried|fries|french fries|chips|chip|crisps|snack|frito|frita|fritos|fritas|empanado|empanada|rebozado|rebozada|breaded|battered)\b/);
 }
@@ -709,6 +777,17 @@ function isCookedSimpleFoodName(foodName: string) {
 
 function isRawOrPlainFoodName(foodName: string) {
   return hasRankingTerm(foodName, /\b(raw|fresh|uncooked|crudo|cruda|fresco|fresca)\b/);
+}
+
+function cookingStateScore(foodName: string, query: string) {
+  const requested = requestedCookingState(query);
+  if (!requested) return 0;
+  if (requested === "raw") return isRawOrPlainFoodName(foodName) ? 70 : isCookedSimpleFoodName(foodName) ? -30 : 0;
+  if (requested === "fried") return isFriedOrUltraProcessedFoodName(foodName) ? 70 : -40;
+  if (requested === "grilled") return hasRankingTerm(foodName, /\b(grilled|grill|plancha)\b/) ? 70 : 0;
+  if (requested === "boiled") return hasRankingTerm(foodName, /\b(boiled|hervido|hervida)\b/) ? 70 : isCookedSimpleFoodName(foodName) ? 35 : 0;
+  if (requested === "cooked") return isCookedSimpleFoodName(foodName) ? 55 : isRawOrPlainFoodName(foodName) ? -15 : 0;
+  return 0;
 }
 
 function isGenericSimpleFoodQuery(query: string) {
@@ -828,7 +907,28 @@ function usdaSearchCandidates(name: string) {
     [/\bquinoa\b/, "quinoa"],
   ];
   const translated = translations.find(([pattern]) => pattern.test(normalized))?.[1];
-  return Array.from(new Set([translated, name, cleanSearchName(name)].filter(Boolean).map(String)));
+  const qualifiedTranslated = translated ? qualifySearchCandidate(translated, name) : undefined;
+  return Array.from(new Set([qualifiedTranslated, translated, name, cleanSearchName(name)].filter(Boolean).map(String)));
+}
+
+function localizedSearchCandidate(name: string) {
+  const normalized = normalizeName(name);
+  const state = requestedCookingState(name);
+  if (/\barroz\b/.test(normalized)) return state === "raw" ? "arroz crudo" : "arroz cocido";
+  if (/\bpatatas?\b|\bpapas?\b/.test(normalized)) {
+    if (state === "fried") return "patata frita";
+    if (state === "raw") return "patata cruda";
+    return "patata cocida";
+  }
+  if (/\bpollo\b|\bpechuga\s+pollo\b/.test(normalized)) {
+    if (state === "raw") return "pechuga de pollo cruda";
+    if (state === "grilled") return "pechuga de pollo a la plancha";
+    return "pechuga de pollo cocinada";
+  }
+  if (/\btomate\b/.test(normalized) && !state) return "tomate natural";
+  if (/\bcalabacin\b/.test(normalized) && !state) return "calabacín crudo";
+  if (/\bzanahoria\b/.test(normalized) && !state) return "zanahoria cruda";
+  return undefined;
 }
 
 function nutrientValue(food: any, nutrientNames: string[]) {
@@ -922,6 +1022,7 @@ function scoreUsdaFood(food: any, query: string) {
   const normalizedQuery = normalizeName(query);
   const dataType = String(food?.dataType ?? "").toLowerCase();
   let score = scoreFood({ food_name: description }, normalizedQuery);
+  score += cookingStateScore(food?.description ?? description, query);
   if (description === normalizedQuery) score += 80;
   if (dataType.includes("foundation")) score += 18;
   if (dataType.includes("sr legacy")) score += 15;
@@ -983,7 +1084,7 @@ async function searchUsdaFood(name: string, grams: number, attempts?: any[]): Pr
         provider: "usda",
         query,
         used: true,
-        matchedAs: best.food?.description,
+        matchedAs: readableMatchedFoodLabel(best.food?.description ?? query, name),
         fdcId: best.food?.fdcId,
         dataType: best.food?.dataType,
         macros: roundMacros(macros),
@@ -991,7 +1092,7 @@ async function searchUsdaFood(name: string, grams: number, attempts?: any[]): Pr
 
       return {
         provider: "usda",
-        matchedAs: best.food?.description ?? query,
+        matchedAs: readableMatchedFoodLabel(best.food?.description ?? query, name),
         foodId: best.food?.fdcId ? String(best.food.fdcId) : undefined,
         macros,
       };
@@ -1069,7 +1170,8 @@ function scoreFood(food: any, query: string) {
   return overlap * 12 +
     (normalizedFood.includes(normalizedQuery) ? 25 : 0) +
     (normalizedQuery.includes(normalizedFood) ? 15 : 0) +
-    processingScore(food?.food_name ?? "", query);
+    processingScore(food?.food_name ?? "", query) +
+    cookingStateScore(food?.food_name ?? "", query);
 }
 
 function pickBestFoodWithScore(foods: any[], query: string) {
@@ -1133,7 +1235,7 @@ async function searchFatSecretV3(name: string, amount: number) {
 
   return {
     provider: "fatsecret",
-    matchedAs: bestFood.food_name ?? query,
+    matchedAs: readableMatchedFoodLabel(bestFood.food_name ?? query, name),
     foodId: bestFood.food_id,
     serving,
     macros,
@@ -1169,7 +1271,7 @@ async function searchFatSecretLegacy(name: string, amount: number) {
 
   return {
     provider: "fatsecret",
-    matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
+    matchedAs: readableMatchedFoodLabel(foodPayload?.food?.food_name ?? bestFood.food_name ?? query, name),
     foodId: bestFood.food_id,
     serving,
     macros,
@@ -1259,7 +1361,7 @@ async function searchFatSecretOAuth1(name: string, amount: number, attempts?: an
 
   return {
     provider: "fatsecret",
-    matchedAs: foodPayload?.food?.food_name ?? bestFood.food_name ?? query,
+    matchedAs: readableMatchedFoodLabel(foodPayload?.food?.food_name ?? bestFood.food_name ?? query, name),
     foodId: bestFood.food_id,
     serving,
     macros,
@@ -1273,6 +1375,7 @@ async function calculateWithFatSecret(name: string, grams: number, attempts?: an
   const candidates = exactOnly
     ? ["aceite de oliva", "olive oil", "extra virgin olive oil"]
     : Array.from(new Set([
+      localizedSearchCandidate(name),
       name,
       internalMatch?.key,
       ...(internalMatch?.food.aliases ?? []),
