@@ -411,28 +411,163 @@
     color: hsl(0 0% 10%);
   }
   .wellness-nutrition .nutrition-category-card {
-    min-height: 208px;
-    padding: .75rem;
+    height: 205px;
+    padding: .35rem;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    background: hsl(0 0% 9% / .98);
+    background: #050505;
     color: hsl(0 0% 96%);
     border: 1px solid #FF2D95;
-    border-radius: 1.5rem;
+    border-radius: 1rem;
     box-shadow: 0 14px 30px -22px hsl(0 0% 0% / .9);
   }
   .wellness-nutrition .nutrition-category-card .font-medium {
     color: #FF2D95;
     font-weight: 800;
     line-height: 1.1;
+    font-size: .72rem;
+    text-align: center;
+    margin-top: 0;
   }
   .wellness-nutrition .nutrition-category-card .nutrition-category-subtitle,
   .wellness-nutrition .nutrition-category-card .muted {
     color: hsl(0 0% 90% / .82);
+    font-size: .62rem;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .wellness-nutrition .nutrition-category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .5rem;
+  }
+  .wellness-nutrition .nutrition-category-image {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    background: #050505;
+    padding: 0;
+    border-radius: .85rem;
+    margin-bottom: .32rem !important;
   }
   .wellness-nutrition .nutrition-category-image img {
-    filter: brightness(1.04) contrast(1.02);
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    display: block;
+    filter: brightness(1.04) contrast(1.03);
+  }
+  .wellness-nutrition .nutrition-client-content-image {
+    width: 100%;
+    height: 100%;
+    min-height: 142px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #FFFFFF;
+    padding: .35rem;
+  }
+  .wellness-nutrition .nutrition-client-content-image img {
+    width: auto;
+    height: 138px;
+    max-width: 96%;
+    max-height: calc(100% - .2rem);
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+  }
+  .wellness-nutrition .nutrition-client-content-placeholder {
+    background: linear-gradient(135deg, #FFF7FA 0%, #F7D8EA 100%);
+    color: hsl(var(--primary));
+    font-size: .875rem;
+    font-weight: 700;
+  }
+  .wellness-nutrition .nutrition-publication-card {
+    display: grid !important;
+    grid-template-columns: 35% 65%;
+    max-width: 360px;
+    min-height: 142px;
+    margin-inline: auto;
+    background: #1F1F1F !important;
+    color: #FFFFFF !important;
+    border-color: #FF2D95 !important;
+  }
+  .wellness-nutrition .nutrition-publication-summary {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: .78rem;
+    padding: .85rem .9rem;
+  }
+  .wellness-nutrition .nutrition-publication-card .font-medium {
+    color: #FFFFFF;
+    font-size: 1.05rem;
+  }
+  .wellness-nutrition .nutrition-publication-pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: hsl(0 0% 16%);
+    border: 1px solid #FF2D95;
+    padding: .25rem .6rem;
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .wellness-nutrition .nutrition-publication-button {
+    margin-top: 0;
+    padding: .25rem .6rem !important;
+    font-size: .72rem !important;
+    line-height: 1;
+    border-color: #FF2D95 !important;
+  }
+  .wellness-nutrition .nutrition-active-title {
+    color: #FF2D95;
+  }
+  .nutrition-detail-page .nutrition-detail-category {
+    color: #FF2D95;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .nutrition-detail-cover {
+    aspect-ratio: 4 / 5;
+    width: min(100%, 240px);
+    margin-inline: auto;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    background: #FFFFFF;
+    display: grid;
+    place-items: center;
+    padding: .75rem;
+    border: 1px solid #FF2D95;
+  }
+  .nutrition-detail-cover img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+  }
+  .nutrition-detail-page figure {
+    max-width: 240px;
+    margin-inline: auto;
+  }
+  .nutrition-detail-page figure img,
+  .nutrition-detail-page figure video {
+    width: 100% !important;
+    max-height: 310px;
+    object-fit: contain;
+    object-position: center center;
+    background: #FFFFFF;
+    border-radius: 1.25rem;
   }
 
   .admin-nutrition-page .admin-nutrition-panel,
@@ -443,11 +578,15 @@
     border-color: #FF2D95 !important;
   }
   .admin-nutrition-page .admin-nutrition-category-row {
-    background: #1F1F1F !important;
+    height: 205px;
+    background: #050505 !important;
     color: #FFFFFF;
     border-color: #FF2D95 !important;
     box-shadow: 0 14px 30px -24px hsl(325 45% 24% / .28);
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .admin-nutrition-page .admin-nutrition-category-open {
+    height: 100%;
   }
   .admin-nutrition-page .admin-nutrition-category-row.is-active {
     border-width: 2px;
@@ -455,10 +594,14 @@
     transform: translateY(-1px);
   }
   .admin-nutrition-page .admin-nutrition-category-image-frame {
-    height: 76px;
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
     overflow: hidden;
-    background: #FFF7FA;
+    background: #050505;
+    display: grid;
+    place-items: center;
+    padding: 0;
   }
   .admin-nutrition-page .admin-nutrition-category-image {
     width: 100%;
@@ -466,7 +609,49 @@
     object-fit: cover;
     object-position: center center;
     display: block;
-    filter: brightness(1.05) contrast(1.02);
+    filter: brightness(1.05) contrast(1.03);
+  }
+  .admin-nutrition-page .admin-nutrition-media-preview {
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: #FFFFFF;
+    display: grid;
+    place-items: center;
+    padding: .55rem;
+  }
+  .admin-nutrition-page .admin-nutrition-media-preview img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+  }
+  .admin-nutrition-page .admin-nutrition-gallery-preview,
+  .admin-nutrition-page .admin-nutrition-list-thumb {
+    overflow: hidden;
+    border-radius: .9rem;
+    background: #FFFFFF;
+    display: grid;
+    place-items: center;
+  }
+  .admin-nutrition-page .admin-nutrition-gallery-preview {
+    aspect-ratio: 4 / 5;
+    padding: .25rem;
+  }
+  .admin-nutrition-page .admin-nutrition-list-thumb {
+    width: 3rem;
+    height: 3.75rem;
+    flex: 0 0 auto;
+    padding: .2rem;
+  }
+  .admin-nutrition-page .admin-nutrition-gallery-preview img,
+  .admin-nutrition-page .admin-nutrition-list-thumb img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
   }
   .admin-nutrition-page .admin-nutrition-category-row .font-medium {
     color: #FF2D95;
@@ -476,7 +661,12 @@
     color: hsl(0 0% 90% / .82);
   }
   .admin-nutrition-page .admin-nutrition-category-row .bg-black {
-    background: #1F1F1F !important;
+    margin-top: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: #050505 !important;
   }
   .admin-nutrition-page .admin-nutrition-category-actions {
     min-height: 76px;
@@ -593,6 +783,40 @@
     border-color: hsl(var(--primary) / .18);
   }
 
+  .admin-products .admin-products-access-card {
+    overflow: hidden;
+    border: 1px solid #FF2D95;
+    background: #FFF7FA;
+    padding: 0 !important;
+  }
+
+  .admin-products .admin-products-access-trigger {
+    width: 100%;
+    min-height: 3.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    color: hsl(0 0% 10%);
+    font-weight: 800;
+    text-align: left;
+  }
+
+  .admin-products .admin-products-access-trigger span {
+    display: block;
+  }
+
+  .admin-products .admin-products-access-trigger svg {
+    color: #FF2D95;
+    flex: 0 0 auto;
+  }
+
+  .admin-products .admin-products-access-body {
+    border-top: 1px solid #FF2D95;
+    padding: 1rem;
+  }
+
   .admin-products h2,
   .admin-products h3 {
     font-family: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -657,24 +881,23 @@
     min-height: 14.9rem;
     width: 100%;
     overflow: hidden;
-    background: linear-gradient(135deg, #FFFFFF, #FFF9FC);
+    background: #FFFFFF;
     display: grid;
     place-items: center;
     border-radius: 28px;
     padding: .75rem;
+    box-sizing: border-box;
   }
 
   .product-client-list-image img {
-    width: auto;
-    max-width: 100%;
-    height: 100%;
+    width: 92%;
+    height: 92%;
     object-fit: contain !important;
     object-position: center center !important;
     display: block;
     border-radius: 28px !important;
     clip-path: inset(0 round 28px);
     overflow: hidden;
-    transform: translateY(12px) !important;
   }
 
   .product-client-list-info {
@@ -905,19 +1128,82 @@
   }
 
   .admin-product-list-image {
-    height: 100%;
-    min-height: 10.25rem;
+    aspect-ratio: 4 / 5;
+    height: auto;
+    min-height: 12rem;
     width: 100%;
     border-radius: 1.25rem;
     overflow: hidden;
-    background: linear-gradient(135deg, hsl(330 80% 98%), hsl(0 0% 100%));
+    background: #FFFFFF;
     border: 1px solid hsl(var(--primary) / .18);
+    display: grid;
+    place-items: center;
+    padding: .45rem;
+    box-sizing: border-box;
   }
 
   .admin-product-list-image img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    border-radius: inherit;
+  }
+
+  .admin-product-media-preview {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 18rem;
+    aspect-ratio: 4 / 5;
+    min-height: 13.5rem;
+    margin: 0 auto .5rem;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    background: #FFFFFF;
+    border: 1px solid hsl(var(--primary) / .18);
+    display: grid;
+    place-items: center;
+    padding: .5rem;
+    box-sizing: border-box;
+  }
+
+  .admin-product-media-preview img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    border-radius: inherit;
+  }
+
+  .admin-product-gallery-item {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .65rem;
+    border-radius: 1rem;
+    background: #FFFFFF;
+    padding: .55rem;
+    border: 1px solid hsl(var(--primary) / .14);
+  }
+
+  .admin-product-gallery-preview {
+    aspect-ratio: 4 / 5;
+    width: 5.5rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #FFFFFF;
+    border: 1px solid hsl(var(--primary) / .18);
+    display: grid;
+    place-items: center;
+    padding: .25rem;
+    box-sizing: border-box;
+  }
+
+  .admin-product-gallery-preview img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
     object-position: center;
     display: block;
     border-radius: inherit;
@@ -1072,7 +1358,7 @@
     }
 
     .admin-product-list-image {
-      min-height: 9.25rem;
+      min-height: 11.25rem;
     }
 
     .admin-product-list-tags {
@@ -1113,7 +1399,7 @@
     }
 
     .admin-product-list-image {
-      min-height: 8.5rem;
+      min-height: 10.25rem;
     }
 
     .admin-product-list-actions {
@@ -1433,6 +1719,15 @@
   .card-soft .btn-ghost.text-destructive,
   .card-soft .btn-secondary.text-destructive {
     color: hsl(var(--destructive)) !important;
+  }
+
+  .wellness-nutrition .nutrition-publication-card .nutrition-publication-button {
+    min-height: 24px !important;
+    padding: .25rem .6rem !important;
+    font-size: .72rem !important;
+    line-height: 1 !important;
+    border-color: #FF2D95 !important;
+    box-shadow: none !important;
   }
 
   .nutrition-stat {

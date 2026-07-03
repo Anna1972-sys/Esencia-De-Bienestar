@@ -3,21 +3,28 @@ import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { NUTRITION_CATEGORIES } from "@/lib/nutritionCategories";
-import hidratacionImage from "@/assets/nutrition/hidratacion.png";
-import proteinasImage from "@/assets/nutrition/proteinas.png";
-import recuperacionImage from "@/assets/nutrition/recuperacion-realimentacion.png";
-import postEntrenoImage from "@/assets/nutrition/post-entreno.png";
-import suplementacionImage from "@/assets/nutrition/suplementacion.png";
-import alimentacionImage from "@/assets/nutrition/alimentacion-deportiva.png";
-import planesImage from "@/assets/nutrition/planes-guias.png";
+import nutricionCardImage from "@/assets/nutrition/sport-cards/nutricion.jpg";
+import preentrenamientoCardImage from "@/assets/nutrition/sport-cards/preentrenamiento.jpg";
+import entrenamientoCardImage from "@/assets/nutrition/sport-cards/entrenamiento.jpg";
+import recuperacionCardImage from "@/assets/nutrition/sport-cards/recuperacion-postentrenamiento.jpg";
+import gananciaCardImage from "@/assets/nutrition/sport-cards/ganancia-masa-muscular.jpg";
+import perdidaCardImage from "@/assets/nutrition/sport-cards/perdida-grasa.jpg";
+import resistenciaCardImage from "@/assets/nutrition/sport-cards/resistencia.jpg";
+import hidratacionCardImage from "@/assets/nutrition/sport-cards/hidratacion.jpg";
+import suplementacionCardImage from "@/assets/nutrition/sport-cards/suplementacion-deportiva.jpg";
+import recetasCardImage from "@/assets/nutrition/sport-cards/recetas-deportivas.jpg";
+import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
+import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
 import nutritionHeroImage from "@/assets/nutrition/home-tortitas-h24.png";
 import { mediaUrl } from "@/lib/mediaStorage";
-import { ArrowLeft, BookOpen, ChevronRight, FileText, Image as ImageIcon, Search, Video, X } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText, Search, X } from "lucide-react";
 
 type NutritionCategory = {
   id?: string;
   key: string;
   label: string;
+  name?: string | null;
+  title?: string | null;
   emoji?: string | null;
   image_url?: string | null;
   image?: string;
@@ -29,6 +36,8 @@ type NutritionCategory = {
 type NutritionItem = {
   id: string;
   title?: string | null;
+  name?: string | null;
+  label?: string | null;
   subtitle?: string | null;
   description?: string | null;
   category?: string | null;
@@ -43,24 +52,24 @@ type NutritionItem = {
 };
 
 const categoryImages: Record<string, string> = {
-  nutricion: proteinasImage,
-  hidratacion: hidratacionImage,
-  proteinas: proteinasImage,
-  "pre-entreno": recuperacionImage,
-  preentrenamiento: recuperacionImage,
-  entrenamiento: alimentacionImage,
-  "post-entreno": postEntrenoImage,
-  "recuperacion-postentrenamiento": postEntrenoImage,
-  "ganancia-masa-muscular": proteinasImage,
-  "perdida-grasa": alimentacionImage,
-  resistencia: recuperacionImage,
-  suplementacion: suplementacionImage,
-  "suplementacion-deportiva": suplementacionImage,
-  recetas: alimentacionImage,
-  "recetas-deportivas": alimentacionImage,
-  planes: planesImage,
-  "guias-videos": planesImage,
-  protocolos: planesImage,
+  nutricion: nutricionCardImage,
+  proteinas: nutricionCardImage,
+  "pre-entreno": preentrenamientoCardImage,
+  preentrenamiento: preentrenamientoCardImage,
+  entrenamiento: entrenamientoCardImage,
+  "post-entreno": recuperacionCardImage,
+  "recuperacion-postentrenamiento": recuperacionCardImage,
+  "ganancia-masa-muscular": gananciaCardImage,
+  "perdida-grasa": perdidaCardImage,
+  resistencia: resistenciaCardImage,
+  hidratacion: hidratacionCardImage,
+  suplementacion: suplementacionCardImage,
+  "suplementacion-deportiva": suplementacionCardImage,
+  recetas: recetasCardImage,
+  "recetas-deportivas": recetasCardImage,
+  planes: guiasCardImage,
+  "guias-videos": guiasCardImage,
+  protocolos: protocolosCardImage,
 };
 
 function normalizeKey(value?: string | null) {
@@ -93,19 +102,13 @@ function firstTextFromBlocks(blocks: any) {
   return section?.text ?? "";
 }
 
-function shortText(value?: string | null, max = 130) {
-  const text = (value ?? "").replace(/\s+/g, " ").trim();
-  return text.length > max ? `${text.slice(0, max).trim()}…` : text;
-}
-
-function contentType(item: NutritionItem) {
+function hasPdfResource(item: NutritionItem) {
   const blocks = Array.isArray(item.blocks) ? item.blocks : [];
-  if (blocks.some((block) => block?.type === "pdf" && block.url)) return { label: "PDF", icon: <FileText className="h-3.5 w-3.5" /> };
-  if (blocks.some((block) => block?.type === "video" && block.url)) return { label: "Vídeo", icon: <Video className="h-3.5 w-3.5" /> };
-  if (item.cover_image || item.cover_image_url || item.image_url || blocks.some((block) => block?.type === "image" && block.url)) {
-    return { label: "Imagen", icon: <ImageIcon className="h-3.5 w-3.5" /> };
-  }
-  return { label: "Texto", icon: <FileText className="h-3.5 w-3.5" /> };
+  return Boolean(
+    blocks.some((block) => block?.type === "pdf" && block.url) ||
+    (item as any).pdf_url ||
+    (item as any).pdf
+  );
 }
 
 function itemMatchesCategory(item: NutritionItem, category: NutritionCategory) {
@@ -130,10 +133,18 @@ function itemSearchText(item: NutritionItem) {
   const blocksText = Array.isArray(item.blocks)
     ? item.blocks.map((block) => block?.value || block?.label || block?.caption || "").join(" ")
     : "";
-  return [item.title, item.subtitle, item.description, item.category, blocksText, ...(item.tags ?? [])]
+  return [item.title, item.name, item.label, item.subtitle, item.description, item.category, blocksText, ...(item.tags ?? [])]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function categoryLabel(category: any) {
+  return String(category?.label || category?.name || category?.title || "Categoría").trim();
+}
+
+function itemTitle(item: NutritionItem) {
+  return String(item.title || item.name || item.label || item.subtitle || firstTextFromBlocks(item.blocks) || "Contenido sin título").trim();
 }
 
 export default function Nutrition() {
@@ -162,10 +173,16 @@ export default function Nutrition() {
       const sourceCategories = categoriesData?.length ? categoriesData : NUTRITION_CATEGORIES;
       const normalizedCategories = sourceCategories
         .filter((category: any) => category.visible !== false)
-        .map((category: any) => ({
-          ...category,
-          image: mediaUrl(category.image_url || category.image || categoryImages[category.key] || categoryImages[normalizeKey(category.label)]),
-        }));
+        .map((category: any) => {
+          const label = categoryLabel(category);
+          const key = String(category.key || normalizeKey(label) || category.id || "");
+          return {
+            ...category,
+            key,
+            label,
+            image: mediaUrl(categoryImages[key] || categoryImages[normalizeKey(label)] || category.image_url || category.image || category.cover_image),
+          };
+        });
 
       if (itemsError) {
         console.error("[nutrition_items] No se pudieron cargar las publicaciones", itemsError);
@@ -219,7 +236,7 @@ export default function Nutrition() {
             <ArrowLeft className="h-4 w-4" /> Categorías
           </button>
 
-          <h1 className="heading-lg mb-1">{activeCategory.label}</h1>
+          <h1 className="heading-lg mb-1 nutrition-active-title">{activeCategory.label}</h1>
           <p className="text-sm muted mb-4">
             {visibleItems.length} publicación{visibleItems.length === 1 ? "" : "es"}
           </p>
@@ -251,35 +268,33 @@ export default function Nutrition() {
             <div className="space-y-3">
               {visibleItems.map((item) => {
                 const cover = item.cover_image || item.cover_image_url || item.image_url || firstMediaFromBlocks(item.blocks);
-                const type = contentType(item);
-                const description = shortText(item.subtitle || item.description || firstTextFromBlocks(item.blocks) || "Abre la publicación para consultar todo el contenido.");
-                const date = item.created_at ? new Date(item.created_at).toLocaleDateString("es-ES") : "";
+                const title = itemTitle(item);
+                const hasPdf = hasPdfResource(item);
 
                 return (
                   <Link
                     key={item.id}
                     to={`/app/nutricion/${item.id}`}
-                    className="card-soft overflow-hidden block hover:shadow-glow transition"
+                    className="card-soft nutrition-publication-card overflow-hidden block hover:shadow-glow transition"
                   >
                     {cover ? (
-                      <img src={mediaUrl(cover)} alt="" className="w-full h-40 object-cover" />
+                      <div className="nutrition-client-content-image">
+                        <img src={mediaUrl(cover)} alt={title} />
+                      </div>
                     ) : (
-                      <div className="w-full h-40 bg-gradient-to-br from-[#FFF7FA] to-[#F7D8EA] grid place-items-center text-primary text-sm font-medium">
+                      <div className="nutrition-client-content-image nutrition-client-content-placeholder">
                         Contenido de nutrición
                       </div>
                     )}
-                    <div className="p-4 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium leading-tight">{item.title || "Publicación sin título"}</div>
-                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] text-foreground border border-primary/25">
-                          {type.icon}
-                          {type.label}
+                    <div className="nutrition-publication-summary">
+                      <div className="font-medium leading-tight">{title}</div>
+                      {hasPdf && (
+                        <div className="nutrition-publication-pdf">
+                          <FileText className="h-3.5 w-3.5" />
+                          PDF
                         </div>
-                        {description && <p className="text-sm muted mt-2 line-clamp-2">{description}</p>}
-                        {date && <div className="text-[11px] muted mt-2">{date}</div>}
-                        <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Ver contenido</span>
-                      </div>
-                      <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />
+                      )}
+                      <span className="btn-secondary nutrition-publication-button">Ver contenido</span>
                     </div>
                   </Link>
                 );
@@ -306,7 +321,7 @@ export default function Nutrition() {
           <h1 className="heading-lg mb-1">Nutrición deportiva</h1>
           <p className="text-sm muted mb-4">Rendimiento, hidratación y energía. Explora por categoría.</p>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="nutrition-category-grid">
             {categories.map((category) => (
               <button
                 key={category.id || category.key}
@@ -315,7 +330,7 @@ export default function Nutrition() {
               >
                 {category.image ? (
                   <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
-                    <img src={category.image} alt="" loading="lazy" className="h-28 w-full object-cover" />
+                    <img src={category.image} alt={category.label} loading="lazy" />
                   </div>
                 ) : (
                   <div className="text-2xl mb-1">{category.emoji}</div>

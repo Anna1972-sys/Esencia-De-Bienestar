@@ -2,13 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { NUTRITION_CATEGORIES } from "@/lib/nutritionCategories";
-import hidratacionImage from "@/assets/nutrition/hidratacion.png";
-import proteinasImage from "@/assets/nutrition/proteinas.png";
-import recuperacionImage from "@/assets/nutrition/recuperacion-realimentacion.png";
-import postEntrenoImage from "@/assets/nutrition/post-entreno.png";
-import suplementacionImage from "@/assets/nutrition/suplementacion.png";
-import alimentacionImage from "@/assets/nutrition/alimentacion-deportiva.png";
-import planesImage from "@/assets/nutrition/planes-guias.png";
+import nutricionCardImage from "@/assets/nutrition/sport-cards/nutricion.jpg";
+import preentrenamientoCardImage from "@/assets/nutrition/sport-cards/preentrenamiento.jpg";
+import entrenamientoCardImage from "@/assets/nutrition/sport-cards/entrenamiento.jpg";
+import recuperacionCardImage from "@/assets/nutrition/sport-cards/recuperacion-postentrenamiento.jpg";
+import gananciaCardImage from "@/assets/nutrition/sport-cards/ganancia-masa-muscular.jpg";
+import perdidaCardImage from "@/assets/nutrition/sport-cards/perdida-grasa.jpg";
+import resistenciaCardImage from "@/assets/nutrition/sport-cards/resistencia.jpg";
+import hidratacionCardImage from "@/assets/nutrition/sport-cards/hidratacion.jpg";
+import suplementacionCardImage from "@/assets/nutrition/sport-cards/suplementacion-deportiva.jpg";
+import recetasCardImage from "@/assets/nutrition/sport-cards/recetas-deportivas.jpg";
+import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
+import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
 import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,18 +91,24 @@ const emptyContent: ContentForm = {
 };
 
 const categoryImages: Record<string, string> = {
-  proteinas: proteinasImage,
-  "pre-entreno": recuperacionImage,
-  entrenamiento: alimentacionImage,
-  "post-entreno": postEntrenoImage,
-  "ganancia-masa-muscular": proteinasImage,
-  "perdida-grasa": alimentacionImage,
-  resistencia: recuperacionImage,
-  hidratacion: hidratacionImage,
-  suplementacion: suplementacionImage,
-  recetas: alimentacionImage,
-  planes: planesImage,
-  protocolos: planesImage,
+  nutricion: nutricionCardImage,
+  proteinas: nutricionCardImage,
+  "pre-entreno": preentrenamientoCardImage,
+  preentrenamiento: preentrenamientoCardImage,
+  entrenamiento: entrenamientoCardImage,
+  "post-entreno": recuperacionCardImage,
+  "recuperacion-postentrenamiento": recuperacionCardImage,
+  "ganancia-masa-muscular": gananciaCardImage,
+  "perdida-grasa": perdidaCardImage,
+  resistencia: resistenciaCardImage,
+  hidratacion: hidratacionCardImage,
+  suplementacion: suplementacionCardImage,
+  "suplementacion-deportiva": suplementacionCardImage,
+  recetas: recetasCardImage,
+  "recetas-deportivas": recetasCardImage,
+  planes: guiasCardImage,
+  "guias-videos": guiasCardImage,
+  protocolos: protocolosCardImage,
 };
 
 function slugify(value: string) {
@@ -164,9 +175,9 @@ function buildBlocks(form: ContentForm) {
 function formFromItem(item: any): ContentForm {
   const next = { ...emptyContent };
   next.id = item.id;
-  next.title = item.title ?? "";
+  next.title = item.title ?? item.name ?? item.label ?? "";
   next.subtitle = item.subtitle ?? "";
-  next.cover_image = item.cover_image ?? "";
+  next.cover_image = item.cover_image ?? item.cover_image_url ?? item.image_url ?? "";
   next.visible = item.visible !== false;
 
   const blocks = Array.isArray(item.blocks) ? item.blocks : [];
@@ -387,6 +398,7 @@ export default function AdminNutrition() {
       title: contentForm.title.trim(),
       subtitle: contentForm.subtitle.trim() || null,
       category: activeCategory,
+      category_id: activeCategoryData?.id || null,
       cover_image: contentForm.cover_image || null,
       blocks: buildBlocks(contentForm),
       visible: contentForm.visible,
@@ -507,8 +519,8 @@ export default function AdminNutrition() {
                     <div>
                       <label className="text-xs muted">Imagen principal</label>
                       {contentForm.cover_image && (
-                        <div className="relative mb-2 overflow-hidden rounded-2xl">
-                          <img src={contentForm.cover_image} alt="" className="h-32 w-full object-cover" />
+                        <div className="admin-nutrition-media-preview relative mb-2">
+                          <img src={contentForm.cover_image} alt="" />
                           <button
                             type="button"
                             className="admin-nutrition-delete-button absolute right-2 top-2"
@@ -638,8 +650,8 @@ export default function AdminNutrition() {
                               />
 
                               {section.image_url && (
-                                <div className="relative overflow-hidden rounded-2xl">
-                                  <img src={section.image_url} alt="" className="h-28 w-full object-cover" />
+                                <div className="admin-nutrition-media-preview relative">
+                                  <img src={section.image_url} alt="" />
                                   <button
                                     type="button"
                                     className="admin-nutrition-delete-button absolute right-2 top-2"
@@ -730,8 +742,8 @@ export default function AdminNutrition() {
                       {contentForm.gallery.length > 0 && (
                         <div className="grid grid-cols-3 gap-2 mb-2">
                           {contentForm.gallery.map((url) => (
-                            <div key={url} className="relative overflow-hidden rounded-xl">
-                              <img src={url} alt="" className="h-20 w-full object-cover" />
+                            <div key={url} className="admin-nutrition-gallery-preview relative">
+                              <img src={url} alt="" />
                               <button
                                 type="button"
                                 className="admin-nutrition-delete-icon absolute right-1 top-1"
@@ -830,9 +842,13 @@ export default function AdminNutrition() {
                     <div className="mt-4 space-y-2">
                       {visibleItems.map((item) => (
                         <div key={item.id} className="rounded-2xl border border-[#FF2D95] bg-white p-3 flex items-center gap-3">
-                          {item.cover_image && <img src={item.cover_image} alt="" className="h-12 w-12 rounded-xl object-cover" />}
+                          {item.cover_image && (
+                            <div className="admin-nutrition-list-thumb">
+                              <img src={item.cover_image} alt="" />
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium text-sm truncate">{item.title}</div>
+                            <div className="font-medium text-sm truncate">{item.title || item.name || item.label || "Contenido"}</div>
                             <div className="text-xs muted truncate">{item.subtitle || "Contenido"}</div>
                           </div>
                           <button type="button" className="text-primary" onClick={() => setContentForm(formFromItem(item))} aria-label="Editar contenido">
@@ -863,8 +879,8 @@ export default function AdminNutrition() {
             )}
           </div>
           {categoryForm.image_url && (
-            <div className="relative overflow-hidden rounded-2xl">
-              <img src={categoryForm.image_url} alt="" className="h-24 w-full object-cover" />
+            <div className="admin-nutrition-media-preview relative">
+              <img src={categoryForm.image_url} alt="" />
               <button
                 type="button"
                 className="admin-nutrition-delete-button absolute right-2 top-2"

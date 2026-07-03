@@ -173,6 +173,12 @@ const PRODUCT_BLOCK_LABELS: Record<ProductBlockId, string> = {
   measures: "Medidas habituales",
 };
 
+const PRODUCT_ADMIN_ACCESS_SECTIONS = [
+  { id: "nutricion-interna", title: "Nutrición interna" },
+  { id: "nutricion-externa", title: "Nutrición externa" },
+  { id: "nutricion-objetiva", title: "Nutrición objetiva" },
+] as const;
+
 const emptyMeasure: ProductMeasure = {
   name: "gramos",
   grams: 100,
@@ -372,6 +378,7 @@ export default function AdminProducts() {
   const [form, setForm] = useState<ProductForm>(emptyProduct);
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [openAccessSection, setOpenAccessSection] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [readingLabel, setReadingLabel] = useState(false);
@@ -394,6 +401,7 @@ export default function AdminProducts() {
   }, []);
 
   const categoryById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+  const categoryOptionLabel = (category: ProductCategory) => `${category.name}${category.is_active ? "" : " (oculta)"}`;
 
   const filteredProducts = useMemo(() => {
     const normalized = String(query ?? "").trim().toLowerCase();
@@ -434,12 +442,23 @@ export default function AdminProducts() {
       updated_at: new Date().toISOString(),
     };
     const result = editingCategory
-      ? await (supabase as any).from("product_categories").update(payload).eq("id", editingCategory.id)
-      : await (supabase as any).from("product_categories").insert(payload);
+      ? await (supabase as any).from("product_categories").update(payload).eq("id", editingCategory.id).select("*").maybeSingle()
+      : await (supabase as any).from("product_categories").insert(payload).select("*").maybeSingle();
     if (result.error) return toast.error(result.error.message);
+    const savedCategory = result.data as ProductCategory | null;
+    if (savedCategory?.id) {
+      setCategories(prev => {
+        const withoutSaved = prev.filter(category => category.id !== savedCategory.id);
+        return [...withoutSaved, savedCategory].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+      });
+      if (!editingCategory) {
+        setForm(prev => ({ ...prev, category_id: savedCategory.id }));
+        setFilterCategory(savedCategory.id);
+      }
+    }
     toast.success(editingCategory ? "Categoría actualizada" : "Categoría creada");
     resetCategory();
-    load();
+    await load();
   };
 
   const editCategory = (category: ProductCategory) => {
@@ -692,11 +711,41 @@ export default function AdminProducts() {
     try {
       setSaving(true);
       const url = await uploadProductFile(file, kind);
-      if (kind === "main") setForm(prev => ({ ...prev, image_url: url }));
-      if (kind === "gallery") setForm(prev => ({ ...prev, gallery_urls: [...prev.gallery_urls, url] }));
-      if (kind === "video") setForm(prev => ({ ...prev, video_urls: [...prev.video_urls, url] }));
-      if (kind === "pdf") setForm(prev => ({ ...prev, pdf_urls: [...prev.pdf_urls, url] }));
-      if (kind === "spoon") setForm(prev => ({ ...prev, spoon_image_url: url }));
+      const patch: Partial<Product> = {};
+      if (kind === "main") {
+        patch.image_url = url;
+        setForm(prev => ({ ...prev, image_url: url }));
+      }
+      if (kind === "gallery") {
+        const gallery_urls = [...form.gallery_urls, url];
+        patch.gallery_urls = gallery_urls;
+        setForm(prev => ({ ...prev, gallery_urls: [...prev.gallery_urls, url] }));
+      }
+      if (kind === "video") {
+        const video_urls = [...form.video_urls, url];
+        patch.video_urls = video_urls;
+        setForm(prev => ({ ...prev, video_urls: [...prev.video_urls, url] }));
+      }
+      if (kind === "pdf") {
+        const pdf_urls = [...form.pdf_urls, url];
+        patch.pdf_urls = pdf_urls;
+        setForm(prev => ({ ...prev, pdf_urls: [...prev.pdf_urls, url] }));
+      }
+      if (kind === "spoon") {
+        patch.spoon_image_url = url;
+        setForm(prev => ({ ...prev, spoon_image_url: url }));
+      }
+      if (form.id) {
+        const { error } = await (supabase as any)
+          .from("products")
+          .update({ ...patch, updated_at: new Date().toISOString() })
+          .eq("id", form.id);
+        if (error) throw error;
+        toast.success("Archivo subido y guardado en el producto");
+        load();
+      } else {
+        toast.success("Archivo subido. Pulsa Guardar producto para publicarlo.");
+      }
     } catch (err: any) {
       toast.error(err?.message || "No se pudo subir el archivo");
     } finally {
@@ -707,11 +756,47 @@ export default function AdminProducts() {
   const addUrl = (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", value: string) => {
     const clean = value.trim();
     if (!clean) return;
+    const nextUrls = [...form[key], clean];
     setForm(prev => ({ ...prev, [key]: [...prev[key], clean] }));
+    if (form.id) {
+      (supabase as any)
+        .from("products")
+        .update({ [key]: nextUrls, updated_at: new Date().toISOString() })
+        .eq("id", form.id)
+        .then(({ error }: any) => {
+          if (error) toast.error(error.message);
+          else toast.success("Contenido guardado en el producto");
+        });
+    }
   };
 
   const removeUrl = (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", index: number) => {
+    const nextUrls = form[key].filter((_, i) => i !== index);
     setForm(prev => ({ ...prev, [key]: prev[key].filter((_, i) => i !== index) }));
+    if (form.id) {
+      (supabase as any)
+        .from("products")
+        .update({ [key]: nextUrls, updated_at: new Date().toISOString() })
+        .eq("id", form.id)
+        .then(({ error }: any) => {
+          if (error) toast.error(error.message);
+          else toast.success("Contenido eliminado del producto");
+        });
+    }
+  };
+
+  const clearProductMedia = (key: "image_url" | "spoon_image_url" | "label_file_url") => {
+    setForm(prev => ({ ...prev, [key]: "" }));
+    if (form.id) {
+      (supabase as any)
+        .from("products")
+        .update({ [key]: null, updated_at: new Date().toISOString() })
+        .eq("id", form.id)
+        .then(({ error }: any) => {
+          if (error) toast.error(error.message);
+          else toast.success("Archivo eliminado del producto");
+        });
+    }
   };
 
   const updateMeasure = (index: number, patch: Partial<ProductMeasure>) => {
@@ -844,7 +929,24 @@ export default function AdminProducts() {
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
-      <section className="grid grid-cols-1 gap-5 mb-5">
+      <section className="admin-products-access-list space-y-3 mb-5">
+        {PRODUCT_ADMIN_ACCESS_SECTIONS.map(section => {
+          const isOpen = openAccessSection === section.id;
+          return (
+            <article key={section.id} className={`admin-products-access-card card-soft ${isOpen ? "is-open" : ""}`}>
+              <button
+                type="button"
+                className="admin-products-access-trigger"
+                onClick={() => setOpenAccessSection(isOpen ? null : section.id)}
+                aria-expanded={isOpen}
+              >
+                <span>{section.title}</span>
+                <ArrowDown className={`h-5 w-5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {isOpen && (
+                <div className="admin-products-access-body">
+                  <section className="grid grid-cols-1 gap-5 mb-5">
         <form onSubmit={saveCategory} className="card-soft admin-products-panel p-4 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -920,7 +1022,7 @@ export default function AdminProducts() {
             </div>
             <select className="field sm:max-w-56" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
               <option value="">Todas las categorías</option>
-              {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+              {categories.map(category => <option key={category.id} value={category.id}>{categoryOptionLabel(category)}</option>)}
             </select>
           </div>
           {loading ? <div className="muted text-sm">Cargando productos…</div> : (
@@ -961,7 +1063,7 @@ export default function AdminProducts() {
             </div>
           )}
         </div>
-      </section>
+                  </section>
 
       <form onSubmit={saveProduct} className="space-y-5">
         <section className="card-soft p-4 sm:p-5 space-y-4">
@@ -982,7 +1084,15 @@ export default function AdminProducts() {
           <input className="field" placeholder="Nombre" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           <select className="field" value={form.category_id ?? ""} onChange={e => setForm({ ...form, category_id: e.target.value })}>
             <option value="">Sin categoría</option>
-            {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+            {categories.map(category => (
+              <option
+                key={category.id}
+                value={category.id}
+                disabled={!category.is_active && form.category_id !== category.id}
+              >
+                {categoryOptionLabel(category)}
+              </option>
+            ))}
           </select>
           <input className="field" placeholder="Línea / categoría comercial" value={form.line ?? ""} onChange={e => setForm({ ...form, line: e.target.value })} />
           <select className="field" value={form.verification_status} onChange={e => setForm({ ...form, verification_status: e.target.value as ProductForm["verification_status"] })}>
@@ -1038,7 +1148,7 @@ export default function AdminProducts() {
                   onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
                 />
               </label>
-              <button type="button" className="btn-primary" onClick={() => setForm(prev => ({ ...prev, label_file_url: "" }))}>
+              <button type="button" className="btn-primary" onClick={() => clearProductMedia("label_file_url")}>
                 <Trash2 className="h-4 w-4" /> Borrar
               </button>
             </div>
@@ -1062,7 +1172,7 @@ export default function AdminProducts() {
             icon={<ImageIcon className="h-4 w-4" />}
             onUpload={file => uploadInto(file, "main")}
             onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
-            onClear={() => setForm(prev => ({ ...prev, image_url: "" }))}
+            onClear={() => clearProductMedia("image_url")}
           />
           <MediaUploader
             title="Imagen cuchara oficial Herbalife"
@@ -1071,7 +1181,7 @@ export default function AdminProducts() {
             icon={<ImageIcon className="h-4 w-4" />}
             onUpload={file => uploadInto(file, "spoon")}
             onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
-            onClear={() => setForm(prev => ({ ...prev, spoon_image_url: "" }))}
+            onClear={() => clearProductMedia("spoon_image_url")}
             hint="Pulsa aquí para comprobar la medida de la cuchara oficial."
             highlightHint
           />
@@ -1242,6 +1352,12 @@ export default function AdminProducts() {
           <Save className="h-4 w-4" /> {saving ? "Guardando…" : "Guardar producto"}
         </button>
       </form>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </section>
     </div>
   );
 }
@@ -1412,7 +1528,11 @@ function MediaUploader({
           </button>
         )}
       </div>
-      {url && <img src={url} alt="" className="w-full h-40 object-cover rounded-2xl mb-2" />}
+      {url && (
+        <div className="admin-product-media-preview mb-2">
+          <img src={url} alt="" />
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row gap-2">
         <label className="btn-primary cursor-pointer justify-center">
           <Upload className="h-4 w-4" /> Subir
@@ -1420,6 +1540,9 @@ function MediaUploader({
         </label>
         <input className="field flex-1" placeholder="O pegar URL" value={url} onChange={e => onUrl(e.target.value)} />
       </div>
+      <button type="submit" className="btn-primary w-full mt-2">
+        <Save className="h-4 w-4" /> Guardar producto
+      </button>
       {hint && (
         <p className={highlightHint ? "mt-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2" : "text-[11px] muted mt-2"}>
           {highlightHint && <MousePointerClick className="h-4 w-4 text-primary shrink-0" />}
@@ -1452,6 +1575,7 @@ function MultiUrlEditor({
   onUpload?: (file: File) => void;
 }) {
   const [draft, setDraft] = useState("");
+  const showImagePreview = accept?.startsWith("image");
   return (
     <section className="rounded-[22px] bg-secondary/60 p-3">
       <div className="space-y-2 mb-2">
@@ -1462,8 +1586,15 @@ function MultiUrlEditor({
       </div>
       <div className="space-y-2 mb-3">
         {urls.map((url, index) => (
-          <div key={`${url}-${index}`} className="rounded-xl bg-white p-2 flex items-center gap-2 text-xs">
-            <span className="truncate flex-1">{url}</span>
+          <div key={`${url}-${index}`} className={showImagePreview ? "admin-product-gallery-item" : "rounded-xl bg-white p-2 flex items-center gap-2 text-xs"}>
+            {showImagePreview && (
+              <div className="admin-product-gallery-preview">
+                <img src={url} alt="" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <span className="truncate block text-xs">{url}</span>
+            </div>
             <button type="button" className="btn-primary text-[11px] py-1.5 px-2" onClick={() => onRemove(index)}>
               <Trash2 className="h-3.5 w-3.5" /> Eliminar
             </button>

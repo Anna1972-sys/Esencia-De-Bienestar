@@ -54,14 +54,49 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
       </div>
     );
 
-  const cat = categories.find((c) => c.key === it.category);
+  const cat = categories.find((c) => c.key === it.category || String((c as any).id ?? "") === String(it.category_id ?? ""));
   const blocks: ContentBlock[] = Array.isArray(it.blocks) ? it.blocks : [];
+  const coverImage = it.cover_image || it.cover_image_url || it.image_url || "";
+  const seenNutritionMedia = new Set<string>();
+  const mediaKey = (url?: string | null) => {
+    if (!url) return "";
+    return mediaUrl(url).split("?")[0];
+  };
+  if (table === "nutrition_items" && coverImage) {
+    seenNutritionMedia.add(mediaKey(coverImage));
+  }
+  const keepNutritionMedia = (url?: string | null) => {
+    const key = mediaKey(url);
+    if (!key) return true;
+    if (seenNutritionMedia.has(key)) return false;
+    seenNutritionMedia.add(key);
+    return true;
+  };
+  const nutritionBlocks = table === "nutrition_items"
+    ? blocks
+        .map((block: any) => {
+          if (["image", "video", "pdf"].includes(block?.type) && block.url) {
+            return keepNutritionMedia(block.url) ? block : null;
+          }
+          if (block?.type === "section") {
+            const next = { ...block };
+            if (next.image_url && !keepNutritionMedia(next.image_url)) next.image_url = "";
+            if (next.video_url && !keepNutritionMedia(next.video_url)) next.video_url = "";
+            if (next.pdf_url && !keepNutritionMedia(next.pdf_url)) next.pdf_url = "";
+            const hasContent = next.title || next.text || next.image_url || next.video_url || next.pdf_url || next.external_url;
+            return hasContent ? next : null;
+          }
+          return block;
+        })
+        .filter(Boolean) as ContentBlock[]
+    : blocks;
   const attachmentBlocks = blocks.filter((b: any) =>
     ["image", "video", "pdf", "link", "button"].includes(b?.type) && (b.url || b.label)
   );
   const textBlocks = blocks.filter((b: any) => !["image", "video", "pdf", "link", "button"].includes(b?.type));
-  const orderedBlocks = table === "nutrition_items" ? blocks : textBlocks;
+  const orderedBlocks = table === "nutrition_items" ? nutritionBlocks : textBlocks;
   const description = it.description || it.subtitle || "";
+  const title = it.title || it.name || it.label || it.subtitle || "Contenido";
 
   const resourceHref = (b: any) => {
     if (!b?.url) return "#";
@@ -189,20 +224,26 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
   };
 
   return (
-    <article className="pb-8">
+    <article className={`pb-8 ${table === "nutrition_items" ? "nutrition-detail-page" : ""}`}>
       <BackButton fallbackTo={basePath} className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
 
-      {it.cover_image && (
-        <img src={mediaUrl(it.cover_image)} alt={it.title} className="w-full h-56 object-cover rounded-2xl mb-4" />
+      {coverImage && (
+        table === "nutrition_items" ? (
+          <div className="nutrition-detail-cover mb-4">
+            <img src={mediaUrl(coverImage)} alt={title} />
+          </div>
+        ) : (
+          <img src={mediaUrl(coverImage)} alt={title} className="w-full h-56 object-cover rounded-2xl mb-4" />
+        )
       )}
       {cat && (
-        <div className="text-xs muted mb-1">
+        <div className={`text-xs mb-1 ${table === "nutrition_items" ? "nutrition-detail-category" : "muted"}`}>
           {cat.emoji} {cat.label}
         </div>
       )}
-      <h1 className="heading-lg mb-4">{it.title}</h1>
+      <h1 className="heading-lg mb-4">{title}</h1>
       {description && <p className="mb-5 leading-relaxed muted">{description}</p>}
 
       <div className="space-y-4">
