@@ -9,6 +9,7 @@ function localApiPlugin() {
       const localHandlers: Record<string, string> = {
         "/api/macro-specialist": "/api/macro-specialist.ts",
         "/api/manual-food-items": "/api/manual-food-items.ts",
+        "/api/generate-recipe-image": "/api/generate-recipe-image.ts",
       };
 
       server.middlewares.use(async (req: any, res: any, next: any) => {

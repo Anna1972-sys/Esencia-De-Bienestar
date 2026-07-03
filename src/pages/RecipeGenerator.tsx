@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
-import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, ImagePlus, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -150,6 +150,8 @@ export default function RecipeGenerator() {
   const [savingRecipe, setSavingRecipe] = useState(false);
   const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
   const [discardingGenerated, setDiscardingGenerated] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const [generatingImage, setGeneratingImage] = useState(false);
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
 
@@ -193,6 +195,7 @@ export default function RecipeGenerator() {
     setIngredients(finalIngredients);
     setResult(null);
     setSavedRecipeId(null);
+    setGeneratedImageUrl("");
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -237,6 +240,41 @@ export default function RecipeGenerator() {
       toast.error(err?.message || "Error generando receta");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateRecipeImage = async (recipe: any) => {
+    if (!recipe) return;
+    setGeneratingImage(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch("/api/generate-recipe-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          title: recipe.title,
+          ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.filter((item: any) => !isNoMacroIngredient(item)) : [],
+          recipe,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || "No se pudo crear la imagen del plato");
+      }
+      const imageUrl = firstUrl(data?.image_url, data?.url);
+      if (!imageUrl) throw new Error("No se recibió ninguna imagen");
+
+      setGeneratedImageUrl(imageUrl);
+      toast.success("Imagen del plato generada.");
+    } catch (err: any) {
+      console.error("[recipe-generator] error generando imagen del plato", err);
+      toast.error(err?.message || "No se pudo crear la imagen del plato");
+    } finally {
+      setGeneratingImage(false);
     }
   };
 
@@ -347,6 +385,7 @@ export default function RecipeGenerator() {
     if (!user || !savedRecipeId) {
       setResult(null);
       setSavedRecipeId(null);
+      setGeneratedImageUrl("");
       setConfirmDiscardGenerated(false);
       return;
     }
@@ -359,6 +398,7 @@ export default function RecipeGenerator() {
     }
     setResult(null);
     setSavedRecipeId(null);
+    setGeneratedImageUrl("");
     setConfirmDiscardGenerated(false);
     toast.success("Receta descartada correctamente.");
   };
@@ -457,7 +497,10 @@ export default function RecipeGenerator() {
           categories={categories}
           saved={Boolean(savedRecipeId)}
           saving={savingRecipe}
+          generatedImageUrl={generatedImageUrl}
+          generatingImage={generatingImage}
           onSave={() => saveRecipe(result)}
+          onGenerateImage={() => generateRecipeImage(result)}
           onRequestDiscard={() => setConfirmDiscardGenerated(true)}
         />
       )}
@@ -481,7 +524,27 @@ export default function RecipeGenerator() {
   );
 }
 
-function RecipeCard({ recipe, categories, saved, saving, onSave, onRequestDiscard }: { recipe: any; categories: RecipeGeneratorCategory[]; saved: boolean; saving: boolean; onSave: () => void; onRequestDiscard: () => void }) {
+function RecipeCard({
+  recipe,
+  categories,
+  saved,
+  saving,
+  generatedImageUrl,
+  generatingImage,
+  onSave,
+  onGenerateImage,
+  onRequestDiscard,
+}: {
+  recipe: any;
+  categories: RecipeGeneratorCategory[];
+  saved: boolean;
+  saving: boolean;
+  generatedImageUrl: string;
+  generatingImage: boolean;
+  onSave: () => void;
+  onGenerateImage: () => void;
+  onRequestDiscard: () => void;
+}) {
   const perServing = recipe.macros ?? {};
   const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
   const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
@@ -502,6 +565,19 @@ function RecipeCard({ recipe, categories, saved, saving, onSave, onRequestDiscar
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
       </div>
+
+      {generatedImageUrl ? (
+        <div className="rounded-3xl overflow-hidden border border-primary/30 bg-white shadow-sm mt-4">
+          <img src={generatedImageUrl} alt={`Imagen del plato ${recipe.title ?? ""}`} className="w-full aspect-square object-cover" />
+          <a href={generatedImageUrl} download={`${normalizeForDuplicate(recipe.title) || "receta"}.png`} className="btn-primary w-full rounded-none">
+            <Download className="h-4 w-4" /> Descargar imagen
+          </a>
+        </div>
+      ) : (
+        <button type="button" onClick={onGenerateImage} disabled={generatingImage} className="btn-primary w-full mt-4">
+          {generatingImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Creando imagen…</> : <><ImagePlus className="h-4 w-4" /> Crear imagen del plato</>}
+        </button>
+      )}
 
       <div className="grid grid-cols-2 gap-2 text-sm mt-4">
         <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.servings ?? 1}</div><div className="muted text-[10px] uppercase tracking-wide">Raciones</div></div>

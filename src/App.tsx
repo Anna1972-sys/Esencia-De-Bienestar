@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -75,13 +75,35 @@ function AdminOnly({ children }: { children: JSX.Element }) {
 }
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const location = useLocation();
 
-  useEffect(() => {
+  const resetScroll = () => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-  }, [pathname]);
+    document.querySelector(".app-shell")?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    document.querySelector("main")?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+  };
+
+  useLayoutEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    resetScroll();
+  }, [location.pathname, location.search, location.key]);
+
+  useEffect(() => {
+    resetScroll();
+    const frame = window.requestAnimationFrame(resetScroll);
+    const shortTimer = window.setTimeout(resetScroll, 80);
+    const longTimer = window.setTimeout(resetScroll, 250);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(shortTimer);
+      window.clearTimeout(longTimer);
+    };
+  }, [location.pathname, location.search, location.key]);
 
   return null;
 }
