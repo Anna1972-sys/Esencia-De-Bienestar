@@ -24,6 +24,24 @@ const ingredientsToMacroText = (ingredients: any[] = []) =>
     .filter(Boolean)
     .join("\n");
 
+const normalizeForDuplicate = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ]+/g, " ")
+    .trim();
+
+const ingredientSignature = (ingredients: any[] = []) =>
+  ingredients
+    .map((item: any) => normalizeForDuplicate(ingredientLabel(item)))
+    .filter(Boolean)
+    .sort()
+    .join("|");
+
+const firstUrl = (...values: any[]) =>
+  values.find(value => typeof value === "string" && value.trim())?.trim() ?? null;
+
 const noMacroIngredientWords = [
   "agua",
   "sal",
@@ -129,6 +147,7 @@ export default function RecipeGenerator() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
+  const [savingRecipe, setSavingRecipe] = useState(false);
   const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
   const [discardingGenerated, setDiscardingGenerated] = useState(false);
 
@@ -214,7 +233,6 @@ export default function RecipeGenerator() {
         toast.warning("Receta generada. Revisa los macros si es necesario.");
       }
       setResult(enrichedRecipe);
-      await saveRecipe(enrichedRecipe, { navigateAfterSave: false, successMessage: "Receta generada y guardada en Mis recetas" });
     } catch (err: any) {
       toast.error(err?.message || "Error generando receta");
     } finally {
@@ -231,59 +249,98 @@ export default function RecipeGenerator() {
       return;
     }
     if (savedRecipeId) {
-      toast.success("Esta receta ya está guardada en Mis recetas");
+      toast.warning("Esta receta ya está guardada en Mis recetas. No se ha creado un duplicado.");
       if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
       return;
     }
+    if (savingRecipe) return;
+    setSavingRecipe(true);
     const servings = Number(r.servings) || 1;
     let enrichedRecipe = r;
-    const alreadyHasMacros = ["calories", "protein", "carbs", "fat", "fiber"].some(key => Number(r?.macros?.[key] ?? 0) > 0);
-    if (!alreadyHasMacros) {
-      try {
-        enrichedRecipe = await withSpecialistMacros(
-          r,
-          category,
-          [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
-          [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
-        );
-      } catch (err: any) {
-        console.error("[recipe-generator] se guarda sin recalcular macros", err);
-        toast.warning("No se pudieron recalcular los macros, pero la receta se guardará igualmente.");
+    try {
+      const alreadyHasMacros = ["calories", "protein", "carbs", "fat", "fiber"].some(key => Number(r?.macros?.[key] ?? 0) > 0);
+      if (!alreadyHasMacros) {
+        try {
+          enrichedRecipe = await withSpecialistMacros(
+            r,
+            category,
+            [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
+            [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
+          );
+        } catch (err: any) {
+          console.error("[recipe-generator] se guarda sin recalcular macros", err);
+          toast.warning("No se pudieron recalcular los macros, pero la receta se guardará igualmente.");
+        }
       }
+
+      let macros: any = enrichedRecipe.macros ?? {};
+      macros = {
+        ...macros,
+        servings,
+        nutrition_status: macros.nutrition_status ?? enrichedRecipe.nutrition_status ?? "estimated",
+        nutrition_note: macros.nutrition_note ?? enrichedRecipe.nutrition_note ?? "Valores nutricionales estimados",
+        nutrition_reference: enrichedRecipe.nutrition_reference ?? macros.nutrition_reference ?? "",
+      };
+
+      const recipeTitle = String(enrichedRecipe.title ?? "").trim();
+      const recipeIngredients = Array.isArray(enrichedRecipe.ingredients) ? enrichedRecipe.ingredients : [];
+      const currentSignature = ingredientSignature(recipeIngredients);
+      const { data: existingRecipes, error: duplicateError } = await supabase
+        .from("recipes")
+        .select("id,title,ingredients")
+        .eq("user_id", user.id)
+        .eq("is_library", false)
+        .eq("title", recipeTitle)
+        .limit(20);
+      if (duplicateError) throw duplicateError;
+      const duplicate = (existingRecipes ?? []).find((item: any) => ingredientSignature(item.ingredients ?? []) === currentSignature);
+      if (duplicate?.id) {
+        setSavedRecipeId(duplicate.id);
+        toast.warning("Esta receta ya existe en Mis recetas. No se ha creado un duplicado.");
+        if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
+        return;
+      }
+
+      const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const imageUrl = firstUrl(
+        enrichedRecipe.image_url,
+        enrichedRecipe.imageUrl,
+        enrichedRecipe.cover_image_url,
+        enrichedRecipe.image?.url,
+        enrichedRecipe.image
+      );
+      const { error } = await supabase.from("recipes").insert({
+        id: recipeId,
+        user_id: user.id,
+        title: recipeTitle,
+        description: enrichedRecipe.description,
+        category: enrichedRecipe.category ?? category,
+        categories: [enrichedRecipe.category ?? category],
+        servings,
+        prep_time: enrichedRecipe.prep_time,
+        image_url: imageUrl,
+        macros,
+        ingredients: recipeIngredients,
+        steps: enrichedRecipe.steps ?? [],
+        tags: Array.from(new Set([...(enrichedRecipe.tags ?? []), "Generador IA"])),
+        is_library: false,
+        is_featured: false,
+        visibility: "private",
+        is_high_protein: Number(macros?.protein ?? 0) >= 25,
+      } as any);
+
+      if (error) throw error;
+      const savedRecipe = { ...enrichedRecipe, image_url: imageUrl, macros, servings };
+      setResult(savedRecipe);
+      setSavedRecipeId(recipeId);
+      toast.success(options.successMessage ?? "Guardada en Mis recetas");
+      if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
+    } catch (err: any) {
+      console.error("[recipe-generator] error guardando receta", err);
+      toast.error(err?.message || "No se pudo guardar la receta");
+    } finally {
+      setSavingRecipe(false);
     }
-    let macros: any = enrichedRecipe.macros ?? {};
-    macros = {
-      ...macros,
-      servings,
-      nutrition_status: macros.nutrition_status ?? enrichedRecipe.nutrition_status ?? "estimated",
-      nutrition_note: macros.nutrition_note ?? enrichedRecipe.nutrition_note ?? "Valores nutricionales estimados",
-      nutrition_reference: enrichedRecipe.nutrition_reference ?? macros.nutrition_reference ?? "",
-    };
-
-    const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const { error } = await supabase.from("recipes").insert({
-      id: recipeId,
-      user_id: user.id,
-      title: enrichedRecipe.title,
-      description: enrichedRecipe.description,
-      category: enrichedRecipe.category ?? category,
-      categories: [enrichedRecipe.category ?? category],
-      servings,
-      prep_time: enrichedRecipe.prep_time,
-      macros,
-      ingredients: enrichedRecipe.ingredients ?? [],
-      steps: enrichedRecipe.steps ?? [],
-      tags: Array.from(new Set([...(enrichedRecipe.tags ?? []), "Generador IA"])),
-      is_library: false,
-      is_featured: false,
-      visibility: "private",
-      is_high_protein: Number(macros?.protein ?? 0) >= 25,
-    } as any);
-
-    if (error) return toast.error(error.message);
-    setSavedRecipeId(recipeId);
-    toast.success(options.successMessage ?? "Guardada en Mis recetas");
-    if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
   };
 
   const discardGeneratedRecipe = async () => {
@@ -399,6 +456,7 @@ export default function RecipeGenerator() {
           recipe={result}
           categories={categories}
           saved={Boolean(savedRecipeId)}
+          saving={savingRecipe}
           onSave={() => saveRecipe(result)}
           onRequestDiscard={() => setConfirmDiscardGenerated(true)}
         />
@@ -423,7 +481,7 @@ export default function RecipeGenerator() {
   );
 }
 
-function RecipeCard({ recipe, categories, saved, onSave, onRequestDiscard }: { recipe: any; categories: RecipeGeneratorCategory[]; saved: boolean; onSave: () => void; onRequestDiscard: () => void }) {
+function RecipeCard({ recipe, categories, saved, saving, onSave, onRequestDiscard }: { recipe: any; categories: RecipeGeneratorCategory[]; saved: boolean; saving: boolean; onSave: () => void; onRequestDiscard: () => void }) {
   const perServing = recipe.macros ?? {};
   const nutritionStatus = recipe.nutrition_status === "verified" ? "verified" : "estimated";
   const nutritionNote = nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados";
@@ -468,8 +526,8 @@ function RecipeCard({ recipe, categories, saved, onSave, onRequestDiscard }: { r
         {steps.map((s: string, k: number) => <li key={k}>{s}</li>)}
         {finalSeasoningNote && <li>{finalSeasoningNote}</li>}
       </ol>
-      <button onClick={onSave} disabled={saved} className="btn-primary w-full mt-5 disabled:opacity-70">
-        {saved ? "Guardada en Mis recetas" : "Guardar en mis recetas"}
+      <button onClick={onSave} disabled={saving} className="btn-primary w-full mt-5">
+        {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Guardando…</> : saved ? "Guardada en Mis recetas" : "Guardar en Mis recetas"}
       </button>
       <button onClick={onRequestDiscard} className="btn-primary w-full mt-2">
         <Trash2 className="h-4 w-4" /> Descartar receta generada

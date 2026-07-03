@@ -87,14 +87,41 @@ const macroNumber = (value: string) => {
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
 };
 
+const ingredientToText = (item: any) => {
+  if (!item) return "";
+  if (typeof item === "string") return item.trim();
+  if (typeof item !== "object") return String(item).trim();
+
+  const name = String(
+    item.name ??
+    item.ingredient ??
+    item.food ??
+    item.food_name ??
+    item.label ??
+    item.title ??
+    item.text ??
+    item.raw ??
+    ""
+  ).trim();
+  const quantityValue = item.quantity ?? item.amount ?? item.qty ?? "";
+  const unit = String(item.unit ?? item.units ?? "").trim();
+  const grams = item.grams ?? item.gramos ?? item.weight_g ?? item.weight;
+  const quantity = String(
+    quantityValue ||
+    (grams !== undefined && grams !== null && grams !== "" ? `${grams} g` : "")
+  ).trim();
+
+  if (quantity && name) {
+    const quantityWithUnit = unit && !quantity.toLowerCase().includes(unit.toLowerCase()) ? `${quantity} ${unit}` : quantity;
+    return `${quantityWithUnit} ${name}`.trim();
+  }
+  return name || quantity;
+};
+
 const ingredientsToText = (ingredients: any) =>
   Array.isArray(ingredients)
-    ? ingredients.map((item: any) => {
-      if (typeof item === "string") return item;
-      const quantity = item?.quantity ?? (item?.grams ? `${item.grams} g` : "");
-      return `${quantity ?? ""} ${item?.name ?? ""}`.trim();
-    }).filter(Boolean).join("\n")
-    : "";
+    ? ingredients.map(ingredientToText).filter(Boolean).join("\n")
+    : typeof ingredients === "string" ? ingredients.trim() : "";
 
 const stepsToText = (steps: any) =>
   Array.isArray(steps)
@@ -149,18 +176,6 @@ const missingIngredientNames = (data: any) => [
   ...(data?.notFound ?? []).map((item: any) => item?.name ?? item).filter(Boolean),
   ...(data?.missingGrams ?? []).map((item: any) => item?.name ?? item).filter(Boolean),
 ];
-
-function MacroGrid({ values }: { values: Pick<LibForm, "calories" | "protein" | "carbs" | "fat" | "fiber"> }) {
-  return (
-    <div className="grid grid-cols-5 gap-2 text-center text-xs">
-      <div className="card-soft p-2"><div className="font-semibold">{values.calories || 0}</div><div className="muted">kcal</div></div>
-      <div className="card-soft p-2"><div className="font-semibold">{values.protein || 0}g</div><div className="muted">Prot</div></div>
-      <div className="card-soft p-2"><div className="font-semibold">{values.carbs || 0}g</div><div className="muted">Carb</div></div>
-      <div className="card-soft p-2"><div className="font-semibold">{values.fat || 0}g</div><div className="muted">Grasa</div></div>
-      <div className="card-soft p-2"><div className="font-semibold">{values.fiber || 0}g</div><div className="muted">Fibra</div></div>
-    </div>
-  );
-}
 
 export default function AdminRecipes() {
   const [items, setItems] = useState<RecipeRow[]>([]);
@@ -253,11 +268,14 @@ export default function AdminRecipes() {
   const recalculateForForm = async () => {
     const ingredients = parseLines(form.ingredients);
     if (!ingredients.length) { toast.error("Añade ingredientes con cantidades antes de recalcular"); return null; }
+    if (editingId && !form.title.trim()) { toast.error("El nombre de la receta es obligatorio para guardar los macros"); return null; }
+    if (editingId && !form.category) { toast.error("La categoría es obligatoria para guardar los macros"); return null; }
     const missingQty = ingredients.filter(line => !QTY_RE.test(line));
     if (missingQty.length) toast.warning(`Hay ingredientes sin gramos o cantidad clara: ${missingQty[0]}`);
     setCalculating(true);
     try {
       console.info("[admin-recipes] recalculando macros del formulario", {
+        recipeId: editingId,
         ingredients,
         servings: Number(form.servings) || 1,
         category: form.category,
@@ -267,10 +285,30 @@ export default function AdminRecipes() {
         servings: Number(form.servings) || 1,
         category: form.category,
       });
-      return applyMacros(data);
+      const calculatedMacros = applyMacros(data);
+
+      if (editingId) {
+        const payload = payloadFromForm(editingRecipe, calculatedMacros);
+        console.info("[admin-recipes] guardando macros recalculados en receta oficial", {
+          recipeId: editingId,
+          title: payload.title,
+          macros: payload.macros,
+        });
+        const { error } = await supabase
+          .from("recipes")
+          .update(payload)
+          .eq("id", editingId);
+        if (error) throw error;
+        await load();
+        toast.success("Macros recalculados y guardados en la receta oficial");
+      }
+
+      return calculatedMacros;
     } catch (err: any) {
       console.error("[admin-recipes] error recalculando macros del formulario", err);
-      toast.error(err.message || "Error recalculando macros");
+      const message = err?.message || err?.details || "Error recalculando macros";
+      setLastMacroWarning(`Error al recalcular macros: ${message}`);
+      toast.error(message);
       return null;
     } finally {
       setCalculating(false);
@@ -493,7 +531,6 @@ export default function AdminRecipes() {
           <input className="field text-center" aria-label="Grasas" placeholder="Grasa" value={form.fat} onChange={e => updateForm({ fat: e.target.value })} />
           <input className="field text-center" aria-label="Fibra" placeholder="Fibra" value={form.fiber} onChange={e => updateForm({ fiber: e.target.value })} />
         </div>
-        <MacroGrid values={form} />
 
         <button type="button" onClick={recalculateForForm} disabled={calculating || uploading || saving || !parseLines(form.ingredients).length} className="btn-ghost w-full">
           <Calculator className="h-4 w-4" /> {calculating ? "Recalculando…" : "Recalcular macros"}
