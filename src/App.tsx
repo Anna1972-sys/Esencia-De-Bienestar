@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -73,11 +74,24 @@ function AdminOnly({ children }: { children: JSX.Element }) {
   return children;
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={qc}>
       <AuthProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Toaster position="top-center" richColors />
           <Routes>
             <Route path="/" element={<Landing />} />
