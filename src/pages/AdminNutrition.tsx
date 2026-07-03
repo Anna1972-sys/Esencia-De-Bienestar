@@ -121,6 +121,30 @@ function slugify(value: string) {
     .slice(0, 60);
 }
 
+function normalizeCategoryKey(value: unknown) {
+  return slugify(String(value ?? ""));
+}
+
+function itemBelongsToCategory(item: any, category: Category | null | undefined) {
+  if (!item || !category) return false;
+  const itemCategoryId = String(item.category_id ?? "");
+  const categoryId = String(category.id ?? "");
+  if (itemCategoryId && categoryId && itemCategoryId === categoryId) return true;
+
+  const itemCategory = normalizeCategoryKey(item.category);
+  const candidates = [
+    category.key,
+    category.label,
+    category.id,
+    normalizeCategoryKey(category.key),
+    normalizeCategoryKey(category.label),
+  ]
+    .map(normalizeCategoryKey)
+    .filter(Boolean);
+
+  return Boolean(itemCategory && candidates.includes(itemCategory));
+}
+
 async function uploadFile(file: File, folder: string) {
   const path = `nutrition/${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const { error } = await supabase.storage.from("resource-media").upload(path, file);
@@ -296,9 +320,17 @@ export default function AdminNutrition() {
   );
 
   const visibleItems = useMemo(
-    () => items.filter((item) => item.category === activeCategory),
-    [items, activeCategory]
+    () => items.filter((item) => itemBelongsToCategory(item, activeCategoryData)),
+    [items, activeCategoryData]
   );
+
+  const categoryCounts = useMemo(() => {
+    const next: Record<string, number> = {};
+    categories.forEach((category) => {
+      next[category.key] = items.filter((item) => itemBelongsToCategory(item, category)).length;
+    });
+    return next;
+  }, [categories, items]);
 
   const resetContent = () => setContentForm(emptyContent);
 
@@ -418,10 +450,11 @@ export default function AdminNutrition() {
   };
 
   const removeContent = async (id: string) => {
-    if (!confirm("¿Eliminar este contenido?")) return;
+    if (!confirm("¿Seguro que deseas eliminar este contenido?")) return;
     const { error } = await (supabase as any).from("nutrition_items").delete().eq("id", id);
     if (error) toast.error(error.message);
     else {
+      setItems((current) => current.filter((item) => item.id !== id));
       toast.success("Contenido eliminado");
       loadItems();
     }
@@ -472,7 +505,7 @@ export default function AdminNutrition() {
                       key={category.id}
                       className={`admin-nutrition-category-row rounded-2xl border border-[#FF2D95] overflow-hidden ${selected ? "is-active" : ""}`}
                     >
-                      <button type="button" onClick={() => openCategory(category.key)} className="admin-nutrition-category-open w-full text-left flex flex-col">
+                      <button type="button" onClick={() => openCategory(category.key)} className="admin-nutrition-category-open relative w-full text-left flex flex-col">
                         {image ? (
                           <div className="admin-nutrition-category-image-frame">
                             <img src={image} alt="" className="admin-nutrition-category-image" />
@@ -480,6 +513,9 @@ export default function AdminNutrition() {
                         ) : (
                           <div className="admin-nutrition-category-image-frame bg-[#FFF7FA]" />
                         )}
+                        <span className="admin-nutrition-category-count absolute right-2 top-2">
+                          {categoryCounts[category.key] ?? 0}
+                        </span>
                         <div className="flex-1 px-2 py-2 text-center bg-black">
                           <div className="font-medium text-[12px] leading-tight line-clamp-2">{category.label}</div>
                           <div className="text-[10px] muted leading-tight line-clamp-2 mt-1">{category.subtitle || "Contenido"}</div>
@@ -512,6 +548,41 @@ export default function AdminNutrition() {
                         <Trash2 className="h-3.5 w-3.5" /> Eliminar
                       </button>
                     </div>
+                  </div>
+                  <div className="mb-4 rounded-2xl border border-[#FF2D95] bg-white p-3">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h3 className="font-serif text-lg">Contenido incluido</h3>
+                      <span className="admin-nutrition-category-count static">
+                        {visibleItems.length}
+                      </span>
+                    </div>
+                    {visibleItems.length > 0 ? (
+                      <div className="space-y-2">
+                        {visibleItems.map((item) => (
+                          <div key={item.id} className="rounded-2xl border border-[#FF2D95]/55 bg-[#FFF7FA] p-3 flex items-center gap-3">
+                            {item.cover_image && (
+                              <div className="admin-nutrition-list-thumb">
+                                <img src={item.cover_image} alt="" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm truncate">{item.title || item.name || item.label || "Contenido"}</div>
+                              <div className="text-xs muted truncate">{item.subtitle || "Contenido"}</div>
+                            </div>
+                            <button type="button" className="text-primary" onClick={() => setContentForm(formFromItem(item))} aria-label="Editar contenido">
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button type="button" className="admin-nutrition-delete-button" onClick={() => removeContent(item.id)} aria-label="Eliminar contenido">
+                              <Trash2 className="h-3.5 w-3.5" /> Borrar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-[#FF2D95]/25 bg-[#FFF7FA] p-3 text-sm muted text-center">
+                        Aún no hay contenido incluido en esta categoría.
+                      </div>
+                    )}
                   </div>
                   <h3 className="font-serif text-xl mb-2">Añadir contenido</h3>
                   <p className="text-sm muted mb-3">Completa los campos que necesites y publica el contenido dentro de esta categoría.</p>
@@ -837,30 +908,6 @@ export default function AdminNutrition() {
 
                     <button className="btn-primary w-full" disabled={busy}>{contentForm.id ? "Guardar cambios" : "Publicar"}</button>
                   </form>
-
-                  {visibleItems.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {visibleItems.map((item) => (
-                        <div key={item.id} className="rounded-2xl border border-[#FF2D95] bg-white p-3 flex items-center gap-3">
-                          {item.cover_image && (
-                            <div className="admin-nutrition-list-thumb">
-                              <img src={item.cover_image} alt="" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-sm truncate">{item.title || item.name || item.label || "Contenido"}</div>
-                            <div className="text-xs muted truncate">{item.subtitle || "Contenido"}</div>
-                          </div>
-                          <button type="button" className="text-primary" onClick={() => setContentForm(formFromItem(item))} aria-label="Editar contenido">
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button type="button" className="admin-nutrition-delete-button" onClick={() => removeContent(item.id)} aria-label="Eliminar contenido">
-                            <Trash2 className="h-3.5 w-3.5" /> Borrar
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </section>
               )}
             </div>

@@ -660,6 +660,20 @@
   .admin-nutrition-page .admin-nutrition-category-row .muted {
     color: hsl(0 0% 90% / .82);
   }
+  .admin-nutrition-page .admin-nutrition-category-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.05rem;
+    padding: .1rem .38rem;
+    border-radius: 999px;
+    border: 1px solid #FF2D95;
+    color: #FFFFFF;
+    background: #FF2D95;
+    font-size: .54rem;
+    font-weight: 800;
+    line-height: 1;
+  }
   .admin-nutrition-page .admin-nutrition-category-row .bg-black {
     margin-top: 0;
     width: 100%;
