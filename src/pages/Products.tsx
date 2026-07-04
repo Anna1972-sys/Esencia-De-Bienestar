@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Image as ImageIcon, Search } from "lucide-react";
+import { ArrowDown, ArrowLeft, ChevronRight, Image as ImageIcon, Search } from "lucide-react";
 import productsHeroImage from "@/assets/home-productos-te-jardin.png";
+import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
+import imgNutritionObjective from "@/assets/product-admin/nutricion-objetiva-soft.jpg";
+import imgNutritionExternal from "@/assets/product-admin/nutricion-externa-beige.png";
 
 type ProductCategory = {
   id: string;
@@ -28,11 +31,26 @@ type Product = {
   verification_status?: "verificado" | "pendiente";
 };
 
+const PRODUCT_CLIENT_ACCESS_SECTIONS = [
+  { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
+  { id: "nutricion-objetiva", title: "Nutrición objetiva", image: imgNutritionObjective },
+  { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
+] as const;
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 export default function Products() {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("");
+  const [activeProductSection, setActiveProductSection] = useState<string>("");
   const [query, setQuery] = useState("");
+  const openedSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     (supabase as any)
@@ -55,16 +73,39 @@ export default function Products() {
 
   const categoryById = useMemo(() => new Map(categories.map(category => [category.id, category])), [categories]);
   const q = String(query ?? "").trim().toLowerCase();
+  const productMatchesSection = (product: Product, sectionId: string) => {
+    const category = product.category_id ? categoryById.get(product.category_id) : null;
+    const text = normalizeText([product.name, product.description, product.benefits, product.informative_only ? "informativo" : "", category?.name].filter(Boolean).join(" "));
+    if (sectionId === "nutricion-externa") {
+      return /externa|skin|piel|aloe|gel|champu|shampoo|lotion|locion|body|hand|corporal|facial|crema/.test(text);
+    }
+    if (sectionId === "nutricion-objetiva") {
+      return /objetiva|objetivo|control|peso|deport|rendimiento|hidrat|energia|immune|omega|beta|heart|fibra|microbiotic|snack|chip/.test(text);
+    }
+    if (sectionId === "nutricion-interna") {
+      return !productMatchesSection(product, "nutricion-externa");
+    }
+    return true;
+  };
 
   const filtered = useMemo(() => {
     return products.filter(product => {
+      if (activeProductSection && !productMatchesSection(product, activeProductSection)) return false;
       if (activeCategory && product.category_id !== activeCategory) return false;
       if (!q) return true;
       const category = product.category_id ? categoryById.get(product.category_id) : null;
       const haystack = [product.name, product.description, product.benefits, category?.name].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(q);
     });
-  }, [products, activeCategory, q, categoryById]);
+  }, [products, activeCategory, activeProductSection, q, categoryById]);
+  const activeSection = PRODUCT_CLIENT_ACCESS_SECTIONS.find(section => section.id === activeProductSection);
+
+  useEffect(() => {
+    if (!activeProductSection) return;
+    window.setTimeout(() => {
+      openedSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }, [activeProductSection]);
 
   return (
     <div className="pb-8">
@@ -86,74 +127,106 @@ export default function Products() {
         </div>
       </section>
 
-      <div className="relative mb-4">
-        <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          className="field pl-9"
-          placeholder="Buscar producto o categoría…"
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-        />
-      </div>
+      <section className="products-client-access-list mb-5" aria-label="Secciones de productos">
+        {PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => {
+          const isActive = activeProductSection === section.id;
+          return (
+            <button
+              key={section.id}
+              type="button"
+              className={`products-client-access-card ${isActive ? "is-active" : ""}`}
+              onClick={() => {
+                setActiveProductSection(isActive ? "" : section.id);
+                setActiveCategory("");
+              }}
+              aria-expanded={isActive}
+            >
+              <span className="products-client-access-image-wrap">
+                <img src={section.image} alt={section.title} />
+              </span>
+              <span className="products-client-access-title">{section.title}</span>
+              <ArrowDown className={`products-client-access-arrow ${isActive ? "rotate-180" : ""}`} />
+            </button>
+          );
+        })}
+      </section>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
-        <button
-          onClick={() => setActiveCategory("")}
-          className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${!activeCategory ? "bg-primary text-white" : "bg-muted"}`}
-        >
-          Todo
-        </button>
-        {categories.map(category => (
-          <button
-            key={category.id}
-            onClick={() => setActiveCategory(category.id)}
-            className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${activeCategory === category.id ? "bg-primary text-white" : "bg-muted"}`}
-          >
-            {category.name}
-          </button>
-        ))}
-      </div>
+      {activeProductSection && (
+        <section ref={openedSectionRef} className="products-client-access-panel" aria-label={`Productos de ${activeSection?.title ?? "la sección seleccionada"}`}>
+          <div className="products-client-access-panel-header">
+            <p>Salud y Bienestar</p>
+            <h2>{activeSection?.title}</h2>
+          </div>
 
-      {filtered.length === 0 ? (
-        <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
-      ) : (
-        <div className="products-client-grid">
-          {filtered.map(product => {
-            const category = product.category_id ? categoryById.get(product.category_id) : null;
-            return (
-              <Link
-                key={product.id}
-                to={`/app/productos/${product.id}`}
-                className="product-client-list-card group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
+          <div className="relative mb-4">
+            <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              className="field pl-9"
+              placeholder="Buscar producto o categoría…"
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
+            <button
+              onClick={() => setActiveCategory("")}
+              className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${!activeCategory ? "bg-primary text-white" : "bg-muted"}`}
+            >
+              Todo
+            </button>
+            {categories.map(category => (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${activeCategory === category.id ? "bg-primary text-white" : "bg-muted"}`}
               >
-                <div className="product-client-list-image">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="transition-transform duration-500 group-hover:scale-[1.03]" />
-                  ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
-                      <ImageIcon className="h-8 w-8 text-primary/70" />
+                {category.name}
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
+          ) : (
+            <div className="products-client-grid">
+              {filtered.map(product => {
+                const category = product.category_id ? categoryById.get(product.category_id) : null;
+                return (
+                  <Link
+                    key={product.id}
+                    to={`/app/productos/${product.id}`}
+                    className="product-client-list-card group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
+                  >
+                    <div className="product-client-list-image">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
+                          <ImageIcon className="h-8 w-8 text-primary/70" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="product-client-list-info">
-                  <div className="min-w-0">
-                    <h2 className="product-client-list-title">{product.name}</h2>
-                    {category?.name && <div className="product-client-list-category">{category.name}</div>}
-                  </div>
-                  <div className="product-client-list-meta">
-                    {product.available_for_recipes && <span className="product-client-list-chip">Recetas</span>}
-                    <span className={product.verification_status === "verificado" ? "product-client-list-chip product-client-list-chip-verified" : "product-client-list-chip"}>{product.verification_status ?? "pendiente"}</span>
-                  </div>
-                </div>
-                <div className="product-client-list-footer">
-                  <span className="product-client-list-button">
-                    Ver producto <ChevronRight className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                    <div className="product-client-list-info">
+                      <div className="min-w-0">
+                        <h2 className="product-client-list-title">{product.name}</h2>
+                        {category?.name && <div className="product-client-list-category">{category.name}</div>}
+                      </div>
+                      <div className="product-client-list-meta">
+                        <span className={product.verification_status === "verificado" ? "product-client-list-chip product-client-list-chip-verified" : "product-client-list-chip"}>{product.verification_status ?? "pendiente"}</span>
+                      </div>
+                    </div>
+                    <div className="product-client-list-footer">
+                      <span className="product-client-list-button">
+                        Ver producto <ChevronRight className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

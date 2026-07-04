@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
+import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
+import imgNutritionObjective from "@/assets/product-admin/nutricion-objetiva-soft.jpg";
+import imgNutritionExternal from "@/assets/product-admin/nutricion-externa-beige.png";
 
 type ProductCategory = {
   id: string;
@@ -174,9 +177,9 @@ const PRODUCT_BLOCK_LABELS: Record<ProductBlockId, string> = {
 };
 
 const PRODUCT_ADMIN_ACCESS_SECTIONS = [
-  { id: "nutricion-interna", title: "Nutrición interna" },
-  { id: "nutricion-externa", title: "Nutrición externa" },
-  { id: "nutricion-objetiva", title: "Nutrición objetiva" },
+  { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
+  { id: "nutricion-objetiva", title: "Nutrición objetiva", image: imgNutritionObjective },
+  { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
 ] as const;
 
 const emptyMeasure: ProductMeasure = {
@@ -933,14 +936,17 @@ export default function AdminProducts() {
         {PRODUCT_ADMIN_ACCESS_SECTIONS.map(section => {
           const isOpen = openAccessSection === section.id;
           return (
-            <article key={section.id} className={`admin-products-access-card card-soft ${isOpen ? "is-open" : ""}`}>
+            <article key={section.id} data-section={section.id} className={`admin-products-access-card card-soft ${isOpen ? "is-open" : ""}`}>
               <button
                 type="button"
                 className="admin-products-access-trigger"
                 onClick={() => setOpenAccessSection(isOpen ? null : section.id)}
                 aria-expanded={isOpen}
               >
-                <span>{section.title}</span>
+                <span className="admin-products-access-image-wrap">
+                  <img src={section.image} alt={section.title} />
+                </span>
+                <span className="admin-products-access-title">{section.title}</span>
                 <ArrowDown className={`h-5 w-5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </button>
 

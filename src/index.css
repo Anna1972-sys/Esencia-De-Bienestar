@@ -800,30 +800,83 @@
   .admin-products .admin-products-access-card {
     overflow: hidden;
     border: 1px solid #FF2D95;
-    background: #FFF7FA;
+    background: #FFFFFF;
     padding: 0 !important;
   }
 
   .admin-products .admin-products-access-trigger {
+    position: relative;
     width: 100%;
-    min-height: 3.6rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.15rem;
+    min-height: 8.1rem;
+    display: grid;
+    grid-template-rows: minmax(5.1rem, 1fr) auto;
+    align-items: stretch;
+    padding: 0;
     color: hsl(0 0% 10%);
     font-weight: 800;
-    text-align: left;
+    text-align: center;
+    overflow: hidden;
   }
 
   .admin-products .admin-products-access-trigger span {
     display: block;
   }
 
+  .admin-products .admin-products-access-title {
+    position: relative;
+    z-index: 2;
+    min-height: 3rem;
+    display: grid !important;
+    place-items: center;
+    border-radius: 0;
+    background: #FFFFFF;
+    box-shadow: none;
+    color: hsl(0 0% 8%);
+    font-size: .78rem;
+    line-height: 1.1;
+    letter-spacing: -.03em;
+    padding: .48rem .5rem;
+  }
+
+  .admin-products .admin-products-access-image-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    border-radius: var(--wellness-radius) var(--wellness-radius) .95rem .95rem;
+    overflow: hidden;
+    background: #F7EFE6;
+    border: 0;
+  }
+
+  .admin-products .admin-products-access-image-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    pointer-events: none;
+    mix-blend-mode: normal;
+  }
+
+  .admin-products .admin-products-access-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    filter: none;
+  }
+
   .admin-products .admin-products-access-trigger svg {
+    position: absolute;
+    z-index: 3;
+    right: .58rem;
+    bottom: .95rem;
     color: #FF2D95;
     flex: 0 0 auto;
+    width: .85rem;
+    height: .85rem;
+    display: none !important;
   }
 
   .admin-products .admin-products-access-body {
@@ -1129,6 +1182,113 @@
     color: #FFFFFF;
   }
 
+  .products-client-access-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .55rem;
+  }
+
+  .products-client-access-card {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(5.1rem, 1fr) auto;
+    min-height: 8.1rem;
+    overflow: hidden;
+    border: 1px solid #FF2D95;
+    border-radius: 1.35rem;
+    background: #FFFFFF;
+    color: hsl(0 0% 8%);
+    text-align: center;
+    box-shadow: 0 18px 34px -28px rgb(90 50 65 / .24);
+  }
+
+  .products-client-access-card.is-active {
+    box-shadow: 0 18px 34px -24px rgb(255 45 149 / .34), 0 0 0 2px rgb(255 45 149 / .16);
+  }
+
+  .products-client-access-image-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 5.1rem;
+    overflow: hidden;
+    background: #F7EFE6;
+    border-radius: 1.35rem 1.35rem .95rem .95rem;
+  }
+
+  .products-client-access-image-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .products-client-access-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    filter: none;
+  }
+
+  .products-client-access-title {
+    min-height: 3rem;
+    display: grid;
+    place-items: center;
+    padding: .48rem 1.25rem .48rem .5rem;
+    background: #FFFFFF;
+    font-size: .78rem;
+    line-height: 1.1;
+    font-weight: 850;
+    letter-spacing: -.03em;
+  }
+
+  .products-client-access-arrow {
+    position: absolute;
+    right: .58rem;
+    bottom: 1.05rem;
+    width: .62rem;
+    height: .62rem;
+    color: hsl(0 0% 8%);
+    opacity: .68;
+    transition: transform .2s ease;
+    display: block !important;
+    pointer-events: none;
+  }
+
+  .products-client-access-panel {
+    margin-top: .85rem;
+    padding: .95rem;
+    border: 1px solid #FF2D95;
+    border-radius: 1.5rem;
+    background: #FFF7FA;
+    box-shadow: 0 18px 34px -28px rgb(90 50 65 / .22);
+    scroll-margin-top: 1rem;
+  }
+
+  .products-client-access-panel-header {
+    margin-bottom: .85rem;
+  }
+
+  .products-client-access-panel-header p {
+    margin: 0 0 .15rem;
+    color: #FF2D95;
+    font-size: .66rem;
+    font-weight: 850;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .products-client-access-panel-header h2 {
+    margin: 0;
+    color: hsl(0 0% 8%);
+    font-size: 1.05rem;
+    font-weight: 850;
+    letter-spacing: -.03em;
+  }
+
   .admin-product-list-card {
     display: grid;
     grid-template-columns: minmax(9.5rem, 42%) minmax(0, 1fr) 6.25rem;
@@ -1395,6 +1555,26 @@
   @media (max-width: 390px) {
     .products-client-grid {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .products-client-access-list {
+      gap: .42rem;
+    }
+
+    .products-client-access-card {
+      min-height: 7rem;
+      border-radius: 1.15rem;
+    }
+
+    .products-client-access-image-wrap {
+      min-height: 4.8rem;
+      border-radius: 1.15rem 1.15rem .85rem .85rem;
+    }
+
+    .products-client-access-title {
+      min-height: 2.15rem;
+      font-size: .58rem;
+      padding-inline: .28rem 1rem;
     }
 
     .product-client-list-card {
@@ -2342,6 +2522,42 @@
   .admin-products .admin-product-clear-button svg {
     width: .72rem !important;
     height: .72rem !important;
+  }
+
+  .admin-products .admin-products-access-list {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .45rem !important;
+    margin-bottom: 7.5rem !important;
+  }
+
+  .admin-products .admin-products-access-list > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+  }
+
+  .admin-products .admin-products-access-card {
+    background: #FFFFFF !important;
+    border-color: #FF2D95 !important;
+    box-shadow: 0 18px 34px -28px rgb(90 50 65 / .24) !important;
+  }
+
+  .admin-products .admin-products-access-card.is-open {
+    grid-column: 1 / -1;
+  }
+
+  .admin-products .admin-products-access-card.is-open .admin-products-access-trigger {
+    width: min(11.5rem, 62vw);
+    min-height: 8.1rem;
+    margin: .7rem auto .35rem;
+    border: 1px solid #FF2D95;
+    border-radius: 1.35rem;
+  }
+
+  @media (min-width: 720px) {
+    .admin-products .admin-products-access-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+    }
   }
 
   .admin-movement-page .library-admin-container,
