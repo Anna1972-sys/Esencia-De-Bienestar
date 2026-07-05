@@ -2759,10 +2759,38 @@
     background: #FFF7FA !important;
     border-color: #FF2D95 !important;
     box-shadow: 0 18px 34px -28px rgb(90 50 65 / .24) !important;
+    align-self: start;
   }
 
   .admin-products .admin-products-access-card.is-open {
     grid-column: auto;
+  }
+
+  .admin-products .admin-products-selected-workspace {
+    grid-column: 1 / -1;
+    width: 100%;
+    align-self: start;
+  }
+
+  .admin-products .admin-products-existing-panel {
+    padding: .75rem !important;
+    gap: .55rem !important;
+  }
+
+  .admin-products .admin-products-existing-panel h2 {
+    font-size: 1.28rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .admin-products .admin-products-existing-panel .field {
+    min-height: 2.65rem !important;
+    height: 2.65rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .admin-products .admin-products-existing-panel select.field {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   .admin-products .admin-products-access-card.is-open .admin-products-access-trigger {

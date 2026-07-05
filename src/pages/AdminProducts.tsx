@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
@@ -391,6 +391,8 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false);
   const [readingLabel, setReadingLabel] = useState(false);
   const keepEditingAfterSave = useRef(false);
+  const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const productSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -409,8 +411,26 @@ export default function AdminProducts() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!openAccessSection) return;
+    const timer = window.setTimeout(() => {
+      const workspace = selectedWorkspaceRef.current;
+      if (!workspace) return;
+      const rect = workspace.getBoundingClientRect();
+      const top = rect.top + window.scrollY - (window.innerWidth < 768 ? 150 : 120);
+      window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [openAccessSection]);
+
   const categoryById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
   const categoryOptionLabel = (category: ProductCategory) => `${category.name}${category.is_active ? "" : " (oculta)"}`;
+  const activeAccessSection = PRODUCT_ADMIN_ACCESS_SECTIONS.find(section => section.id === openAccessSection) ?? null;
+  const activeAccessCategory = useMemo(() => {
+    if (!activeAccessSection) return null;
+    return categories.find(category => slugify(category.name) === activeAccessSection.id) ?? null;
+  }, [activeAccessSection, categories]);
 
   const filteredProducts = useMemo(() => {
     const normalized = String(query ?? "").trim().toLowerCase();
@@ -434,12 +454,25 @@ export default function AdminProducts() {
     setForm(emptyProduct);
     setEditorOpen(false);
   };
-  const startNewProduct = () => {
-    setForm(emptyProduct);
+  const startNewProduct = (categoryId = activeAccessCategory?.id ?? "") => {
+    setForm({ ...emptyProduct, category_id: categoryId });
+    if (categoryId) setFilterCategory(categoryId);
     setEditorInstanceKey(key => key + 1);
     setOpenEditorBlock("Información general");
     setEditorOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const focusProductSearch = () => {
+    productSearchInputRef.current?.focus();
+    productSearchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const toggleAccessSection = (sectionId: string) => {
+    const next = openAccessSection === sectionId ? null : sectionId;
+    setOpenAccessSection(next);
+    if (next) {
+      const sectionCategory = categories.find(category => slugify(category.name) === next);
+      setFilterCategory(sectionCategory?.id ?? "");
+    }
   };
   const resetCategory = () => {
     setEditingCategory(null);
@@ -984,13 +1017,14 @@ export default function AdminProducts() {
           const isOpen = openAccessSection === section.id;
 
           return (
-            <article key={section.id} className={`card-soft admin-products-access-card ${isOpen ? "is-open" : ""}`}>
+            <Fragment key={section.id}>
+            <article className={`card-soft admin-products-access-card ${isOpen ? "is-open" : ""}`}>
               <button
                 type="button"
                 className="admin-products-access-trigger"
                 aria-label={section.title}
                 aria-expanded={isOpen}
-                onClick={() => setOpenAccessSection(current => current === section.id ? null : section.id)}
+                onClick={() => toggleAccessSection(section.id)}
               >
                 <span className="admin-products-access-image-wrap">
                   <img src={section.image} alt={section.title} />
@@ -998,27 +1032,22 @@ export default function AdminProducts() {
                 <span className="admin-products-access-title">{section.title}</span>
               </button>
             </article>
-          );
-        })}
-      </section>
-
-      {openAccessSection && (
-        <div className="admin-products-access-body admin-products-selected-workspace space-y-5">
-          <section className="card-soft admin-products-panel p-4 sm:p-5 space-y-4">
+            {isOpen && (
+        <div ref={selectedWorkspaceRef} className="admin-products-access-body admin-products-selected-workspace space-y-5">
+          <section className="card-soft admin-products-panel admin-products-existing-panel p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="font-serif text-2xl">Productos existentes</h2>
-            <p className="text-xs muted">Edita, elimina o abre cada ficha sin entrar en el formulario completo.</p>
           </div>
-          <button type="button" className="btn-primary" onClick={startNewProduct}>
-            <Plus className="h-4 w-4" /> Nuevo producto
+          <button type="button" className="btn-primary" onClick={focusProductSearch}>
+            <Search className="h-4 w-4" /> Buscar producto
           </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input className="field pl-9" placeholder="Buscar producto…" value={query} onChange={e => setQuery(e.target.value)} />
+            <input ref={productSearchInputRef} className="field pl-9" placeholder="Buscar producto…" value={query} onChange={e => setQuery(e.target.value)} />
           </div>
           <select className="field sm:max-w-56" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
             <option value="">Todas las categorías</option>
@@ -1057,14 +1086,10 @@ export default function AdminProducts() {
                 </div>
               </article>
             ))}
-            {!filteredProducts.length && <div className="text-sm muted text-center p-6">No hay productos que coincidan.</div>}
+            {!filteredProducts.length && <div className="text-sm muted text-center p-2">No hay productos que coincidan.</div>}
           </div>
         )}
       </section>
-
-      <button type="button" className="admin-products-floating-new btn-primary" onClick={startNewProduct}>
-        <Plus className="h-4 w-4" /> Nuevo producto
-      </button>
 
       <ProductAccordion title="Gestión de categorías" subtitle="Crear, editar, ocultar o eliminar categorías." className="mt-5">
         <form onSubmit={saveCategory} className="space-y-4">
@@ -1174,7 +1199,7 @@ export default function AdminProducts() {
                   <button type="button" className="btn-primary text-xs py-2" onClick={clearProductBasics}>
                     <Trash2 className="h-3.5 w-3.5" /> Borrar
                   </button>
-                  {form.id && <button type="button" className="btn-secondary" onClick={startNewProduct}><Plus className="h-4 w-4" /> Nuevo</button>}
+                  {form.id && <button type="button" className="btn-secondary" onClick={() => startNewProduct()}><Plus className="h-4 w-4" /> Nuevo</button>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1482,7 +1507,11 @@ export default function AdminProducts() {
         </form>
           )}
         </div>
-      )}
+            )}
+            </Fragment>
+          );
+        })}
+      </section>
     </div>
   );
 }
