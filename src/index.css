@@ -872,6 +872,9 @@
     font-weight: 800;
     text-align: center;
     overflow: hidden;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
   }
 
   .admin-products .admin-products-access-trigger span {
@@ -933,6 +936,17 @@
     width: .85rem;
     height: .85rem;
     display: none !important;
+  }
+
+  .admin-products .admin-products-access-trigger .admin-products-access-arrow {
+    display: block !important;
+    position: absolute;
+    right: .65rem;
+    bottom: .95rem;
+    width: .85rem;
+    height: .85rem;
+    color: #111111;
+    transition: transform .2s ease;
   }
 
   .admin-products .admin-products-access-body {
@@ -2736,7 +2750,7 @@
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .45rem !important;
-    margin-bottom: 7.5rem !important;
+    margin-bottom: 1rem !important;
   }
 
   .admin-products .admin-products-access-list > :not([hidden]) ~ :not([hidden]) {
@@ -2750,15 +2764,15 @@
   }
 
   .admin-products .admin-products-access-card.is-open {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .admin-products .admin-products-access-card.is-open .admin-products-access-trigger {
-    width: min(11.5rem, 62vw);
+    width: 100%;
     min-height: 8.1rem;
-    margin: .7rem auto .35rem;
-    border: 1px solid #FF2D95;
-    border-radius: 1.35rem;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
   }
 
   @media (min-width: 720px) {

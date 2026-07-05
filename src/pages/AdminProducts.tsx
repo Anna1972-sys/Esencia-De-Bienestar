@@ -385,6 +385,8 @@ export default function AdminProducts() {
   const [filterCategory, setFilterCategory] = useState("");
   const [openAccessSection, setOpenAccessSection] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0);
+  const [openEditorBlock, setOpenEditorBlock] = useState("Información general");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [readingLabel, setReadingLabel] = useState(false);
@@ -434,6 +436,8 @@ export default function AdminProducts() {
   };
   const startNewProduct = () => {
     setForm(emptyProduct);
+    setEditorInstanceKey(key => key + 1);
+    setOpenEditorBlock("Información general");
     setEditorOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -692,6 +696,8 @@ export default function AdminProducts() {
       nutrition_verified_at: product.nutrition_verified_at ?? null,
       measures: measures.length ? measures.map(normalizeMeasure) : [emptyMeasure],
     });
+    setEditorInstanceKey(key => key + 1);
+    setOpenEditorBlock("Información general");
     setEditorOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -961,6 +967,10 @@ export default function AdminProducts() {
       measures: prev.measures.map((measure, i) => ({ ...measure, is_default: i === index })),
     }));
   };
+  const editorAccordionProps = (title: string) => ({
+    open: openEditorBlock === title,
+    onOpenChange: (nextOpen: boolean) => setOpenEditorBlock(nextOpen ? title : ""),
+  });
 
   return (
     <div className="admin-products pb-28 max-w-5xl mx-auto">
@@ -969,7 +979,33 @@ export default function AdminProducts() {
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
-      <section className="card-soft admin-products-panel p-4 sm:p-5 space-y-4">
+      <section className="admin-products-access-list admin-products-access-list-static mb-5" aria-label="Áreas de productos Herbalife">
+        {PRODUCT_ADMIN_ACCESS_SECTIONS.map(section => {
+          const isOpen = openAccessSection === section.id;
+
+          return (
+            <article key={section.id} className={`card-soft admin-products-access-card ${isOpen ? "is-open" : ""}`}>
+              <button
+                type="button"
+                className="admin-products-access-trigger"
+                aria-label={section.title}
+                aria-expanded={isOpen}
+                onClick={() => setOpenAccessSection(current => current === section.id ? null : section.id)}
+              >
+                <span className="admin-products-access-image-wrap">
+                  <img src={section.image} alt={section.title} />
+                </span>
+                <span className="admin-products-access-title">{section.title}</span>
+                <ArrowDown className={`admin-products-access-arrow ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+            </article>
+          );
+        })}
+      </section>
+
+      {openAccessSection && (
+        <div className="admin-products-access-body admin-products-selected-workspace space-y-5">
+          <section className="card-soft admin-products-panel p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="font-serif text-2xl">Productos existentes</h2>
@@ -1100,8 +1136,8 @@ export default function AdminProducts() {
         </form>
       </ProductAccordion>
 
-      {editorOpen && (
-        <form id="admin-product-editor-form" onSubmit={saveProduct} className="admin-products-editor mt-5 space-y-3">
+          {editorOpen && (
+        <form key={editorInstanceKey} id="admin-product-editor-form" onSubmit={saveProduct} className="admin-products-editor mt-5 space-y-3">
           <div className="admin-products-editor-toolbar card-soft admin-products-panel p-3">
             <div className="min-w-0">
               <h2 className="font-serif text-2xl truncate">{form.id ? `Editar: ${form.name || "producto"}` : "Nuevo producto"}</h2>
@@ -1128,7 +1164,7 @@ export default function AdminProducts() {
             </div>
           </div>
 
-          <ProductAccordion title="Información general" defaultOpen>
+          <ProductAccordion title="Información general" {...editorAccordionProps("Información general")}>
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1193,7 +1229,7 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
 
-          <ProductAccordion title="Etiqueta nutricional">
+          <ProductAccordion title="Etiqueta nutricional" {...editorAccordionProps("Etiqueta nutricional")}>
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -1228,7 +1264,7 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
 
-          <ProductAccordion title="Imágenes">
+          <ProductAccordion title="Imágenes" {...editorAccordionProps("Imágenes")}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <MediaUploader
                 title="Imagen principal"
@@ -1253,7 +1289,7 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
 
-          <ProductAccordion title="Orden visual de la ficha">
+          <ProductAccordion title="Orden visual de la ficha" {...editorAccordionProps("Orden visual de la ficha")}>
             <div>
               <div className="flex items-start gap-2 mb-3">
                 <MousePointerClick className="h-4 w-4 text-primary mt-0.5" />
@@ -1282,39 +1318,39 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
 
-          <ProductAccordion title="Galería">
+          <ProductAccordion title="Galería" {...editorAccordionProps("Galería")}>
             <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
           </ProductAccordion>
-          <ProductAccordion title="Vídeos">
+          <ProductAccordion title="Vídeos" {...editorAccordionProps("Vídeos")}>
             <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} onClear={() => setForm(prev => ({ ...prev, video_urls: [] }))} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
           </ProductAccordion>
-          <ProductAccordion title="PDFs">
+          <ProductAccordion title="PDFs" {...editorAccordionProps("PDFs")}>
             <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onRemove={index => removeUrl("pdf_urls", index)} onClear={() => setForm(prev => ({ ...prev, pdf_urls: [] }))} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
           </ProductAccordion>
-          <ProductAccordion title="URLs">
+          <ProductAccordion title="URLs" {...editorAccordionProps("URLs")}>
             <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onRemove={index => removeUrl("external_urls", index)} onClear={() => setForm(prev => ({ ...prev, external_urls: [] }))} />
           </ProductAccordion>
 
-          <ProductAccordion title="Descripción">
+          <ProductAccordion title="Descripción" {...editorAccordionProps("Descripción")}>
             <TextArea label="Descripción" value={form.description ?? ""} onChange={value => setForm({ ...form, description: value })} />
           </ProductAccordion>
-          <ProductAccordion title="Beneficios">
+          <ProductAccordion title="Beneficios" {...editorAccordionProps("Beneficios")}>
             <TextArea label="Beneficios" value={form.benefits ?? ""} onChange={value => setForm({ ...form, benefits: value })} />
           </ProductAccordion>
-          <ProductAccordion title="Modo de empleo">
+          <ProductAccordion title="Modo de empleo" {...editorAccordionProps("Modo de empleo")}>
             <TextArea label="Modo de empleo" value={form.usage ?? ""} onChange={value => setForm({ ...form, usage: value })} />
           </ProductAccordion>
-          <ProductAccordion title="Ingredientes">
+          <ProductAccordion title="Ingredientes" {...editorAccordionProps("Ingredientes")}>
             <TextArea label="Ingredientes" value={form.ingredients_text ?? ""} onChange={value => setForm({ ...form, ingredients_text: value })} />
           </ProductAccordion>
-          <ProductAccordion title="Observaciones">
+          <ProductAccordion title="Observaciones" {...editorAccordionProps("Observaciones")}>
             <TextArea label="Observaciones" value={form.observations ?? ""} onChange={value => setForm({ ...form, observations: value })} />
           </ProductAccordion>
-          <ProductAccordion title="Texto libre">
+          <ProductAccordion title="Texto libre" {...editorAccordionProps("Texto libre")}>
             <TextArea label="Texto libre" value={form.free_text ?? ""} onChange={value => setForm({ ...form, free_text: value })} />
           </ProductAccordion>
 
-          <ProductAccordion title="Información nutricional">
+          <ProductAccordion title="Información nutricional" {...editorAccordionProps("Información nutricional")}>
             <div className="space-y-5">
               <div>
                 <div className="flex items-center justify-between gap-3 mb-2">
@@ -1369,7 +1405,7 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
 
-          <ProductAccordion title="Medidas habituales">
+          <ProductAccordion title="Medidas habituales" {...editorAccordionProps("Medidas habituales")}>
             <div>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div>
@@ -1428,7 +1464,7 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
 
-          <ProductAccordion title="Visibilidad">
+          <ProductAccordion title="Visibilidad" {...editorAccordionProps("Visibilidad")}>
             <div>
               <div className="flex items-center justify-between gap-3 mb-3">
                 <h3 className="font-serif text-xl">Visibilidad y estado</h3>
@@ -1445,6 +1481,8 @@ export default function AdminProducts() {
             </div>
           </ProductAccordion>
         </form>
+          )}
+        </div>
       )}
     </div>
   );
@@ -1455,18 +1493,30 @@ function ProductAccordion({
   subtitle,
   children,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
   className = "",
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const toggleOpen = () => {
+    if (onOpenChange) {
+      onOpenChange(!open);
+      return;
+    }
+    setUncontrolledOpen(current => !current);
+  };
   return (
     <section className={`card-soft admin-products-panel admin-products-accordion ${className}`}>
-      <button type="button" className="admin-products-accordion-trigger" onClick={() => setOpen(current => !current)} aria-expanded={open}>
+      <button type="button" className="admin-products-accordion-trigger" onClick={toggleOpen} aria-expanded={open}>
         <span>
           <span className="admin-products-accordion-title">{title}</span>
           {subtitle && <span className="admin-products-accordion-subtitle">{subtitle}</span>}
