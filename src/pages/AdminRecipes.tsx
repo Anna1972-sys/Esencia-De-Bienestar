@@ -545,7 +545,7 @@ export default function AdminRecipes() {
                 <div key={`${item.raw}-${idx}`} className="rounded-xl border border-border/70 bg-white p-2">
                   <div className="font-medium text-foreground">{item.raw}</div>
                   <div className="muted">Interpretado como: {item.parsedName || "—"}</div>
-                  <div className="muted">Cantidad: {item.grams ?? "—"} g/ml · Estado: {item.status} · Fuente: {item.source ?? "—"}</div>
+                  <div className="muted">Cantidad: {item.grams ?? "—"} g/ml · Estado: {item.status} · Fuente: {item.sourceLabel ?? item.source ?? "—"}</div>
                   <div className="muted">Coincidencia: {item.matchedAs ?? "No encontrada"}</div>
                 </div>
               ))}

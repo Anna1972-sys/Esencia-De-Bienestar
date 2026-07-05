@@ -1137,6 +1137,14 @@
     color: hsl(var(--foreground));
   }
 
+  .product-detail-status-chip {
+    min-height: 1.28rem !important;
+    padding: .14rem .46rem !important;
+    font-size: .6rem !important;
+    line-height: 1 !important;
+    transform: translateY(.26rem);
+  }
+
   .product-detail-label-link {
     display: inline-flex;
     align-items: center;
@@ -2520,6 +2528,17 @@
     border-color: #FF2D95 !important;
   }
 
+  .admin-internal-foods-page input[type="number"].field {
+    color-scheme: light;
+    padding-right: 0.55rem;
+  }
+
+  .admin-internal-foods-page input[type="number"].field::-webkit-inner-spin-button,
+  .admin-internal-foods-page input[type="number"].field::-webkit-outer-spin-button {
+    opacity: 1;
+    cursor: pointer;
+  }
+
   .admin-products .admin-products-panel,
   .admin-products .admin-products-form,
   .admin-products .card-soft,
@@ -2936,6 +2955,17 @@
   .admin-shopping-page .btn-secondary.compact:hover {
     border-color: #FF2D95 !important;
     background: #FFEAF4 !important;
+  }
+
+  .admin-shopping-page .shopping-delete-category-button {
+    border-color: #FF2D95;
+    background: #FF2D95;
+    color: #FFFFFF;
+  }
+
+  .admin-shopping-page .shopping-delete-category-button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
   }
 
   .admin-recipes-page .card-soft {

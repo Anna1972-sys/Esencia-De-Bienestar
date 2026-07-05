@@ -147,15 +147,28 @@ export default function AdminShopping() {
   };
 
   const delCat = async (c: Category) => {
-    const tplUsage = items.filter((i) => i.category === c.name).length;
-    const itemUsage = clientItems.filter((i) => i.category === c.name).length;
-    if (tplUsage + itemUsage > 0) {
-      toast.error(`No se puede borrar: ${tplUsage} plantilla(s) y ${itemUsage} producto(s) de clientas usan esta categoría. Reasígnalos primero.`);
+    const [{ count: tplCount, error: tplError }, { count: clientCount, error: clientError }] = await Promise.all([
+      (supabase as any).from("shopping_templates").select("id", { count: "exact", head: true }).eq("category", c.name),
+      (supabase as any).from("shopping_list_items").select("id", { count: "exact", head: true }).eq("category", c.name),
+    ]);
+    if (tplError || clientError) {
+      const message = tplError?.message || clientError?.message || "No se pudo comprobar la categoría";
+      toast.error(message);
       return;
     }
-    if (!confirm(`¿Eliminar la categoría "${c.name}"?`)) return;
+    const tplUsage = tplCount ?? items.filter((i) => i.category === c.name).length;
+    const itemUsage = clientCount ?? clientItems.filter((i) => i.category === c.name).length;
+    if (tplUsage + itemUsage > 0) {
+      toast.error("Esta categoría contiene ingredientes asociados. Primero elimínalos o reasígnalos a otra categoría.");
+      return;
+    }
+    if (!confirm("¿Seguro que deseas eliminar esta categoría?")) return;
     const { error } = await (supabase as any).from("shopping_categories").delete().eq("id", c.id);
     if (error) return toast.error(error.message);
+    toast.success("Categoría eliminada");
+    if (filterCat === c.name) setFilterCat("all");
+    if (cFilterCat === c.name) setCFilterCat("all");
+    if (catForm.id === c.id) resetCat();
     load();
   };
 
@@ -464,17 +477,24 @@ export default function AdminShopping() {
                   <input className="field flex-1 min-w-[180px]" placeholder="Nueva categoría" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} required />
                   <input className="field w-24" type="number" placeholder="Orden" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: numberInputValue(e.target.value) })} />
                   <button className="btn-primary"><Plus className="h-4 w-4" /> Añadir</button>
+                  <button
+                    type="button"
+                    className="btn-secondary shopping-delete-category-button"
+                    onClick={() => activeCategoryRecord ? delCat(activeCategoryRecord) : toast.error("Selecciona una categoría para borrar.")}
+                    disabled={!activeCategoryRecord}
+                    title={activeCategoryRecord ? "Borrar categoría seleccionada" : "Selecciona una categoría para borrar"}
+                  >
+                    <Trash2 className="h-4 w-4" /> Borrar categoría
+                  </button>
                 </form>
 
                 {activeCategoryRecord && (() => {
-                  const usage = (counts[activeCategoryRecord.name] ?? 0) + (cCounts[activeCategoryRecord.name] ?? 0);
                   return (
                     <div className="shopping-category-actions">
                       <span className="text-xs muted">Ordenar “{activeCategoryRecord.name}”</span>
                       <button type="button" onClick={() => moveCat(activeCategoryRecord, -1)} className="btn-secondary compact" aria-label="Subir categoría"><ArrowUp className="h-4 w-4" /></button>
                       <button type="button" onClick={() => moveCat(activeCategoryRecord, 1)} className="btn-secondary compact" aria-label="Bajar categoría"><ArrowDown className="h-4 w-4" /></button>
                       <button type="button" onClick={() => setCatForm({ id: activeCategoryRecord.id, name: activeCategoryRecord.name, sort_order: activeCategoryRecord.sort_order, _origName: activeCategoryRecord.name })} className="btn-secondary compact" aria-label="Editar categoría"><Pencil className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => delCat(activeCategoryRecord)} className={`btn-secondary compact ${usage > 0 ? "opacity-45 cursor-not-allowed" : "text-destructive"}`} title={usage > 0 ? "Reasigna los productos antes de borrar" : "Eliminar categoría"}><Trash2 className="h-4 w-4" /></button>
                     </div>
                   );
                 })()}

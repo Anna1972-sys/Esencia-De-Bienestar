@@ -73,6 +73,47 @@ function toEmbed(url: string) {
 
 const asArray = (value: unknown): string[] => Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 const toNumber = (value: unknown) => Number(value) || 0;
+const formatGrams = (value: number) => Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function isGenericGramMeasure(name: string) {
+  const normalized = normalizeText(name);
+  return /^(gramos?|100\s*(g|gr|gramos?))$/.test(normalized);
+}
+
+function formatMeasureName(measure: ProductMeasure, product: Product) {
+  const measureName = String(measure.name ?? "").trim();
+  const servingSize = String(product.serving_size ?? "").trim();
+  const servingLabel = /raci[oó]n|serving/i.test(servingSize) ? servingSize : "1 ración";
+
+  if (measure.is_default && isGenericGramMeasure(measureName)) return servingLabel;
+  return measureName || servingLabel;
+}
+
+function formatMeasureSubtitle(measure: ProductMeasure, product: Product) {
+  const measureName = String(measure.name ?? "").trim();
+  const servingSize = String(product.serving_size ?? "").trim();
+  const explicitUnit = measureName.match(/^\d+(?:[.,]\d+)?\s*(?:g|gr|gramos?|ml|raci[oó]n|raciones|serving)\b/i)?.[0];
+  const isServingMeasure = /raci[oó]n|serving/i.test(`${measureName} ${servingSize}`);
+  const isGenericDefaultMeasure = measure.is_default && isGenericGramMeasure(measureName);
+
+  if (measure.is_default && (isServingMeasure || isGenericDefaultMeasure)) {
+    const servingLabel = /raci[oó]n|serving/i.test(servingSize) ? servingSize : explicitUnit ?? "1 ración";
+    const grams = product.serving_grams > 0 ? `${formatGrams(product.serving_grams)} g` : "";
+    return ["principal", grams].filter(Boolean).join(" · ");
+  }
+
+  if (measure.is_default && explicitUnit) return `${explicitUnit} · principal`;
+
+  return `${formatGrams(measure.grams)} g${measure.is_default ? " · principal" : ""}`;
+}
 
 type ProductBlockId =
   | "main_image"
@@ -178,7 +219,7 @@ export default function ProductDetail() {
               {category?.name && <div className="product-detail-category">{category.name}</div>}
               <h1>{product.name}</h1>
               <div className="flex flex-wrap gap-2 mt-5">
-                <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
+                <span className={`${product.verification_status === "verificado" ? "chip-lavender" : "chip"} product-detail-status-chip`}>{product.verification_status}</span>
                 {product.label_file_url && (
                   <a href={product.label_file_url} target="_blank" rel="noreferrer" className="product-detail-label-link">
                     <FileText className="h-3.5 w-3.5" /> Etiqueta
@@ -262,8 +303,8 @@ export default function ProductDetail() {
                 .map(measure => (
                   <div key={measure.id} className="rounded-2xl bg-secondary p-3">
                     <div className="flex items-center justify-between gap-3 mb-2">
-                      <div className="font-medium">{measure.name}</div>
-                      <div className="text-xs muted">{measure.grams} g {measure.is_default ? "· principal" : ""}</div>
+                      <div className="font-medium">{formatMeasureName(measure, product)}</div>
+                      <div className="text-xs muted">{formatMeasureSubtitle(measure, product)}</div>
                     </div>
                     <div className="grid grid-cols-5 gap-1 text-[11px] text-center">
                       <Stat label="Kcal" value={measure.calories} />

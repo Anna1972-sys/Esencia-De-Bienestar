@@ -119,7 +119,7 @@ export async function calculateWithMacroSpecialist(input: MacroSpecialistInput):
       endpoint,
       status: data.status,
       servings: data.servings,
-      found: data.found?.map((item: any) => ({ name: item.name, matchedAs: item.matchedAs, source: item.source, grams: item.grams })),
+      found: data.found?.map((item: any) => ({ name: item.name, matchedAs: item.matchedAs, source: item.source, sourceLabel: item.sourceLabel, grams: item.grams })),
       notFound: data.notFound,
       missingGrams: data.missingGrams,
       warnings: data.warnings,

@@ -31,6 +31,17 @@ type FormState = Omit<InternalFood, "id" | "synonyms" | "base_quantity" | "calor
   fiber: AdminNumberValue;
 };
 
+type BaseUnitOption = "100g" | "50g" | "25g" | "100ml" | "serving";
+type NutrientFieldKey = "calories" | "protein" | "carbs" | "fat" | "fiber";
+
+const NUTRIENT_FIELDS: Array<[NutrientFieldKey, string]> = [
+  ["calories", "Calorías"],
+  ["protein", "Proteínas"],
+  ["carbs", "Hidratos"],
+  ["fat", "Grasas"],
+  ["fiber", "Fibra"],
+];
+
 const emptyForm: FormState = {
   name: "",
   synonyms: "",
@@ -58,6 +69,21 @@ const normalizeText = (value: unknown) =>
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+
+const baseUnitOptionFromForm = (form: FormState): BaseUnitOption => {
+  if (form.base_unit === "serving") return "serving";
+  if (form.base_unit === "ml") return "100ml";
+  if (Number(form.base_quantity) === 25) return "25g";
+  return Number(form.base_quantity) === 50 ? "50g" : "100g";
+};
+
+const baseUnitPatch = (value: BaseUnitOption): Pick<FormState, "base_quantity" | "base_unit"> => {
+  if (value === "50g") return { base_quantity: 50, base_unit: "g" };
+  if (value === "25g") return { base_quantity: 25, base_unit: "g" };
+  if (value === "100ml") return { base_quantity: 100, base_unit: "ml" };
+  if (value === "serving") return { base_quantity: 1, base_unit: "serving" };
+  return { base_quantity: 100, base_unit: "g" };
+};
 
 const SEARCH_FAMILIES: Record<string, string[]> = {
   carne: ["carne", "pollo", "pavo", "ternera", "cerdo", "conejo", "lomo", "jamon", "picada"],
@@ -230,6 +256,13 @@ export default function AdminInternalFoods() {
   };
 
   const updateForm = (patch: Partial<FormState>) => setForm(prev => ({ ...prev, ...patch }));
+  const quickAdjustNutrient = (key: NutrientFieldKey, delta: number) => {
+    setForm(prev => {
+      const current = numberOrFallback(prev[key], 0);
+      const next = Math.max(0, current + delta);
+      return { ...prev, [key]: Number(next.toFixed(1)) };
+    });
+  };
 
   return (
     <div className="admin-internal-foods-page pb-28 max-w-3xl mx-auto">
@@ -274,9 +307,11 @@ export default function AdminInternalFoods() {
           </label>
           <label className="space-y-1">
             <span className="text-xs muted">Unidad base</span>
-            <select className="field" value={form.base_unit} onChange={e => updateForm({ base_unit: e.target.value as FormState["base_unit"] })}>
-              <option value="g">100 g / gramos</option>
-              <option value="ml">100 ml / mililitros</option>
+            <select className="field" value={baseUnitOptionFromForm(form)} onChange={e => updateForm(baseUnitPatch(e.target.value as BaseUnitOption))}>
+              <option value="100g">100 g / gramos</option>
+              <option value="50g">50 g / gramos</option>
+              <option value="25g">25 g / gramos</option>
+              <option value="100ml">100 ml / mililitros</option>
               <option value="serving">1 ración</option>
             </select>
           </label>
@@ -287,17 +322,38 @@ export default function AdminInternalFoods() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {([
-            ["calories", "Calorías"],
-            ["protein", "Proteínas"],
-            ["carbs", "Hidratos"],
-            ["fat", "Grasas"],
-            ["fiber", "Fibra"],
-          ] as const).map(([key, label]) => (
-            <label key={key} className="space-y-1">
-              <span className="text-xs muted">{label}</span>
-              <input className="field" type="number" step="0.1" value={form[key]} onChange={e => updateForm({ [key]: numberInputValue(e.target.value) } as Partial<FormState>)} />
-            </label>
+          {NUTRIENT_FIELDS.map(([key, label]) => (
+            <div key={key} className="space-y-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs muted">{label}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="inline-flex h-6 w-7 items-center justify-center rounded-full border border-primary/35 bg-white/85 text-[9px] font-semibold text-primary shadow-sm"
+                    onClick={() => quickAdjustNutrient(key, -50)}
+                    aria-label={`Restar 50 a ${label}`}
+                  >
+                    -50
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-6 w-7 items-center justify-center rounded-full border border-primary/35 bg-white/85 text-[9px] font-semibold text-primary shadow-sm"
+                    onClick={() => quickAdjustNutrient(key, 50)}
+                    aria-label={`Sumar 50 a ${label}`}
+                  >
+                    +50
+                  </button>
+                </div>
+              </div>
+              <input
+                className="field"
+                type="number"
+                step="0.1"
+                min="0"
+                value={form[key]}
+                onChange={e => updateForm({ [key]: numberInputValue(e.target.value) } as Partial<FormState>)}
+              />
+            </div>
           ))}
         </div>
 
