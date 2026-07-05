@@ -152,39 +152,24 @@ export default function Products() {
       </section>
 
       {activeProductSection && (
-        <section ref={openedSectionRef} className="products-client-access-panel" aria-label={`Productos de ${activeSection?.title ?? "la sección seleccionada"}`}>
-          <div className="products-client-access-panel-header">
-            <p>Salud y Bienestar</p>
-            <h2>{activeSection?.title}</h2>
+        <>
+          <div className="products-client-search-card">
+            <div className="relative">
+              <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                className="field pl-9"
+                placeholder="Buscar producto o categoría…"
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="relative mb-4">
-            <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              className="field pl-9"
-              placeholder="Buscar producto o categoría…"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-            />
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
-            <button
-              onClick={() => setActiveCategory("")}
-              className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${!activeCategory ? "bg-primary text-white" : "bg-muted"}`}
-            >
-              Todo
-            </button>
-            {categories.map(category => (
-              <button
-                key={category.id}
-                onClick={() => setActiveCategory(category.id)}
-                className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${activeCategory === category.id ? "bg-primary text-white" : "bg-muted"}`}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
+          <section ref={openedSectionRef} className="products-client-access-panel" aria-label={`Productos de ${activeSection?.title ?? "la sección seleccionada"}`}>
+            <div className="products-client-access-panel-header">
+              <p>Salud y Bienestar</p>
+              <h2>{activeSection?.title}</h2>
+            </div>
 
           {filtered.length === 0 ? (
             <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
@@ -210,10 +195,6 @@ export default function Products() {
                     <div className="product-client-list-info">
                       <div className="min-w-0">
                         <h2 className="product-client-list-title">{product.name}</h2>
-                        {category?.name && <div className="product-client-list-category">{category.name}</div>}
-                      </div>
-                      <div className="product-client-list-meta">
-                        <span className={product.verification_status === "verificado" ? "product-client-list-chip product-client-list-chip-verified" : "product-client-list-chip"}>{product.verification_status ?? "pendiente"}</span>
                       </div>
                     </div>
                     <div className="product-client-list-footer">
@@ -226,7 +207,8 @@ export default function Products() {
               })}
             </div>
           )}
-        </section>
+          </section>
+        </>
       )}
     </div>
   );

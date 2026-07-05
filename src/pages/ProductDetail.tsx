@@ -177,7 +177,7 @@ export default function ProductDetail() {
             <div className="product-detail-hero-copy">
               {category?.name && <div className="product-detail-category">{category.name}</div>}
               <h1>{product.name}</h1>
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 mt-5">
                 <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
                 {product.label_file_url && (
                   <a href={product.label_file_url} target="_blank" rel="noreferrer" className="product-detail-label-link">
