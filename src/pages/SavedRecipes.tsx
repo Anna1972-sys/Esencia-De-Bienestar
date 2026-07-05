@@ -68,7 +68,7 @@ export default function SavedRecipes() {
   const filtered = items.filter(r => String(r.title ?? "").toLowerCase().includes(String(q ?? "").toLowerCase()));
 
   return (
-    <div>
+    <div className="saved-recipes-page">
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
@@ -81,11 +81,11 @@ export default function SavedRecipes() {
           {filtered.map(r => {
             const macros = r.macros ?? {};
             const nutritionAvailable = hasNutrition(macros);
-            const isHighProtein = macroValue(macros, "protein") >= 25 || r.is_high_protein;
-            return <details key={r.id} className="recipe-premium rounded-[24px] bg-white/90 group">
+            const isHighProtein = nutritionAvailable && macroValue(macros, "protein") >= 25;
+            return <details key={r.id} className="recipe-premium saved-recipe-card rounded-[24px] bg-white/90 group">
               <summary className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                <div className="grid grid-cols-[42%_1fr] min-h-[142px] items-stretch">
-                  <div className="recipe-premium-image relative h-full min-h-[142px] overflow-hidden bg-gradient-to-br from-white via-primary/10 to-primary/20">
+                <div className="saved-recipe-summary grid grid-cols-[42%_1fr] h-[142px] items-stretch">
+                  <div className="recipe-premium-image relative h-full overflow-hidden bg-gradient-to-br from-white via-primary/10 to-primary/20">
                     <div className="absolute inset-0 grid place-items-center text-primary/70">
                       <div className="h-14 w-14 rounded-2xl bg-white/80 border border-primary/20 grid place-items-center shadow-sm">
                         <ChefHat className="h-7 w-7" />
@@ -101,34 +101,41 @@ export default function SavedRecipes() {
                       />
                     )}
                   </div>
-                  <div className="p-5 flex flex-col justify-center min-w-0">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="font-semibold text-lg leading-tight">{r.title}</div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {nutritionAvailable && isHighProtein && <span className="chip">Alta proteína</span>}
+                  <div className="saved-recipe-content p-4 grid grid-cols-[minmax(0,1fr)_92px] gap-2 items-start min-w-0">
+                    <div className="min-w-0 self-center">
+                      <div className="saved-recipe-title font-semibold text-lg leading-tight">{r.title}</div>
+                      <div className="text-[11px] leading-relaxed muted mt-2.5">
+                        {r.prep_time ?? "—"} min · {nutritionAvailable ? nutritionLabel(macros) : "Nutrición no registrada"}
+                      </div>
+                    </div>
+                    <div className="saved-recipe-actions flex flex-col items-center justify-center gap-2 shrink-0 self-center">
+                        {nutritionAvailable && isHighProtein ? (
+                          <span className="chip saved-recipe-chip">Alta proteína</span>
+                        ) : (
+                          <span className="saved-recipe-chip-placeholder" aria-hidden="true" />
+                        )}
+                        <span className="saved-recipe-view-btn">Ver</span>
                         {isAdmin && (
                           <button
                             type="button"
                             aria-label="Eliminar receta"
-                            className="btn-ghost h-8 w-8 p-0 text-destructive"
+                            className="saved-recipe-delete-btn btn-ghost text-destructive"
                             onClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
                               setConfirmRecipe(r);
                             }}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Eliminar</span>
                           </button>
                         )}
-                      </div>
-                    </div>
-                    <div className="text-[11px] leading-relaxed muted mt-2.5">
-                      {r.prep_time ?? "—"} min · {nutritionAvailable ? nutritionLabel(macros) : "Nutrición no registrada"}
                     </div>
                   </div>
                 </div>
               </summary>
               <div className="text-sm px-4 pb-4 space-y-3">
+                <h2 className="font-semibold text-lg leading-tight text-foreground pt-1">{r.title}</h2>
                 <p className="muted">{r.description}</p>
                 <div>
                   {nutritionAvailable && (
