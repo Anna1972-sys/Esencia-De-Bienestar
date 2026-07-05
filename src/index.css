@@ -1911,7 +1911,7 @@
   .admin-dashboard .admin-card {
     min-height: 286px;
     height: 286px;
-    background: hsl(0 0% 100%);
+    background: #FFF7FA;
     border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
     display: flex;
@@ -1937,6 +1937,25 @@
   .admin-dashboard .admin-card-body {
     min-height: 92px;
     flex: 1;
+    background: #FFF7FA;
+  }
+
+  .admin-dashboard .admin-card.admin-card-sport-nutrition {
+    background: #1F1F1F !important;
+    color: #FFFFFF;
+  }
+
+  .admin-dashboard .admin-card.admin-card-sport-nutrition .admin-card-body {
+    background: #1F1F1F !important;
+  }
+
+  .admin-dashboard .admin-card.admin-card-sport-nutrition .font-medium {
+    color: #FFFFFF !important;
+  }
+
+  .admin-dashboard .admin-card.admin-card-sport-nutrition .muted,
+  .admin-dashboard .admin-card.admin-card-sport-nutrition svg {
+    color: rgba(255, 255, 255, .78) !important;
   }
 
   /* Design system unificado — tarjetas, formularios y acciones */
@@ -1968,6 +1987,19 @@
   .admin-dashboard .admin-card {
     min-height: 286px;
     height: 286px;
+  }
+
+  .admin-dashboard .admin-card {
+    background: #FFF7FA !important;
+  }
+
+  .admin-dashboard .admin-card .admin-card-body {
+    background: #FFF7FA !important;
+  }
+
+  .admin-dashboard .admin-card.admin-card-sport-nutrition,
+  .admin-dashboard .admin-card.admin-card-sport-nutrition .admin-card-body {
+    background: #1F1F1F !important;
   }
 
   .card-soft .card-soft,

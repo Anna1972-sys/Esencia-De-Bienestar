@@ -138,7 +138,7 @@ export default function Admin() {
                 <Link
                   key={s.to}
                   to={s.to}
-                  className="challenge-premium admin-card group relative overflow-hidden rounded-[28px] hover:-translate-y-0.5 transition-all duration-200"
+                  className={`challenge-premium admin-card group relative overflow-hidden rounded-[28px] hover:-translate-y-0.5 transition-all duration-200 ${s.to === "/app/admin/nutricion" ? "admin-card-sport-nutrition" : ""}`}
                 >
                   <img src={s.image} alt="" className={`admin-card-image transition-transform duration-500 group-hover:scale-105 ${s.imageClass ?? ""}`} />
                   <div className="admin-card-body flex items-center gap-3 px-4 py-3.5">
