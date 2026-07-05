@@ -938,17 +938,6 @@
     display: none !important;
   }
 
-  .admin-products .admin-products-access-trigger .admin-products-access-arrow {
-    display: block !important;
-    position: absolute;
-    right: .65rem;
-    bottom: .95rem;
-    width: .85rem;
-    height: .85rem;
-    color: #111111;
-    transition: transform .2s ease;
-  }
-
   .admin-products .admin-products-access-body {
     border-top: 1px solid #FF2D95;
     padding: 1rem;
@@ -1226,6 +1215,10 @@
     font-size: .7rem;
     font-weight: 800;
     padding: .32rem .62rem;
+  }
+
+  .product-detail-page .card-soft {
+    background: #FFF7FA;
   }
 
   .products-client-hero-card {
@@ -2014,6 +2007,11 @@
   .admin-dashboard .admin-card.admin-card-sport-nutrition,
   .admin-dashboard .admin-card.admin-card-sport-nutrition .admin-card-body {
     background: #1F1F1F !important;
+  }
+
+  .product-detail-page .card-soft {
+    background: #FFF7FA !important;
+    border-color: #FF2D95 !important;
   }
 
   .card-soft .card-soft,

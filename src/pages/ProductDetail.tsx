@@ -390,7 +390,7 @@ export default function ProductDetail() {
   };
 
   return (
-    <article className="pb-8 space-y-5">
+    <article className="product-detail-page pb-8 space-y-5">
       <BackButton fallbackTo="/app/productos" className="text-sm muted inline-flex items-center gap-1">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
