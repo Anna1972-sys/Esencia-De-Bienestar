@@ -38,6 +38,8 @@ type ProductMeasure = {
 
 type Product = {
   id: string;
+  created_at?: string | null;
+  updated_at?: string | null;
   category_id: string | null;
   name: string;
   slug: string;
@@ -382,9 +384,11 @@ export default function AdminProducts() {
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [openAccessSection, setOpenAccessSection] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [readingLabel, setReadingLabel] = useState(false);
+  const keepEditingAfterSave = useRef(false);
 
   const load = async () => {
     setLoading(true);
@@ -424,7 +428,15 @@ export default function AdminProducts() {
     });
   }, [products, query, filterCategory, categoryById]);
 
-  const resetProduct = () => setForm(emptyProduct);
+  const resetProduct = () => {
+    setForm(emptyProduct);
+    setEditorOpen(false);
+  };
+  const startNewProduct = () => {
+    setForm(emptyProduct);
+    setEditorOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const resetCategory = () => {
     setEditingCategory(null);
     setCategoryName("");
@@ -616,9 +628,16 @@ export default function AdminProducts() {
         return toast.error(error.message);
       }
     }
+    const keepEditorOpen = keepEditingAfterSave.current;
+    keepEditingAfterSave.current = false;
     setSaving(false);
     toast.success(form.id ? "Producto actualizado" : "Producto creado");
-    resetProduct();
+    if (keepEditorOpen) {
+      setForm(prev => ({ ...prev, id: productId }));
+      setEditorOpen(true);
+    } else {
+      resetProduct();
+    }
     load();
   };
 
@@ -673,6 +692,7 @@ export default function AdminProducts() {
       nutrition_verified_at: product.nutrition_verified_at ?? null,
       measures: measures.length ? measures.map(normalizeMeasure) : [emptyMeasure],
     });
+    setEditorOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -708,6 +728,23 @@ export default function AdminProducts() {
     const { error } = await (supabase as any).from("products").update({ is_active: !product.is_active }).eq("id", product.id);
     if (error) toast.error(error.message);
     else load();
+  };
+
+  const previewProduct = (productId?: string | null) => {
+    if (!productId) return toast.error("Guarda el producto antes de abrir la vista previa");
+    window.open(`/app/productos/${productId}`, "_blank", "noopener,noreferrer");
+  };
+
+  const duplicateCurrentProduct = () => {
+    const current = form.id ? products.find(product => product.id === form.id) : null;
+    if (!current) return toast.error("Guarda el producto antes de duplicarlo");
+    duplicateProduct(current);
+  };
+
+  const deleteCurrentProduct = () => {
+    const current = form.id ? products.find(product => product.id === form.id) : null;
+    if (current) deleteProduct(current);
+    else resetProduct();
   };
 
   const uploadInto = async (file: File, kind: "main" | "gallery" | "video" | "pdf" | "spoon") => {
@@ -932,28 +969,70 @@ export default function AdminProducts() {
         subtitle="Base oficial de productos para clientes, recetas y cálculos nutricionales."
       />
 
-      <section className="admin-products-access-list space-y-3 mb-5">
-        {PRODUCT_ADMIN_ACCESS_SECTIONS.map(section => {
-          const isOpen = openAccessSection === section.id;
-          return (
-            <article key={section.id} data-section={section.id} className={`admin-products-access-card card-soft ${isOpen ? "is-open" : ""}`}>
-              <button
-                type="button"
-                className="admin-products-access-trigger"
-                onClick={() => setOpenAccessSection(isOpen ? null : section.id)}
-                aria-expanded={isOpen}
-              >
-                <span className="admin-products-access-image-wrap">
-                  <img src={section.image} alt={section.title} />
-                </span>
-                <span className="admin-products-access-title">{section.title}</span>
-                <ArrowDown className={`h-5 w-5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-              </button>
+      <section className="card-soft admin-products-panel p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-2xl">Productos existentes</h2>
+            <p className="text-xs muted">Edita, elimina o abre cada ficha sin entrar en el formulario completo.</p>
+          </div>
+          <button type="button" className="btn-primary" onClick={startNewProduct}>
+            <Plus className="h-4 w-4" /> Nuevo producto
+          </button>
+        </div>
 
-              {isOpen && (
-                <div className="admin-products-access-body">
-                  <section className="grid grid-cols-1 gap-5 mb-5">
-        <form onSubmit={saveCategory} className="card-soft admin-products-panel p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <input className="field pl-9" placeholder="Buscar producto…" value={query} onChange={e => setQuery(e.target.value)} />
+          </div>
+          <select className="field sm:max-w-56" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+            <option value="">Todas las categorías</option>
+            {categories.map(category => <option key={category.id} value={category.id}>{categoryOptionLabel(category)}</option>)}
+          </select>
+        </div>
+
+        {loading ? <div className="muted text-sm">Cargando productos…</div> : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {filteredProducts.map(product => (
+              <article key={product.id} className="admin-product-row admin-product-list-card rounded-[26px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
+                <div className="admin-product-list-main">
+                  <div className="admin-product-list-image">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.name} />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-rosa/20 grid place-items-center">
+                        <ImageIcon className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="admin-product-list-content">
+                    <div className="font-sans font-extrabold text-lg leading-tight">{product.name}</div>
+                    <div className="text-sm muted mt-1">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
+                    <div className="text-[11px] muted mt-1">{formatProductDate(product.created_at ?? product.updated_at)}</div>
+                    <div className="admin-product-list-tags text-[10px]">
+                      <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
+                      <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="admin-product-list-actions">
+                  <button type="button" className="admin-product-action-button" onClick={() => editProduct(product)}>Editar</button>
+                  <button type="button" className="admin-product-action-button" onClick={() => previewProduct(product.id)}>Ver</button>
+                  <button type="button" className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
+                </div>
+              </article>
+            ))}
+            {!filteredProducts.length && <div className="text-sm muted text-center p-6">No hay productos que coincidan.</div>}
+          </div>
+        )}
+      </section>
+
+      <button type="button" className="admin-products-floating-new btn-primary" onClick={startNewProduct}>
+        <Plus className="h-4 w-4" /> Nuevo producto
+      </button>
+
+      <ProductAccordion title="Gestión de categorías" subtitle="Crear, editar, ocultar o eliminar categorías." className="mt-5">
+        <form onSubmit={saveCategory} className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="font-serif text-xl">{editingCategory ? "Editar categoría" : "Nueva categoría"}</h2>
@@ -1019,353 +1098,391 @@ export default function AdminProducts() {
             ))}
           </div>
         </form>
+      </ProductAccordion>
 
-        <div className="card-soft admin-products-panel p-4">
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <div className="relative flex-1">
-              <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-              <input className="field pl-9" placeholder="Buscar producto…" value={query} onChange={e => setQuery(e.target.value)} />
+      {editorOpen && (
+        <form id="admin-product-editor-form" onSubmit={saveProduct} className="admin-products-editor mt-5 space-y-3">
+          <div className="admin-products-editor-toolbar card-soft admin-products-panel p-3">
+            <div className="min-w-0">
+              <h2 className="font-serif text-2xl truncate">{form.id ? `Editar: ${form.name || "producto"}` : "Nuevo producto"}</h2>
+              <p className="text-xs muted">Los bloques están plegados para reducir el scroll. Abre solo lo que necesites.</p>
             </div>
-            <select className="field sm:max-w-56" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-              <option value="">Todas las categorías</option>
-              {categories.map(category => <option key={category.id} value={category.id}>{categoryOptionLabel(category)}</option>)}
-            </select>
-          </div>
-          {loading ? <div className="muted text-sm">Cargando productos…</div> : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {filteredProducts.map(product => (
-                <div key={product.id} className="admin-product-row admin-product-list-card rounded-[26px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
-                  <div className="admin-product-list-main">
-                    <div className="admin-product-list-image">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-rosa/20 grid place-items-center">
-                          <ImageIcon className="h-6 w-6 text-primary" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="admin-product-list-content">
-                      <div className="font-sans font-extrabold text-lg leading-tight">{product.name}</div>
-                      <div className="text-sm muted mt-1">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
-                      <div className="admin-product-list-tags text-[10px]">
-                        <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
-                        <span className={product.verification_status === "verificado" ? "chip-lavender" : "chip"}>{product.verification_status}</span>
-                        {product.visible_to_clients && <span className="chip-lavender">Clientes</span>}
-                        {product.available_for_recipes && <span className="chip-lavender">Recetas</span>}
-                        {product.informative_only && <span className="chip">Solo informativo</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="admin-product-list-actions">
-                    <button type="button" className="admin-product-action-button" onClick={() => editProduct(product)}>Editar</button>
-                    <button type="button" className="admin-product-action-button" onClick={() => duplicateProduct(product)}>Duplicar</button>
-                    <button type="button" className="admin-product-action-button" onClick={() => toggleProduct(product)}>{product.is_active ? "Desactivar" : "Activar"}</button>
-                    <button type="button" className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
-                  </div>
-                </div>
-              ))}
-              {!filteredProducts.length && <div className="text-sm muted text-center p-6">No hay productos que coincidan.</div>}
-            </div>
-          )}
-        </div>
-                  </section>
-
-      <form onSubmit={saveProduct} className="space-y-5">
-        <section className="card-soft p-4 sm:p-5 space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-2xl">{form.id ? "Editar producto" : "Nuevo producto"}</h2>
-            <p className="text-xs muted">Información visible, materiales, nutrición por 100 g y medidas habituales.</p>
-          </div>
-          <div className="flex flex-wrap gap-2 justify-end">
-            <button type="button" className="btn-primary text-xs py-2" onClick={clearProductBasics}>
-              <Trash2 className="h-3.5 w-3.5" /> Borrar
-            </button>
-            {form.id && <button type="button" className="btn-secondary" onClick={resetProduct}><Plus className="h-4 w-4" /> Nuevo</button>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input className="field" placeholder="Nombre" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <select className="field" value={form.category_id ?? ""} onChange={e => setForm({ ...form, category_id: e.target.value })}>
-            <option value="">Sin categoría</option>
-            {categories.map(category => (
-              <option
-                key={category.id}
-                value={category.id}
-                disabled={!category.is_active && form.category_id !== category.id}
-              >
-                {categoryOptionLabel(category)}
-              </option>
-            ))}
-          </select>
-          <input className="field" placeholder="Línea / categoría comercial" value={form.line ?? ""} onChange={e => setForm({ ...form, line: e.target.value })} />
-          <select className="field" value={form.verification_status} onChange={e => setForm({ ...form, verification_status: e.target.value as ProductForm["verification_status"] })}>
-            <option value="pendiente">Pendiente</option>
-            <option value="verificado">Verificado</option>
-          </select>
-          <input
-            className="field"
-            type="datetime-local"
-            value={form.nutrition_verified_at ? form.nutrition_verified_at.slice(0, 16) : ""}
-            onChange={e => setForm({ ...form, nutrition_verified_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
-            aria-label="Fecha de verificación"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-xs muted">Alias inteligentes</span>
-            <textarea
-              className="field min-h-20 mt-1"
-              value={form.aliasesText}
-              onChange={e => setForm({ ...form, aliasesText: e.target.value })}
-              placeholder="F1, Fórmula Uno, Batido Herbalife…"
-            />
-            <p className="text-[11px] muted mt-1">Separados por coma. Se usan para reconocer productos en recetas y generador IA.</p>
-          </label>
-          <label className="block">
-            <span className="text-xs muted">Fuente</span>
-            <textarea
-              className="field min-h-20 mt-1"
-              value={form.source}
-              onChange={e => setForm({ ...form, source: e.target.value })}
-              placeholder="Etiqueta oficial Herbalife España, imagen de cuchara, pendiente…"
-            />
-          </label>
-        </div>
-        </section>
-
-        <section className="rounded-[22px] bg-secondary/60 p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-            <div>
-              <h3 className="font-serif text-xl leading-none">Etiqueta nutricional oficial</h3>
-              <p className="text-xs muted mt-1">Lee una etiqueta como ayuda. El producto seguirá en Pendiente hasta que lo revises y lo marques como Verificado.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <label className="btn-primary cursor-pointer justify-center">
-                <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*,application/pdf"
-                  disabled={readingLabel}
-                  onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
-                />
-              </label>
-              <button type="button" className="btn-primary" onClick={() => clearProductMedia("label_file_url")}>
-                <Trash2 className="h-4 w-4" /> Borrar
+            <div className="admin-products-editor-actions">
+              <button type="submit" className="btn-primary" disabled={saving} onClick={() => { keepEditingAfterSave.current = false; }}>
+                <Save className="h-4 w-4" /> {saving ? "Guardando…" : "Guardar"}
+              </button>
+              <button type="submit" className="btn-primary" disabled={saving} onClick={() => { keepEditingAfterSave.current = true; }}>
+                <Save className="h-4 w-4" /> Guardar y continuar
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => previewProduct(form.id)}>
+                <Eye className="h-4 w-4" /> Vista previa
+              </button>
+              {form.id && (
+                <button type="button" className="btn-secondary" onClick={duplicateCurrentProduct}>
+                  <Plus className="h-4 w-4" /> Duplicar
+                </button>
+              )}
+              <button type="button" className="btn-secondary text-destructive" onClick={deleteCurrentProduct}>
+                <Trash2 className="h-4 w-4" /> Eliminar producto
               </button>
             </div>
           </div>
-          {form.label_file_url && (
-            <a href={form.label_file_url} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold underline">
-              Ver etiqueta guardada
-            </a>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-            <input className="field md:col-span-2" placeholder="Tamaño de ración oficial (ej. 2 cucharas rasas / 26 g)" value={form.serving_size ?? ""} onChange={e => setForm({ ...form, serving_size: e.target.value })} />
-            <NumberField label="Gramos por ración" value={form.serving_grams} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_grams: value }))} />
-          </div>
-        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <MediaUploader
-            title="Imagen principal"
-            url={form.image_url ?? ""}
-            accept="image/*"
-            icon={<ImageIcon className="h-4 w-4" />}
-            onUpload={file => uploadInto(file, "main")}
-            onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
-            onClear={() => clearProductMedia("image_url")}
-          />
-          <MediaUploader
-            title="Imagen cuchara oficial Herbalife"
-            url={form.spoon_image_url ?? ""}
-            accept="image/*"
-            icon={<ImageIcon className="h-4 w-4" />}
-            onUpload={file => uploadInto(file, "spoon")}
-            onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
-            onClear={() => clearProductMedia("spoon_image_url")}
-            hint="Pulsa aquí para comprobar la medida de la cuchara oficial."
-            highlightHint
-          />
-        </div>
-
-        <section className="rounded-[22px] bg-secondary/60 p-3">
-          <div className="flex items-start gap-2 mb-3">
-            <MousePointerClick className="h-4 w-4 text-primary mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-serif text-xl leading-none">Orden visual de la ficha</h3>
-              <p className="text-xs muted mt-1">Mueve cada bloque para decidir cómo lo verá la clienta dentro del producto.</p>
-            </div>
-            <button type="button" className="btn-primary text-xs py-2" onClick={() => setForm(prev => ({ ...prev, blockOrder: DEFAULT_PRODUCT_BLOCK_ORDER }))}>
-              <Trash2 className="h-3.5 w-3.5" /> Borrar
-            </button>
-          </div>
-          <div className="space-y-2">
-            {form.blockOrder.map((blockId, index) => (
-              <div key={blockId} className="rounded-2xl bg-white/90 border border-primary/20 p-2 flex items-center gap-2">
-                <span className="admin-product-order-index h-7 w-7 rounded-full text-xs font-bold grid place-items-center">{index + 1}</span>
-                <span className="text-sm font-medium flex-1">{PRODUCT_BLOCK_LABELS[blockId]}</span>
-                <button type="button" className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35" disabled={index === 0} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, -1) }))} aria-label={`Subir ${PRODUCT_BLOCK_LABELS[blockId]}`}>
-                  <ArrowUp className="h-4 w-4" />
-                </button>
-                <button type="button" className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35" disabled={index === form.blockOrder.length - 1} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, 1) }))} aria-label={`Bajar ${PRODUCT_BLOCK_LABELS[blockId]}`}>
-                  <ArrowDown className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
-        <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} onClear={() => setForm(prev => ({ ...prev, video_urls: [] }))} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
-        <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onRemove={index => removeUrl("pdf_urls", index)} onClear={() => setForm(prev => ({ ...prev, pdf_urls: [] }))} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
-        <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onRemove={index => removeUrl("external_urls", index)} onClear={() => setForm(prev => ({ ...prev, external_urls: [] }))} />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <TextArea label="Descripción" value={form.description ?? ""} onChange={value => setForm({ ...form, description: value })} />
-          <TextArea label="Beneficios" value={form.benefits ?? ""} onChange={value => setForm({ ...form, benefits: value })} />
-          <TextArea label="Modo de empleo" value={form.usage ?? ""} onChange={value => setForm({ ...form, usage: value })} />
-          <TextArea label="Ingredientes" value={form.ingredients_text ?? ""} onChange={value => setForm({ ...form, ingredients_text: value })} />
-          <TextArea label="Observaciones" value={form.observations ?? ""} onChange={value => setForm({ ...form, observations: value })} />
-          <TextArea label="Texto libre" value={form.free_text ?? ""} onChange={value => setForm({ ...form, free_text: value })} />
-        </div>
-
-        <section className="card-soft p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <h3 className="font-serif text-xl">Información nutricional por ración oficial</h3>
-            <button type="button" className="btn-primary text-xs py-2" onClick={clearServingNutrition}>
-              <Trash2 className="h-3.5 w-3.5" /> Borrar
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-            <NumberField label="Calorías/ración" value={form.serving_calories} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_calories: value }))} />
-            <NumberField label="Proteínas/ración" value={form.serving_protein} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_protein: value }))} />
-            <NumberField label="Hidratos/ración" value={form.serving_carbs} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_carbs: value }))} />
-            <NumberField label="Azúcares/ración" value={form.serving_sugars} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_sugars: value }))} />
-            <NumberField label="Grasas/ración" value={form.serving_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fat: value }))} />
-            <NumberField label="Saturadas/ración" value={form.serving_saturated_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_saturated_fat: value }))} />
-            <NumberField label="Fibra/ración" value={form.serving_fiber} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fiber: value }))} />
-            <NumberField label="Sal/ración" value={form.serving_salt} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_salt: value }))} />
-          </div>
-
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <h3 className="font-serif text-xl">Información nutricional por 100 g</h3>
-            <button type="button" className="btn-primary text-xs py-2" onClick={clearPer100Nutrition}>
-              <Trash2 className="h-3.5 w-3.5" /> Borrar
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} />
-            <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} />
-            <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} />
-            <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} />
-            <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} />
-            <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} />
-            <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} />
-            <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} />
-          </div>
-          <div className="rounded-[22px] bg-secondary/70 p-3 mt-4">
-            <h4 className="font-bold text-sm mb-2">Cálculo automático por gramo</h4>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <ReadonlyMacro label="Kcal/g" value={perGram(form.calories, form.serving_calories, form.serving_grams) || "—"} />
-              <ReadonlyMacro label="Proteína/g" value={perGram(form.protein, form.serving_protein, form.serving_grams) || "—"} />
-              <ReadonlyMacro label="Hidratos/g" value={perGram(form.carbs, form.serving_carbs, form.serving_grams) || "—"} />
-              <ReadonlyMacro label="Grasa/g" value={perGram(form.fat, form.serving_fat, form.serving_grams) || "—"} />
-              <ReadonlyMacro label="Fibra/g" value={perGram(form.fiber, form.serving_fiber, form.serving_grams) || "—"} />
-            </div>
-          </div>
-          <label className="block text-xs muted mt-3 mb-1">Micronutrientes opcionales (JSON)</label>
-          <textarea className="field min-h-24 font-mono text-xs" value={form.micronutrientsText} onChange={e => setForm({ ...form, micronutrientsText: e.target.value })} placeholder='{"calcium_mg": 120, "iron_mg": 2}' />
-        </section>
-
-        <section className="card-soft p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div>
-              <h3 className="font-serif text-xl">Medidas habituales</h3>
-              <p className="text-xs muted">Introduce solo el nombre y los gramos. Los macros de cada medida se calculan automáticamente desde la ficha por 100 g.</p>
-            </div>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setForm(prev => ({
-                ...prev,
-                measures: [
-                  ...prev.measures,
-                  measureFromProductNutrition({ ...emptyMeasure, name: "", is_default: false, sort_order: prev.measures.length }, prev),
-                ],
-              }))}
-            >
-              <Plus className="h-4 w-4" /> Añadir
-            </button>
-          </div>
-          <div className="space-y-3">
-            {form.measures.map((measure, index) => (
-              <div key={index} className="admin-measure-row rounded-[22px] bg-secondary/70 p-3">
-                <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
-                  <input className="field md:col-span-2" placeholder="Nombre medida" value={measure.name} onChange={e => updateMeasure(index, { name: e.target.value })} />
-                  <NumberField label="Gramos" value={measure.grams} onChange={value => updateMeasure(index, { grams: value })} />
-                  <ReadonlyMacro label="Kcal" value={measure.calories} />
-                  <ReadonlyMacro label="Prot" value={`${measure.protein} g`} />
-                  <ReadonlyMacro label="Hidr" value={`${measure.carbs} g`} />
-                  <ReadonlyMacro label="Grasa" value={`${measure.fat} g`} />
-                  <ReadonlyMacro label="Fibra" value={`${measure.fiber} g`} />
+          <ProductAccordion title="Información general" defaultOpen>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-serif text-xl">Datos básicos</h3>
+                  <p className="text-xs muted">Información visible y estado de verificación.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-2 mt-2">
-                  <input
-                    className="field"
-                    placeholder="Fuente de la medida"
-                    value={measure.source}
-                    onChange={e => updateMeasure(index, { source: e.target.value })}
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button type="button" className="btn-primary text-xs py-2" onClick={clearProductBasics}>
+                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  </button>
+                  {form.id && <button type="button" className="btn-secondary" onClick={startNewProduct}><Plus className="h-4 w-4" /> Nuevo</button>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input className="field" placeholder="Nombre" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                <select className="field" value={form.category_id ?? ""} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                  <option value="">Sin categoría</option>
+                  {categories.map(category => (
+                    <option
+                      key={category.id}
+                      value={category.id}
+                      disabled={!category.is_active && form.category_id !== category.id}
+                    >
+                      {categoryOptionLabel(category)}
+                    </option>
+                  ))}
+                </select>
+                <input className="field" placeholder="Línea / categoría comercial" value={form.line ?? ""} onChange={e => setForm({ ...form, line: e.target.value })} />
+                <select className="field" value={form.verification_status} onChange={e => setForm({ ...form, verification_status: e.target.value as ProductForm["verification_status"] })}>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="verificado">Verificado</option>
+                </select>
+                <input
+                  className="field"
+                  type="datetime-local"
+                  value={form.nutrition_verified_at ? form.nutrition_verified_at.slice(0, 16) : ""}
+                  onChange={e => setForm({ ...form, nutrition_verified_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                  aria-label="Fecha de verificación"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs muted">Alias inteligentes</span>
+                  <textarea
+                    className="field min-h-20 mt-1"
+                    value={form.aliasesText}
+                    onChange={e => setForm({ ...form, aliasesText: e.target.value })}
+                    placeholder="F1, Fórmula Uno, Batido Herbalife…"
                   />
-                  <select
-                    className="field"
-                    value={measure.verification_status}
-                    onChange={e => updateMeasure(index, { verification_status: e.target.value as ProductMeasure["verification_status"] })}
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="verificado">Verificado</option>
-                  </select>
+                  <p className="text-[11px] muted mt-1">Separados por coma. Se usan para reconocer productos en recetas y generador IA.</p>
+                </label>
+                <label className="block">
+                  <span className="text-xs muted">Fuente</span>
+                  <textarea
+                    className="field min-h-20 mt-1"
+                    value={form.source}
+                    onChange={e => setForm({ ...form, source: e.target.value })}
+                    placeholder="Etiqueta oficial Herbalife España, imagen de cuchara, pendiente…"
+                  />
+                </label>
+              </div>
+            </div>
+          </ProductAccordion>
+
+          <ProductAccordion title="Etiqueta nutricional">
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-serif text-xl leading-none">Etiqueta nutricional oficial</h3>
+                  <p className="text-xs muted mt-1">Lee una etiqueta como ayuda. El producto seguirá en Pendiente hasta que lo revises y lo marques como Verificado.</p>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <button type="button" className={measure.is_default ? "btn-primary text-xs py-2" : "btn-secondary text-xs py-2"} onClick={() => markDefaultMeasure(index)}>Medida principal</button>
-                  <button type="button" className="btn-secondary text-xs py-2 text-destructive" onClick={() => setForm(prev => ({ ...prev, measures: prev.measures.filter((_, i) => i !== index) }))}><Trash2 className="h-3.5 w-3.5" /> Eliminar medida</button>
+                <div className="flex flex-wrap gap-2">
+                  <label className="btn-primary cursor-pointer justify-center">
+                    <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*,application/pdf"
+                      disabled={readingLabel}
+                      onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
+                    />
+                  </label>
+                  <button type="button" className="btn-primary" onClick={() => clearProductMedia("label_file_url")}>
+                    <Trash2 className="h-4 w-4" /> Borrar
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="card-soft p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 className="font-serif text-xl">Visibilidad y estado</h3>
-            <button type="button" className="btn-primary text-xs py-2" onClick={() => setForm(prev => ({ ...prev, visible_to_clients: true, available_for_recipes: true, informative_only: false, is_active: true }))}>
-              <Trash2 className="h-3.5 w-3.5" /> Borrar
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <Toggle label="Visible para clientes" checked={form.visible_to_clients} onChange={checked => setForm({ ...form, visible_to_clients: checked })} />
-          <Toggle label="Disponible para recetas" checked={form.available_for_recipes} onChange={checked => setForm({ ...form, available_for_recipes: checked })} />
-          <Toggle label="Solo informativo" checked={form.informative_only} onChange={checked => setForm({ ...form, informative_only: checked })} />
-          <Toggle label="Producto activo" checked={form.is_active} onChange={checked => setForm({ ...form, is_active: checked })} />
-          </div>
-        </section>
-
-        <button className="btn-primary w-full" disabled={saving}>
-          <Save className="h-4 w-4" /> {saving ? "Guardando…" : "Guardar producto"}
-        </button>
-      </form>
-                </div>
+              {form.label_file_url && (
+                <a href={form.label_file_url} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold underline">
+                  Ver etiqueta guardada
+                </a>
               )}
-            </article>
-          );
-        })}
-      </section>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input className="field md:col-span-2" placeholder="Tamaño de ración oficial (ej. 2 cucharas rasas / 26 g)" value={form.serving_size ?? ""} onChange={e => setForm({ ...form, serving_size: e.target.value })} />
+                <NumberField label="Gramos por ración" value={form.serving_grams} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_grams: value }))} />
+              </div>
+            </div>
+          </ProductAccordion>
+
+          <ProductAccordion title="Imágenes">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <MediaUploader
+                title="Imagen principal"
+                url={form.image_url ?? ""}
+                accept="image/*"
+                icon={<ImageIcon className="h-4 w-4" />}
+                onUpload={file => uploadInto(file, "main")}
+                onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
+                onClear={() => clearProductMedia("image_url")}
+              />
+              <MediaUploader
+                title="Imagen cuchara oficial Herbalife"
+                url={form.spoon_image_url ?? ""}
+                accept="image/*"
+                icon={<ImageIcon className="h-4 w-4" />}
+                onUpload={file => uploadInto(file, "spoon")}
+                onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
+                onClear={() => clearProductMedia("spoon_image_url")}
+                hint="Pulsa aquí para comprobar la medida de la cuchara oficial."
+                highlightHint
+              />
+            </div>
+          </ProductAccordion>
+
+          <ProductAccordion title="Orden visual de la ficha">
+            <div>
+              <div className="flex items-start gap-2 mb-3">
+                <MousePointerClick className="h-4 w-4 text-primary mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-serif text-xl leading-none">Orden visual de la ficha</h3>
+                  <p className="text-xs muted mt-1">Mueve cada bloque para decidir cómo lo verá la clienta dentro del producto.</p>
+                </div>
+                <button type="button" className="btn-primary text-xs py-2" onClick={() => setForm(prev => ({ ...prev, blockOrder: DEFAULT_PRODUCT_BLOCK_ORDER }))}>
+                  <Trash2 className="h-3.5 w-3.5" /> Borrar
+                </button>
+              </div>
+              <div className="space-y-2">
+                {form.blockOrder.map((blockId, index) => (
+                  <div key={blockId} className="rounded-2xl bg-white/90 border border-primary/20 p-2 flex items-center gap-2">
+                    <span className="admin-product-order-index h-7 w-7 rounded-full text-xs font-bold grid place-items-center">{index + 1}</span>
+                    <span className="text-sm font-medium flex-1">{PRODUCT_BLOCK_LABELS[blockId]}</span>
+                    <button type="button" className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35" disabled={index === 0} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, -1) }))} aria-label={`Subir ${PRODUCT_BLOCK_LABELS[blockId]}`}>
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                    <button type="button" className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35" disabled={index === form.blockOrder.length - 1} onClick={() => setForm(prev => ({ ...prev, blockOrder: moveBlockOrder(prev.blockOrder, blockId, 1) }))} aria-label={`Bajar ${PRODUCT_BLOCK_LABELS[blockId]}`}>
+                      <ArrowDown className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ProductAccordion>
+
+          <ProductAccordion title="Galería">
+            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
+          </ProductAccordion>
+          <ProductAccordion title="Vídeos">
+            <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} onClear={() => setForm(prev => ({ ...prev, video_urls: [] }))} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
+          </ProductAccordion>
+          <ProductAccordion title="PDFs">
+            <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onRemove={index => removeUrl("pdf_urls", index)} onClear={() => setForm(prev => ({ ...prev, pdf_urls: [] }))} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
+          </ProductAccordion>
+          <ProductAccordion title="URLs">
+            <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onRemove={index => removeUrl("external_urls", index)} onClear={() => setForm(prev => ({ ...prev, external_urls: [] }))} />
+          </ProductAccordion>
+
+          <ProductAccordion title="Descripción">
+            <TextArea label="Descripción" value={form.description ?? ""} onChange={value => setForm({ ...form, description: value })} />
+          </ProductAccordion>
+          <ProductAccordion title="Beneficios">
+            <TextArea label="Beneficios" value={form.benefits ?? ""} onChange={value => setForm({ ...form, benefits: value })} />
+          </ProductAccordion>
+          <ProductAccordion title="Modo de empleo">
+            <TextArea label="Modo de empleo" value={form.usage ?? ""} onChange={value => setForm({ ...form, usage: value })} />
+          </ProductAccordion>
+          <ProductAccordion title="Ingredientes">
+            <TextArea label="Ingredientes" value={form.ingredients_text ?? ""} onChange={value => setForm({ ...form, ingredients_text: value })} />
+          </ProductAccordion>
+          <ProductAccordion title="Observaciones">
+            <TextArea label="Observaciones" value={form.observations ?? ""} onChange={value => setForm({ ...form, observations: value })} />
+          </ProductAccordion>
+          <ProductAccordion title="Texto libre">
+            <TextArea label="Texto libre" value={form.free_text ?? ""} onChange={value => setForm({ ...form, free_text: value })} />
+          </ProductAccordion>
+
+          <ProductAccordion title="Información nutricional">
+            <div className="space-y-5">
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <h3 className="font-serif text-xl">Información nutricional por ración oficial</h3>
+                  <button type="button" className="btn-primary text-xs py-2" onClick={clearServingNutrition}>
+                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <NumberField label="Calorías/ración" value={form.serving_calories} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_calories: value }))} />
+                  <NumberField label="Proteínas/ración" value={form.serving_protein} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_protein: value }))} />
+                  <NumberField label="Hidratos/ración" value={form.serving_carbs} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_carbs: value }))} />
+                  <NumberField label="Azúcares/ración" value={form.serving_sugars} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_sugars: value }))} />
+                  <NumberField label="Grasas/ración" value={form.serving_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fat: value }))} />
+                  <NumberField label="Saturadas/ración" value={form.serving_saturated_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_saturated_fat: value }))} />
+                  <NumberField label="Fibra/ración" value={form.serving_fiber} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fiber: value }))} />
+                  <NumberField label="Sal/ración" value={form.serving_salt} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_salt: value }))} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <h3 className="font-serif text-xl">Información nutricional por 100 g</h3>
+                  <button type="button" className="btn-primary text-xs py-2" onClick={clearPer100Nutrition}>
+                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} />
+                  <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} />
+                  <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} />
+                  <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} />
+                  <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} />
+                  <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} />
+                  <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} />
+                  <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} />
+                </div>
+              </div>
+
+              <div className="rounded-[22px] bg-secondary/70 p-3">
+                <h4 className="font-bold text-sm mb-2">Cálculo automático por gramo</h4>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  <ReadonlyMacro label="Kcal/g" value={perGram(form.calories, form.serving_calories, form.serving_grams) || "—"} />
+                  <ReadonlyMacro label="Proteína/g" value={perGram(form.protein, form.serving_protein, form.serving_grams) || "—"} />
+                  <ReadonlyMacro label="Hidratos/g" value={perGram(form.carbs, form.serving_carbs, form.serving_grams) || "—"} />
+                  <ReadonlyMacro label="Grasa/g" value={perGram(form.fat, form.serving_fat, form.serving_grams) || "—"} />
+                  <ReadonlyMacro label="Fibra/g" value={perGram(form.fiber, form.serving_fiber, form.serving_grams) || "—"} />
+                </div>
+              </div>
+              <label className="block text-xs muted mt-3 mb-1">Micronutrientes opcionales (JSON)</label>
+              <textarea className="field min-h-24 font-mono text-xs" value={form.micronutrientsText} onChange={e => setForm({ ...form, micronutrientsText: e.target.value })} placeholder='{"calcium_mg": 120, "iron_mg": 2}' />
+            </div>
+          </ProductAccordion>
+
+          <ProductAccordion title="Medidas habituales">
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div>
+                  <h3 className="font-serif text-xl">Medidas habituales</h3>
+                  <p className="text-xs muted">Introduce solo el nombre y los gramos. Los macros de cada medida se calculan automáticamente desde la ficha por 100 g.</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => setForm(prev => ({
+                    ...prev,
+                    measures: [
+                      ...prev.measures,
+                      measureFromProductNutrition({ ...emptyMeasure, name: "", is_default: false, sort_order: prev.measures.length }, prev),
+                    ],
+                  }))}
+                >
+                  <Plus className="h-4 w-4" /> Añadir
+                </button>
+              </div>
+              <div className="space-y-3">
+                {form.measures.map((measure, index) => (
+                  <div key={index} className="admin-measure-row rounded-[22px] bg-secondary/70 p-3">
+                    <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+                      <input className="field md:col-span-2" placeholder="Nombre medida" value={measure.name} onChange={e => updateMeasure(index, { name: e.target.value })} />
+                      <NumberField label="Gramos" value={measure.grams} onChange={value => updateMeasure(index, { grams: value })} />
+                      <ReadonlyMacro label="Kcal" value={measure.calories} />
+                      <ReadonlyMacro label="Prot" value={`${measure.protein} g`} />
+                      <ReadonlyMacro label="Hidr" value={`${measure.carbs} g`} />
+                      <ReadonlyMacro label="Grasa" value={`${measure.fat} g`} />
+                      <ReadonlyMacro label="Fibra" value={`${measure.fiber} g`} />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-2 mt-2">
+                      <input
+                        className="field"
+                        placeholder="Fuente de la medida"
+                        value={measure.source}
+                        onChange={e => updateMeasure(index, { source: e.target.value })}
+                      />
+                      <select
+                        className="field"
+                        value={measure.verification_status}
+                        onChange={e => updateMeasure(index, { verification_status: e.target.value as ProductMeasure["verification_status"] })}
+                      >
+                        <option value="pendiente">Pendiente</option>
+                        <option value="verificado">Verificado</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <button type="button" className={measure.is_default ? "btn-primary text-xs py-2" : "btn-secondary text-xs py-2"} onClick={() => markDefaultMeasure(index)}>Medida principal</button>
+                      <button type="button" className="btn-secondary text-xs py-2 text-destructive" onClick={() => setForm(prev => ({ ...prev, measures: prev.measures.filter((_, i) => i !== index) }))}><Trash2 className="h-3.5 w-3.5" /> Eliminar medida</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ProductAccordion>
+
+          <ProductAccordion title="Visibilidad">
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h3 className="font-serif text-xl">Visibilidad y estado</h3>
+                <button type="button" className="btn-primary text-xs py-2" onClick={() => setForm(prev => ({ ...prev, visible_to_clients: true, available_for_recipes: true, informative_only: false, is_active: true }))}>
+                  <Trash2 className="h-3.5 w-3.5" /> Borrar
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Toggle label="Visible para clientes" checked={form.visible_to_clients} onChange={checked => setForm({ ...form, visible_to_clients: checked })} />
+                <Toggle label="Disponible para recetas" checked={form.available_for_recipes} onChange={checked => setForm({ ...form, available_for_recipes: checked })} />
+                <Toggle label="Solo informativo" checked={form.informative_only} onChange={checked => setForm({ ...form, informative_only: checked })} />
+                <Toggle label="Producto activo" checked={form.is_active} onChange={checked => setForm({ ...form, is_active: checked })} />
+              </div>
+            </div>
+          </ProductAccordion>
+        </form>
+      )}
     </div>
   );
+}
+
+function ProductAccordion({
+  title,
+  subtitle,
+  children,
+  defaultOpen = false,
+  className = "",
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={`card-soft admin-products-panel admin-products-accordion ${className}`}>
+      <button type="button" className="admin-products-accordion-trigger" onClick={() => setOpen(current => !current)} aria-expanded={open}>
+        <span>
+          <span className="admin-products-accordion-title">{title}</span>
+          {subtitle && <span className="admin-products-accordion-subtitle">{subtitle}</span>}
+        </span>
+        <ArrowDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="admin-products-accordion-body">{children}</div>}
+    </section>
+  );
+}
+
+function formatProductDate(value?: string | null) {
+  if (!value) return "Fecha no registrada";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Fecha no registrada";
+  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" }).format(date);
 }
 
 function normalizeProduct(item: any): Product {
