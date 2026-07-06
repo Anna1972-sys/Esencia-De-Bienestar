@@ -1634,12 +1634,37 @@
     font-size: .75rem !important;
   }
 
-  .admin-product-number-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .admin-product-measure-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .95rem .8rem;
+    align-items: start;
+  }
+
+  .admin-products .admin-measure-row {
+    container-type: inline-size;
+  }
+
+  .admin-product-measure-fields > * {
     min-width: 0;
-    gap: .2rem;
+  }
+
+  .admin-product-number-wrapper {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .admin-product-number-field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-product-number-label {
+    display: block;
+    min-width: 0;
+    line-height: 1.15;
+    min-height: 1rem;
   }
 
   .admin-product-measure-grams-control {
@@ -1647,26 +1672,38 @@
   }
 
   .admin-product-quick-number-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: .1rem;
+    gap: .25rem;
     flex-wrap: nowrap;
     max-width: 100%;
+    margin-top: .35rem;
+    flex-shrink: 0;
   }
 
+  .admin-fast-number-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .25rem;
+    margin-top: .35rem;
+  }
+
+  .admin-fast-number-button,
   .admin-product-quick-number-actions button {
     display: inline-grid;
     place-items: center;
-    min-width: 1.38rem;
-    height: 1.18rem;
-    padding: 0 .16rem;
+    min-width: 1.75rem !important;
+    width: 1.75rem !important;
+    min-height: 1.5rem !important;
+    height: 1.5rem !important;
+    padding: 0 !important;
     border-radius: 999px;
     border: 1px solid rgb(255 45 149 / .35);
     background: rgb(255 255 255 / .88);
     color: #FF2D95;
-    font-size: .5rem;
-    font-weight: 900;
+    font-size: .5625rem !important;
+    font-weight: 600 !important;
     line-height: 1;
     box-shadow: 0 6px 16px -14px rgb(255 45 149 / .7);
   }
@@ -1690,9 +1727,17 @@
   .admin-product-measure-actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: .45rem;
-    margin-top: .6rem;
+    margin-top: .8rem;
   }
+
+  @media (max-width: 520px) {
+    .admin-product-measure-fields {
+      grid-template-columns: 1fr;
+    }
+  }
+
 
   .admin-product-measure-status {
     width: 7.8rem !important;

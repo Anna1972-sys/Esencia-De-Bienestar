@@ -321,30 +321,10 @@ export default function AdminInternalFoods() {
           </label>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
           {NUTRIENT_FIELDS.map(([key, label]) => (
             <div key={key} className="space-y-1">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs muted">{label}</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="inline-flex h-6 w-7 items-center justify-center rounded-full border border-primary/35 bg-white/85 text-[9px] font-semibold text-primary shadow-sm"
-                    onClick={() => quickAdjustNutrient(key, -50)}
-                    aria-label={`Restar 50 a ${label}`}
-                  >
-                    -50
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex h-6 w-7 items-center justify-center rounded-full border border-primary/35 bg-white/85 text-[9px] font-semibold text-primary shadow-sm"
-                    onClick={() => quickAdjustNutrient(key, 50)}
-                    aria-label={`Sumar 50 a ${label}`}
-                  >
-                    +50
-                  </button>
-                </div>
-              </div>
+              <span className="text-xs muted">{label}</span>
               <input
                 className="field"
                 type="number"
@@ -353,6 +333,24 @@ export default function AdminInternalFoods() {
                 value={form[key]}
                 onChange={e => updateForm({ [key]: numberInputValue(e.target.value) } as Partial<FormState>)}
               />
+              <div className="admin-fast-number-actions">
+                <button
+                  type="button"
+                  className="admin-fast-number-button"
+                  onClick={() => quickAdjustNutrient(key, -50)}
+                  aria-label={`Restar 50 a ${label}`}
+                >
+                  -50
+                </button>
+                <button
+                  type="button"
+                  className="admin-fast-number-button"
+                  onClick={() => quickAdjustNutrient(key, 50)}
+                  aria-label={`Sumar 50 a ${label}`}
+                >
+                  +50
+                </button>
+              </div>
             </div>
           ))}
         </div>

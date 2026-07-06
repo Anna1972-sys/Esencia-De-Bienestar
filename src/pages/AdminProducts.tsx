@@ -1517,7 +1517,7 @@ export default function AdminProducts() {
               <div className="space-y-3">
                 {form.measures.map((measure, index) => (
                   <div key={index} className="admin-measure-row rounded-[22px] bg-secondary/70 p-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 items-start">
+                    <div className="admin-product-measure-fields">
                       <label className="block">
                         <span className="text-[11px] muted">Nombre medida</span>
                         <select
@@ -1761,24 +1761,9 @@ function NumberField({
   };
 
   return (
-    <label className="block">
+    <label className="admin-product-number-wrapper block">
       <span className="admin-product-number-label text-[11px] muted">
         <span>{label}</span>
-        {quickSteps?.length ? (
-          <span className="admin-product-quick-number-actions">
-            {quickSteps.map(step => (
-              <button
-                key={step}
-                type="button"
-                className="admin-product-measure-fast-button inline-flex h-6 w-7 items-center justify-center rounded-full border border-primary/35 bg-white/85 text-[9px] font-semibold text-primary shadow-sm"
-                onClick={() => quickAdjust(step)}
-                aria-label={`${step > 0 ? "Sumar" : "Restar"} ${Math.abs(step)} ${label}`}
-              >
-                {step > 0 ? `+${step}` : step}
-              </button>
-            ))}
-          </span>
-        ) : null}
       </span>
       <input
         ref={inputRef}
@@ -1794,6 +1779,21 @@ function NumberField({
           onChange(next);
         }}
       />
+      {quickSteps?.length ? (
+        <span className="admin-product-quick-number-actions">
+          {quickSteps.map(step => (
+            <button
+              key={step}
+              type="button"
+              className="admin-product-measure-fast-button admin-fast-number-button"
+              onClick={() => quickAdjust(step)}
+              aria-label={`${step > 0 ? "Sumar" : "Restar"} ${Math.abs(step)} ${label}`}
+            >
+              {step > 0 ? `+${step}` : step}
+            </button>
+          ))}
+        </span>
+      ) : null}
     </label>
   );
 }
