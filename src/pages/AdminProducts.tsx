@@ -1341,7 +1341,7 @@ export default function AdminProducts() {
         </div>
 
         {loading ? <div className="muted text-sm">Cargando productos…</div> : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredProducts.map(product => (
               <article key={product.id} className="admin-product-row admin-product-list-card rounded-[26px] bg-white/90 border border-primary/10 shadow-sm overflow-hidden">
                 <div className="admin-product-list-main">

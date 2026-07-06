@@ -3114,6 +3114,87 @@
     flex: 0 0 auto !important;
   }
 
+  .admin-products .admin-products-existing-panel .admin-product-list-card {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    gap: .75rem !important;
+    align-items: stretch !important;
+    padding: .85rem !important;
+    overflow: hidden !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-main {
+    display: grid !important;
+    grid-template-columns: 6.6rem minmax(0, 1fr) !important;
+    gap: .85rem !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-image {
+    width: 6.6rem !important;
+    height: 6.6rem !important;
+    min-height: 6.6rem !important;
+    aspect-ratio: 1 / 1 !important;
+    align-self: center !important;
+    border-radius: 1rem !important;
+    padding: .32rem !important;
+    overflow: hidden !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-image img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    display: block !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-content {
+    display: flex !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-content .font-sans {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-tags {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    gap: .32rem !important;
+    margin-top: .45rem !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    gap: .45rem !important;
+    padding-top: .1rem !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-action-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 2.25rem !important;
+    padding: .38rem .42rem !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+
   .admin-products .admin-products-access-card.is-open .admin-products-access-trigger {
     width: 100%;
     min-height: 8.1rem;
