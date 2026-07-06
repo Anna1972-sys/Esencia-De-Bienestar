@@ -1213,14 +1213,10 @@ export default function AdminProducts() {
           <div className="admin-products-editor-toolbar card-soft admin-products-panel p-3">
             <div className="min-w-0">
               <h2 className="font-serif text-2xl truncate">{form.id ? `Editar: ${form.name || "producto"}` : "Nuevo producto"}</h2>
-              <p className="text-xs muted">Los bloques están plegados para reducir el scroll. Abre solo lo que necesites.</p>
             </div>
             <div className="admin-products-editor-actions">
               <button type="submit" className="btn-primary" disabled={saving} onClick={() => { keepEditingAfterSave.current = false; }}>
                 <Save className="h-4 w-4" /> {saving ? "Guardando…" : "Guardar"}
-              </button>
-              <button type="submit" className="btn-primary" disabled={saving} onClick={() => { keepEditingAfterSave.current = true; }}>
-                <Save className="h-4 w-4" /> Guardar y continuar
               </button>
               <button type="button" className="btn-secondary" onClick={() => previewProduct(form.id)}>
                 <Eye className="h-4 w-4" /> Vista previa

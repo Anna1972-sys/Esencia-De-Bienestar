@@ -1561,6 +1561,13 @@
     gap: .45rem;
   }
 
+  .admin-products-editor-actions > button {
+    flex: 1 1 8.9rem;
+    min-width: 8.9rem !important;
+    min-height: 2.35rem !important;
+    justify-content: center;
+  }
+
   .admin-product-editor-preview-card {
     min-height: 100%;
     border: 1px solid #FF2D95;
