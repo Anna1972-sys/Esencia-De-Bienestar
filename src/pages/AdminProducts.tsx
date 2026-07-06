@@ -178,14 +178,60 @@ const PRODUCT_BLOCK_LABELS: Record<ProductBlockId, string> = {
   measures: "Medidas habituales",
 };
 
+const PRODUCT_MEASURE_NAME_OPTIONS = [
+  { label: "100 g", grams: 100 },
+  { label: "50 g", grams: 50 },
+  { label: "25 g", grams: 25 },
+  { label: "100 ml", grams: 100 },
+  { label: "1 ración", grams: null },
+];
+
 const PRODUCT_ADMIN_ACCESS_SECTIONS = [
   { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
   { id: "nutricion-objetiva", title: "Nutrición objetiva", image: imgNutritionObjective },
   { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
 ] as const;
 
+const ensureAdminAccessCategories = async (loadedCategories: ProductCategory[]) => {
+  const existingSlugs = new Set(loadedCategories.map(category => category.slug));
+  const missingCategories = PRODUCT_ADMIN_ACCESS_SECTIONS
+    .filter(section => !existingSlugs.has(section.id))
+    .map((section, index) => ({
+      name: section.title,
+      slug: section.id,
+      description: `Categoría principal de ${section.title}.`,
+      sort_order: (index + 1) * 10,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    }));
+
+  if (!missingCategories.length) return loadedCategories;
+
+  const { error } = await (supabase as any)
+    .from("product_categories")
+    .upsert(missingCategories, { onConflict: "slug" });
+
+  if (error) {
+    toast.error(error.message);
+    return loadedCategories;
+  }
+
+  const { data, error: refreshError } = await (supabase as any)
+    .from("product_categories")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (refreshError) {
+    toast.error(refreshError.message);
+    return loadedCategories;
+  }
+
+  return (data ?? []) as ProductCategory[];
+};
+
 const emptyMeasure: ProductMeasure = {
-  name: "gramos",
+  name: "100 g",
   grams: 100,
   calories: "",
   protein: "",
@@ -403,7 +449,10 @@ export default function AdminProducts() {
     setLoading(false);
     if (catRes.error) toast.error(catRes.error.message);
     if (prodRes.error) toast.error(prodRes.error.message);
-    setCategories((catRes.data ?? []) as ProductCategory[]);
+    const safeCategories = catRes.error
+      ? ((catRes.data ?? []) as ProductCategory[])
+      : await ensureAdminAccessCategories((catRes.data ?? []) as ProductCategory[]);
+    setCategories(safeCategories);
     setProducts((prodRes.data ?? []).map(normalizeProduct));
   };
 
@@ -454,13 +503,22 @@ export default function AdminProducts() {
     setForm(emptyProduct);
     setEditorOpen(false);
   };
-  const startNewProduct = (categoryId = activeAccessCategory?.id ?? "") => {
+  const scrollToProductEditor = () => {
+    window.setTimeout(() => {
+      const panel = document.querySelector(".admin-products-new-product-panel");
+      if (!panel) return;
+      const rect = panel.getBoundingClientRect();
+      const top = rect.top + window.scrollY - (window.innerWidth < 768 ? 14 : 24);
+      window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+    }, 90);
+  };
+  const startNewProduct = (categoryId = activeAccessCategory?.id ?? "", scrollToEditor = true) => {
     setForm({ ...emptyProduct, category_id: categoryId });
     if (categoryId) setFilterCategory(categoryId);
     setEditorInstanceKey(key => key + 1);
     setOpenEditorBlock("Información general");
     setEditorOpen(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (scrollToEditor) scrollToProductEditor();
   };
   const focusProductSearch = () => {
     productSearchInputRef.current?.focus();
@@ -566,14 +624,19 @@ export default function AdminProducts() {
     }
 
     setSaving(true);
-    const preparedForm = nutritionFromServing(form);
+    const preparedForm = nutritionFromServing({
+      ...form,
+      category_id: form.category_id || activeAccessCategory?.id || "",
+    });
+    const wasEditingProduct = Boolean(form.id);
+    const nextProductCategoryId = preparedForm.category_id || activeAccessCategory?.id || "";
     const kcalPerGram = perGram(preparedForm.calories, preparedForm.serving_calories, preparedForm.serving_grams);
     const proteinPerGram = perGram(preparedForm.protein, preparedForm.serving_protein, preparedForm.serving_grams);
     const carbsPerGram = perGram(preparedForm.carbs, preparedForm.serving_carbs, preparedForm.serving_grams);
     const fatPerGram = perGram(preparedForm.fat, preparedForm.serving_fat, preparedForm.serving_grams);
     const fiberPerGram = perGram(preparedForm.fiber, preparedForm.serving_fiber, preparedForm.serving_grams);
     const payload = {
-      category_id: preparedForm.category_id || null,
+      category_id: nextProductCategoryId || null,
       name: preparedForm.name.trim(),
       slug: preparedForm.id ? undefined : slugify(preparedForm.name),
       aliases: textToArray(preparedForm.aliasesText),
@@ -638,8 +701,7 @@ export default function AdminProducts() {
 
     const productId = productResult.data.id;
     await (supabase as any).from("product_measures").delete().eq("product_id", productId);
-    const calculatedMeasures = measuresFromProductNutrition(preparedForm.measures, preparedForm);
-    const measures = calculatedMeasures
+    const measures = preparedForm.measures
       .filter(measure => measure.name.trim())
       .map((measure, index) => ({
         product_id: productId,
@@ -671,6 +733,11 @@ export default function AdminProducts() {
     toast.success(form.id ? "Producto actualizado" : "Producto creado");
     if (keepEditorOpen) {
       setForm(prev => ({ ...prev, id: productId }));
+      setEditorOpen(true);
+    } else if (!wasEditingProduct) {
+      setForm({ ...emptyProduct, category_id: nextProductCategoryId });
+      setEditorInstanceKey(key => key + 1);
+      setOpenEditorBlock("Información general");
       setEditorOpen(true);
     } else {
       resetProduct();
@@ -879,9 +946,14 @@ export default function AdminProducts() {
   };
 
   const updateMeasure = (index: number, patch: Partial<ProductMeasure>) => {
+    const shouldRecalculate = "grams" in patch && !("calories" in patch || "protein" in patch || "carbs" in patch || "fat" in patch || "fiber" in patch);
     setForm(prev => ({
       ...prev,
-      measures: prev.measures.map((measure, i) => i === index ? measureFromProductNutrition({ ...measure, ...patch }, prev) : measure),
+      measures: prev.measures.map((measure, i) => {
+        if (i !== index) return measure;
+        const nextMeasure = { ...measure, ...patch };
+        return shouldRecalculate ? measureFromProductNutrition(nextMeasure, prev) : nextMeasure;
+      }),
     }));
   };
 
@@ -1091,7 +1163,7 @@ export default function AdminProducts() {
         )}
       </section>
 
-      <ProductAccordion title="Gestión de categorías" subtitle="Crear, editar, ocultar o eliminar categorías." className="mt-5">
+      <ProductAccordion title="Nueva categoría" subtitle="Crear, editar, ocultar o eliminar categorías." className="mt-5 admin-products-category-panel">
         <form onSubmit={saveCategory} className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -1120,46 +1192,22 @@ export default function AdminProducts() {
             <button className="btn-primary" disabled={saving}><Save className="h-4 w-4" /> Guardar categoría</button>
             {editingCategory && <button type="button" className="btn-secondary" onClick={resetCategory}><X className="h-4 w-4" /> Cancelar</button>}
           </div>
-          <div className="space-y-2 pt-2">
-            {categories.map(category => (
-              <div key={category.id} className="rounded-2xl bg-secondary/70 p-3 grid grid-cols-[64px_1fr_auto_auto] items-center gap-3">
-                <div className="h-16 w-16 rounded-2xl overflow-hidden border border-primary/20 bg-white">
-                  {category.image_url ? (
-                    <img src={category.image_url} alt={category.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full grid place-items-center bg-gradient-rosa/20"><ImageIcon className="h-5 w-5 text-primary" /></div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">{category.name}</div>
-                  <div className="text-[11px] muted line-clamp-2">{category.description || "Sin descripción"}</div>
-                  <div className="text-[11px] text-primary font-bold mt-1">{category.is_active ? "Activa" : "Oculta"}</div>
-                </div>
-                <button type="button" className="btn-primary text-xs py-2" onClick={() => deleteCategory(category)}>
-                  <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                </button>
-                <details className="relative">
-                  <summary className="list-none cursor-pointer rounded-full border border-primary bg-white px-3 py-2 text-primary font-black">⋮</summary>
-                  <div className="absolute right-0 z-20 mt-2 w-48 rounded-2xl border border-primary bg-white p-2 shadow-xl space-y-1">
-                    <button type="button" className="w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-[#FFF7FA]" onClick={() => editCategory(category)}>Editar categoría</button>
-                    <label className="block w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-[#FFF7FA] cursor-pointer">
-                      Cambiar imagen
-                      <input type="file" className="hidden" accept="image/*" onChange={e => {
-                        if (e.target.files?.[0]) {
-                          uploadCategoryImage(e.target.files[0], category);
-                        }
-                      }} />
-                    </label>
-                    <button type="button" className="w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-[#FFF7FA]" onClick={() => toggleCategory(category)}>{category.is_active ? "Ocultar" : "Mostrar"}</button>
-                    <button type="button" className="w-full text-left rounded-xl px-3 py-2 text-sm text-destructive hover:bg-[#FFF7FA]" onClick={() => deleteCategory(category)}>Eliminar categoría</button>
-                  </div>
-                </details>
-              </div>
-            ))}
-          </div>
         </form>
       </ProductAccordion>
 
+      <ProductAccordion
+        title={form.id ? "Editar producto" : "Gestión de productos"}
+        subtitle="Abre este desplegable para buscar, crear o modificar productos."
+        className="mt-5 admin-products-new-product-panel"
+        open={editorOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            if (!editorOpen) startNewProduct(activeAccessCategory?.id ?? "", true);
+            return;
+          }
+          setEditorOpen(false);
+        }}
+      >
           {editorOpen && (
         <form key={editorInstanceKey} id="admin-product-editor-form" onSubmit={saveProduct} className="admin-products-editor mt-5 space-y-3">
           <div className="admin-products-editor-toolbar card-soft admin-products-panel p-3">
@@ -1229,6 +1277,36 @@ export default function AdminProducts() {
                   aria-label="Fecha de verificación"
                 />
               </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.75fr)] gap-4">
+                <MediaUploader
+                  title="Imagen principal del producto"
+                  url={form.image_url ?? ""}
+                  accept="image/*"
+                  icon={<ImageIcon className="h-4 w-4" />}
+                  onUpload={file => uploadInto(file, "main")}
+                  onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
+                  onClear={() => clearProductMedia("image_url")}
+                />
+                <div className="admin-product-editor-preview-card">
+                  <div className="admin-product-editor-preview-image">
+                    {form.image_url ? (
+                      <img src={form.image_url} alt={form.name || "Producto"} />
+                    ) : (
+                      <ImageIcon className="h-8 w-8 text-primary" />
+                    )}
+                  </div>
+                  <div className="admin-product-editor-preview-body">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Vista previa</p>
+                    <h4>{form.name || "Nombre del producto"}</h4>
+                    <p>{form.category_id ? categoryById.get(form.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</p>
+                    <p>{form.description || "Añade una descripción para verla aquí."}</p>
+                    <span>{form.verification_status === "verificado" ? "Verificado" : "Pendiente"}</span>
+                    <button type="button" className="btn-primary" onClick={() => previewProduct(form.id)}>
+                      <Eye className="h-4 w-4" /> Ver producto
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-xs muted">Alias inteligentes</span>
@@ -1289,16 +1367,7 @@ export default function AdminProducts() {
           </ProductAccordion>
 
           <ProductAccordion title="Imágenes" {...editorAccordionProps("Imágenes")}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <MediaUploader
-                title="Imagen principal"
-                url={form.image_url ?? ""}
-                accept="image/*"
-                icon={<ImageIcon className="h-4 w-4" />}
-                onUpload={file => uploadInto(file, "main")}
-                onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
-                onClear={() => clearProductMedia("image_url")}
-              />
+            <div className="grid grid-cols-1 gap-4">
               <MediaUploader
                 title="Imagen cuchara oficial Herbalife"
                 url={form.spoon_image_url ?? ""}
@@ -1434,7 +1503,6 @@ export default function AdminProducts() {
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div>
                   <h3 className="font-serif text-xl">Medidas habituales</h3>
-                  <p className="text-xs muted">Introduce solo el nombre y los gramos. Los macros de cada medida se calculan automáticamente desde la ficha por 100 g.</p>
                 </div>
                 <button
                   type="button"
@@ -1443,7 +1511,7 @@ export default function AdminProducts() {
                     ...prev,
                     measures: [
                       ...prev.measures,
-                      measureFromProductNutrition({ ...emptyMeasure, name: "", is_default: false, sort_order: prev.measures.length }, prev),
+                      measureFromProductNutrition({ ...emptyMeasure, name: "100 g", is_default: false, sort_order: prev.measures.length }, prev),
                     ],
                   }))}
                 >
@@ -1453,34 +1521,48 @@ export default function AdminProducts() {
               <div className="space-y-3">
                 {form.measures.map((measure, index) => (
                   <div key={index} className="admin-measure-row rounded-[22px] bg-secondary/70 p-3">
-                    <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
-                      <input className="field md:col-span-2" placeholder="Nombre medida" value={measure.name} onChange={e => updateMeasure(index, { name: e.target.value })} />
-                      <NumberField label="Gramos" value={measure.grams} onChange={value => updateMeasure(index, { grams: value })} />
-                      <ReadonlyMacro label="Kcal" value={measure.calories} />
-                      <ReadonlyMacro label="Prot" value={`${measure.protein} g`} />
-                      <ReadonlyMacro label="Hidr" value={`${measure.carbs} g`} />
-                      <ReadonlyMacro label="Grasa" value={`${measure.fat} g`} />
-                      <ReadonlyMacro label="Fibra" value={`${measure.fiber} g`} />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-2 mt-2">
-                      <input
-                        className="field"
-                        placeholder="Fuente de la medida"
-                        value={measure.source}
-                        onChange={e => updateMeasure(index, { source: e.target.value })}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 items-start">
+                      <label className="block">
+                        <span className="text-[11px] muted">Nombre medida</span>
+                        <select
+                          className="field mt-1"
+                          value={PRODUCT_MEASURE_NAME_OPTIONS.some(option => option.label === measure.name) ? measure.name : "100 g"}
+                          onChange={e => {
+                            const selected = PRODUCT_MEASURE_NAME_OPTIONS.find(option => option.label === e.target.value);
+                            updateMeasure(index, {
+                              name: e.target.value,
+                              ...(selected?.grams ? { grams: selected.grams } : {}),
+                            });
+                          }}
+                        >
+                          {PRODUCT_MEASURE_NAME_OPTIONS.map(option => (
+                            <option key={option.label} value={option.label}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <NumberField
+                        label="Gramos"
+                        value={measure.grams}
+                        onChange={value => updateMeasure(index, { grams: value })}
+                        quickSteps={[-50, 50]}
+                        step="0.1"
                       />
+                      <NumberField label="Calorías" value={measure.calories} onChange={value => updateMeasure(index, { calories: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Proteínas" value={measure.protein} onChange={value => updateMeasure(index, { protein: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Hidratos" value={measure.carbs} onChange={value => updateMeasure(index, { carbs: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Grasas" value={measure.fat} onChange={value => updateMeasure(index, { fat: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Fibra" value={measure.fiber} onChange={value => updateMeasure(index, { fiber: value })} quickSteps={[-50, 50]} step="0.1" />
+                    </div>
+                    <div className="admin-product-measure-actions">
                       <select
-                        className="field"
+                        className="field admin-product-measure-status"
                         value={measure.verification_status}
                         onChange={e => updateMeasure(index, { verification_status: e.target.value as ProductMeasure["verification_status"] })}
                       >
                         <option value="pendiente">Pendiente</option>
                         <option value="verificado">Verificado</option>
                       </select>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <button type="button" className={measure.is_default ? "btn-primary text-xs py-2" : "btn-secondary text-xs py-2"} onClick={() => markDefaultMeasure(index)}>Medida principal</button>
-                      <button type="button" className="btn-secondary text-xs py-2 text-destructive" onClick={() => setForm(prev => ({ ...prev, measures: prev.measures.filter((_, i) => i !== index) }))}><Trash2 className="h-3.5 w-3.5" /> Eliminar medida</button>
+                      <button type="button" className="btn-secondary text-xs py-2 text-destructive admin-product-measure-delete" onClick={() => setForm(prev => ({ ...prev, measures: prev.measures.filter((_, i) => i !== index) }))}><Trash2 className="h-3.5 w-3.5" /> Eliminar medida</button>
                     </div>
                   </div>
                 ))}
@@ -1506,6 +1588,7 @@ export default function AdminProducts() {
           </ProductAccordion>
         </form>
           )}
+      </ProductAccordion>
         </div>
             )}
             </Fragment>
@@ -1615,9 +1698,11 @@ function normalizeProduct(item: any): Product {
 }
 
 function normalizeMeasure(item: any): ProductMeasure {
+  const measureName = String(item.name ?? "").trim();
+  const validMeasureName = PRODUCT_MEASURE_NAME_OPTIONS.some(option => option.label === measureName) ? measureName : "100 g";
   return {
     id: item.id,
-    name: item.name ?? "",
+    name: validMeasureName,
     grams: toFormNumber(item.grams),
     calories: toFormNumber(item.calories),
     protein: toFormNumber(item.protein),
@@ -1650,7 +1735,19 @@ function TextArea({ label, value, onChange }: { label: string; value: string; on
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: AdminNumberValue; onChange: (value: AdminNumberValue) => void }) {
+function NumberField({
+  label,
+  value,
+  onChange,
+  quickSteps,
+  step = "0.01",
+}: {
+  label: string;
+  value: AdminNumberValue;
+  onChange: (value: AdminNumberValue) => void;
+  quickSteps?: number[];
+  step?: string;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(String(value));
 
@@ -1660,14 +1757,39 @@ function NumberField({ label, value, onChange }: { label: string; value: AdminNu
     }
   }, [value]);
 
+  const quickAdjust = (delta: number) => {
+    const next = Math.max(0, toNumber(draft || value) + delta);
+    const cleanValue = Number(next.toFixed(1));
+    setDraft(String(cleanValue));
+    onChange(cleanValue);
+  };
+
   return (
     <label className="block">
-      <span className="text-[11px] muted">{label}</span>
+      <span className="admin-product-number-label text-[11px] muted">
+        <span>{label}</span>
+        {quickSteps?.length ? (
+          <span className="admin-product-quick-number-actions">
+            {quickSteps.map(step => (
+              <button
+                key={step}
+                type="button"
+                className="admin-product-measure-fast-button inline-flex h-6 w-7 items-center justify-center rounded-full border border-primary/35 bg-white/85 text-[9px] font-semibold text-primary shadow-sm"
+                onClick={() => quickAdjust(step)}
+                aria-label={`${step > 0 ? "Sumar" : "Restar"} ${Math.abs(step)} ${label}`}
+              >
+                {step > 0 ? `+${step}` : step}
+              </button>
+            ))}
+          </span>
+        ) : null}
+      </span>
       <input
         ref={inputRef}
         className="field admin-product-number-field mt-1"
         type="number"
-        step="0.01"
+        min="0"
+        step={step}
         value={draft}
         onFocus={e => selectInitialZero(e.currentTarget)}
         onChange={e => {
