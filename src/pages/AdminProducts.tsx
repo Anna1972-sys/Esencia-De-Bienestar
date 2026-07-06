@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
-import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Pencil, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
 import imgNutritionObjective from "@/assets/product-admin/nutricion-objetiva-soft.jpg";
@@ -410,13 +410,28 @@ async function uploadProductFile(file: File, folder: string) {
   return data.publicUrl;
 }
 
-function fileToDataUrl(file: File) {
+function fileToDataUrl(file: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result ?? ""));
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function fileNameFromUrl(url: string) {
+  const clean = url.split("?")[0] ?? "";
+  const raw = clean.split("/").pop() || "etiqueta.pdf";
+  return decodeURIComponent(raw.replace(/^[a-f0-9-]{36}-/i, ""));
+}
+
+function mimeTypeFromFileName(fileName: string) {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
 }
 
 export default function AdminProducts() {
@@ -435,7 +450,10 @@ export default function AdminProducts() {
   const [openEditorBlock, setOpenEditorBlock] = useState("Información general");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingLabel, setUploadingLabel] = useState(false);
   const [readingLabel, setReadingLabel] = useState(false);
+  const [readingDescriptionPdf, setReadingDescriptionPdf] = useState(false);
+  const [readingIngredientsLabel, setReadingIngredientsLabel] = useState(false);
   const keepEditingAfterSave = useRef(false);
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const productSearchInputRef = useRef<HTMLInputElement | null>(null);
@@ -799,7 +817,7 @@ export default function AdminProducts() {
     setEditorInstanceKey(key => key + 1);
     setOpenEditorBlock("Información general");
     setEditorOpen(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToProductEditor();
   };
 
   const duplicateProduct = async (product: Product) => {
@@ -1010,13 +1028,217 @@ export default function AdminProducts() {
     }));
   };
 
-  const readNutritionLabel = async (file: File) => {
+  const persistProductPatch = async (patch: Record<string, unknown>) => {
+    if (!form.id) return;
+    const { error } = await (supabase as any)
+      .from("products")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", form.id);
+    if (error) throw error;
+  };
+
+  const markNutritionLabelPending = async (labelUrl: string, fileName: string) => {
+    const pendingSource = `Pendiente de analizar: ${fileName}`;
+    setForm(prev => ({
+      ...prev,
+      label_file_url: labelUrl,
+      source: pendingSource,
+      verification_status: "pendiente",
+      nutrition_verified_at: null,
+    }));
+    await persistProductPatch({
+      label_file_url: labelUrl,
+      source: pendingSource,
+      verification_status: "pendiente",
+      nutrition_verified_at: null,
+    });
+  };
+
+  const applyNutritionLabelPayload = async (payload: any, labelUrl: string, fileName: string) => {
+    const verifiedAt = new Date().toISOString();
+    let nextFormForSave: ProductForm | null = null;
+    setForm(prev => {
+      const next: ProductForm = nutritionFromServing({
+        ...prev,
+        label_file_url: labelUrl,
+        description: payload.description ?? "",
+        ingredients_text: payload.ingredients_text ?? "",
+        serving_size: payload.serving_size ?? "",
+        serving_grams: payload.serving_grams ?? "",
+        serving_calories: payload.serving_calories ?? "",
+        serving_protein: payload.serving_protein ?? "",
+        serving_carbs: payload.serving_carbs ?? "",
+        serving_sugars: payload.serving_sugars ?? "",
+        serving_fat: payload.serving_fat ?? "",
+        serving_saturated_fat: payload.serving_saturated_fat ?? "",
+        serving_fiber: payload.serving_fiber ?? "",
+        serving_salt: payload.serving_salt ?? "",
+        calories: payload.calories ?? "",
+        protein: payload.protein ?? "",
+        carbs: payload.carbs ?? "",
+        sugars: payload.sugars ?? "",
+        fat: payload.fat ?? "",
+        saturated_fat: payload.saturated_fat ?? "",
+        fiber: payload.fiber ?? "",
+        salt: payload.salt ?? "",
+        source: payload.source || `Etiqueta nutricional verificada: ${fileName}`,
+        verification_status: "verificado",
+        nutrition_verified_at: verifiedAt,
+      });
+      nextFormForSave = next;
+      return next;
+    });
+
+    const next = nextFormForSave;
+    if (!next) return;
+    await persistProductPatch({
+      label_file_url: labelUrl,
+      description: next.description || null,
+      ingredients_text: next.ingredients_text || null,
+      serving_size: next.serving_size || null,
+      serving_grams: toNullableNumber(next.serving_grams),
+      serving_calories: toNullableNumber(next.serving_calories),
+      serving_protein: toNullableNumber(next.serving_protein),
+      serving_carbs: toNullableNumber(next.serving_carbs),
+      serving_sugars: toNullableNumber(next.serving_sugars),
+      serving_fat: toNullableNumber(next.serving_fat),
+      serving_saturated_fat: toNullableNumber(next.serving_saturated_fat),
+      serving_fiber: toNullableNumber(next.serving_fiber),
+      serving_salt: toNullableNumber(next.serving_salt),
+      calories: toNullableNumber(next.calories),
+      protein: toNullableNumber(next.protein),
+      carbs: toNullableNumber(next.carbs),
+      sugars: toNullableNumber(next.sugars),
+      fat: toNullableNumber(next.fat),
+      saturated_fat: toNullableNumber(next.saturated_fat),
+      fiber: toNullableNumber(next.fiber),
+      salt: toNullableNumber(next.salt),
+      kcal_per_gram: toNullableNumber(perGram(next.calories, next.serving_calories, next.serving_grams)),
+      protein_per_gram: toNullableNumber(perGram(next.protein, next.serving_protein, next.serving_grams)),
+      carbs_per_gram: toNullableNumber(perGram(next.carbs, next.serving_carbs, next.serving_grams)),
+      fat_per_gram: toNullableNumber(perGram(next.fat, next.serving_fat, next.serving_grams)),
+      fiber_per_gram: toNullableNumber(perGram(next.fiber, next.serving_fiber, next.serving_grams)),
+      source: next.source,
+      verification_status: "verificado",
+      nutrition_verified_at: verifiedAt,
+    });
+  };
+
+  const analyzeNutritionLabelData = async (fileName: string, mimeType: string, labelUrl: string, dataUrl?: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const response = await fetch("/api/read-nutrition-label", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ fileName, mimeType, dataUrl, fileUrl: labelUrl }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail = payload?.detail ? ` · ${payload.detail}` : "";
+      throw new Error(`${payload?.error || "No se pudo leer la etiqueta"}${detail}`);
+    }
+    await applyNutritionLabelPayload(payload, labelUrl, fileName);
+  };
+
+  const uploadOfficialNutritionPdf = async (file: File) => {
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      return toast.error("Sube un PDF oficial del producto");
+    }
+    try {
+      setUploadingLabel(true);
+      const labelUrl = await uploadProductFile(file, "labels");
+      await markNutritionLabelPending(labelUrl, file.name);
+      toast.success("PDF oficial guardado. Puedes leer la etiqueta nutricional cuando la IA esté disponible.");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo guardar el PDF oficial");
+    } finally {
+      setUploadingLabel(false);
+    }
+  };
+
+  const readSavedNutritionLabel = async () => {
+    if (!form.label_file_url) {
+      return toast.error("Primero sube el PDF oficial del producto");
+    }
+    const fileName = fileNameFromUrl(form.label_file_url);
     try {
       setReadingLabel(true);
-      const labelUrl = await uploadProductFile(file, "labels");
+      await markNutritionLabelPending(form.label_file_url, fileName);
+      await analyzeNutritionLabelData(fileName, mimeTypeFromFileName(fileName), form.label_file_url);
+      toast.success("Etiqueta nutricional verificada. Revisa y ajusta cualquier dato antes de guardar.");
+    } catch (err: any) {
+      toast.error(`${err?.message || "No se pudo leer la etiqueta nutricional"}. El PDF queda guardado y el producto queda Pendiente de analizar.`);
+    } finally {
+      setReadingLabel(false);
+    }
+  };
+
+  const readDescriptionPdf = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      return toast.error("Sube un PDF para leer la descripción");
+    }
+
+    try {
+      setReadingDescriptionPdf(true);
+      const pdfUrl = await uploadProductFile(file, "pdf");
       const dataUrl = await fileToDataUrl(file);
       const { data: sessionData } = await supabase.auth.getSession();
-      const response = await fetch("/api/read-nutrition-label", {
+      const response = await fetch("/api/read-product-pdf-description", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type,
+          dataUrl,
+          productName: form.name,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.detail || payload?.error || "No se pudo leer el PDF");
+
+      const description = String(payload?.description ?? "").trim();
+      if (!description) throw new Error("El PDF no contiene una descripción clara");
+
+      const nextPdfUrls = form.pdf_urls.includes(pdfUrl) ? form.pdf_urls : [...form.pdf_urls, pdfUrl];
+      setForm(prev => ({
+        ...prev,
+        description,
+        pdf_urls: prev.pdf_urls.includes(pdfUrl) ? prev.pdf_urls : [...prev.pdf_urls, pdfUrl],
+      }));
+
+      if (form.id) {
+        const { error } = await (supabase as any)
+          .from("products")
+          .update({
+            description,
+            pdf_urls: nextPdfUrls,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", form.id);
+        if (error) throw error;
+        load();
+        toast.success("PDF leído y descripción guardada");
+      } else {
+        toast.success("PDF leído. Pulsa Guardar producto para publicarlo.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo leer la descripción del PDF");
+    } finally {
+      setReadingDescriptionPdf(false);
+    }
+  };
+
+  const readIngredientsLabel = async (file: File) => {
+    try {
+      setReadingIngredientsLabel(true);
+      const dataUrl = await fileToDataUrl(file);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch("/api/read-product-ingredients-label", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1029,40 +1251,31 @@ export default function AdminProducts() {
         }),
       });
       const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.error || "No se pudo leer la etiqueta");
-      setForm(prev => {
-        const next: ProductForm = {
-          ...prev,
-          label_file_url: labelUrl,
-          serving_size: payload.serving_size ?? prev.serving_size ?? "",
-          serving_grams: payload.serving_grams ?? prev.serving_grams,
-          serving_calories: payload.serving_calories ?? prev.serving_calories,
-          serving_protein: payload.serving_protein ?? prev.serving_protein,
-          serving_carbs: payload.serving_carbs ?? prev.serving_carbs,
-          serving_sugars: payload.serving_sugars ?? prev.serving_sugars,
-          serving_fat: payload.serving_fat ?? prev.serving_fat,
-          serving_saturated_fat: payload.serving_saturated_fat ?? prev.serving_saturated_fat,
-          serving_fiber: payload.serving_fiber ?? prev.serving_fiber,
-          serving_salt: payload.serving_salt ?? prev.serving_salt,
-          calories: payload.calories ?? prev.calories,
-          protein: payload.protein ?? prev.protein,
-          carbs: payload.carbs ?? prev.carbs,
-          sugars: payload.sugars ?? prev.sugars,
-          fat: payload.fat ?? prev.fat,
-          saturated_fat: payload.saturated_fat ?? prev.saturated_fat,
-          fiber: payload.fiber ?? prev.fiber,
-          salt: payload.salt ?? prev.salt,
-          source: payload.source || prev.source || `Etiqueta nutricional: ${file.name}`,
-          verification_status: "pendiente",
-          nutrition_verified_at: null,
-        };
-        return nutritionFromServing(next);
-      });
-      toast.success("Etiqueta leída. Revisa los datos antes de verificar.");
+      if (!response.ok) throw new Error(payload?.detail || payload?.error || "No se pudo leer la etiqueta de ingredientes");
+
+      const ingredientsText = String(payload?.ingredients_text ?? "").trim();
+      if (!ingredientsText) throw new Error("La etiqueta no contiene ingredientes claros");
+
+      setForm(prev => ({ ...prev, ingredients_text: ingredientsText }));
+
+      if (form.id) {
+        const { error } = await (supabase as any)
+          .from("products")
+          .update({
+            ingredients_text: ingredientsText,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", form.id);
+        if (error) throw error;
+        load();
+        toast.success("Ingredientes leídos y guardados");
+      } else {
+        toast.success("Ingredientes leídos. Pulsa Guardar producto para publicarlo.");
+      }
     } catch (err: any) {
-      toast.error(err?.message || "No se pudo leer la etiqueta nutricional");
+      toast.error(err?.message || "No se pudo leer la etiqueta de ingredientes");
     } finally {
-      setReadingLabel(false);
+      setReadingIngredientsLabel(false);
     }
   };
 
@@ -1152,9 +1365,15 @@ export default function AdminProducts() {
                   </div>
                 </div>
                 <div className="admin-product-list-actions">
-                  <button type="button" className="admin-product-action-button" onClick={() => editProduct(product)}>Editar</button>
-                  <button type="button" className="admin-product-action-button" onClick={() => previewProduct(product.id)}>Ver</button>
-                  <button type="button" className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>Eliminar</button>
+                  <button type="button" className="admin-product-action-button" onClick={() => editProduct(product)}>
+                    <Pencil className="h-3.5 w-3.5" /> Editar
+                  </button>
+                  <button type="button" className="admin-product-action-button" onClick={() => previewProduct(product.id)}>
+                    <Eye className="h-3.5 w-3.5" /> Vista previa
+                  </button>
+                  <button type="button" className="admin-product-action-button text-destructive" onClick={() => deleteProduct(product)}>
+                    <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                  </button>
                 </div>
               </article>
             ))}
@@ -1332,28 +1551,49 @@ export default function AdminProducts() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-serif text-xl leading-none">Etiqueta nutricional oficial</h3>
-                  <p className="text-xs muted mt-1">Lee una etiqueta como ayuda. El producto seguirá en Pendiente hasta que lo revises y lo marques como Verificado.</p>
+                  <p className="text-xs muted mt-1">Sube primero el PDF oficial. Si la IA falla, el PDF queda guardado y podrás leerlo más adelante.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <label className="btn-primary cursor-pointer justify-center">
-                    <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
+                    <Upload className="h-4 w-4" /> {uploadingLabel ? "Subiendo…" : form.label_file_url ? "PDF guardado" : "Subir PDF oficial"}
                     <input
                       type="file"
                       className="hidden"
-                      accept="image/*,application/pdf"
-                      disabled={readingLabel}
-                      onChange={e => e.target.files?.[0] && readNutritionLabel(e.target.files[0])}
+                      accept="application/pdf"
+                      disabled={uploadingLabel}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadOfficialNutritionPdf(file);
+                        e.currentTarget.value = "";
+                      }}
                     />
                   </label>
-                  <button type="button" className="btn-primary" onClick={() => clearProductMedia("label_file_url")}>
-                    <Trash2 className="h-4 w-4" /> Borrar
+                  <button type="button" className="btn-primary" disabled={readingLabel || !form.label_file_url} onClick={readSavedNutritionLabel}>
+                    <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
                   </button>
+                  {form.label_file_url && (
+                    <button type="button" className="btn-primary" onClick={() => clearProductMedia("label_file_url")}>
+                      <Trash2 className="h-4 w-4" /> Eliminar PDF
+                    </button>
+                  )}
                 </div>
               </div>
               {form.label_file_url && (
-                <a href={form.label_file_url} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold underline">
-                  Ver etiqueta guardada
-                </a>
+                <div className="rounded-2xl border border-primary/20 bg-white/70 p-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold text-primary">PDF guardado</p>
+                    {form.verification_status === "verificado" ? (
+                      <span className="rounded-full bg-primary px-3 py-1 font-bold text-white">Verificado</span>
+                    ) : (
+                      <span className="rounded-full border border-primary bg-primary/10 px-3 py-1 font-bold text-primary">
+                        Pendiente de analizar con IA
+                      </span>
+                    )}
+                  </div>
+                  <a href={form.label_file_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-primary font-bold underline">
+                    Ver PDF guardado
+                  </a>
+                </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input className="field md:col-span-2" placeholder="Tamaño de ración oficial (ej. 2 cucharas rasas / 26 g)" value={form.serving_size ?? ""} onChange={e => setForm({ ...form, serving_size: e.target.value })} />
@@ -1421,7 +1661,30 @@ export default function AdminProducts() {
           </ProductAccordion>
 
           <ProductAccordion title="Descripción" {...editorAccordionProps("Descripción")}>
-            <TextArea label="Descripción" value={form.description ?? ""} onChange={value => setForm({ ...form, description: value })} />
+            <section className="card-soft p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-serif text-xl leading-tight">Descripción</h3>
+                  <p className="text-xs muted mt-1">Puedes escribirla a mano o leerla desde un PDF del producto.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="btn-primary cursor-pointer justify-center">
+                    <FileText className="h-4 w-4" /> {readingDescriptionPdf ? "Leyendo…" : "Leer PDF"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="application/pdf"
+                      disabled={readingDescriptionPdf}
+                      onChange={event => event.target.files?.[0] && readDescriptionPdf(event.target.files[0])}
+                    />
+                  </label>
+                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setForm({ ...form, description: "" })}>
+                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  </button>
+                </div>
+              </div>
+              <textarea className="field min-h-28" value={form.description ?? ""} onChange={event => setForm({ ...form, description: event.target.value })} />
+            </section>
           </ProductAccordion>
           <ProductAccordion title="Beneficios" {...editorAccordionProps("Beneficios")}>
             <TextArea label="Beneficios" value={form.benefits ?? ""} onChange={value => setForm({ ...form, benefits: value })} />
@@ -1430,7 +1693,34 @@ export default function AdminProducts() {
             <TextArea label="Modo de empleo" value={form.usage ?? ""} onChange={value => setForm({ ...form, usage: value })} />
           </ProductAccordion>
           <ProductAccordion title="Ingredientes" {...editorAccordionProps("Ingredientes")}>
-            <TextArea label="Ingredientes" value={form.ingredients_text ?? ""} onChange={value => setForm({ ...form, ingredients_text: value })} />
+            <section className="card-soft p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-serif text-xl leading-tight">Ingredientes</h3>
+                  <p className="text-xs muted mt-1">Puedes escribirlos a mano o leerlos desde una etiqueta de ingredientes.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="btn-primary cursor-pointer justify-center">
+                    <FileText className="h-4 w-4" /> {readingIngredientsLabel ? "Leyendo…" : "Leer etiqueta"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*,application/pdf"
+                      disabled={readingIngredientsLabel}
+                      onChange={event => {
+                        const file = event.target.files?.[0];
+                        if (file) readIngredientsLabel(file);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setForm({ ...form, ingredients_text: "" })}>
+                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  </button>
+                </div>
+              </div>
+              <textarea className="field min-h-28" value={form.ingredients_text ?? ""} onChange={event => setForm({ ...form, ingredients_text: event.target.value })} />
+            </section>
           </ProductAccordion>
           <ProductAccordion title="Observaciones" {...editorAccordionProps("Observaciones")}>
             <TextArea label="Observaciones" value={form.observations ?? ""} onChange={value => setForm({ ...form, observations: value })} />

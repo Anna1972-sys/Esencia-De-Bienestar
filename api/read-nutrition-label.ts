@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { Buffer } from "node:buffer";
 
 const EXPECTED_SUPABASE_REF = "vuvdnmessgwhlggzcfqb";
 const EXPECTED_SUPABASE_HOST = `${EXPECTED_SUPABASE_REF}.supabase.co`;
@@ -16,6 +17,8 @@ function numberOrNull(value: unknown) {
 
 function cleanNutritionPayload(raw: any) {
   return {
+    description: typeof raw?.description === "string" ? raw.description.trim() : "",
+    ingredients_text: typeof raw?.ingredients_text === "string" ? raw.ingredients_text.trim() : "",
     serving_size: typeof raw?.serving_size === "string" ? raw.serving_size.trim() || null : null,
     serving_grams: numberOrNull(raw?.serving_grams),
     serving_calories: numberOrNull(raw?.serving_calories),
@@ -94,16 +97,20 @@ function parseJsonText(text: string) {
 }
 
 async function readWithOpenAI(apiKey: string, body: any) {
-  const prompt = `Lee esta etiqueta nutricional en español.
+  const prompt = `Lee este PDF o imagen oficial de producto en español.
 Devuelve SOLO JSON, sin markdown.
 No inventes datos: si un valor no aparece claro, pon null.
 No marques nada como verificado.
+Extrae únicamente información que aparezca en el documento.
+Si aparece una descripción oficial del producto, devuélvela en description. Si no aparece, pon "".
+Si aparece una lista de ingredientes, devuélvela en ingredients_text. Si no aparece, pon "".
 Los valores por 100 g deben ir en: calories, protein, carbs, sugars, fat, saturated_fat, fiber, salt.
 Los valores por ración deben ir en: serving_calories, serving_protein, serving_carbs, serving_sugars, serving_fat, serving_saturated_fat, serving_fiber, serving_salt.
 El tamaño de ración textual va en serving_size y los gramos de ración en serving_grams.
+Si el sodio aparece pero la sal no aparece, indica el dato en confidence_notes para revisión manual; no conviertas si no está claro.
 Incluye source y confidence_notes.
 Formato exacto:
-{"serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":""}`;
+{"description":"","ingredients_text":"","serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":""}`;
 
   if (String(body.mimeType || "").startsWith("image/")) {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -161,6 +168,22 @@ Formato exacto:
   throw new Error("Formato no admitido. Sube una imagen o un PDF de la etiqueta.");
 }
 
+async function fileUrlToDataUrl(fileUrl: string, fallbackMimeType = "application/pdf") {
+  if (!/^https:\/\//.test(fileUrl)) {
+    throw new Error("La URL del PDF guardado no es válida");
+  }
+  const response = await fetch(fileUrl);
+  if (!response.ok) {
+    throw new Error(`No se pudo abrir el PDF guardado (${response.status})`);
+  }
+  const contentType = response.headers.get("content-type") || fallbackMimeType;
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return {
+    dataUrl: `data:${contentType};base64,${buffer.toString("base64")}`,
+    mimeType: contentType.split(";")[0] || fallbackMimeType,
+  };
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -174,6 +197,19 @@ export default async function handler(req: any, res: any) {
   if (!apiKey) return res.status(500).json({ error: "OPENAI_API_KEY no está configurada" });
 
   const body = req.body ?? {};
+  if (!body.dataUrl && body.fileUrl) {
+    try {
+      const fileData = await fileUrlToDataUrl(String(body.fileUrl), body.mimeType || "application/pdf");
+      body.dataUrl = fileData.dataUrl;
+      body.mimeType = fileData.mimeType;
+    } catch (error: any) {
+      return res.status(422).json({
+        error: "El PDF está guardado, pero no se pudo abrir para leerlo.",
+        detail: error?.message,
+      });
+    }
+  }
+
   if (!body.dataUrl || !body.mimeType) {
     return res.status(400).json({ error: "Falta el archivo de etiqueta" });
   }

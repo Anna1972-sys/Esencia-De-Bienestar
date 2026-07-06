@@ -3038,6 +3038,82 @@
     padding-bottom: 0 !important;
   }
 
+  .admin-products .admin-products-existing-panel .admin-product-list-card {
+    display: grid !important;
+    grid-template-columns: minmax(5.75rem, 6.4rem) minmax(0, 1fr) !important;
+    gap: .65rem !important;
+    align-items: center !important;
+    overflow: visible !important;
+    padding: .68rem !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-main {
+    display: contents !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-image {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 1rem !important;
+    padding: .32rem !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-content {
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-content .font-sans {
+    font-size: .92rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-tags {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: .28rem !important;
+    margin-top: .45rem !important;
+    grid-auto-rows: auto !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-tags .chip,
+  .admin-products .admin-products-existing-panel .admin-product-list-tags .chip-lavender {
+    min-height: 1.45rem !important;
+    height: auto !important;
+    padding: .18rem .45rem !important;
+    font-size: .58rem !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-list-actions {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: .42rem !important;
+    padding-top: .1rem !important;
+    min-width: 0 !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-action-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 2.05rem !important;
+    height: auto !important;
+    padding: .34rem .34rem !important;
+    font-size: .66rem !important;
+    line-height: 1.05 !important;
+    gap: .25rem !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+
+  .admin-products .admin-products-existing-panel .admin-product-action-button svg {
+    width: .78rem !important;
+    height: .78rem !important;
+    flex: 0 0 auto !important;
+  }
+
   .admin-products .admin-products-access-card.is-open .admin-products-access-trigger {
     width: 100%;
     min-height: 8.1rem;
