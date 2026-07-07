@@ -612,15 +612,32 @@ function GalleryBlock({ urls }: { urls: string[] }) {
 }
 
 function ContentBlock({ title, value, pdfUrl }: { title: string; value: string | null; pdfUrl?: string }) {
-  if (!value && !pdfUrl) return null;
+  const [open, setOpen] = useState(false);
+  const cleanValue = String(value ?? "").trim();
+
+  if (!cleanValue && !pdfUrl) return null;
+
+  const buttonLabel = title.toLowerCase().startsWith("información")
+    ? `Ver ${title.toLowerCase()}`
+    : `Ver ${title.toLowerCase()}`;
+
   return (
     <section className="card-soft p-4">
-      <h2 className="font-serif text-xl mb-2">{title}</h2>
-      {value && <p className="whitespace-pre-wrap leading-relaxed text-sm">{value}</p>}
-      {pdfUrl && (
-        <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn-secondary mt-3 w-max">
-          <FileText className="h-4 w-4" /> Ver PDF
-        </a>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="font-serif text-xl">{title}</h2>
+        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
+          {open ? `Ocultar ${title.toLowerCase()}` : buttonLabel}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-3 max-h-[60vh] overflow-y-auto pr-1">
+          {cleanValue && <p className="whitespace-pre-wrap leading-relaxed text-sm">{cleanValue}</p>}
+          {pdfUrl && (
+            <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn-secondary mt-3 w-max">
+              <FileText className="h-4 w-4" /> Ver PDF
+            </a>
+          )}
+        </div>
       )}
     </section>
   );
