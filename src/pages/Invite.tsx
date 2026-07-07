@@ -36,15 +36,16 @@ export default function Invite() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("accept-invitation", {
-      body: { token, email, password, name },
+      body: { token, email: normalizedEmail, password, name },
     });
     if (error || !data?.ok) {
       setSubmitting(false);
       return toast.error(data?.error || error?.message || "No se pudo crear la cuenta");
     }
-    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     setSubmitting(false);
     if (signInErr) {
       toast.success("Cuenta creada. Inicia sesión para continuar.");

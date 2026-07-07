@@ -26,8 +26,9 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return toast.error(error.message);
+      const normalizedEmail = email.trim().toLowerCase();
+      const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+      if (error) return toast.error("Correo o contraseña incorrectos. Si tienes una invitación, abre primero el enlace para crear tu contraseña.");
       toast.success("Te damos la bienvenida ✨");
       nav("/app", { replace: true });
     } catch (error) {
@@ -46,7 +47,8 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+      const normalizedEmail = email.trim().toLowerCase();
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo: `${window.location.origin}/reset-password` });
       if (error) return toast.error(error.message);
       toast.success("Te enviamos un correo para restablecer la contraseña.");
       setMode("login");

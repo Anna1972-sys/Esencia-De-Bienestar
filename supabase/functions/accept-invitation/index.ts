@@ -9,7 +9,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const { token, email, password, name } = await req.json();
-    if (!token || !email || !password) {
+    const normalizedEmail = String(email ?? "").trim().toLowerCase();
+    if (!token || !normalizedEmail || !password) {
       return new Response(JSON.stringify({ ok: false, error: "Faltan datos" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (String(password).length < 6) {
@@ -31,14 +32,14 @@ Deno.serve(async (req) => {
     if (!inv || inv.status !== "pending" || new Date(inv.expires_at) < new Date()) {
       return new Response(JSON.stringify({ ok: false, error: "Invitación no válida" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    if (inv.email && String(inv.email ?? "").toLowerCase() !== String(email ?? "").toLowerCase()) {
+    if (inv.email && String(inv.email ?? "").trim().toLowerCase() !== normalizedEmail) {
       return new Response(JSON.stringify({ ok: false, error: "El correo no coincide con la invitación" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     let userId: string | null = null;
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
       user_metadata: { display_name: name ?? null },
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
           console.error("listUsers error", listErr);
           break;
         }
-        existing = list.users.find((u) => String(u.email ?? "").toLowerCase() === String(email ?? "").toLowerCase());
+        existing = list.users.find((u) => String(u.email ?? "").trim().toLowerCase() === normalizedEmail);
         if (!list.users.length || list.users.length < 200) break;
       }
       if (!existing) {

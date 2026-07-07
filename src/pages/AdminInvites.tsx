@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
-const PUBLIC_APP_ORIGIN = "https://vibrant-foodie-ai.lovable.app";
+const PUBLIC_APP_ORIGIN = "https://esencia-de-bienestar-49ii.vercel.app";
 
 const getInvitationOrigin = () => {
   const host = window.location.hostname;
@@ -31,7 +31,8 @@ export default function AdminInvites() {
     e.preventDefault();
     if (!user) return;
     const token = crypto.randomUUID().replace(/-/g, "");
-    const { error } = await supabase.from("invitations").insert({ token, email: email || null, created_by: user.id });
+    const invitationEmail = email.trim().toLowerCase();
+    const { error } = await supabase.from("invitations").insert({ token, email: invitationEmail || null, created_by: user.id });
     if (error) return toast.error(error.message);
     setEmail(""); load(); toast.success("Invitación creada");
   };
