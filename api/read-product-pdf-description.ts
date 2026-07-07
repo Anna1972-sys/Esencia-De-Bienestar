@@ -66,8 +66,10 @@ function parseJsonText(text: string) {
 
 function cleanDescription(raw: any) {
   const description = typeof raw?.description === "string" ? raw.description.trim() : "";
+  const shortDescription = typeof raw?.short_description === "string" ? raw.short_description.trim() : "";
   if (!description) throw new Error("No se ha podido extraer una descripción clara del PDF");
   return {
+    short_description: (shortDescription || description).slice(0, 420),
     description: description.slice(0, 2500),
   };
 }
@@ -81,15 +83,17 @@ async function readWithOpenAI(apiKey: string, body: any) {
     ? body.productName.trim()
     : "este producto";
 
-  const prompt = `Lee el PDF adjunto y crea una descripción clara en español para la ficha pública de ${productName}.
+  const prompt = `Lee el PDF adjunto y crea dos descripciones claras en español para la ficha pública de ${productName}.
 Devuelve SOLO JSON, sin markdown.
 No inventes información. Usa únicamente datos que aparezcan en el PDF.
 No hagas cálculos nutricionales.
 No incluyas tablas largas ni listas interminables.
 Prioriza: qué es el producto, para qué sirve, beneficios principales, modo de uso general si aparece y advertencias importantes si aparecen.
 Texto profesional, natural y fácil de leer para una clienta.
+short_description debe ser un resumen breve de 2 a 4 líneas.
+description debe ser la descripción completa y amplia basada en el PDF.
 Formato exacto:
-{"description":"..."}`;
+{"short_description":"...","description":"..."}`;
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",

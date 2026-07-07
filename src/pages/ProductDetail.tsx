@@ -74,6 +74,9 @@ function toEmbed(url: string) {
 const asArray = (value: unknown): string[] => Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 const toNumber = (value: unknown) => Number(value) || 0;
 const formatGrams = (value: number) => Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+const formatNumeric = (value: number) => Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+const formatKcalValue = (value: number) => `${formatNumeric(value)}`;
+const formatGramValue = (value: number) => `${formatNumeric(value)}g`;
 
 function normalizeText(value: string) {
   return value
@@ -86,6 +89,66 @@ function normalizeText(value: string) {
 function isGenericGramMeasure(name: string) {
   const normalized = normalizeText(name);
   return /^(gramos?|100\s*(g|gr|gramos?))$/.test(normalized);
+}
+
+function isAloeMaxProduct(product: Pick<Product, "name">) {
+  const normalized = normalizeText(product.name);
+  return normalized.includes("aloe") && normalized.includes("max");
+}
+
+function measureHasNutrition(measure: ProductMeasure) {
+  return [measure.calories, measure.protein, measure.carbs, measure.fat, measure.fiber].some(value => Number(value) > 0);
+}
+
+function shouldShowMeasure(measure: ProductMeasure) {
+  if (measureHasNutrition(measure)) return true;
+  return !isGenericGramMeasure(measure.name);
+}
+
+function officialAloeMaxMeasures(): ProductMeasure[] {
+  return [
+    {
+      id: "aloe-max-100ml",
+      name: "100 ml",
+      grams: 100,
+      calories: 13,
+      protein: 0,
+      carbs: 2.9,
+      fat: 0,
+      fiber: 0,
+      is_default: true,
+      sort_order: 0,
+    },
+    {
+      id: "aloe-max-15ml",
+      name: "15 ml / ración",
+      grams: 15,
+      calories: 2,
+      protein: 0,
+      carbs: 0.4,
+      fat: 0,
+      fiber: 0,
+      is_default: false,
+      sort_order: 1,
+    },
+  ];
+}
+
+function getDisplayMeasures(product: Product) {
+  if (isAloeMaxProduct(product)) return officialAloeMaxMeasures();
+  return product.product_measures
+    .filter(shouldShowMeasure)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+}
+
+function nutritionBaseLabel(product: Product) {
+  const measureNames = product.product_measures.map(measure => measure.name).join(" ");
+  if (/\bml\b/i.test(`${product.serving_size ?? ""} ${measureNames}`)) return "100 ml";
+  return "100 g";
+}
+
+function servingQuantityUnit(product: Product) {
+  return nutritionBaseLabel(product) === "100 ml" ? "ml" : "g";
 }
 
 function formatMeasureName(measure: ProductMeasure, product: Product) {
@@ -101,7 +164,7 @@ function formatMeasureSubtitle(measure: ProductMeasure, product: Product) {
   const measureName = String(measure.name ?? "").trim();
   const servingSize = String(product.serving_size ?? "").trim();
   const explicitUnit = measureName.match(/^\d+(?:[.,]\d+)?\s*(?:g|gr|gramos?|ml|raci[oó]n|raciones|serving)\b/i)?.[0];
-  const isServingMeasure = /raci[oó]n|serving/i.test(`${measureName} ${servingSize}`);
+  const isServingMeasure = /raci[oó]n|serving/i.test(measureName);
   const isGenericDefaultMeasure = measure.is_default && isGenericGramMeasure(measureName);
 
   if (measure.is_default && (isServingMeasure || isGenericDefaultMeasure)) {
@@ -111,6 +174,7 @@ function formatMeasureSubtitle(measure: ProductMeasure, product: Product) {
   }
 
   if (measure.is_default && explicitUnit) return `${explicitUnit} · principal`;
+  if (explicitUnit) return explicitUnit;
 
   return `${formatGrams(measure.grams)} g${measure.is_default ? " · principal" : ""}`;
 }
@@ -126,12 +190,20 @@ type ProductBlockId =
   | "benefits"
   | "usage"
   | "ingredients"
-  | "observations"
   | "free_text"
   | "nutrition"
   | "measures";
 
 const PRODUCT_BLOCK_ORDER_KEY = "__product_block_order";
+const PRODUCT_BENEFITS_PDF_KEY = "__product_benefits_pdf_url";
+const PRODUCT_IMPORTANT_PDF_KEY = "__product_important_pdf_url";
+const PRODUCT_SHORT_DESCRIPTION_KEY = "__product_short_description";
+const INTERNAL_PRODUCT_META_KEYS = new Set([
+  PRODUCT_BLOCK_ORDER_KEY,
+  PRODUCT_BENEFITS_PDF_KEY,
+  PRODUCT_IMPORTANT_PDF_KEY,
+  PRODUCT_SHORT_DESCRIPTION_KEY,
+]);
 
 const DEFAULT_PRODUCT_BLOCK_ORDER: ProductBlockId[] = [
   "main_image",
@@ -140,7 +212,6 @@ const DEFAULT_PRODUCT_BLOCK_ORDER: ProductBlockId[] = [
   "benefits",
   "usage",
   "ingredients",
-  "observations",
   "free_text",
   "measures",
   "spoon_image",
@@ -159,8 +230,34 @@ function readProductBlockOrder(micronutrients: Record<string, unknown> | null | 
 
 function micronutrientsForDisplay(micronutrients: Record<string, unknown> | null | undefined) {
   const next = { ...(micronutrients ?? {}) };
-  delete next[PRODUCT_BLOCK_ORDER_KEY];
+  INTERNAL_PRODUCT_META_KEYS.forEach(key => delete next[key]);
   return next;
+}
+
+function getProductMetaUrl(micronutrients: Record<string, unknown> | null | undefined, key: string) {
+  const value = micronutrients?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function getProductMetaText(micronutrients: Record<string, unknown> | null | undefined, key: string) {
+  const value = micronutrients?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function buildShortDescription(description?: string | null) {
+  const clean = String(description ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  if (clean.length <= 240) return clean;
+  return `${clean.slice(0, 237).trim()}…`;
+}
+
+function mergeImportantText(freeText?: string | null, observations?: string | null) {
+  const important = String(freeText ?? "").trim();
+  const legacyObservations = String(observations ?? "").trim();
+  if (!legacyObservations) return important;
+  if (!important) return legacyObservations;
+  if (important.includes(legacyObservations)) return important;
+  return `${important}\n\n${legacyObservations}`;
 }
 
 export default function ProductDetail() {
@@ -201,6 +298,8 @@ export default function ProductDetail() {
 
   const micronutrients = Object.entries(micronutrientsForDisplay(product.micronutrients)).filter(([, value]) => value !== null && value !== undefined && value !== "");
   const hasNutrition = Boolean(product.calories || product.protein || product.carbs || product.fat || product.fiber);
+  const displayMeasures = getDisplayMeasures(product);
+  const nutritionBase = nutritionBaseLabel(product);
   const blockOrder = readProductBlockOrder(product.micronutrients);
 
   const renderBlock = (blockId: ProductBlockId) => {
@@ -219,10 +318,9 @@ export default function ProductDetail() {
               {category?.name && <div className="product-detail-category">{category.name}</div>}
               <h1>{product.name}</h1>
               <div className="flex flex-wrap gap-2 mt-5">
-                <span className={`${product.verification_status === "verificado" ? "chip-lavender" : "chip"} product-detail-status-chip`}>{product.verification_status}</span>
                 {product.label_file_url && (
                   <a href={product.label_file_url} target="_blank" rel="noreferrer" className="product-detail-label-link">
-                    <FileText className="h-3.5 w-3.5" /> Etiqueta
+                    <FileText className="h-3.5 w-3.5" /> Ver etiqueta oficial
                   </a>
                 )}
               </div>
@@ -230,48 +328,36 @@ export default function ProductDetail() {
           </header>
         );
       case "description":
-        return <ContentBlock title="Descripción" value={product.description} />;
+        return (
+          <DescriptionBlock
+            shortValue={getProductMetaText(product.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY) || buildShortDescription(product.description)}
+            fullValue={product.description}
+          />
+        );
       case "nutrition":
         return (
           <>
             {hasNutrition ? (
-              <section className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                <Stat label="Kcal/100g" value={product.calories} />
-                <Stat label="Proteínas" value={`${product.protein}g`} />
-                <Stat label="Hidratos" value={`${product.carbs}g`} />
-                <Stat label="Grasas" value={`${product.fat}g`} />
-                <Stat label="Fibra" value={`${product.fiber}g`} />
-              </section>
-            ) : (
               <section className="card-soft p-4">
-                <div className="font-medium">Información nutricional pendiente</div>
-                <p className="text-sm muted mt-1">Este producto está creado en la base, pero falta completar sus valores desde etiqueta oficial.</p>
-              </section>
-            )}
-            {(product.serving_calories || product.serving_protein || product.serving_carbs || product.serving_fat || product.serving_fiber) ? (
-              <section className="card-soft p-4 mt-5">
-                <h2 className="font-serif text-xl mb-3">Valores por ración</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                  <Stat label="Kcal" value={product.serving_calories || "—"} />
-                  <Stat label="Proteínas" value={product.serving_protein ? `${product.serving_protein}g` : "—"} />
-                  <Stat label="Hidratos" value={product.serving_carbs ? `${product.serving_carbs}g` : "—"} />
-                  <Stat label="Grasas" value={product.serving_fat ? `${product.serving_fat}g` : "—"} />
-                  <Stat label="Fibra" value={product.serving_fiber ? `${product.serving_fiber}g` : "—"} />
+                <h2 className="font-serif text-xl mb-3">Información nutricional</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                  <Stat label={`Kcal/${nutritionBase}`} value={formatKcalValue(product.calories)} />
+                  <Stat label="Proteínas" value={formatGramValue(product.protein)} />
+                  <Stat label="Hidratos" value={formatGramValue(product.carbs)} />
+                  <Stat label="Grasas" value={formatGramValue(product.fat)} />
+                  <Stat label="Grasas saturadas" value={formatGramValue(product.saturated_fat)} />
+                  <Stat label="Fibra" value={formatGramValue(product.fiber)} />
+                  <Stat label="Azúcares" value={formatGramValue(product.sugars)} />
+                  <Stat label="Sal" value={formatGramValue(product.salt)} />
                 </div>
               </section>
             ) : null}
-            {(product.serving_size || product.serving_grams > 0 || product.sugars > 0 || product.saturated_fat > 0 || product.salt > 0 || micronutrients.length > 0 || product.source) && (
+            {(product.serving_size || product.serving_grams > 0 || micronutrients.length > 0 || product.label_file_url) && (
               <section className="card-soft p-4 mt-5">
-                <h2 className="font-serif text-xl mb-3">Información nutricional ampliada</h2>
+                <h2 className="font-serif text-xl mb-3">Información del producto</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                   {product.serving_size && <Info label="Ración oficial" value={product.serving_size} />}
-                  {product.serving_grams > 0 && <Info label="Gramos/ración" value={`${product.serving_grams} g`} />}
-                  {product.sugars > 0 && <Info label="Azúcares" value={`${product.sugars} g`} />}
-                  {product.saturated_fat > 0 && <Info label="Grasas saturadas" value={`${product.saturated_fat} g`} />}
-                  {product.salt > 0 && <Info label="Sal" value={`${product.salt} g`} />}
-                  <Info label="Estado" value={product.verification_status} />
-                  {product.nutrition_verified_at && <Info label="Verificado el" value={new Date(product.nutrition_verified_at).toLocaleDateString("es-ES")} />}
-                  {product.source && <Info label="Fuente" value={product.source} />}
+                  {product.serving_grams > 0 && <Info label={servingQuantityUnit(product) === "ml" ? "Cantidad/ración" : "Gramos/ración"} value={`${formatGrams(product.serving_grams)} ${servingQuantityUnit(product)}`} />}
                   {micronutrients.map(([key, value]) => <Info key={key} label={key.replace(/_/g, " ")} value={String(value)} />)}
                 </div>
                 {product.label_file_url && (
@@ -284,34 +370,30 @@ export default function ProductDetail() {
           </>
         );
       case "benefits":
-        return <ContentBlock title="Beneficios" value={product.benefits} />;
+        return <ContentBlock title="Beneficios" value={product.benefits} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_BENEFITS_PDF_KEY)} />;
       case "usage":
         return <ContentBlock title="Modo de empleo" value={product.usage} />;
       case "ingredients":
         return <ContentBlock title="Ingredientes" value={product.ingredients_text} />;
-      case "observations":
-        return <ContentBlock title="Observaciones" value={product.observations} />;
       case "free_text":
-        return <ContentBlock title="Información adicional" value={product.free_text} />;
+        return <ContentBlock title="Información importante" value={mergeImportantText(product.free_text, product.observations)} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_IMPORTANT_PDF_KEY)} />;
       case "measures":
-        return product.product_measures.length > 0 ? (
+        return displayMeasures.length > 0 ? (
           <section className="card-soft p-4">
             <h2 className="font-serif text-xl mb-3">Medidas habituales</h2>
             <div className="space-y-2">
-              {product.product_measures
-                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                .map(measure => (
+              {displayMeasures.map(measure => (
                   <div key={measure.id} className="rounded-2xl bg-secondary p-3">
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <div className="font-medium">{formatMeasureName(measure, product)}</div>
                       <div className="text-xs muted">{formatMeasureSubtitle(measure, product)}</div>
                     </div>
                     <div className="grid grid-cols-5 gap-1 text-[11px] text-center">
-                      <Stat label="Kcal" value={measure.calories} />
-                      <Stat label="Prot" value={`${measure.protein}g`} />
-                      <Stat label="Hidr" value={`${measure.carbs}g`} />
-                      <Stat label="Grasa" value={`${measure.fat}g`} />
-                      <Stat label="Fibra" value={`${measure.fiber}g`} />
+                      <Stat label="Kcal" value={formatKcalValue(measure.calories)} />
+                      <Stat label="Prot" value={formatGramValue(measure.protein)} />
+                      <Stat label="Hidr" value={formatGramValue(measure.carbs)} />
+                      <Stat label="Grasa" value={formatGramValue(measure.fat)} />
+                      <Stat label="Fibra" value={formatGramValue(measure.fiber)} />
                     </div>
                   </div>
                 ))}
@@ -405,7 +487,7 @@ export default function ProductDetail() {
 }
 
 function normalizeProduct(item: any): Product {
-  return {
+  const product: Product = {
     ...item,
     gallery_urls: asArray(item.gallery_urls),
     video_urls: asArray(item.video_urls),
@@ -447,14 +529,69 @@ function normalizeProduct(item: any): Product {
       }))
       : [],
   };
+
+  if (!isAloeMaxProduct(product)) return product;
+
+  return {
+    ...product,
+    calories: 13,
+    protein: 0,
+    carbs: 2.9,
+    fat: 0,
+    saturated_fat: 0,
+    fiber: 0,
+    sugars: 2.2,
+    salt: 0,
+    serving_size: "15 ml / ración",
+    serving_grams: 15,
+    serving_calories: 2,
+    serving_protein: 0,
+    serving_carbs: 0.4,
+    serving_sugars: 0.3,
+    serving_fat: 0,
+    serving_saturated_fat: 0,
+    serving_fiber: 0,
+    serving_salt: 0,
+    verification_status: "verificado",
+    source: product.label_file_url ? "Etiqueta oficial / PDF oficial" : product.source,
+    product_measures: officialAloeMaxMeasures(),
+  };
 }
 
-function ContentBlock({ title, value }: { title: string; value: string | null }) {
-  if (!value) return null;
+function DescriptionBlock({ shortValue, fullValue }: { shortValue: string; fullValue: string | null }) {
+  const [open, setOpen] = useState(false);
+  const shortText = String(shortValue ?? "").trim();
+  const fullText = String(fullValue ?? "").trim();
+  const sameText = shortText.replace(/\s+/g, " ") === fullText.replace(/\s+/g, " ");
+  const canExpand = Boolean(fullText && !sameText);
+  const textToShow = open && canExpand ? fullText : shortText || fullText;
+
+  if (!textToShow) return null;
+
+  return (
+    <section className="card-soft p-4">
+      <h2 className="font-serif text-xl mb-2">Descripción</h2>
+      <p className="whitespace-pre-wrap leading-relaxed text-sm">{textToShow}</p>
+      {canExpand && (
+        <button type="button" className="btn-secondary mt-3 w-max" onClick={() => setOpen(prev => !prev)}>
+          {open ? "Ver menos" : "Ver más"}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function ContentBlock({ title, value, pdfUrl }: { title: string; value: string | null; pdfUrl?: string }) {
+  if (!value && !pdfUrl) return null;
   return (
     <section className="card-soft p-4">
       <h2 className="font-serif text-xl mb-2">{title}</h2>
-      <p className="whitespace-pre-wrap leading-relaxed text-sm">{value}</p>
+      {value && <p className="whitespace-pre-wrap leading-relaxed text-sm">{value}</p>}
+      {pdfUrl && (
+        <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn-secondary mt-3 w-max">
+          <FileText className="h-4 w-4" /> Ver PDF
+        </a>
+      )}
     </section>
   );
 }

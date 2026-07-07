@@ -17,6 +17,7 @@ function numberOrNull(value: unknown) {
 
 function cleanNutritionPayload(raw: any) {
   return {
+    short_description: typeof raw?.short_description === "string" ? raw.short_description.trim() : "",
     description: typeof raw?.description === "string" ? raw.description.trim() : "",
     ingredients_text: typeof raw?.ingredients_text === "string" ? raw.ingredients_text.trim() : "",
     serving_size: typeof raw?.serving_size === "string" ? raw.serving_size.trim() || null : null,
@@ -103,6 +104,7 @@ No inventes datos: si un valor no aparece claro, pon null.
 No marques nada como verificado.
 Extrae únicamente información que aparezca en el documento.
 Si aparece una descripción oficial del producto, devuélvela en description. Si no aparece, pon "".
+Si aparece descripción oficial suficiente, crea short_description como resumen breve de 2 a 4 líneas usando solo esa información. Si no aparece, pon "".
 Si aparece una lista de ingredientes, devuélvela en ingredients_text. Si no aparece, pon "".
 Los valores por 100 g deben ir en: calories, protein, carbs, sugars, fat, saturated_fat, fiber, salt.
 Los valores por ración deben ir en: serving_calories, serving_protein, serving_carbs, serving_sugars, serving_fat, serving_saturated_fat, serving_fiber, serving_salt.
@@ -110,7 +112,7 @@ El tamaño de ración textual va en serving_size y los gramos de ración en serv
 Si el sodio aparece pero la sal no aparece, indica el dato en confidence_notes para revisión manual; no conviertas si no está claro.
 Incluye source y confidence_notes.
 Formato exacto:
-{"description":"","ingredients_text":"","serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":""}`;
+{"short_description":"","description":"","ingredients_text":"","serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":""}`;
 
   if (String(body.mimeType || "").startsWith("image/")) {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

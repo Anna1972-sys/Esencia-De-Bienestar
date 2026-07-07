@@ -20,6 +20,7 @@ type ProductCategory = {
 type Product = {
   id: string;
   category_id: string | null;
+  line?: string | null;
   name: string;
   image_url: string | null;
   description: string | null;
@@ -42,6 +43,31 @@ function normalizeText(value: unknown) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function categorySectionId(category: ProductCategory | null) {
+  if (!category) return "";
+  return normalizeText(category.name)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function slugifySection(value: unknown) {
+  return normalizeText(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const PRODUCT_CLIENT_SECTION_IDS = new Set(PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => section.id));
+
+function productSectionId(product: Product, category: ProductCategory | null) {
+  const lineSection = slugifySection(product.line);
+  if (PRODUCT_CLIENT_SECTION_IDS.has(lineSection)) return lineSection;
+
+  const categorySection = categorySectionId(category);
+  if (PRODUCT_CLIENT_SECTION_IDS.has(categorySection)) return categorySection;
+
+  return "";
 }
 
 export default function Products() {
@@ -75,17 +101,7 @@ export default function Products() {
   const q = String(query ?? "").trim().toLowerCase();
   const productMatchesSection = (product: Product, sectionId: string) => {
     const category = product.category_id ? categoryById.get(product.category_id) : null;
-    const text = normalizeText([product.name, product.description, product.benefits, product.informative_only ? "informativo" : "", category?.name].filter(Boolean).join(" "));
-    if (sectionId === "nutricion-externa") {
-      return /externa|skin|piel|aloe|gel|champu|shampoo|lotion|locion|body|hand|corporal|facial|crema/.test(text);
-    }
-    if (sectionId === "nutricion-objetiva") {
-      return /objetiva|objetivo|control|peso|deport|rendimiento|hidrat|energia|immune|omega|beta|heart|fibra|microbiotic|snack|chip/.test(text);
-    }
-    if (sectionId === "nutricion-interna") {
-      return !productMatchesSection(product, "nutricion-externa");
-    }
-    return true;
+    return productSectionId(product, category) === sectionId;
   };
 
   const filtered = useMemo(() => {

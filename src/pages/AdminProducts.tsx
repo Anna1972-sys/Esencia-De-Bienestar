@@ -137,12 +137,21 @@ type ProductBlockId =
   | "benefits"
   | "usage"
   | "ingredients"
-  | "observations"
   | "free_text"
   | "nutrition"
   | "measures";
 
 const PRODUCT_BLOCK_ORDER_KEY = "__product_block_order";
+const PRODUCT_BENEFITS_PDF_KEY = "__product_benefits_pdf_url";
+const PRODUCT_IMPORTANT_PDF_KEY = "__product_important_pdf_url";
+const PRODUCT_SHORT_DESCRIPTION_KEY = "__product_short_description";
+const IMAGE_FILE_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif";
+const INTERNAL_PRODUCT_META_KEYS = new Set([
+  PRODUCT_BLOCK_ORDER_KEY,
+  PRODUCT_BENEFITS_PDF_KEY,
+  PRODUCT_IMPORTANT_PDF_KEY,
+  PRODUCT_SHORT_DESCRIPTION_KEY,
+]);
 
 const DEFAULT_PRODUCT_BLOCK_ORDER: ProductBlockId[] = [
   "main_image",
@@ -151,7 +160,6 @@ const DEFAULT_PRODUCT_BLOCK_ORDER: ProductBlockId[] = [
   "benefits",
   "usage",
   "ingredients",
-  "observations",
   "free_text",
   "measures",
   "spoon_image",
@@ -172,8 +180,7 @@ const PRODUCT_BLOCK_LABELS: Record<ProductBlockId, string> = {
   benefits: "Beneficios",
   usage: "Modo de empleo",
   ingredients: "Ingredientes",
-  observations: "Observaciones",
-  free_text: "Texto libre",
+  free_text: "Información importante",
   nutrition: "Información nutricional",
   measures: "Medidas habituales",
 };
@@ -334,8 +341,51 @@ function readProductBlockOrder(micronutrients: Record<string, unknown> | null | 
 
 function micronutrientsForEditor(micronutrients: Record<string, unknown> | null | undefined) {
   const next = { ...(micronutrients ?? {}) };
-  delete next[PRODUCT_BLOCK_ORDER_KEY];
+  INTERNAL_PRODUCT_META_KEYS.forEach(key => delete next[key]);
   return next;
+}
+
+function hiddenProductMeta(micronutrients: Record<string, unknown> | null | undefined) {
+  const hidden: Record<string, unknown> = {};
+  INTERNAL_PRODUCT_META_KEYS.forEach(key => {
+    const value = micronutrients?.[key];
+    if (value !== undefined && value !== null && value !== "") hidden[key] = value;
+  });
+  return hidden;
+}
+
+function getProductMetaUrl(micronutrients: Record<string, unknown> | null | undefined, key: string) {
+  const value = micronutrients?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function getProductMetaText(micronutrients: Record<string, unknown> | null | undefined, key: string) {
+  const value = micronutrients?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function setProductMetaText(micronutrients: Record<string, unknown> | null | undefined, key: string, value: string) {
+  const next = { ...(micronutrients ?? {}) };
+  const clean = value.trim();
+  if (clean) next[key] = clean;
+  else delete next[key];
+  return next;
+}
+
+function buildShortDescription(description?: string | null) {
+  const clean = String(description ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  if (clean.length <= 240) return clean;
+  return `${clean.slice(0, 237).trim()}…`;
+}
+
+function mergeImportantText(freeText?: string | null, observations?: string | null) {
+  const important = String(freeText ?? "").trim();
+  const legacyObservations = String(observations ?? "").trim();
+  if (!legacyObservations) return important;
+  if (!important) return legacyObservations;
+  if (important.includes(legacyObservations)) return important;
+  return `${important}\n\n${legacyObservations}`;
 }
 
 function moveBlockOrder(order: ProductBlockId[], blockId: ProductBlockId, direction: -1 | 1) {
@@ -668,8 +718,8 @@ export default function AdminProducts() {
       benefits: preparedForm.benefits || null,
       usage: preparedForm.usage || null,
       ingredients_text: preparedForm.ingredients_text || null,
-      observations: preparedForm.observations || null,
-      free_text: preparedForm.free_text || null,
+      observations: null,
+      free_text: mergeImportantText(preparedForm.free_text, preparedForm.observations) || null,
       serving_size: preparedForm.serving_size || null,
       serving_grams: toNullableNumber(preparedForm.serving_grams),
       serving_calories: toNullableNumber(preparedForm.serving_calories),
@@ -693,7 +743,7 @@ export default function AdminProducts() {
       carbs_per_gram: toNullableNumber(carbsPerGram),
       fat_per_gram: toNullableNumber(fatPerGram),
       fiber_per_gram: toNullableNumber(fiberPerGram),
-      micronutrients: { ...micronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder },
+      micronutrients: { ...hiddenProductMeta(form.micronutrients), ...micronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder },
       source: preparedForm.source || "Pendiente de etiqueta oficial",
       verification_status: preparedForm.verification_status,
       nutrition_effective_from: preparedForm.nutrition_effective_from || new Date().toISOString(),
@@ -779,8 +829,8 @@ export default function AdminProducts() {
       benefits: product.benefits ?? "",
       usage: product.usage ?? "",
       ingredients_text: product.ingredients_text ?? "",
-      observations: product.observations ?? "",
-      free_text: product.free_text ?? "",
+      observations: "",
+      free_text: mergeImportantText(product.free_text, product.observations),
       serving_size: product.serving_size ?? "",
       serving_grams: toFormNumber(product.serving_grams),
       serving_calories: toFormNumber(product.serving_calories),
@@ -949,6 +999,47 @@ export default function AdminProducts() {
     }
   };
 
+  const persistProductMeta = async (nextMicronutrients: Record<string, unknown>, successMessage: string) => {
+    setForm(prev => ({ ...prev, micronutrients: nextMicronutrients }));
+    if (form.id) {
+      const { error } = await (supabase as any)
+        .from("products")
+        .update({ micronutrients: { ...nextMicronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder }, updated_at: new Date().toISOString() })
+        .eq("id", form.id);
+      if (error) throw error;
+      toast.success(successMessage);
+      load();
+    }
+  };
+
+  const uploadSectionPdf = async (file: File, key: typeof PRODUCT_BENEFITS_PDF_KEY | typeof PRODUCT_IMPORTANT_PDF_KEY) => {
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      return toast.error("Sube un PDF");
+    }
+    try {
+      setSaving(true);
+      const url = await uploadProductFile(file, "pdf");
+      const nextMicronutrients = { ...form.micronutrients, [key]: url };
+      await persistProductMeta(nextMicronutrients, "PDF guardado");
+      if (!form.id) toast.success("PDF subido. Pulsa Guardar producto para publicarlo.");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo subir el PDF");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clearSectionPdf = async (key: typeof PRODUCT_BENEFITS_PDF_KEY | typeof PRODUCT_IMPORTANT_PDF_KEY) => {
+    const nextMicronutrients = { ...form.micronutrients };
+    delete nextMicronutrients[key];
+    try {
+      await persistProductMeta(nextMicronutrients, "PDF eliminado");
+      if (!form.id) toast.success("PDF eliminado");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo eliminar el PDF");
+    }
+  };
+
   const clearProductMedia = (key: "image_url" | "spoon_image_url" | "label_file_url") => {
     setForm(prev => ({ ...prev, [key]: "" }));
     if (form.id) {
@@ -1056,11 +1147,13 @@ export default function AdminProducts() {
 
   const applyNutritionLabelPayload = async (payload: any, labelUrl: string, fileName: string) => {
     const verifiedAt = new Date().toISOString();
+    const nextShortDescription = String(payload.short_description ?? "").trim() || buildShortDescription(payload.description);
     let nextFormForSave: ProductForm | null = null;
     setForm(prev => {
       const next: ProductForm = nutritionFromServing({
         ...prev,
         label_file_url: labelUrl,
+        micronutrients: setProductMetaText(prev.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, nextShortDescription),
         description: payload.description ?? "",
         ingredients_text: payload.ingredients_text ?? "",
         serving_size: payload.serving_size ?? "",
@@ -1093,6 +1186,7 @@ export default function AdminProducts() {
     if (!next) return;
     await persistProductPatch({
       label_file_url: labelUrl,
+      micronutrients: next.micronutrients,
       description: next.description || null,
       ingredients_text: next.ingredients_text || null,
       serving_size: next.serving_size || null,
@@ -1203,11 +1297,14 @@ export default function AdminProducts() {
 
       const description = String(payload?.description ?? "").trim();
       if (!description) throw new Error("El PDF no contiene una descripción clara");
+      const shortDescription = String(payload?.short_description ?? "").trim() || buildShortDescription(description);
+      const nextMicronutrients = setProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, shortDescription);
 
       const nextPdfUrls = form.pdf_urls.includes(pdfUrl) ? form.pdf_urls : [...form.pdf_urls, pdfUrl];
       setForm(prev => ({
         ...prev,
         description,
+        micronutrients: setProductMetaText(prev.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, shortDescription),
         pdf_urls: prev.pdf_urls.includes(pdfUrl) ? prev.pdf_urls : [...prev.pdf_urls, pdfUrl],
       }));
 
@@ -1216,6 +1313,7 @@ export default function AdminProducts() {
           .from("products")
           .update({
             description,
+            micronutrients: nextMicronutrients,
             pdf_urls: nextPdfUrls,
             updated_at: new Date().toISOString(),
           })
@@ -1401,7 +1499,7 @@ export default function AdminProducts() {
             <div className="flex flex-col sm:flex-row gap-2">
               <label className="btn-primary cursor-pointer justify-center">
                 <ImageIcon className="h-4 w-4" /> Subir imagen
-                <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && uploadCategoryImage(e.target.files[0])} />
+                <input type="file" className="hidden" accept={IMAGE_FILE_ACCEPT} onChange={e => e.target.files?.[0] && uploadCategoryImage(e.target.files[0])} />
               </label>
               <input className="field flex-1" placeholder="O pegar URL de imagen" value={categoryImageUrl} onChange={e => setCategoryImageUrl(e.target.value)} />
               {categoryImageUrl && <button type="button" className="btn-primary" onClick={() => setCategoryImageUrl("")}><Trash2 className="h-4 w-4" /> Borrar</button>}
@@ -1496,7 +1594,7 @@ export default function AdminProducts() {
                 <MediaUploader
                   title="Imagen principal del producto"
                   url={form.image_url ?? ""}
-                  accept="image/*"
+                  accept={IMAGE_FILE_ACCEPT}
                   icon={<ImageIcon className="h-4 w-4" />}
                   onUpload={file => uploadInto(file, "main")}
                   onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
@@ -1514,7 +1612,7 @@ export default function AdminProducts() {
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Vista previa</p>
                     <h4>{form.name || "Nombre del producto"}</h4>
                     <p>{form.category_id ? categoryById.get(form.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</p>
-                    <p>{form.description || "Añade una descripción para verla aquí."}</p>
+                    <p>{getProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY) || buildShortDescription(form.description) || "Añade una descripción para verla aquí."}</p>
                     <span>{form.verification_status === "verificado" ? "Verificado" : "Pendiente"}</span>
                     <button type="button" className="btn-primary" onClick={() => previewProduct(form.id)}>
                       <Eye className="h-4 w-4" /> Ver producto
@@ -1607,7 +1705,7 @@ export default function AdminProducts() {
               <MediaUploader
                 title="Imagen cuchara oficial Herbalife"
                 url={form.spoon_image_url ?? ""}
-                accept="image/*"
+                accept={IMAGE_FILE_ACCEPT}
                 icon={<ImageIcon className="h-4 w-4" />}
                 onUpload={file => uploadInto(file, "spoon")}
                 onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
@@ -1648,7 +1746,7 @@ export default function AdminProducts() {
           </ProductAccordion>
 
           <ProductAccordion title="Galería" {...editorAccordionProps("Galería")}>
-            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept="image/*" onUpload={file => uploadInto(file, "gallery")} />
+            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept={IMAGE_FILE_ACCEPT} onUpload={file => uploadInto(file, "gallery")} />
           </ProductAccordion>
           <ProductAccordion title="Vídeos" {...editorAccordionProps("Vídeos")}>
             <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} onClear={() => setForm(prev => ({ ...prev, video_urls: [] }))} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
@@ -1665,7 +1763,7 @@ export default function AdminProducts() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-serif text-xl leading-tight">Descripción</h3>
-                  <p className="text-xs muted mt-1">Puedes escribirla a mano o leerla desde un PDF del producto.</p>
+                  <p className="text-xs muted mt-1">La clienta verá primero la descripción corta y podrá desplegar la completa.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <label className="btn-primary cursor-pointer justify-center">
@@ -1678,16 +1776,42 @@ export default function AdminProducts() {
                       onChange={event => event.target.files?.[0] && readDescriptionPdf(event.target.files[0])}
                     />
                   </label>
-                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setForm({ ...form, description: "" })}>
+                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setForm({
+                    ...form,
+                    description: "",
+                    micronutrients: setProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, ""),
+                  })}>
                     <Trash2 className="h-3.5 w-3.5" /> Borrar
                   </button>
                 </div>
               </div>
-              <textarea className="field min-h-28" value={form.description ?? ""} onChange={event => setForm({ ...form, description: event.target.value })} />
+              <label className="block">
+                <span className="text-xs muted">Descripción corta</span>
+                <textarea
+                  className="field min-h-24 mt-1"
+                  placeholder="Resumen breve de 2–4 líneas para la clienta."
+                  value={getProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY)}
+                  onChange={event => setForm({
+                    ...form,
+                    micronutrients: setProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, event.target.value),
+                  })}
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs muted">Descripción completa</span>
+                <textarea className="field min-h-32 mt-1" value={form.description ?? ""} onChange={event => setForm({ ...form, description: event.target.value })} />
+              </label>
             </section>
           </ProductAccordion>
           <ProductAccordion title="Beneficios" {...editorAccordionProps("Beneficios")}>
-            <TextArea label="Beneficios" value={form.benefits ?? ""} onChange={value => setForm({ ...form, benefits: value })} />
+            <TextAreaWithPdf
+              label="Beneficios"
+              value={form.benefits ?? ""}
+              pdfUrl={getProductMetaUrl(form.micronutrients, PRODUCT_BENEFITS_PDF_KEY)}
+              onChange={value => setForm({ ...form, benefits: value })}
+              onUploadPdf={file => uploadSectionPdf(file, PRODUCT_BENEFITS_PDF_KEY)}
+              onClearPdf={() => clearSectionPdf(PRODUCT_BENEFITS_PDF_KEY)}
+            />
           </ProductAccordion>
           <ProductAccordion title="Modo de empleo" {...editorAccordionProps("Modo de empleo")}>
             <TextArea label="Modo de empleo" value={form.usage ?? ""} onChange={value => setForm({ ...form, usage: value })} />
@@ -1722,34 +1846,19 @@ export default function AdminProducts() {
               <textarea className="field min-h-28" value={form.ingredients_text ?? ""} onChange={event => setForm({ ...form, ingredients_text: event.target.value })} />
             </section>
           </ProductAccordion>
-          <ProductAccordion title="Observaciones" {...editorAccordionProps("Observaciones")}>
-            <TextArea label="Observaciones" value={form.observations ?? ""} onChange={value => setForm({ ...form, observations: value })} />
-          </ProductAccordion>
-          <ProductAccordion title="Texto libre" {...editorAccordionProps("Texto libre")}>
-            <TextArea label="Texto libre" value={form.free_text ?? ""} onChange={value => setForm({ ...form, free_text: value })} />
+          <ProductAccordion title="Información importante" {...editorAccordionProps("Información importante")}>
+            <TextAreaWithPdf
+              label="Información importante"
+              value={form.free_text ?? ""}
+              pdfUrl={getProductMetaUrl(form.micronutrients, PRODUCT_IMPORTANT_PDF_KEY)}
+              onChange={value => setForm({ ...form, free_text: value })}
+              onUploadPdf={file => uploadSectionPdf(file, PRODUCT_IMPORTANT_PDF_KEY)}
+              onClearPdf={() => clearSectionPdf(PRODUCT_IMPORTANT_PDF_KEY)}
+            />
           </ProductAccordion>
 
           <ProductAccordion title="Información nutricional" {...editorAccordionProps("Información nutricional")}>
             <div className="space-y-5">
-              <div>
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <h3 className="font-serif text-xl">Información nutricional por ración oficial</h3>
-                  <button type="button" className="btn-primary text-xs py-2" onClick={clearServingNutrition}>
-                    <Trash2 className="h-3.5 w-3.5" /> Borrar
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <NumberField label="Calorías/ración" value={form.serving_calories} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_calories: value }))} />
-                  <NumberField label="Proteínas/ración" value={form.serving_protein} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_protein: value }))} />
-                  <NumberField label="Hidratos/ración" value={form.serving_carbs} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_carbs: value }))} />
-                  <NumberField label="Azúcares/ración" value={form.serving_sugars} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_sugars: value }))} />
-                  <NumberField label="Grasas/ración" value={form.serving_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fat: value }))} />
-                  <NumberField label="Saturadas/ración" value={form.serving_saturated_fat} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_saturated_fat: value }))} />
-                  <NumberField label="Fibra/ración" value={form.serving_fiber} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_fiber: value }))} />
-                  <NumberField label="Sal/ración" value={form.serving_salt} onChange={value => setForm(prev => nutritionFromServing({ ...prev, serving_salt: value }))} />
-                </div>
-              </div>
-
               <div>
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <h3 className="font-serif text-xl">Información nutricional por 100 g</h3>
@@ -1758,29 +1867,17 @@ export default function AdminProducts() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} />
-                  <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} />
-                  <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} />
-                  <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} />
-                  <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} />
-                  <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} />
-                  <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} />
-                  <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} />
+                  <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} quickSteps={[-50, 50]} step="0.1" />
                 </div>
               </div>
 
-              <div className="rounded-[22px] bg-secondary/70 p-3">
-                <h4 className="font-bold text-sm mb-2">Cálculo automático por gramo</h4>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  <ReadonlyMacro label="Kcal/g" value={perGram(form.calories, form.serving_calories, form.serving_grams) || "—"} />
-                  <ReadonlyMacro label="Proteína/g" value={perGram(form.protein, form.serving_protein, form.serving_grams) || "—"} />
-                  <ReadonlyMacro label="Hidratos/g" value={perGram(form.carbs, form.serving_carbs, form.serving_grams) || "—"} />
-                  <ReadonlyMacro label="Grasa/g" value={perGram(form.fat, form.serving_fat, form.serving_grams) || "—"} />
-                  <ReadonlyMacro label="Fibra/g" value={perGram(form.fiber, form.serving_fiber, form.serving_grams) || "—"} />
-                </div>
-              </div>
-              <label className="block text-xs muted mt-3 mb-1">Micronutrientes opcionales (JSON)</label>
-              <textarea className="field min-h-24 font-mono text-xs" value={form.micronutrientsText} onChange={e => setForm({ ...form, micronutrientsText: e.target.value })} placeholder='{"calcium_mg": 120, "iron_mg": 2}' />
             </div>
           </ProductAccordion>
 
@@ -2021,6 +2118,62 @@ function TextArea({ label, value, onChange }: { label: string; value: string; on
   );
 }
 
+function TextAreaWithPdf({
+  label,
+  value,
+  pdfUrl,
+  onChange,
+  onUploadPdf,
+  onClearPdf,
+}: {
+  label: string;
+  value: string;
+  pdfUrl: string;
+  onChange: (value: string) => void;
+  onUploadPdf: (file: File) => void;
+  onClearPdf: () => void;
+}) {
+  return (
+    <section className="card-soft p-4 space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h3 className="font-serif text-xl leading-tight">{label}</h3>
+          <p className="text-xs muted mt-1">Texto editable y PDF opcional.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <label className="btn-primary cursor-pointer justify-center">
+            <FileText className="h-4 w-4" /> {pdfUrl ? "Sustituir PDF" : "Subir PDF"}
+            <input
+              type="file"
+              className="hidden"
+              accept="application/pdf"
+              onChange={event => {
+                const file = event.target.files?.[0];
+                if (file) onUploadPdf(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          {pdfUrl && (
+            <>
+              <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn-secondary">
+                <FileText className="h-4 w-4" /> Ver PDF
+              </a>
+              <button type="button" className="btn-primary admin-product-clear-button" onClick={onClearPdf}>
+                <Trash2 className="h-3.5 w-3.5" /> Borrar PDF
+              </button>
+            </>
+          )}
+          <button type="button" className="btn-primary admin-product-clear-button" onClick={() => onChange("")}>
+            <Trash2 className="h-3.5 w-3.5" /> Borrar texto
+          </button>
+        </div>
+      </div>
+      <textarea className="field min-h-28" value={value} onChange={event => onChange(event.target.value)} />
+    </section>
+  );
+}
+
 function NumberField({
   label,
   value,
@@ -2090,9 +2243,9 @@ function NumberField({
 
 function ReadonlyMacro({ label, value }: { label: string; value: string | number }) {
   return (
-    <div>
+    <div className="admin-product-readonly-macro">
       <span className="text-[11px] muted">{label}</span>
-      <div className="field mt-1 bg-white/70 text-muted-foreground">{value}</div>
+      <div className="field mt-1 bg-white/70 text-muted-foreground admin-product-readonly-macro-value">{value}</div>
     </div>
   );
 }
