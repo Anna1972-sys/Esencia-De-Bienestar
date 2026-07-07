@@ -401,29 +401,9 @@ export default function ProductDetail() {
           </section>
         ) : null;
       case "spoon_image":
-        return product.spoon_image_url ? (
-          <section className="card-soft p-4">
-            <h2 className="font-serif text-xl mb-3">Cuchara oficial Herbalife</h2>
-            <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
-              <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
-              <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
-            </div>
-            <a href={product.spoon_image_url} target="_blank" rel="noreferrer" className="block">
-              <img src={product.spoon_image_url} alt="Equivalencia cuchara Herbalife" className="w-full rounded-2xl" />
-            </a>
-          </section>
-        ) : null;
+        return product.spoon_image_url ? <SpoonImageBlock imageUrl={product.spoon_image_url} /> : null;
       case "gallery":
-        return product.gallery_urls.length > 0 ? (
-          <section>
-            <h2 className="font-serif text-xl mb-3">Galería</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {product.gallery_urls.map((url, index) => (
-                <img key={`${url}-${index}`} src={url} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
-              ))}
-            </div>
-          </section>
-        ) : null;
+        return product.gallery_urls.length > 0 ? <GalleryBlock urls={product.gallery_urls} /> : null;
       case "videos":
         return product.video_urls.length > 0 ? (
           <section className="space-y-3">
@@ -562,20 +542,70 @@ function DescriptionBlock({ shortValue, fullValue }: { shortValue: string; fullV
   const [open, setOpen] = useState(false);
   const shortText = String(shortValue ?? "").trim();
   const fullText = String(fullValue ?? "").trim();
-  const sameText = shortText.replace(/\s+/g, " ") === fullText.replace(/\s+/g, " ");
-  const canExpand = Boolean(fullText && !sameText);
-  const textToShow = open && canExpand ? fullText : shortText || fullText;
+  const textToShow = fullText || shortText;
 
   if (!textToShow) return null;
 
   return (
     <section className="card-soft p-4">
-      <h2 className="font-serif text-xl mb-2">Descripción</h2>
-      <p className="whitespace-pre-wrap leading-relaxed text-sm">{textToShow}</p>
-      {canExpand && (
-        <button type="button" className="btn-secondary mt-3 w-max" onClick={() => setOpen(prev => !prev)}>
-          {open ? "Ver menos" : "Ver más"}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="font-serif text-xl">Descripción</h2>
+        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
+          {open ? "Ocultar descripción" : "Ver descripción"}
         </button>
+      </div>
+      {open && (
+        <div className="mt-3 max-h-[60vh] overflow-y-auto pr-1">
+          <p className="whitespace-pre-wrap leading-relaxed text-sm">{textToShow}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SpoonImageBlock({ imageUrl }: { imageUrl: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="card-soft p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="font-serif text-xl">Cuchara oficial Herbalife</h2>
+        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
+          {open ? "Ocultar cuchara oficial" : "Ver cuchara oficial"}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-3">
+          <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
+            <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
+            <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
+          </div>
+          <a href={imageUrl} target="_blank" rel="noreferrer" className="block">
+            <img src={imageUrl} alt="Equivalencia cuchara Herbalife" className="w-full max-h-[60vh] object-contain rounded-2xl" />
+          </a>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function GalleryBlock({ urls }: { urls: string[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="card-soft p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="font-serif text-xl">Galería</h2>
+        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
+          {open ? "Ocultar galería" : "Ver galería"}
+        </button>
+      </div>
+      {open && (
+        <div className="grid grid-cols-2 gap-3 mt-3 pb-4">
+          {urls.map((url, index) => (
+            <img key={`${url}-${index}`} src={url} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
+          ))}
+        </div>
       )}
     </section>
   );
