@@ -145,6 +145,7 @@ const PRODUCT_BLOCK_ORDER_KEY = "__product_block_order";
 const PRODUCT_BENEFITS_PDF_KEY = "__product_benefits_pdf_url";
 const PRODUCT_IMPORTANT_PDF_KEY = "__product_important_pdf_url";
 const PRODUCT_SHORT_DESCRIPTION_KEY = "__product_short_description";
+const DELETE_ELEMENT_CONFIRMATION = "¿Seguro que deseas eliminar este elemento?";
 const IMAGE_FILE_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif";
 const INTERNAL_PRODUCT_META_KEYS = new Set([
   PRODUCT_BLOCK_ORDER_KEY,
@@ -388,6 +389,13 @@ function mergeImportantText(freeText?: string | null, observations?: string | nu
   return `${important}\n\n${legacyObservations}`;
 }
 
+function splitContentItems(value?: string | null) {
+  return String(value ?? "")
+    .split(/\n+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
 function moveBlockOrder(order: ProductBlockId[], blockId: ProductBlockId, direction: -1 | 1) {
   const index = order.indexOf(blockId);
   const target = index + direction;
@@ -507,6 +515,8 @@ export default function AdminProducts() {
   const keepEditingAfterSave = useRef(false);
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const productSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const descriptionShortTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -921,6 +931,72 @@ export default function AdminProducts() {
     else resetProduct();
   };
 
+  const confirmElementDelete = () => window.confirm(DELETE_ELEMENT_CONFIRMATION);
+
+  const persistProductFields = async (patch: Record<string, unknown>, successMessage = "Elemento eliminado") => {
+    if (!form.id) {
+      toast.success(successMessage);
+      return true;
+    }
+
+    const { error } = await (supabase as any)
+      .from("products")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", form.id);
+
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+
+    setProducts(prev => prev.map(product => (
+      product.id === form.id ? ({ ...product, ...patch } as Product) : product
+    )));
+    toast.success(successMessage);
+    return true;
+  };
+
+  const clearDescription = async () => {
+    if (!confirmElementDelete()) return;
+    const nextMicronutrients = setProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, "");
+    setForm(prev => ({ ...prev, description: "", micronutrients: nextMicronutrients }));
+    await persistProductFields({
+      description: null,
+      micronutrients: { ...nextMicronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder },
+    }, "Descripción eliminada");
+  };
+
+  const clearTextField = async (
+    key: "benefits" | "usage" | "ingredients_text" | "free_text",
+    successMessage: string,
+  ) => {
+    if (!confirmElementDelete()) return;
+    setForm(prev => ({ ...prev, [key]: "" }));
+    await persistProductFields({ [key]: null }, successMessage);
+  };
+
+  const updateBenefitsText = async (nextBenefits: string, successMessage: string) => {
+    setForm(prev => ({ ...prev, benefits: nextBenefits }));
+    await persistProductFields({ benefits: nextBenefits || null }, successMessage);
+  };
+
+  const editBenefitItem = async (index: number) => {
+    const items = splitContentItems(form.benefits);
+    const current = items[index] ?? "";
+    const edited = window.prompt("Editar beneficio", current);
+    if (edited === null) return;
+    const clean = edited.trim();
+    if (!clean) return toast.error("El beneficio no puede quedar vacío");
+    const nextItems = items.map((item, itemIndex) => itemIndex === index ? clean : item);
+    await updateBenefitsText(nextItems.join("\n"), "Beneficio actualizado");
+  };
+
+  const deleteBenefitItem = async (index: number) => {
+    if (!confirmElementDelete()) return;
+    const nextItems = splitContentItems(form.benefits).filter((_, itemIndex) => itemIndex !== index);
+    await updateBenefitsText(nextItems.join("\n"), "Beneficio eliminado");
+  };
+
   const uploadInto = async (file: File, kind: "main" | "gallery" | "video" | "pdf" | "spoon") => {
     try {
       setSaving(true);
@@ -984,19 +1060,19 @@ export default function AdminProducts() {
     }
   };
 
-  const removeUrl = (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", index: number) => {
+  const updateUrl = async (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", index: number, value: string) => {
+    const clean = value.trim();
+    if (!clean) return toast.error("La URL no puede quedar vacía");
+    const nextUrls = form[key].map((url, i) => i === index ? clean : url);
+    setForm(prev => ({ ...prev, [key]: prev[key].map((url, i) => i === index ? clean : url) }));
+    if (form.id) await persistProductFields({ [key]: nextUrls }, "Elemento actualizado");
+  };
+
+  const removeUrl = async (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", index: number) => {
+    if (!confirmElementDelete()) return;
     const nextUrls = form[key].filter((_, i) => i !== index);
     setForm(prev => ({ ...prev, [key]: prev[key].filter((_, i) => i !== index) }));
-    if (form.id) {
-      (supabase as any)
-        .from("products")
-        .update({ [key]: nextUrls, updated_at: new Date().toISOString() })
-        .eq("id", form.id)
-        .then(({ error }: any) => {
-          if (error) toast.error(error.message);
-          else toast.success("Contenido eliminado del producto");
-        });
-    }
+    if (form.id) await persistProductFields({ [key]: nextUrls }, "Elemento eliminado");
   };
 
   const persistProductMeta = async (nextMicronutrients: Record<string, unknown>, successMessage: string) => {
@@ -1008,7 +1084,9 @@ export default function AdminProducts() {
         .eq("id", form.id);
       if (error) throw error;
       toast.success(successMessage);
-      load();
+      setProducts(prev => prev.map(product => (
+        product.id === form.id ? ({ ...product, micronutrients: nextMicronutrients } as Product) : product
+      )));
     }
   };
 
@@ -1030,6 +1108,7 @@ export default function AdminProducts() {
   };
 
   const clearSectionPdf = async (key: typeof PRODUCT_BENEFITS_PDF_KEY | typeof PRODUCT_IMPORTANT_PDF_KEY) => {
+    if (!confirmElementDelete()) return;
     const nextMicronutrients = { ...form.micronutrients };
     delete nextMicronutrients[key];
     try {
@@ -1040,18 +1119,10 @@ export default function AdminProducts() {
     }
   };
 
-  const clearProductMedia = (key: "image_url" | "spoon_image_url" | "label_file_url") => {
+  const clearProductMedia = async (key: "image_url" | "spoon_image_url" | "label_file_url") => {
+    if (!confirmElementDelete()) return;
     setForm(prev => ({ ...prev, [key]: "" }));
-    if (form.id) {
-      (supabase as any)
-        .from("products")
-        .update({ [key]: null, updated_at: new Date().toISOString() })
-        .eq("id", form.id)
-        .then(({ error }: any) => {
-          if (error) toast.error(error.message);
-          else toast.success("Archivo eliminado del producto");
-        });
-    }
+    await persistProductFields({ [key]: null }, "Archivo eliminado");
   };
 
   const updateMeasure = (index: number, patch: Partial<ProductMeasure>) => {
@@ -1599,6 +1670,7 @@ export default function AdminProducts() {
                   onUpload={file => uploadInto(file, "main")}
                   onUrl={url => setForm(prev => ({ ...prev, image_url: url }))}
                   onClear={() => clearProductMedia("image_url")}
+                  clearLabel="Eliminar imagen"
                 />
                 <div className="admin-product-editor-preview-card">
                   <div className="admin-product-editor-preview-image">
@@ -1710,6 +1782,7 @@ export default function AdminProducts() {
                 onUpload={file => uploadInto(file, "spoon")}
                 onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
                 onClear={() => clearProductMedia("spoon_image_url")}
+                clearLabel="Eliminar cuchara"
                 hint="Pulsa aquí para comprobar la medida de la cuchara oficial."
                 highlightHint
               />
@@ -1746,16 +1819,16 @@ export default function AdminProducts() {
           </ProductAccordion>
 
           <ProductAccordion title="Galería" {...editorAccordionProps("Galería")}>
-            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onRemove={index => removeUrl("gallery_urls", index)} onClear={() => setForm(prev => ({ ...prev, gallery_urls: [] }))} uploadLabel="Subir imagen" accept={IMAGE_FILE_ACCEPT} onUpload={file => uploadInto(file, "gallery")} />
+            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onUpdate={(index, url) => updateUrl("gallery_urls", index, url)} onRemove={index => removeUrl("gallery_urls", index)} uploadLabel="Subir imagen" accept={IMAGE_FILE_ACCEPT} onUpload={file => uploadInto(file, "gallery")} />
           </ProductAccordion>
           <ProductAccordion title="Vídeos" {...editorAccordionProps("Vídeos")}>
-            <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onRemove={index => removeUrl("video_urls", index)} onClear={() => setForm(prev => ({ ...prev, video_urls: [] }))} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
+            <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onUpdate={(index, url) => updateUrl("video_urls", index, url)} onRemove={index => removeUrl("video_urls", index)} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
           </ProductAccordion>
           <ProductAccordion title="PDFs" {...editorAccordionProps("PDFs")}>
-            <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onRemove={index => removeUrl("pdf_urls", index)} onClear={() => setForm(prev => ({ ...prev, pdf_urls: [] }))} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
+            <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onUpdate={(index, url) => updateUrl("pdf_urls", index, url)} onRemove={index => removeUrl("pdf_urls", index)} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
           </ProductAccordion>
           <ProductAccordion title="URLs" {...editorAccordionProps("URLs")}>
-            <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onRemove={index => removeUrl("external_urls", index)} onClear={() => setForm(prev => ({ ...prev, external_urls: [] }))} />
+            <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onUpdate={(index, url) => updateUrl("external_urls", index, url)} onRemove={index => removeUrl("external_urls", index)} />
           </ProductAccordion>
 
           <ProductAccordion title="Descripción" {...editorAccordionProps("Descripción")}>
@@ -1766,6 +1839,9 @@ export default function AdminProducts() {
                   <p className="text-xs muted mt-1">La clienta verá primero la descripción corta y podrá desplegar la completa.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <button type="button" className="btn-secondary" onClick={() => descriptionShortTextareaRef.current?.focus()}>
+                    <Pencil className="h-3.5 w-3.5" /> Editar
+                  </button>
                   <label className="btn-primary cursor-pointer justify-center">
                     <FileText className="h-4 w-4" /> {readingDescriptionPdf ? "Leyendo…" : "Leer PDF"}
                     <input
@@ -1776,18 +1852,15 @@ export default function AdminProducts() {
                       onChange={event => event.target.files?.[0] && readDescriptionPdf(event.target.files[0])}
                     />
                   </label>
-                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setForm({
-                    ...form,
-                    description: "",
-                    micronutrients: setProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, ""),
-                  })}>
-                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  <button type="button" className="btn-primary admin-product-clear-button" onClick={clearDescription}>
+                    <Trash2 className="h-3.5 w-3.5" /> Eliminar descripción
                   </button>
                 </div>
               </div>
               <label className="block">
                 <span className="text-xs muted">Descripción corta</span>
                 <textarea
+                  ref={descriptionShortTextareaRef}
                   className="field min-h-24 mt-1"
                   placeholder="Resumen breve de 2–4 líneas para la clienta."
                   value={getProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY)}
@@ -1799,22 +1872,33 @@ export default function AdminProducts() {
               </label>
               <label className="block">
                 <span className="text-xs muted">Descripción completa</span>
-                <textarea className="field min-h-32 mt-1" value={form.description ?? ""} onChange={event => setForm({ ...form, description: event.target.value })} />
+                <textarea ref={descriptionTextareaRef} className="field min-h-32 mt-1" value={form.description ?? ""} onChange={event => setForm({ ...form, description: event.target.value })} />
               </label>
             </section>
           </ProductAccordion>
           <ProductAccordion title="Beneficios" {...editorAccordionProps("Beneficios")}>
-            <TextAreaWithPdf
-              label="Beneficios"
-              value={form.benefits ?? ""}
-              pdfUrl={getProductMetaUrl(form.micronutrients, PRODUCT_BENEFITS_PDF_KEY)}
-              onChange={value => setForm({ ...form, benefits: value })}
-              onUploadPdf={file => uploadSectionPdf(file, PRODUCT_BENEFITS_PDF_KEY)}
-              onClearPdf={() => clearSectionPdf(PRODUCT_BENEFITS_PDF_KEY)}
-            />
+            <div className="space-y-3">
+              <TextAreaWithPdf
+                label="Beneficios"
+                value={form.benefits ?? ""}
+                pdfUrl={getProductMetaUrl(form.micronutrients, PRODUCT_BENEFITS_PDF_KEY)}
+                onChange={value => setForm({ ...form, benefits: value })}
+                onUploadPdf={file => uploadSectionPdf(file, PRODUCT_BENEFITS_PDF_KEY)}
+                onClearPdf={() => clearSectionPdf(PRODUCT_BENEFITS_PDF_KEY)}
+                onClearText={() => clearTextField("benefits", "Beneficios eliminados")}
+                clearTextLabel="Eliminar beneficios"
+              />
+              <BenefitItemsEditor value={form.benefits ?? ""} onEdit={editBenefitItem} onDelete={deleteBenefitItem} />
+            </div>
           </ProductAccordion>
           <ProductAccordion title="Modo de empleo" {...editorAccordionProps("Modo de empleo")}>
-            <TextArea label="Modo de empleo" value={form.usage ?? ""} onChange={value => setForm({ ...form, usage: value })} />
+            <TextArea
+              label="Modo de empleo"
+              value={form.usage ?? ""}
+              onChange={value => setForm({ ...form, usage: value })}
+              onClear={() => clearTextField("usage", "Modo de empleo eliminado")}
+              clearLabel="Eliminar modo de empleo"
+            />
           </ProductAccordion>
           <ProductAccordion title="Ingredientes" {...editorAccordionProps("Ingredientes")}>
             <section className="card-soft p-4 space-y-3">
@@ -1838,8 +1922,8 @@ export default function AdminProducts() {
                       }}
                     />
                   </label>
-                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setForm({ ...form, ingredients_text: "" })}>
-                    <Trash2 className="h-3.5 w-3.5" /> Borrar
+                  <button type="button" className="btn-primary admin-product-clear-button" onClick={() => clearTextField("ingredients_text", "Ingredientes eliminados")}>
+                    <Trash2 className="h-3.5 w-3.5" /> Eliminar ingredientes
                   </button>
                 </div>
               </div>
@@ -1854,6 +1938,8 @@ export default function AdminProducts() {
               onChange={value => setForm({ ...form, free_text: value })}
               onUploadPdf={file => uploadSectionPdf(file, PRODUCT_IMPORTANT_PDF_KEY)}
               onClearPdf={() => clearSectionPdf(PRODUCT_IMPORTANT_PDF_KEY)}
+              onClearText={() => clearTextField("free_text", "Información importante eliminada")}
+              clearTextLabel="Eliminar información"
             />
           </ProductAccordion>
 
@@ -2102,14 +2188,28 @@ function normalizeMeasure(item: any): ProductMeasure {
   };
 }
 
-function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextArea({
+  label,
+  value,
+  onChange,
+  onClear,
+  clearLabel = "Eliminar texto",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onClear?: () => void;
+  clearLabel?: string;
+}) {
   return (
     <section className="card-soft p-4">
       <label className="block">
       <span className="space-y-2 block">
         <span className="font-serif text-xl block leading-tight">{label}</span>
-        <button type="button" className="btn-primary admin-product-clear-button" onClick={() => onChange("")}>
-          <Trash2 className="h-3.5 w-3.5" /> Borrar
+        <button type="button" className="btn-primary admin-product-clear-button" onClick={onClear ?? (() => {
+          if (window.confirm(DELETE_ELEMENT_CONFIRMATION)) onChange("");
+        })}>
+          <Trash2 className="h-3.5 w-3.5" /> {clearLabel}
         </button>
       </span>
       <textarea className="field min-h-28 mt-1" value={value} onChange={e => onChange(e.target.value)} />
@@ -2125,6 +2225,8 @@ function TextAreaWithPdf({
   onChange,
   onUploadPdf,
   onClearPdf,
+  onClearText,
+  clearTextLabel = "Eliminar texto",
 }: {
   label: string;
   value: string;
@@ -2132,6 +2234,8 @@ function TextAreaWithPdf({
   onChange: (value: string) => void;
   onUploadPdf: (file: File) => void;
   onClearPdf: () => void;
+  onClearText?: () => void;
+  clearTextLabel?: string;
 }) {
   return (
     <section className="card-soft p-4 space-y-3">
@@ -2164,12 +2268,46 @@ function TextAreaWithPdf({
               </button>
             </>
           )}
-          <button type="button" className="btn-primary admin-product-clear-button" onClick={() => onChange("")}>
-            <Trash2 className="h-3.5 w-3.5" /> Borrar texto
+          <button type="button" className="btn-primary admin-product-clear-button" onClick={onClearText ?? (() => {
+            if (window.confirm(DELETE_ELEMENT_CONFIRMATION)) onChange("");
+          })}>
+            <Trash2 className="h-3.5 w-3.5" /> {clearTextLabel}
           </button>
         </div>
       </div>
       <textarea className="field min-h-28" value={value} onChange={event => onChange(event.target.value)} />
+    </section>
+  );
+}
+
+function BenefitItemsEditor({
+  value,
+  onEdit,
+  onDelete,
+}: {
+  value: string;
+  onEdit: (index: number) => void;
+  onDelete: (index: number) => void;
+}) {
+  const items = splitContentItems(value);
+  if (!items.length) return null;
+
+  return (
+    <section className="card-soft p-4 space-y-2">
+      <h3 className="font-serif text-xl leading-tight">Beneficios individuales</h3>
+      {items.map((item, index) => (
+        <div key={`${item}-${index}`} className="rounded-2xl bg-white/85 border border-primary/20 p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+          <p className="text-sm flex-1">{item}</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary text-xs py-2" onClick={() => onEdit(index)}>
+              <Pencil className="h-3.5 w-3.5" /> Editar
+            </button>
+            <button type="button" className="btn-primary admin-product-clear-button" onClick={() => onDelete(index)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+            </button>
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
@@ -2266,6 +2404,7 @@ function MediaUploader({
   icon,
   hint,
   highlightHint,
+  clearLabel = "Eliminar",
   onUpload,
   onUrl,
   onClear,
@@ -2276,6 +2415,7 @@ function MediaUploader({
   icon: React.ReactNode;
   hint?: string;
   highlightHint?: boolean;
+  clearLabel?: string;
   onUpload: (file: File) => void;
   onUrl: (url: string) => void;
   onClear?: () => void;
@@ -2286,7 +2426,7 @@ function MediaUploader({
         <div className="flex items-center gap-2 text-sm font-medium leading-tight">{icon}{title}</div>
         {onClear && (
           <button type="button" className="btn-primary admin-product-clear-button" onClick={onClear}>
-            <Trash2 className="h-3.5 w-3.5" /> Borrar
+            <Trash2 className="h-3.5 w-3.5" /> {clearLabel}
           </button>
         )}
       </div>
@@ -2322,8 +2462,8 @@ function MultiUrlEditor({
   uploadLabel,
   accept,
   onAdd,
+  onUpdate,
   onRemove,
-  onClear,
   onUpload,
 }: {
   title: string;
@@ -2332,8 +2472,8 @@ function MultiUrlEditor({
   uploadLabel?: string;
   accept?: string;
   onAdd: (url: string) => void;
+  onUpdate?: (index: number, value: string) => void;
   onRemove: (index: number) => void;
-  onClear?: () => void;
   onUpload?: (file: File) => void;
 }) {
   const [draft, setDraft] = useState("");
@@ -2342,9 +2482,6 @@ function MultiUrlEditor({
     <section className="rounded-[22px] bg-secondary/60 p-3">
       <div className="space-y-2 mb-2">
         <div className="flex items-center gap-2 font-medium text-sm leading-tight">{icon}{title}</div>
-        <button type="button" className="btn-primary admin-product-clear-button" onClick={onClear}>
-          <Trash2 className="h-3.5 w-3.5" /> Borrar
-        </button>
       </div>
       <div className="space-y-2 mb-3">
         {urls.map((url, index) => (
@@ -2357,6 +2494,14 @@ function MultiUrlEditor({
             <div className="min-w-0 flex-1">
               <span className="truncate block text-xs">{url}</span>
             </div>
+            {onUpdate && (
+              <button type="button" className="btn-secondary text-[11px] py-1.5 px-2" onClick={() => {
+                const edited = window.prompt("Editar elemento", url);
+                if (edited !== null) onUpdate(index, edited);
+              }}>
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </button>
+            )}
             <button type="button" className="btn-primary text-[11px] py-1.5 px-2" onClick={() => onRemove(index)}>
               <Trash2 className="h-3.5 w-3.5" /> Eliminar
             </button>
