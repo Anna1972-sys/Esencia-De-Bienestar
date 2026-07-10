@@ -201,6 +201,8 @@ type ProductBlockId =
   | "nutrition"
   | "measures";
 
+type ProductDetailOpenBlock = ProductBlockId | "product_info";
+
 const PRODUCT_BLOCK_ORDER_KEY = "__product_block_order";
 const PRODUCT_BENEFITS_PDF_KEY = "__product_benefits_pdf_url";
 const PRODUCT_IMPORTANT_PDF_KEY = "__product_important_pdf_url";
@@ -272,7 +274,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [category, setCategory] = useState<{ name: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openAdditionalBlock, setOpenAdditionalBlock] = useState<ProductBlockId | null>(null);
+  const [openAdditionalBlock, setOpenAdditionalBlock] = useState<ProductDetailOpenBlock | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -309,7 +311,7 @@ export default function ProductDetail() {
   const displayMeasures = getDisplayMeasures(product);
   const nutritionBase = nutritionBaseLabel(product);
   const blockOrder = readProductBlockOrder(product.micronutrients);
-  const toggleAdditionalBlock = (blockId: ProductBlockId) => {
+  const toggleAdditionalBlock = (blockId: ProductDetailOpenBlock) => {
     setOpenAdditionalBlock(current => current === blockId ? null : blockId);
   };
 
@@ -351,9 +353,8 @@ export default function ProductDetail() {
         return (
           <>
             {hasNutrition ? (
-              <section className="card-soft p-4">
-                <h2 className="font-serif text-xl mb-3">Información nutricional</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              <CollapsibleProductBlock title="Información nutricional" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs mt-3">
                   <Stat label={`Kcal/${nutritionBase}`} value={formatKcalValue(product.calories)} />
                   <Stat label="Proteínas" value={formatGramValue(product.protein)} />
                   <Stat label="Hidratos" value={formatGramValue(product.carbs)} />
@@ -363,12 +364,11 @@ export default function ProductDetail() {
                   <Stat label="Azúcares" value={formatGramValue(product.sugars)} />
                   <Stat label="Sal" value={formatGramValue(product.salt)} />
                 </div>
-              </section>
+              </CollapsibleProductBlock>
             ) : null}
             {(product.serving_size || product.serving_grams > 0 || micronutrients.length > 0 || product.label_file_url) && (
-              <section className="card-soft p-4 mt-5">
-                <h2 className="font-serif text-xl mb-3">Información del producto</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+              <CollapsibleProductBlock title="Información del producto" open={openAdditionalBlock === "product_info"} onToggle={() => toggleAdditionalBlock("product_info")}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm mt-3">
                   {product.serving_size && <Info label="Ración oficial" value={product.serving_size} />}
                   {product.serving_grams > 0 && <Info label={servingQuantityUnit(product) === "ml" ? "Cantidad/ración" : "Gramos/ración"} value={`${formatGrams(product.serving_grams)} ${servingQuantityUnit(product)}`} />}
                   {micronutrients.map(([key, value]) => <Info key={key} label={key.replace(/_/g, " ")} value={String(value)} />)}
@@ -378,7 +378,7 @@ export default function ProductDetail() {
                     <FileText className="h-4 w-4" /> Ver etiqueta oficial
                   </a>
                 )}
-              </section>
+              </CollapsibleProductBlock>
             )}
           </>
         );
