@@ -33,19 +33,21 @@ function ingredientLabel(item: any) {
   return cleanText(`${item?.quantity ?? ""} ${item?.name ?? ""}`);
 }
 
-function buildFoodPhotoPrompt(title: string, ingredients: string[]) {
+function buildFoodPhotoPrompt(title: string, ingredients: string[], preparation: string[] = []) {
   const cleanTitle = cleanText(title) || "healthy homemade recipe";
   const cleanIngredients = ingredients.map(cleanText).filter(Boolean).slice(0, 14);
+  const cleanPreparation = preparation.map(cleanText).filter(Boolean).slice(0, 6);
 
   return [
     "Create an ultra-realistic editorial gastronomic photograph for a wellness recipe app.",
     `Dish title: ${cleanTitle}.`,
     cleanIngredients.length ? `Visible ingredients to represent: ${cleanIngredients.join(", ")}.` : "",
-    "Style: warm natural light, clear beige background, clean premium composition, soft shadows, appetizing but realistic.",
-    "Serve the finished dish in a white ceramic bowl when it fits the recipe.",
-    "The ingredients must match the recipe exactly and should look like a real finished dish, not a collage.",
-    "No text, no labels, no hands, no unnecessary utensils, no commercial brands, no logos, no watermark.",
-    "Composition: vertical 4:5 editorial framing, centered dish, enough margin for a mobile recipe card.",
+    cleanPreparation.length ? `Cooking and plating cues from the preparation: ${cleanPreparation.join(" ")}` : "",
+    "Fixed visual template: realistic gastronomic photography, warm natural light, clear beige background, neutral tableware, clean editorial composition, soft shadows.",
+    "Use a white ceramic bowl when it fits the recipe; otherwise use simple neutral ceramic plating.",
+    "The ingredients must match the recipe exactly. Do not add ingredients that are not in the recipe.",
+    "No text, no labels, no hands, no packaging, no unnecessary utensils, no commercial brands, no logos, no watermark.",
+    "Composition: vertical 4:5 editorial framing, centered finished dish, enough margin for a mobile recipe card.",
   ].filter(Boolean).join(" ");
 }
 
@@ -173,12 +175,15 @@ export default async function handler(req: any, res: any) {
   const ingredients = Array.isArray(body.ingredients ?? recipe.ingredients)
     ? (body.ingredients ?? recipe.ingredients).map(ingredientLabel).filter(Boolean)
     : [];
+  const preparation = Array.isArray(body.preparation ?? recipe.steps)
+    ? (body.preparation ?? recipe.steps).map(cleanText).filter(Boolean)
+    : [];
 
   if (!title && ingredients.length === 0) {
     return res.status(400).json({ error: "Necesito una receta o ingredientes para crear la imagen" });
   }
 
-  const prompt = buildFoodPhotoPrompt(title, ingredients);
+  const prompt = buildFoodPhotoPrompt(title, ingredients, preparation);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 75_000);
 
@@ -193,7 +198,7 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify({
         model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
         prompt,
-        size: "1024x1024",
+        size: process.env.OPENAI_IMAGE_SIZE || "1024x1536",
         n: 1,
       }),
     });
