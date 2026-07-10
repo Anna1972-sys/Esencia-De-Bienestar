@@ -1761,6 +1761,12 @@ export default function AdminProducts() {
                   <option value="pendiente">Pendiente</option>
                   <option value="verificado">Verificado</option>
                 </select>
+                <NumberField
+                  label="Orden en la categoría"
+                  value={form.sort_order}
+                  step="1"
+                  onChange={value => setForm(prev => ({ ...prev, sort_order: value }))}
+                />
                 <input
                   className="field"
                   type="datetime-local"
