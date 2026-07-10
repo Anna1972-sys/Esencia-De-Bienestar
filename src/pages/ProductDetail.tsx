@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -272,6 +272,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [category, setCategory] = useState<{ name: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openAdditionalBlock, setOpenAdditionalBlock] = useState<ProductBlockId | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -308,6 +309,9 @@ export default function ProductDetail() {
   const displayMeasures = getDisplayMeasures(product);
   const nutritionBase = nutritionBaseLabel(product);
   const blockOrder = readProductBlockOrder(product.micronutrients);
+  const toggleAdditionalBlock = (blockId: ProductBlockId) => {
+    setOpenAdditionalBlock(current => current === blockId ? null : blockId);
+  };
 
   const renderBlock = (blockId: ProductBlockId) => {
     switch (blockId) {
@@ -339,6 +343,8 @@ export default function ProductDetail() {
           <DescriptionBlock
             shortValue={getProductMetaText(product.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY) || buildShortDescription(product.description)}
             fullValue={product.description}
+            open={openAdditionalBlock === blockId}
+            onToggle={() => toggleAdditionalBlock(blockId)}
           />
         );
       case "nutrition":
@@ -377,18 +383,17 @@ export default function ProductDetail() {
           </>
         );
       case "benefits":
-        return <ContentBlock title="Beneficios" value={product.benefits} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_BENEFITS_PDF_KEY)} />;
+        return <ContentBlock title="Beneficios" value={product.benefits} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_BENEFITS_PDF_KEY)} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} />;
       case "usage":
-        return <ContentBlock title="Modo de empleo" value={product.usage} />;
+        return <ContentBlock title="Modo de empleo" value={product.usage} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} />;
       case "ingredients":
-        return <ContentBlock title="Ingredientes" value={product.ingredients_text} />;
+        return <ContentBlock title="Ingredientes" value={product.ingredients_text} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} />;
       case "free_text":
-        return <ContentBlock title="Información importante" value={mergeImportantText(product.free_text, product.observations)} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_IMPORTANT_PDF_KEY)} />;
+        return <ContentBlock title="Información importante" value={mergeImportantText(product.free_text, product.observations)} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_IMPORTANT_PDF_KEY)} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} />;
       case "measures":
         return displayMeasures.length > 0 ? (
-          <section className="card-soft p-4">
-            <h2 className="font-serif text-xl mb-3">Medidas habituales</h2>
-            <div className="space-y-2">
+          <CollapsibleProductBlock title="Medidas habituales" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
+            <div className="space-y-2 mt-3">
               {displayMeasures.map(measure => (
                   <div key={measure.id} className="rounded-2xl bg-secondary p-3">
                     <div className="flex items-center justify-between gap-3 mb-2">
@@ -407,16 +412,16 @@ export default function ProductDetail() {
                   </div>
                 ))}
             </div>
-          </section>
+          </CollapsibleProductBlock>
         ) : null;
       case "spoon_image":
-        return product.spoon_image_url ? <SpoonImageBlock imageUrl={product.spoon_image_url} /> : null;
+        return product.spoon_image_url ? <SpoonImageBlock imageUrl={product.spoon_image_url} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} /> : null;
       case "gallery":
-        return product.gallery_urls.length > 0 ? <GalleryBlock urls={product.gallery_urls} /> : null;
+        return product.gallery_urls.length > 0 ? <GalleryBlock urls={product.gallery_urls} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} /> : null;
       case "videos":
         return product.video_urls.length > 0 ? (
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl">Vídeos</h2>
+          <CollapsibleProductBlock title="Vídeos" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
+            <div className="space-y-3 mt-3">
             {product.video_urls.map((url, index) => (
               <div key={`${url}-${index}`} className="overflow-hidden rounded-2xl bg-black">
                 {isEmbeddable(url) ? (
@@ -428,12 +433,13 @@ export default function ProductDetail() {
                 )}
               </div>
             ))}
-          </section>
+            </div>
+          </CollapsibleProductBlock>
         ) : null;
       case "pdfs":
         return product.pdf_urls.length > 0 ? (
-          <section className="space-y-2">
-            <h2 className="font-serif text-xl">PDFs</h2>
+          <CollapsibleProductBlock title="PDFs" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
+            <div className="space-y-2 mt-3">
             {product.pdf_urls.map((url, index) => (
               <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
                 <div className="h-10 w-10 rounded-xl bg-gradient-rosa text-white grid place-items-center"><FileText className="h-5 w-5" /></div>
@@ -443,19 +449,21 @@ export default function ProductDetail() {
                 </div>
               </a>
             ))}
-          </section>
+            </div>
+          </CollapsibleProductBlock>
         ) : null;
       case "external_urls":
         return product.external_urls.length > 0 ? (
-          <section className="space-y-2">
-            <h2 className="font-serif text-xl">Enlaces</h2>
+          <CollapsibleProductBlock title="Enlaces externos" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
+            <div className="space-y-2 mt-3">
             {product.external_urls.map((url, index) => (
               <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
                 <ExternalLink className="h-5 w-5 text-primary" />
                 <span className="text-sm truncate">{url}</span>
               </a>
             ))}
-          </section>
+            </div>
+          </CollapsibleProductBlock>
         ) : null;
     }
   };
@@ -549,8 +557,31 @@ function normalizeProduct(item: any): Product {
   };
 }
 
-function DescriptionBlock({ shortValue, fullValue }: { shortValue: string; fullValue: string | null }) {
-  const [open, setOpen] = useState(false);
+function CollapsibleProductBlock({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="card-soft p-4">
+      <button type="button" className="w-full flex items-center justify-between gap-3 text-left" onClick={onToggle}>
+        <h2 className="font-serif text-xl">{title}</h2>
+        <span className="h-8 w-8 rounded-full border border-primary/30 grid place-items-center text-primary font-semibold">
+          {open ? "−" : "+"}
+        </span>
+      </button>
+      {open && children}
+    </section>
+  );
+}
+
+function DescriptionBlock({ shortValue, fullValue, open, onToggle }: { shortValue: string; fullValue: string | null; open: boolean; onToggle: () => void }) {
   const shortText = String(shortValue ?? "").trim();
   const fullText = String(fullValue ?? "").trim();
   const textToShow = fullText || shortText;
@@ -558,33 +589,19 @@ function DescriptionBlock({ shortValue, fullValue }: { shortValue: string; fullV
   if (!textToShow) return null;
 
   return (
-    <section className="card-soft p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="font-serif text-xl">Descripción</h2>
-        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
-          {open ? "Ocultar descripción" : "Ver descripción"}
-        </button>
-      </div>
+    <CollapsibleProductBlock title="Descripción" open={open} onToggle={onToggle}>
       {open && (
         <div className="mt-3 max-h-[60vh] overflow-y-auto pr-1">
           <p className="whitespace-pre-wrap leading-relaxed text-sm">{textToShow}</p>
         </div>
       )}
-    </section>
+    </CollapsibleProductBlock>
   );
 }
 
-function SpoonImageBlock({ imageUrl }: { imageUrl: string }) {
-  const [open, setOpen] = useState(false);
-
+function SpoonImageBlock({ imageUrl, open, onToggle }: { imageUrl: string; open: boolean; onToggle: () => void }) {
   return (
-    <section className="card-soft p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="font-serif text-xl">Cuchara oficial Herbalife</h2>
-        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
-          {open ? "Ocultar cuchara oficial" : "Ver cuchara oficial"}
-        </button>
-      </div>
+    <CollapsibleProductBlock title="Cuchara oficial Herbalife" open={open} onToggle={onToggle}>
       {open && (
         <div className="mt-3">
           <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
@@ -596,21 +613,13 @@ function SpoonImageBlock({ imageUrl }: { imageUrl: string }) {
           </a>
         </div>
       )}
-    </section>
+    </CollapsibleProductBlock>
   );
 }
 
-function GalleryBlock({ urls }: { urls: string[] }) {
-  const [open, setOpen] = useState(false);
-
+function GalleryBlock({ urls, open, onToggle }: { urls: string[]; open: boolean; onToggle: () => void }) {
   return (
-    <section className="card-soft p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="font-serif text-xl">Galería</h2>
-        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
-          {open ? "Ocultar galería" : "Ver galería"}
-        </button>
-      </div>
+    <CollapsibleProductBlock title="Galería" open={open} onToggle={onToggle}>
       {open && (
         <div className="grid grid-cols-2 gap-3 mt-3 pb-4">
           {urls.map((url, index) => (
@@ -618,28 +627,17 @@ function GalleryBlock({ urls }: { urls: string[] }) {
           ))}
         </div>
       )}
-    </section>
+    </CollapsibleProductBlock>
   );
 }
 
-function ContentBlock({ title, value, pdfUrl }: { title: string; value: string | null; pdfUrl?: string }) {
-  const [open, setOpen] = useState(false);
+function ContentBlock({ title, value, pdfUrl, open, onToggle }: { title: string; value: string | null; pdfUrl?: string; open: boolean; onToggle: () => void }) {
   const cleanValue = String(value ?? "").trim();
 
   if (!cleanValue && !pdfUrl) return null;
 
-  const buttonLabel = title.toLowerCase().startsWith("información")
-    ? `Ver ${title.toLowerCase()}`
-    : `Ver ${title.toLowerCase()}`;
-
   return (
-    <section className="card-soft p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="font-serif text-xl">{title}</h2>
-        <button type="button" className="btn-secondary w-max" onClick={() => setOpen(prev => !prev)}>
-          {open ? `Ocultar ${title.toLowerCase()}` : buttonLabel}
-        </button>
-      </div>
+    <CollapsibleProductBlock title={title} open={open} onToggle={onToggle}>
       {open && (
         <div className="mt-3 max-h-[60vh] overflow-y-auto pr-1">
           {cleanValue && <p className="whitespace-pre-wrap leading-relaxed text-sm">{cleanValue}</p>}
@@ -650,7 +648,7 @@ function ContentBlock({ title, value, pdfUrl }: { title: string; value: string |
           )}
         </div>
       )}
-    </section>
+    </CollapsibleProductBlock>
   );
 }
 
