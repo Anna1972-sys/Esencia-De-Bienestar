@@ -97,6 +97,10 @@ function parseJsonText(text: string) {
   }
 }
 
+function isSupportedLabelMimeType(mimeType: unknown) {
+  return ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"].includes(String(mimeType || "").toLowerCase());
+}
+
 async function readWithOpenAI(apiKey: string, body: any) {
   const prompt = `Lee este PDF o imagen oficial de producto en español.
 Devuelve SOLO JSON, sin markdown.
@@ -172,17 +176,18 @@ Formato exacto:
 
 async function fileUrlToDataUrl(fileUrl: string, fallbackMimeType = "application/pdf") {
   if (!/^https:\/\//.test(fileUrl)) {
-    throw new Error("La URL del PDF guardado no es válida");
+    throw new Error("La URL de la etiqueta guardada no es válida");
   }
   const response = await fetch(fileUrl);
   if (!response.ok) {
-    throw new Error(`No se pudo abrir el PDF guardado (${response.status})`);
+    throw new Error(`No se pudo abrir la etiqueta guardada (${response.status})`);
   }
-  const contentType = response.headers.get("content-type") || fallbackMimeType;
+  const headerContentType = response.headers.get("content-type")?.split(";")[0];
+  const contentType = headerContentType && headerContentType !== "application/octet-stream" ? headerContentType : fallbackMimeType;
   const buffer = Buffer.from(await response.arrayBuffer());
   return {
     dataUrl: `data:${contentType};base64,${buffer.toString("base64")}`,
-    mimeType: contentType.split(";")[0] || fallbackMimeType,
+    mimeType: contentType || fallbackMimeType,
   };
 }
 
@@ -206,7 +211,7 @@ export default async function handler(req: any, res: any) {
       body.mimeType = fileData.mimeType;
     } catch (error: any) {
       return res.status(422).json({
-        error: "El PDF está guardado, pero no se pudo abrir para leerlo.",
+        error: "La etiqueta está guardada, pero no se pudo abrir para leerla.",
         detail: error?.message,
       });
     }
@@ -214,6 +219,10 @@ export default async function handler(req: any, res: any) {
 
   if (!body.dataUrl || !body.mimeType) {
     return res.status(400).json({ error: "Falta el archivo de etiqueta" });
+  }
+
+  if (!isSupportedLabelMimeType(body.mimeType)) {
+    return res.status(415).json({ error: "Formato no soportado. Sube una etiqueta oficial en PDF, JPG, JPEG, PNG o WEBP." });
   }
 
   try {

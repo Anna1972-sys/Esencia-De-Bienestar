@@ -516,6 +516,16 @@ function mimeTypeFromFileName(fileName: string) {
   return "image/jpeg";
 }
 
+const OFFICIAL_LABEL_ACCEPT = "application/pdf,image/jpeg,image/jpg,image/png,image/webp";
+const OFFICIAL_LABEL_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+
+function isOfficialLabelFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+  const acceptedByType = !file.type || file.type === "application/pdf" || file.type.startsWith("image/");
+  const acceptedByName = OFFICIAL_LABEL_EXTENSIONS.some(extension => lowerName.endsWith(extension));
+  return acceptedByType && acceptedByName;
+}
+
 export default function AdminProducts() {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -1372,17 +1382,17 @@ export default function AdminProducts() {
     await applyNutritionLabelPayload(payload, labelUrl, fileName);
   };
 
-  const uploadOfficialNutritionPdf = async (file: File) => {
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      return toast.error("Sube un PDF oficial del producto");
+  const uploadOfficialNutritionLabel = async (file: File) => {
+    if (!isOfficialLabelFile(file)) {
+      return toast.error("Formato no soportado. Sube una etiqueta oficial en PDF, JPG, JPEG, PNG o WEBP.");
     }
     try {
       setUploadingLabel(true);
       const labelUrl = await uploadProductFile(file, "labels");
       await markNutritionLabelPending(labelUrl, file.name);
-      toast.success("PDF oficial guardado. Puedes leer la etiqueta nutricional cuando la IA esté disponible.");
+      toast.success("Etiqueta oficial guardada. Puedes leer la etiqueta nutricional cuando la IA esté disponible.");
     } catch (err: any) {
-      toast.error(err?.message || "No se pudo guardar el PDF oficial");
+      toast.error(err?.message || "No se pudo guardar la etiqueta oficial");
     } finally {
       setUploadingLabel(false);
     }
@@ -1390,7 +1400,7 @@ export default function AdminProducts() {
 
   const readSavedNutritionLabel = async () => {
     if (!form.label_file_url) {
-      return toast.error("Primero sube el PDF oficial del producto");
+      return toast.error("Primero sube la etiqueta oficial del producto");
     }
     const fileName = fileNameFromUrl(form.label_file_url);
     try {
@@ -1399,7 +1409,7 @@ export default function AdminProducts() {
       await analyzeNutritionLabelData(fileName, mimeTypeFromFileName(fileName), form.label_file_url);
       toast.success("Etiqueta nutricional verificada. Revisa y ajusta cualquier dato antes de guardar.");
     } catch (err: any) {
-      toast.error(`${err?.message || "No se pudo leer la etiqueta nutricional"}. El PDF queda guardado y el producto queda Pendiente de analizar.`);
+      toast.error(`${err?.message || "No se pudo leer la etiqueta nutricional"}. La etiqueta queda guardada y el producto queda Pendiente de analizar.`);
     } finally {
       setReadingLabel(false);
     }
@@ -1835,19 +1845,19 @@ export default function AdminProducts() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-serif text-xl leading-none">Etiqueta nutricional oficial</h3>
-                  <p className="text-xs muted mt-1">Sube primero el PDF oficial. Si la IA falla, el PDF queda guardado y podrás leerlo más adelante.</p>
+                  <p className="text-xs muted mt-1">Sube primero la etiqueta oficial. Si la IA falla, el archivo queda guardado y podrás leerlo más adelante.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <label className="btn-primary cursor-pointer justify-center">
-                    <Upload className="h-4 w-4" /> {uploadingLabel ? "Subiendo…" : form.label_file_url ? "PDF guardado" : "Subir PDF oficial"}
+                    <Upload className="h-4 w-4" /> {uploadingLabel ? "Subiendo…" : form.label_file_url ? "Etiqueta guardada" : "Subir etiqueta oficial"}
                     <input
                       type="file"
                       className="hidden"
-                      accept="application/pdf"
+                      accept={OFFICIAL_LABEL_ACCEPT}
                       disabled={uploadingLabel}
                       onChange={e => {
                         const file = e.target.files?.[0];
-                        if (file) uploadOfficialNutritionPdf(file);
+                        if (file) uploadOfficialNutritionLabel(file);
                         e.currentTarget.value = "";
                       }}
                     />
@@ -1857,7 +1867,7 @@ export default function AdminProducts() {
                   </button>
                   {form.label_file_url && (
                     <button type="button" className="btn-primary" onClick={() => clearProductMedia("label_file_url")}>
-                      <Trash2 className="h-4 w-4" /> Eliminar PDF
+                      <Trash2 className="h-4 w-4" /> Eliminar etiqueta
                     </button>
                   )}
                 </div>
@@ -1865,7 +1875,7 @@ export default function AdminProducts() {
               {form.label_file_url && (
                 <div className="rounded-2xl border border-primary/20 bg-white/70 p-3 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-bold text-primary">PDF guardado</p>
+                    <p className="font-bold text-primary">Etiqueta guardada</p>
                     {form.verification_status === "verificado" ? (
                       <span className="rounded-full bg-primary px-3 py-1 font-bold text-white">Verificado</span>
                     ) : (
@@ -1875,7 +1885,7 @@ export default function AdminProducts() {
                     )}
                   </div>
                   <a href={form.label_file_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-primary font-bold underline">
-                    Ver PDF guardado
+                    Ver etiqueta guardada
                   </a>
                 </div>
               )}
