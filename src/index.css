@@ -287,7 +287,7 @@
     font-size: 10px;
     line-height: 1.2;
     letter-spacing: .03em;
-    color: hsl(var(--muted-foreground) / .78);
+    color: hsl(0 0% 18% / .94);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1278,6 +1278,15 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .55rem;
+  }
+
+  .products-client-subcategory-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .products-client-subcategory-list .products-client-access-title {
+    background: #FFFFFF;
+    color: hsl(0 0% 8%);
   }
 
   .products-client-access-card {
@@ -3005,6 +3014,36 @@
     align-self: start;
     display: flex;
     flex-direction: column;
+  }
+
+  .admin-products .admin-products-internal-subcategories {
+    order: 0;
+    background: #FFF7FA !important;
+  }
+
+  .admin-products .admin-products-internal-subcategory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .55rem;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card {
+    display: grid;
+    grid-template-rows: minmax(7.4rem, 1fr) auto;
+    min-height: 11rem;
+    border-radius: 1.35rem;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card .admin-products-access-title {
+    background: #FFFFFF !important;
+    color: hsl(0 0% 8%) !important;
+    font-weight: 850;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card.is-open {
+    box-shadow: 0 18px 34px -24px rgb(255 45 149 / .34), 0 0 0 2px rgb(255 45 149 / .16) !important;
   }
 
   .admin-products .admin-products-new-product-panel {

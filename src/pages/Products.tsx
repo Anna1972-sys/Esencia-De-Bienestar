@@ -7,6 +7,8 @@ import productsHeroImage from "@/assets/home-productos-te-jardin.png";
 import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
 import imgNutritionObjective from "@/assets/product-admin/nutricion-objetiva-soft.jpg";
 import imgNutritionExternal from "@/assets/product-admin/nutricion-externa-beige.png";
+import imgInternalEssentials from "@/assets/product-admin/nutricion-interna-esenciales.jpg";
+import imgInternalWeightControl from "@/assets/product-admin/nutricion-interna-control-peso.jpg";
 
 type ProductCategory = {
   id: string;
@@ -36,6 +38,13 @@ const PRODUCT_CLIENT_ACCESS_SECTIONS = [
   { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
   { id: "nutricion-objetiva", title: "Nutrición objetiva", image: imgNutritionObjective },
   { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
+] as const;
+
+const INTERNAL_NUTRITION_SECTION_ID = "nutricion-interna";
+
+const INTERNAL_NUTRITION_SUBCATEGORIES = [
+  { id: "esenciales", title: "Esenciales", image: imgInternalEssentials },
+  { id: "control-de-peso", title: "Control de peso", image: imgInternalWeightControl },
 ] as const;
 
 function normalizeText(value: unknown) {
@@ -70,11 +79,17 @@ function productSectionId(product: Product, category: ProductCategory | null) {
   return "";
 }
 
+function productInternalSubcategoryId(product: Product) {
+  const lineSection = slugifySection(product.line);
+  return INTERNAL_NUTRITION_SUBCATEGORIES.some(subcategory => subcategory.id === lineSection) ? lineSection : "";
+}
+
 export default function Products() {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [activeProductSection, setActiveProductSection] = useState<string>("");
+  const [activeInternalSubcategory, setActiveInternalSubcategory] = useState<string>("");
   const [query, setQuery] = useState("");
   const openedSectionRef = useRef<HTMLElement | null>(null);
 
@@ -107,14 +122,21 @@ export default function Products() {
   const filtered = useMemo(() => {
     return products.filter(product => {
       if (activeProductSection && !productMatchesSection(product, activeProductSection)) return false;
+      if (activeProductSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory) {
+        const productSubcategory = productInternalSubcategoryId(product);
+        if (productSubcategory && productSubcategory !== activeInternalSubcategory) return false;
+        if (!productSubcategory && activeInternalSubcategory !== "esenciales") return false;
+      }
       if (activeCategory && product.category_id !== activeCategory) return false;
       if (!q) return true;
       const category = product.category_id ? categoryById.get(product.category_id) : null;
-      const haystack = [product.name, product.description, product.benefits, category?.name].filter(Boolean).join(" ").toLowerCase();
+      const haystack = [product.name, product.description, product.benefits, product.line, category?.name].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(q);
     });
-  }, [products, activeCategory, activeProductSection, q, categoryById]);
+  }, [products, activeCategory, activeProductSection, activeInternalSubcategory, q, categoryById]);
   const activeSection = PRODUCT_CLIENT_ACCESS_SECTIONS.find(section => section.id === activeProductSection);
+  const activeSubcategory = INTERNAL_NUTRITION_SUBCATEGORIES.find(subcategory => subcategory.id === activeInternalSubcategory);
+  const showingInternalSubcategories = activeProductSection === INTERNAL_NUTRITION_SECTION_ID && !activeInternalSubcategory;
 
   useEffect(() => {
     if (!activeProductSection) return;
@@ -154,6 +176,8 @@ export default function Products() {
               onClick={() => {
                 setActiveProductSection(isActive ? "" : section.id);
                 setActiveCategory("");
+                setActiveInternalSubcategory("");
+                setQuery("");
               }}
               aria-expanded={isActive}
             >
@@ -169,24 +193,54 @@ export default function Products() {
 
       {activeProductSection && (
         <>
-          <div className="products-client-search-card">
-            <div className="relative">
-              <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                className="field pl-9"
-                placeholder="Buscar producto o categoría…"
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-              />
+          {!showingInternalSubcategories && (
+            <div className="products-client-search-card">
+              <div className="relative">
+                <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  className="field pl-9"
+                  placeholder="Buscar producto o categoría…"
+                  value={query}
+                  onChange={event => setQuery(event.target.value)}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <section ref={openedSectionRef} className="products-client-access-panel" aria-label={`Productos de ${activeSection?.title ?? "la sección seleccionada"}`}>
-            <div className="products-client-access-panel-header">
-              <p>Salud y Bienestar</p>
-              <h2>{activeSection?.title}</h2>
-            </div>
+            {!showingInternalSubcategories && (
+              <div className="products-client-access-panel-header">
+                <p>Salud y Bienestar</p>
+                <h2>{activeSubcategory?.title ?? activeSection?.title}</h2>
+              </div>
+            )}
 
+          {showingInternalSubcategories ? (
+            <div className="products-client-access-list products-client-subcategory-list" aria-label="Opciones de Nutrición interna">
+              {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
+                <button
+                  key={subcategory.id}
+                  type="button"
+                  className="products-client-access-card"
+                  onClick={() => {
+                    setActiveInternalSubcategory(subcategory.id);
+                    setQuery("");
+                  }}
+                >
+                  <span className="products-client-access-image-wrap">
+                    <img src={subcategory.image} alt={subcategory.title} />
+                  </span>
+                  <span className="products-client-access-title">{subcategory.title}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+          <>
+          {activeProductSection === INTERNAL_NUTRITION_SECTION_ID && (
+            <button type="button" className="text-sm muted inline-flex items-center gap-1 mb-3" onClick={() => setActiveInternalSubcategory("")}>
+              <ArrowLeft className="h-4 w-4" /> Volver a Nutrición interna
+            </button>
+          )}
           {filtered.length === 0 ? (
             <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
           ) : (
@@ -222,6 +276,8 @@ export default function Products() {
                 );
               })}
             </div>
+          )}
+          </>
           )}
           </section>
         </>

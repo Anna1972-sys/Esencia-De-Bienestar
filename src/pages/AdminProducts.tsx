@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
 import imgNutritionObjective from "@/assets/product-admin/nutricion-objetiva-soft.jpg";
 import imgNutritionExternal from "@/assets/product-admin/nutricion-externa-beige.png";
+import imgInternalEssentials from "@/assets/product-admin/nutricion-interna-esenciales.jpg";
+import imgInternalWeightControl from "@/assets/product-admin/nutricion-interna-control-peso.jpg";
 
 type ProductCategory = {
   id: string;
@@ -204,6 +206,12 @@ const PRODUCT_ADMIN_ACCESS_SECTIONS = [
   { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
 ] as const;
 
+const INTERNAL_NUTRITION_SECTION_ID = "nutricion-interna";
+const INTERNAL_NUTRITION_SUBCATEGORIES = [
+  { id: "esenciales", title: "Esenciales", image: imgInternalEssentials },
+  { id: "control-de-peso", title: "Control de peso", image: imgInternalWeightControl },
+] as const;
+
 const ensureAdminAccessCategories = async (loadedCategories: ProductCategory[]) => {
   const existingSlugs = new Set(loadedCategories.map(category => category.slug));
   const missingCategories = PRODUCT_ADMIN_ACCESS_SECTIONS
@@ -324,6 +332,14 @@ const slugify = (value: unknown) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || `producto-${Date.now()}`;
+
+const sectionSlug = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 
 const toNumber = (value: unknown) => Number(String(value ?? "").replace(",", ".")) || 0;
 const toNullableNumber = (value: unknown): number | null => {
@@ -511,6 +527,7 @@ export default function AdminProducts() {
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [openAccessSection, setOpenAccessSection] = useState<string | null>(null);
+  const [activeInternalSubcategory, setActiveInternalSubcategory] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInstanceKey, setEditorInstanceKey] = useState(0);
   const [openEditorBlock, setOpenEditorBlock] = useState("Información general");
@@ -566,16 +583,38 @@ export default function AdminProducts() {
     if (!activeAccessSection) return null;
     return categories.find(category => slugify(category.name) === activeAccessSection.id) ?? null;
   }, [activeAccessSection, categories]);
+  const isInternalNutritionCategoryId = (categoryId?: string | null) => {
+    const category = categoryId ? categoryById.get(categoryId) : null;
+    if (!category) return false;
+    return category.slug === INTERNAL_NUTRITION_SECTION_ID || sectionSlug(category.name) === INTERNAL_NUTRITION_SECTION_ID;
+  };
+  const isInternalNutritionForm = isInternalNutritionCategoryId(form.category_id || activeAccessCategory?.id || "");
+  const activeInternalSubcategoryData = INTERNAL_NUTRITION_SUBCATEGORIES.find(subcategory => subcategory.id === activeInternalSubcategory) ?? null;
+  const shouldShowProductManagement = openAccessSection !== INTERNAL_NUTRITION_SECTION_ID || Boolean(activeInternalSubcategory);
+  const isInternalNutritionLine = (value: unknown) => INTERNAL_NUTRITION_SUBCATEGORIES.some(subcategory => subcategory.id === sectionSlug(value));
+  const handleProductCategoryChange = (categoryId: string) => {
+    const nextIsInternal = isInternalNutritionCategoryId(categoryId);
+    setForm(prev => ({
+      ...prev,
+      category_id: categoryId,
+      line: nextIsInternal ? (isInternalNutritionLine(prev.line) ? prev.line : "") : (isInternalNutritionLine(prev.line) ? "" : prev.line),
+    }));
+  };
 
   const filteredProducts = useMemo(() => {
     const normalized = String(query ?? "").trim().toLowerCase();
     return products.filter(product => {
       if (filterCategory && product.category_id !== filterCategory) return false;
+      if (openAccessSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory) {
+        const productSubcategory = sectionSlug(product.line);
+        if (productSubcategory !== activeInternalSubcategory) return false;
+      }
       if (!normalized) return true;
       const category = product.category_id ? categoryById.get(product.category_id) : null;
       const haystack = [
         product.name,
         category?.name,
+        product.line,
         product.description,
         product.benefits,
         product.ingredients_text,
@@ -583,7 +622,7 @@ export default function AdminProducts() {
       ].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [products, query, filterCategory, categoryById]);
+  }, [products, query, filterCategory, openAccessSection, activeInternalSubcategory, categoryById]);
 
   const resetProduct = () => {
     setForm(emptyProduct);
@@ -599,7 +638,8 @@ export default function AdminProducts() {
     }, 90);
   };
   const startNewProduct = (categoryId = activeAccessCategory?.id ?? "", scrollToEditor = true) => {
-    setForm({ ...emptyProduct, category_id: categoryId });
+    const internalLine = isInternalNutritionCategoryId(categoryId) && activeInternalSubcategoryData ? activeInternalSubcategoryData.title : "";
+    setForm({ ...emptyProduct, category_id: categoryId, line: internalLine });
     if (categoryId) setFilterCategory(categoryId);
     setEditorInstanceKey(key => key + 1);
     setOpenEditorBlock("Información general");
@@ -613,6 +653,7 @@ export default function AdminProducts() {
   const toggleAccessSection = (sectionId: string) => {
     const next = openAccessSection === sectionId ? null : sectionId;
     setOpenAccessSection(next);
+    setActiveInternalSubcategory("");
     if (next) {
       const sectionCategory = categories.find(category => slugify(category.name) === next);
       setFilterCategory(sectionCategory?.id ?? "");
@@ -716,6 +757,11 @@ export default function AdminProducts() {
     });
     const wasEditingProduct = Boolean(form.id);
     const nextProductCategoryId = preparedForm.category_id || activeAccessCategory?.id || "";
+    const isInternalProduct = isInternalNutritionCategoryId(nextProductCategoryId);
+    if (isInternalProduct && !isInternalNutritionLine(preparedForm.line)) {
+      setSaving(false);
+      return toast.error("Selecciona la subcategoría de Nutrición interna");
+    }
     const kcalPerGram = perGram(preparedForm.calories, preparedForm.serving_calories, preparedForm.serving_grams);
     const proteinPerGram = perGram(preparedForm.protein, preparedForm.serving_protein, preparedForm.serving_grams);
     const carbsPerGram = perGram(preparedForm.carbs, preparedForm.serving_carbs, preparedForm.serving_grams);
@@ -726,7 +772,7 @@ export default function AdminProducts() {
       name: preparedForm.name.trim(),
       slug: preparedForm.id ? undefined : slugify(preparedForm.name),
       aliases: textToArray(preparedForm.aliasesText),
-      line: preparedForm.line || null,
+      line: isInternalProduct ? preparedForm.line : (preparedForm.line || null),
       image_url: preparedForm.image_url || null,
       gallery_urls: preparedForm.gallery_urls,
       video_urls: preparedForm.video_urls,
@@ -821,7 +867,8 @@ export default function AdminProducts() {
       setForm(prev => ({ ...prev, id: productId }));
       setEditorOpen(true);
     } else if (!wasEditingProduct) {
-      setForm({ ...emptyProduct, category_id: nextProductCategoryId });
+      const nextLine = isInternalProduct && activeInternalSubcategoryData ? activeInternalSubcategoryData.title : "";
+      setForm({ ...emptyProduct, category_id: nextProductCategoryId, line: nextLine });
       setEditorInstanceKey(key => key + 1);
       setOpenEditorBlock("Información general");
       setEditorOpen(true);
@@ -833,6 +880,9 @@ export default function AdminProducts() {
 
   const editProduct = (product: Product) => {
     const measures = (product.product_measures ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (isInternalNutritionCategoryId(product.category_id)) {
+      setActiveInternalSubcategory(isInternalNutritionLine(product.line) ? sectionSlug(product.line) : "");
+    }
     setForm({
       ...product,
       category_id: product.category_id ?? "",
@@ -1496,6 +1546,36 @@ export default function AdminProducts() {
             </article>
             {isOpen && (
         <div ref={selectedWorkspaceRef} className="admin-products-access-body admin-products-selected-workspace space-y-5">
+          {section.id === INTERNAL_NUTRITION_SECTION_ID && (
+            <section className="card-soft admin-products-panel admin-products-internal-subcategories p-4 sm:p-5 space-y-3">
+              <h2 className="font-serif text-2xl">Subcategorías</h2>
+              <div className="admin-products-internal-subcategory-grid" aria-label="Subcategorías de Nutrición interna">
+                {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => {
+                  const isActive = activeInternalSubcategory === subcategory.id;
+
+                  return (
+                    <button
+                      key={subcategory.id}
+                      type="button"
+                      className={`admin-products-access-card admin-products-internal-subcategory-card ${isActive ? "is-open" : ""}`}
+                      onClick={() => {
+                        setActiveInternalSubcategory(isActive ? "" : subcategory.id);
+                        setQuery("");
+                      }}
+                      aria-pressed={isActive}
+                    >
+                      <span className="admin-products-access-image-wrap">
+                        <img src={subcategory.image} alt={subcategory.title} />
+                      </span>
+                      <span className="admin-products-access-title">{subcategory.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {shouldShowProductManagement && (
           <section className="card-soft admin-products-panel admin-products-existing-panel p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -1558,6 +1638,7 @@ export default function AdminProducts() {
           </div>
         )}
       </section>
+          )}
 
       <ProductAccordion title="Nueva categoría" subtitle="Crear, editar, ocultar o eliminar categorías." className="mt-5 admin-products-category-panel">
         <form onSubmit={saveCategory} className="space-y-4">
@@ -1591,6 +1672,7 @@ export default function AdminProducts() {
         </form>
       </ProductAccordion>
 
+      {shouldShowProductManagement && (
       <ProductAccordion
         title={form.id ? "Editar producto" : "Gestión de productos"}
         subtitle="Abre este desplegable para buscar, crear o modificar productos."
@@ -1644,7 +1726,7 @@ export default function AdminProducts() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input className="field" placeholder="Nombre" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-                <select className="field" value={form.category_id ?? ""} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                <select className="field" value={form.category_id ?? ""} onChange={e => handleProductCategoryChange(e.target.value)}>
                   <option value="">Sin categoría</option>
                   {categories.map(category => (
                     <option
@@ -1656,7 +1738,16 @@ export default function AdminProducts() {
                     </option>
                   ))}
                 </select>
-                <input className="field" placeholder="Línea / categoría comercial" value={form.line ?? ""} onChange={e => setForm({ ...form, line: e.target.value })} />
+                {isInternalNutritionForm ? (
+                  <select className="field" value={isInternalNutritionLine(form.line) ? form.line ?? "" : ""} onChange={e => setForm({ ...form, line: e.target.value })} required>
+                    <option value="">Subcategoría</option>
+                    {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
+                      <option key={subcategory.id} value={subcategory.title}>{subcategory.title}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input className="field" placeholder="Línea / categoría comercial" value={form.line ?? ""} onChange={e => setForm({ ...form, line: e.target.value })} />
+                )}
                 <select className="field" value={form.verification_status} onChange={e => setForm({ ...form, verification_status: e.target.value as ProductForm["verification_status"] })}>
                   <option value="pendiente">Pendiente</option>
                   <option value="verificado">Verificado</option>
@@ -2069,6 +2160,7 @@ export default function AdminProducts() {
         </form>
           )}
       </ProductAccordion>
+      )}
         </div>
             )}
             </Fragment>
