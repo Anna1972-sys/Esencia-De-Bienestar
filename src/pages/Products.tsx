@@ -13,6 +13,7 @@ import imgInternalWeightControl from "@/assets/product-admin/nutricion-interna-c
 type ProductCategory = {
   id: string;
   name: string;
+  slug?: string | null;
   description: string | null;
   image_url: string | null;
   sort_order: number;
@@ -36,7 +37,7 @@ type Product = {
 
 const PRODUCT_CLIENT_ACCESS_SECTIONS = [
   { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
-  { id: "nutricion-objetiva", title: "Nutrición objetiva", image: imgNutritionObjective },
+  { id: "nutricion-objetiva", title: "Nutrición y Salud", image: imgNutritionObjective },
   { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
 ] as const;
 
@@ -56,7 +57,8 @@ function normalizeText(value: unknown) {
 
 function categorySectionId(category: ProductCategory | null) {
   if (!category) return "";
-  return normalizeText(category.name)
+  const internalReference = category.slug || category.name;
+  return normalizeText(internalReference)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -231,6 +233,7 @@ export default function Products() {
                     <img src={subcategory.image} alt={subcategory.title} />
                   </span>
                   <span className="products-client-access-title">{subcategory.title}</span>
+                  <ArrowDown className="products-client-access-arrow" />
                 </button>
               ))}
             </div>

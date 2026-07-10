@@ -3028,6 +3028,7 @@
   }
 
   .admin-products .admin-products-internal-subcategory-card {
+    position: relative;
     display: grid;
     grid-template-rows: minmax(7.4rem, 1fr) auto;
     min-height: 11rem;
@@ -3040,6 +3041,20 @@
     background: #FFFFFF !important;
     color: hsl(0 0% 8%) !important;
     font-weight: 850;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card .admin-products-access-arrow {
+    position: absolute;
+    right: .58rem;
+    bottom: 1.05rem;
+    width: .62rem;
+    height: .62rem;
+    color: hsl(0 0% 8%);
+    opacity: .68;
+    transition: transform .2s ease;
+    display: block !important;
+    pointer-events: none;
+    z-index: 3;
   }
 
   .admin-products .admin-products-internal-subcategory-card.is-open {

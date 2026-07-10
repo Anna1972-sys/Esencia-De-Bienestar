@@ -88,6 +88,15 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function displayProductCategoryName(category?: { name?: string | null; slug?: string | null } | null) {
+  if (!category?.name) return "";
+  const normalizedName = normalizeText(category.name).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (category.slug === "nutricion-objetiva" || normalizedName === "nutricion-objetiva" || normalizedName === "nutricion-y-salud") {
+    return "Nutrición y Salud";
+  }
+  return category.name;
+}
+
 function isGenericGramMeasure(name: string) {
   const normalized = normalizeText(name);
   return /^(gramos?|100\s*(g|gr|gramos?))$/.test(normalized);
@@ -272,7 +281,7 @@ function mergeImportantText(freeText?: string | null, observations?: string | nu
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
-  const [category, setCategory] = useState<{ name: string } | null>(null);
+  const [category, setCategory] = useState<{ name: string; slug?: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [openAdditionalBlock, setOpenAdditionalBlock] = useState<ProductDetailOpenBlock | null>(null);
 
@@ -290,7 +299,7 @@ export default function ProductDetail() {
       setProduct(normalized);
       setLoading(false);
       if (normalized?.category_id) {
-        const { data: cat } = await (supabase as any).from("product_categories").select("name").eq("id", normalized.category_id).maybeSingle();
+        const { data: cat } = await (supabase as any).from("product_categories").select("name, slug").eq("id", normalized.category_id).maybeSingle();
         setCategory(cat as any);
       }
     })();
@@ -328,7 +337,7 @@ export default function ProductDetail() {
               )}
             </div>
             <div className="product-detail-hero-copy">
-              {category?.name && <div className="product-detail-category">{category.name}</div>}
+              {category?.name && <div className="product-detail-category">{displayProductCategoryName(category)}</div>}
               <h1>{product.name}</h1>
               <div className="flex flex-wrap gap-2 mt-5">
                 {product.label_file_url && (

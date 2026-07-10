@@ -202,7 +202,7 @@ const MAX_PRODUCT_MEASURES = 2;
 
 const PRODUCT_ADMIN_ACCESS_SECTIONS = [
   { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
-  { id: "nutricion-objetiva", title: "Nutrición objetiva", image: imgNutritionObjective },
+  { id: "nutricion-objetiva", title: "Nutrición y Salud", image: imgNutritionObjective },
   { id: "nutricion-externa", title: "Nutrición externa", image: imgNutritionExternal },
 ] as const;
 
@@ -577,11 +577,18 @@ export default function AdminProducts() {
   }, [openAccessSection]);
 
   const categoryById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
-  const categoryOptionLabel = (category: ProductCategory) => `${category.name}${category.is_active ? "" : " (oculta)"}`;
+  const categoryDisplayName = (category?: ProductCategory | null) => {
+    if (!category) return "Sin categoría";
+    if (category.slug === "nutricion-objetiva" || sectionSlug(category.name) === "nutricion-objetiva" || sectionSlug(category.name) === "nutricion-y-salud") {
+      return "Nutrición y Salud";
+    }
+    return category.name;
+  };
+  const categoryOptionLabel = (category: ProductCategory) => `${categoryDisplayName(category)}${category.is_active ? "" : " (oculta)"}`;
   const activeAccessSection = PRODUCT_ADMIN_ACCESS_SECTIONS.find(section => section.id === openAccessSection) ?? null;
   const activeAccessCategory = useMemo(() => {
     if (!activeAccessSection) return null;
-    return categories.find(category => slugify(category.name) === activeAccessSection.id) ?? null;
+    return categories.find(category => category.slug === activeAccessSection.id || slugify(category.name) === activeAccessSection.id) ?? null;
   }, [activeAccessSection, categories]);
   const isInternalNutritionCategoryId = (categoryId?: string | null) => {
     const category = categoryId ? categoryById.get(categoryId) : null;
@@ -655,7 +662,7 @@ export default function AdminProducts() {
     setOpenAccessSection(next);
     setActiveInternalSubcategory("");
     if (next) {
-      const sectionCategory = categories.find(category => slugify(category.name) === next);
+      const sectionCategory = categories.find(category => category.slug === next || slugify(category.name) === next);
       setFilterCategory(sectionCategory?.id ?? "");
     }
   };
@@ -1568,6 +1575,7 @@ export default function AdminProducts() {
                         <img src={subcategory.image} alt={subcategory.title} />
                       </span>
                       <span className="admin-products-access-title">{subcategory.title}</span>
+                      <ArrowDown className={`admin-products-access-arrow ${isActive ? "rotate-180" : ""}`} />
                     </button>
                   );
                 })}
@@ -1613,7 +1621,7 @@ export default function AdminProducts() {
                   </div>
                   <div className="admin-product-list-content">
                     <div className="font-sans font-extrabold text-lg leading-tight">{product.name}</div>
-                    <div className="text-sm muted mt-1">{product.category_id ? categoryById.get(product.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</div>
+                    <div className="text-sm muted mt-1">{categoryDisplayName(product.category_id ? categoryById.get(product.category_id) : null)}</div>
                     <div className="text-[11px] muted mt-1">{formatProductDate(product.created_at ?? product.updated_at)}</div>
                     <div className="admin-product-list-tags text-[10px]">
                       <span className="chip">{product.is_active ? "Activo" : "Inactivo"}</span>
@@ -1782,7 +1790,7 @@ export default function AdminProducts() {
                   <div className="admin-product-editor-preview-body">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Vista previa</p>
                     <h4>{form.name || "Nombre del producto"}</h4>
-                    <p>{form.category_id ? categoryById.get(form.category_id)?.name ?? "Sin categoría" : "Sin categoría"}</p>
+                    <p>{categoryDisplayName(form.category_id ? categoryById.get(form.category_id) : null)}</p>
                     <p>{getProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY) || buildShortDescription(form.description) || "Añade una descripción para verla aquí."}</p>
                     <span>{form.verification_status === "verificado" ? "Verificado" : "Pendiente"}</span>
                     <button type="button" className="btn-primary" onClick={() => previewProduct(form.id)}>
