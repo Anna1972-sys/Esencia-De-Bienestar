@@ -159,7 +159,9 @@ export default function RecipeGenerator() {
   const [generatedImagePersistentUrl, setGeneratedImagePersistentUrl] = useState("");
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageGenerationAttempted, setImageGenerationAttempted] = useState(false);
+  const [generatedImageError, setGeneratedImageError] = useState("");
   const imageGenerationPromiseRef = useRef<Promise<string | null> | null>(null);
+  const imageGenerationErrorRef = useRef("");
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
 
@@ -206,6 +208,8 @@ export default function RecipeGenerator() {
     setGeneratedImageUrl("");
     setGeneratedImagePersistentUrl("");
     setImageGenerationAttempted(false);
+    setGeneratedImageError("");
+    imageGenerationErrorRef.current = "";
     imageGenerationPromiseRef.current = null;
 
     try {
@@ -261,6 +265,13 @@ export default function RecipeGenerator() {
     if (existingImage && !isTemporaryImageUrl(existingImage)) return Promise.resolve(existingImage);
     if (imageGenerationPromiseRef.current) return imageGenerationPromiseRef.current;
 
+    const rememberImageError = (message: string) => {
+      const cleanMessage = String(message || "No se pudo generar la imagen.").trim();
+      imageGenerationErrorRef.current = cleanMessage;
+      setGeneratedImageError(cleanMessage);
+      return cleanMessage;
+    };
+
     const task = (async () => {
       setGeneratingImage(true);
       setImageGenerationAttempted(true);
@@ -292,11 +303,20 @@ export default function RecipeGenerator() {
       setGeneratedImageUrl(imageUrl);
       setGeneratedImagePersistentUrl(persistentUrl || "");
       if (persistentUrl) {
+        imageGenerationErrorRef.current = "";
+        setGeneratedImageError("");
         setResult(current => current ? { ...current, image_url: persistentUrl } : current);
         if (savedRecipeId && user?.id) {
           const { error: updateError } = await supabase
             .from("recipes")
-            .update({ image_url: persistentUrl } as any)
+            .update({
+              image_url: persistentUrl,
+              macros: {
+                ...(recipe?.macros ?? {}),
+                image_generation_status: "ready",
+                image_generation_error: "",
+              },
+            } as any)
             .eq("id", savedRecipeId)
             .eq("user_id", user.id);
           if (updateError) throw updateError;
@@ -304,16 +324,44 @@ export default function RecipeGenerator() {
         toast.success(options.automatic ? "Imagen del plato generada automáticamente." : "Imagen del plato generada y guardada.");
         return persistentUrl;
       } else {
-        toast.warning(data?.storage_warning || "La imagen se ha creado, pero no se pudo guardar de forma permanente. La receta se guardará sin imagen.");
+        const warning = rememberImageError(data?.storage_warning || "La imagen se creó, pero no se pudo guardar en Storage.");
+        if (savedRecipeId && user?.id) {
+          await supabase
+            .from("recipes")
+            .update({
+              macros: {
+                ...(recipe?.macros ?? {}),
+                image_generation_status: "pending",
+                image_generation_error: warning,
+              },
+            } as any)
+            .eq("id", savedRecipeId)
+            .eq("user_id", user.id);
+        }
+        toast.warning(`${warning} La receta se guardará sin imagen.`);
         return null;
       }
     })()
-    .catch((err: any) => {
+    .catch(async (err: any) => {
       console.error("[recipe-generator] error generando imagen del plato", err);
+      const message = rememberImageError(err?.message || "No se pudo crear la imagen del plato.");
+      if (savedRecipeId && user?.id) {
+        await supabase
+          .from("recipes")
+          .update({
+            macros: {
+              ...(recipe?.macros ?? {}),
+              image_generation_status: "pending",
+              image_generation_error: message,
+            },
+          } as any)
+          .eq("id", savedRecipeId)
+          .eq("user_id", user.id);
+      }
       toast.warning(
         options.automatic
-          ? `La receta se ha generado, pero la imagen no se pudo crear: ${err?.message || "inténtalo de nuevo después."}`
-          : err?.message || "No se pudo crear la imagen del plato"
+          ? `La receta se ha generado, pero la imagen no se pudo crear: ${message}`
+          : message
       );
       return null;
     })
@@ -405,6 +453,8 @@ export default function RecipeGenerator() {
       if (generatedImageUrl && !finalImageUrl) {
         toast.warning("La receta se guardará, pero la imagen no quedó guardada de forma permanente.");
       }
+      const imageGenerationError = finalImageUrl ? "" : (imageGenerationErrorRef.current || "Imagen pendiente de generar.");
+      const imageGenerationStatus = finalImageUrl ? "ready" : "pending";
       const { error } = await supabase.from("recipes").insert({
         id: recipeId,
         user_id: user.id,
@@ -415,7 +465,11 @@ export default function RecipeGenerator() {
         servings,
         prep_time: enrichedRecipe.prep_time,
         image_url: finalImageUrl,
-        macros,
+        macros: {
+          ...macros,
+          image_generation_status: imageGenerationStatus,
+          image_generation_error: imageGenerationError,
+        },
         ingredients: recipeIngredients,
         steps: enrichedRecipe.steps ?? [],
         tags: Array.from(new Set([...(enrichedRecipe.tags ?? []), "Generador IA"])),
@@ -426,7 +480,16 @@ export default function RecipeGenerator() {
       } as any);
 
       if (error) throw error;
-      const savedRecipe = { ...enrichedRecipe, image_url: finalImageUrl, macros, servings };
+      const savedRecipe = {
+        ...enrichedRecipe,
+        image_url: finalImageUrl,
+        macros: {
+          ...macros,
+          image_generation_status: imageGenerationStatus,
+          image_generation_error: imageGenerationError,
+        },
+        servings,
+      };
       setResult(savedRecipe);
       setSavedRecipeId(recipeId);
       toast.success(options.successMessage ?? "Guardada en Mis recetas");
@@ -446,6 +509,8 @@ export default function RecipeGenerator() {
       setGeneratedImageUrl("");
       setGeneratedImagePersistentUrl("");
       setImageGenerationAttempted(false);
+      setGeneratedImageError("");
+      imageGenerationErrorRef.current = "";
       imageGenerationPromiseRef.current = null;
       setConfirmDiscardGenerated(false);
       return;
@@ -462,6 +527,8 @@ export default function RecipeGenerator() {
     setGeneratedImageUrl("");
     setGeneratedImagePersistentUrl("");
     setImageGenerationAttempted(false);
+    setGeneratedImageError("");
+    imageGenerationErrorRef.current = "";
     imageGenerationPromiseRef.current = null;
     setConfirmDiscardGenerated(false);
     toast.success("Receta descartada correctamente.");
@@ -564,6 +631,7 @@ export default function RecipeGenerator() {
           generatedImageUrl={generatedImageUrl}
           generatingImage={generatingImage}
           imageGenerationAttempted={imageGenerationAttempted}
+          generatedImageError={generatedImageError}
           onSave={() => saveRecipe(result)}
           onGenerateImage={() => generateRecipeImage(result)}
           onRequestDiscard={() => setConfirmDiscardGenerated(true)}
@@ -597,6 +665,7 @@ function RecipeCard({
   generatedImageUrl,
   generatingImage,
   imageGenerationAttempted,
+  generatedImageError,
   onSave,
   onGenerateImage,
   onRequestDiscard,
@@ -608,6 +677,7 @@ function RecipeCard({
   generatedImageUrl: string;
   generatingImage: boolean;
   imageGenerationAttempted: boolean;
+  generatedImageError: string;
   onSave: () => void;
   onGenerateImage: () => void;
   onRequestDiscard: () => void;
@@ -641,9 +711,13 @@ function RecipeCard({
           </a>
         </div>
       ) : (
-        <button type="button" onClick={onGenerateImage} disabled={generatingImage} className="btn-primary w-full mt-4">
-          {generatingImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Creando imagen…</> : <><ImagePlus className="h-4 w-4" /> {imageGenerationAttempted ? "Reintentar imagen del plato" : "Crear imagen del plato"}</>}
-        </button>
+        <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/5 p-3">
+          <div className="text-sm font-semibold text-primary">Imagen pendiente</div>
+          {generatedImageError && <p className="text-xs muted mt-1">{generatedImageError}</p>}
+          <button type="button" onClick={onGenerateImage} disabled={generatingImage} className="btn-primary w-full mt-3">
+            {generatingImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando imagen…</> : <><ImagePlus className="h-4 w-4" /> {imageGenerationAttempted ? "Reintentar imagen" : "Generar imagen"}</>}
+          </button>
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-2 text-sm mt-4">
