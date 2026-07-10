@@ -1549,6 +1549,7 @@ export default function AdminProducts() {
                   <img src={section.image} alt={section.title} />
                 </span>
                 <span className="admin-products-access-title">{section.title}</span>
+                <ArrowDown className={`admin-products-access-arrow ${isOpen ? "rotate-180" : ""}`} />
               </button>
             </article>
             {isOpen && (

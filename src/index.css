@@ -894,7 +894,21 @@
     font-size: .78rem;
     line-height: 1.1;
     letter-spacing: -.03em;
-    padding: .48rem .5rem;
+    padding: .48rem 1.25rem .48rem .5rem;
+  }
+
+  .admin-products .admin-products-access-trigger .admin-products-access-arrow {
+    position: absolute;
+    right: .58rem;
+    bottom: 1.05rem;
+    width: .62rem;
+    height: .62rem;
+    color: hsl(0 0% 8%);
+    opacity: .68;
+    transition: transform .2s ease;
+    display: block !important;
+    pointer-events: none;
+    z-index: 3;
   }
 
   .admin-products .admin-products-access-image-wrap {
