@@ -191,8 +191,12 @@ const PRODUCT_MEASURE_NAME_OPTIONS = [
   { label: "50 g", grams: 50 },
   { label: "25 g", grams: 25 },
   { label: "100 ml", grams: 100 },
+  { label: "50 ml", grams: 50 },
+  { label: "25 ml", grams: 25 },
   { label: "1 ración", grams: null },
 ];
+
+const MAX_PRODUCT_MEASURES = 2;
 
 const PRODUCT_ADMIN_ACCESS_SECTIONS = [
   { id: "nutricion-interna", title: "Nutrición interna", image: imgNutritionInternal },
@@ -427,6 +431,10 @@ function measureFromProductNutrition(measure: ProductMeasure, product: ProductFo
 
 function measuresFromProductNutrition(measures: ProductMeasure[], product: ProductForm) {
   return measures.map(measure => measureFromProductNutrition(measure, product));
+}
+
+function limitProductMeasures(measures: ProductMeasure[]) {
+  return measures.slice(0, MAX_PRODUCT_MEASURES).map((measure, index) => ({ ...measure, sort_order: index }));
 }
 
 function nutritionFromServing(form: ProductForm) {
@@ -779,7 +787,7 @@ export default function AdminProducts() {
 
     const productId = productResult.data.id;
     await (supabase as any).from("product_measures").delete().eq("product_id", productId);
-    const measures = preparedForm.measures
+    const measures = limitProductMeasures(preparedForm.measures)
       .filter(measure => measure.name.trim())
       .map((measure, index) => ({
         product_id: productId,
@@ -872,7 +880,7 @@ export default function AdminProducts() {
       verification_status: product.verification_status ?? "pendiente",
       nutrition_effective_from: product.nutrition_effective_from ?? null,
       nutrition_verified_at: product.nutrition_verified_at ?? null,
-      measures: measures.length ? measures.map(normalizeMeasure) : [emptyMeasure],
+      measures: measures.length ? limitProductMeasures(measures.map(normalizeMeasure)) : [emptyMeasure],
     });
     setEditorInstanceKey(key => key + 1);
     setOpenEditorBlock("Información general");
@@ -891,7 +899,7 @@ export default function AdminProducts() {
       slug: `${slugify(product.name)}-copia-${Date.now()}`,
     }).select("id").maybeSingle();
     if (error || !data?.id) return toast.error(error?.message || "No se pudo duplicar");
-    const measures = (product.product_measures ?? []).map((measure, index) => ({ ...measure, id: undefined, product_id: data.id, sort_order: index }));
+    const measures = limitProductMeasures(product.product_measures ?? []).map((measure, index) => ({ ...measure, id: undefined, product_id: data.id, sort_order: index }));
     if (measures.length) await (supabase as any).from("product_measures").insert(measures);
     toast.success("Producto duplicado");
     load();
@@ -1976,19 +1984,20 @@ export default function AdminProducts() {
                 <button
                   type="button"
                   className="btn-primary"
+                  disabled={form.measures.length >= MAX_PRODUCT_MEASURES}
                   onClick={() => setForm(prev => ({
                     ...prev,
                     measures: [
-                      ...prev.measures,
+                      ...limitProductMeasures(prev.measures),
                       measureFromProductNutrition({ ...emptyMeasure, name: "100 g", is_default: false, sort_order: prev.measures.length }, prev),
-                    ],
+                    ].slice(0, MAX_PRODUCT_MEASURES),
                   }))}
                 >
                   <Plus className="h-4 w-4" /> Añadir
                 </button>
               </div>
               <div className="space-y-3">
-                {form.measures.map((measure, index) => (
+                {limitProductMeasures(form.measures).map((measure, index) => (
                   <div key={index} className="admin-measure-row rounded-[22px] bg-secondary/70 p-3">
                     <div className="admin-product-measure-fields">
                       <label className="block">
@@ -2021,6 +2030,8 @@ export default function AdminProducts() {
                       <NumberField label="Hidratos" value={measure.carbs} onChange={value => updateMeasure(index, { carbs: value })} quickSteps={[-50, 50]} step="0.1" />
                       <NumberField label="Grasas" value={measure.fat} onChange={value => updateMeasure(index, { fat: value })} quickSteps={[-50, 50]} step="0.1" />
                       <NumberField label="Fibra" value={measure.fiber} onChange={value => updateMeasure(index, { fiber: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Azúcares" value={measure.sugars ?? ""} onChange={value => updateMeasure(index, { sugars: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Sal" value={measure.salt ?? ""} onChange={value => updateMeasure(index, { salt: value })} quickSteps={[-50, 50]} step="0.1" />
                     </div>
                     <div className="admin-product-measure-actions">
                       <select

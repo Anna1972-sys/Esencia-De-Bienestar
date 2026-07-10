@@ -13,6 +13,8 @@ type ProductMeasure = {
   carbs: number;
   fat: number;
   fiber: number;
+  sugars: number;
+  salt: number;
   is_default: boolean;
   sort_order: number;
 };
@@ -116,6 +118,8 @@ function officialAloeMaxMeasures(): ProductMeasure[] {
       carbs: 2.9,
       fat: 0,
       fiber: 0,
+      sugars: 2.2,
+      salt: 0,
       is_default: true,
       sort_order: 0,
     },
@@ -128,6 +132,8 @@ function officialAloeMaxMeasures(): ProductMeasure[] {
       carbs: 0.4,
       fat: 0,
       fiber: 0,
+      sugars: 0.3,
+      salt: 0,
       is_default: false,
       sort_order: 1,
     },
@@ -138,7 +144,8 @@ function getDisplayMeasures(product: Product) {
   if (isAloeMaxProduct(product)) return officialAloeMaxMeasures();
   return product.product_measures
     .filter(shouldShowMeasure)
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .slice(0, 2);
 }
 
 function nutritionBaseLabel(product: Product) {
@@ -388,12 +395,14 @@ export default function ProductDetail() {
                       <div className="font-medium">{formatMeasureName(measure, product)}</div>
                       <div className="text-xs muted">{formatMeasureSubtitle(measure, product)}</div>
                     </div>
-                    <div className="grid grid-cols-5 gap-1 text-[11px] text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[11px] text-center">
                       <Stat label="Kcal" value={formatKcalValue(measure.calories)} />
                       <Stat label="Prot" value={formatGramValue(measure.protein)} />
                       <Stat label="Hidr" value={formatGramValue(measure.carbs)} />
                       <Stat label="Grasa" value={formatGramValue(measure.fat)} />
                       <Stat label="Fibra" value={formatGramValue(measure.fiber)} />
+                      <Stat label="Azúcares" value={formatGramValue(measure.sugars)} />
+                      <Stat label="Sal" value={formatGramValue(measure.salt)} />
                     </div>
                   </div>
                 ))}
@@ -505,6 +514,8 @@ function normalizeProduct(item: any): Product {
         carbs: toNumber(measure.carbs),
         fat: toNumber(measure.fat),
         fiber: toNumber(measure.fiber),
+        sugars: toNumber(measure.sugars),
+        salt: toNumber(measure.salt),
         sort_order: toNumber(measure.sort_order),
       }))
       : [],
