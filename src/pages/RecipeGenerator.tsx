@@ -42,6 +42,11 @@ const ingredientSignature = (ingredients: any[] = []) =>
 const firstUrl = (...values: any[]) =>
   values.find(value => typeof value === "string" && value.trim())?.trim() ?? null;
 
+const isTemporaryImageUrl = (value: unknown) => {
+  const url = String(value ?? "").trim();
+  return !url || url.startsWith("data:image/") || url.includes("oaidalleapiprodscus.blob.core.windows.net");
+};
+
 const noMacroIngredientWords = [
   "agua",
   "sal",
@@ -151,6 +156,7 @@ export default function RecipeGenerator() {
   const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
   const [discardingGenerated, setDiscardingGenerated] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const [generatedImagePersistentUrl, setGeneratedImagePersistentUrl] = useState("");
   const [generatingImage, setGeneratingImage] = useState(false);
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
@@ -196,6 +202,7 @@ export default function RecipeGenerator() {
     setResult(null);
     setSavedRecipeId(null);
     setGeneratedImageUrl("");
+    setGeneratedImagePersistentUrl("");
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -245,6 +252,7 @@ export default function RecipeGenerator() {
 
   const generateRecipeImage = async (recipe: any) => {
     if (!recipe) return;
+    if (generatingImage) return;
     setGeneratingImage(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -265,11 +273,20 @@ export default function RecipeGenerator() {
       if (!response.ok) {
         throw new Error(data?.error || "No se pudo crear la imagen del plato");
       }
-      const imageUrl = firstUrl(data?.image_url, data?.url);
+      const imageUrl = firstUrl(data?.image_url, data?.preview_url, data?.url);
       if (!imageUrl) throw new Error("No se recibió ninguna imagen");
+      const persistentUrl = data?.persistent === false
+        ? ""
+        : firstUrl(data?.image_url, data?.url);
 
       setGeneratedImageUrl(imageUrl);
-      toast.success("Imagen del plato generada.");
+      setGeneratedImagePersistentUrl(persistentUrl || "");
+      if (persistentUrl) {
+        setResult(current => current ? { ...current, image_url: persistentUrl } : current);
+        toast.success("Imagen del plato generada y guardada.");
+      } else {
+        toast.warning(data?.storage_warning || "La imagen se ha creado, pero no se pudo guardar de forma permanente. La receta se guardará sin imagen.");
+      }
     } catch (err: any) {
       console.error("[recipe-generator] error generando imagen del plato", err);
       toast.error(err?.message || "No se pudo crear la imagen del plato");
@@ -342,11 +359,16 @@ export default function RecipeGenerator() {
       const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const imageUrl = firstUrl(
         enrichedRecipe.image_url,
+        generatedImagePersistentUrl,
         enrichedRecipe.imageUrl,
         enrichedRecipe.cover_image_url,
         enrichedRecipe.image?.url,
         enrichedRecipe.image
       );
+      const finalImageUrl = isTemporaryImageUrl(imageUrl) ? null : imageUrl;
+      if (generatedImageUrl && !finalImageUrl) {
+        toast.warning("La receta se guardará, pero la imagen no quedó guardada de forma permanente.");
+      }
       const { error } = await supabase.from("recipes").insert({
         id: recipeId,
         user_id: user.id,
@@ -356,7 +378,7 @@ export default function RecipeGenerator() {
         categories: [enrichedRecipe.category ?? category],
         servings,
         prep_time: enrichedRecipe.prep_time,
-        image_url: imageUrl,
+        image_url: finalImageUrl,
         macros,
         ingredients: recipeIngredients,
         steps: enrichedRecipe.steps ?? [],
@@ -368,7 +390,7 @@ export default function RecipeGenerator() {
       } as any);
 
       if (error) throw error;
-      const savedRecipe = { ...enrichedRecipe, image_url: imageUrl, macros, servings };
+      const savedRecipe = { ...enrichedRecipe, image_url: finalImageUrl, macros, servings };
       setResult(savedRecipe);
       setSavedRecipeId(recipeId);
       toast.success(options.successMessage ?? "Guardada en Mis recetas");
