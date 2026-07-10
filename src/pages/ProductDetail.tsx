@@ -351,7 +351,7 @@ export default function ProductDetail() {
         );
       case "nutrition":
         return (
-          <>
+          <div className="space-y-5">
             {hasNutrition ? (
               <CollapsibleProductBlock title="Información nutricional" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs mt-3">
@@ -380,7 +380,7 @@ export default function ProductDetail() {
                 )}
               </CollapsibleProductBlock>
             )}
-          </>
+          </div>
         );
       case "benefits":
         return <ContentBlock title="Beneficios" value={product.benefits} pdfUrl={getProductMetaUrl(product.micronutrients, PRODUCT_BENEFITS_PDF_KEY)} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} />;
