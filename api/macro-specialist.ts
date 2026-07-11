@@ -228,12 +228,57 @@ function cleanSearchName(value: unknown) {
 }
 
 const MATCH_STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "the", "of", "a", "al"]);
+const BASIC_INGREDIENT_PRODUCT_BLOCKLIST = new Set([
+  "aceite",
+  "agua",
+  "ajo",
+  "arroz",
+  "avena",
+  "calabacin",
+  "calabacín",
+  "caldo",
+  "carne",
+  "cebolla",
+  "champiñon",
+  "champiñones",
+  "champinon",
+  "champinones",
+  "maicena",
+  "manzana",
+  "patata",
+  "platano",
+  "plátano",
+  "pollo",
+  "ternera",
+  "tomate",
+  "vinagre",
+  "vino",
+  "zanahoria",
+]);
 
 function significantFoodTokens(value: unknown) {
   return normalizeFoodRankingText(value)
     .split(" ")
     .map(token => token.trim())
     .filter(token => token.length > 1 && !MATCH_STOP_WORDS.has(token));
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function containsWholeNormalizedPhrase(container: string, phrase: string) {
+  if (!container || !phrase) return false;
+  const phrasePattern = escapeRegExp(phrase).replace(/\s+/g, "\\s+");
+  return new RegExp(`(^|\\s)${phrasePattern}($|\\s)`).test(container);
+}
+
+function isBasicIngredientOnlyQuery(value: unknown) {
+  const normalized = normalizeName(value);
+  if (!normalized) return false;
+  if (asksForPreparedFood(normalized) || asksForDerivedFood(normalized)) return false;
+  const tokens = significantFoodTokens(normalized);
+  return tokens.some(token => BASIC_INGREDIENT_PRODUCT_BLOCKLIST.has(token));
 }
 
 function tokenSimilarity(candidate: unknown, query: unknown) {
@@ -581,7 +626,7 @@ function measureFoodMacro(measure: ProductMeasureRow): FoodMacro {
 function findProduct(input: IngredientInput, products: ProductRow[]) {
   const normalizedRaw = normalizeName(String(input.raw ?? ""));
   const normalizedName = normalizeName(String(input.name ?? ""));
-  const simpleGenericQuery = isGenericSimpleFoodQuery(normalizedName);
+  if (isBasicIngredientOnlyQuery(normalizedName) || isBasicIngredientOnlyQuery(normalizedRaw)) return null;
   const searchable = `${normalizedRaw} ${normalizedName}`.trim();
   if (!searchable) return null;
 
@@ -592,33 +637,28 @@ function findProduct(input: IngredientInput, products: ProductRow[]) {
       const normalizedSlug = normalizeName(product.slug ?? "");
       const normalizedAliases = (product.aliases ?? []).map(alias => normalizeName(alias)).filter(Boolean);
       const exactProductName = normalizedProduct === normalizedName || normalizedProduct === normalizedRaw;
-      const exactProductAlias = normalizedAliases.includes(normalizedName) || normalizedAliases.includes(normalizedRaw);
-      const exactProduct = exactProductName || (!simpleGenericQuery && exactProductAlias);
-      const fullProductMentioned = Boolean(normalizedProduct && searchable.includes(normalizedProduct));
-      const fullSlugMentioned = Boolean(normalizedSlug && searchable.includes(normalizedSlug));
-      const fullAliasMentioned = !simpleGenericQuery && normalizedAliases.some(alias => alias && searchable.includes(alias));
-      const disallowedProductName =
-        normalizedProduct !== normalizedName &&
-        normalizedProduct !== normalizedRaw &&
-        (isDisallowedDefaultProcessedMatch(product.name, normalizedName) || hasFoodCategoryConflict(product.name, normalizedName));
-      const reliableApproximation =
-        !isGenericSimpleFoodQuery(normalizedName) &&
-        !disallowedProductName &&
-        (isReliableFoodNameMatch(product.name, normalizedName) || normalizedAliases.some(alias => isReliableFoodNameMatch(alias, normalizedName)));
+      const exactProductAlias = normalizedAliases
+        .filter(alias => !isBasicIngredientOnlyQuery(alias))
+        .some(alias => alias === normalizedName || alias === normalizedRaw);
+      const fullProductMentioned = Boolean(normalizedProduct && containsWholeNormalizedPhrase(searchable, normalizedProduct));
+      const fullSlugMentioned = Boolean(normalizedSlug && containsWholeNormalizedPhrase(searchable, normalizedSlug));
+      const fullAliasMentioned = normalizedAliases
+        .filter(alias => !isBasicIngredientOnlyQuery(alias))
+        .some(alias => alias && containsWholeNormalizedPhrase(searchable, alias));
       const productMatches =
-        !disallowedProductName &&
-        (exactProduct ||
+        (exactProductName ||
+          exactProductAlias ||
           fullProductMentioned ||
           fullSlugMentioned ||
-          fullAliasMentioned ||
-          reliableApproximation);
+          fullAliasMentioned);
       const aliasScore = normalizedAliases
-        .filter(alias => searchable.includes(alias) || alias === normalizedName || alias === normalizedRaw)
+        .filter(alias => !isBasicIngredientOnlyQuery(alias))
+        .filter(alias => containsWholeNormalizedPhrase(searchable, alias) || alias === normalizedName || alias === normalizedRaw)
         .sort((a, b) => b.length - a.length)[0]?.length ?? 0;
       return {
         product,
         normalizedProduct,
-        score: productMatches ? Math.max(normalizedProduct.length, aliasScore) + (exactProduct ? 80 : 0) + (fullProductMentioned ? 30 : 0) : 0,
+        score: productMatches ? Math.max(normalizedProduct.length, aliasScore) + (exactProductName || exactProductAlias ? 80 : 0) + (fullProductMentioned ? 30 : 0) : 0,
       };
     })
     .filter(match => match.score > 0)
@@ -1939,6 +1979,15 @@ export default async function handler(req: any, res: any) {
     for (const attempt of loadAttempts) debugEntry.attempts?.push(attempt);
     const hasValidGrams = Number.isFinite(grams) && grams > 0;
     const tryProductMatch = () => {
+      if (isBasicIngredientOnlyQuery(name) || isBasicIngredientOnlyQuery(ingredient.raw)) {
+        debugEntry.attempts?.push({
+          provider: "productos",
+          used: false,
+          reason: "ingrediente_basico_no_consulta_productos",
+          skippedExternalApis: true,
+        });
+        return false;
+      }
       const productMatch = findProduct(ingredient, products);
       if (!productMatch) return false;
       const productCalculation = calculateProductMacros(ingredient, productMatch, Number.isFinite(grams) ? grams : null);
