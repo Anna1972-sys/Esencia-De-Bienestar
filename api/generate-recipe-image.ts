@@ -39,15 +39,19 @@ function buildFoodPhotoPrompt(title: string, ingredients: string[], preparation:
   const cleanPreparation = preparation.map(cleanText).filter(Boolean).slice(0, 6);
 
   return [
-    "Create an ultra-realistic editorial gastronomic photograph for a wellness recipe app.",
-    `Dish title: ${cleanTitle}.`,
-    cleanIngredients.length ? `Visible ingredients to represent: ${cleanIngredients.join(", ")}.` : "",
-    cleanPreparation.length ? `Cooking and plating cues from the preparation: ${cleanPreparation.join(" ")}` : "",
-    "Fixed visual template: realistic gastronomic photography, warm natural light, clear beige background, neutral tableware, clean editorial composition, soft shadows.",
-    "Use a white ceramic bowl when it fits the recipe; otherwise use simple neutral ceramic plating.",
-    "The ingredients must match the recipe exactly. Do not add ingredients that are not in the recipe.",
-    "No text, no labels, no hands, no packaging, no unnecessary utensils, no commercial brands, no logos, no watermark.",
-    "Composition: vertical 4:5 editorial framing, centered finished dish, enough margin for a mobile recipe card.",
+    `Generate a professional food photograph of ${cleanTitle} on a white plate, overhead or slightly angled view.`,
+    "The background must be pure white or very light, clean, bright and minimalist.",
+    "Lighting: very luminous, soft natural light, professional kitchen / editorial food photography style.",
+    "Colors: vivid but natural, highlighting the ingredients and the finished dish.",
+    "Overall tone: fresh, healthy, appetizing and realistic.",
+    "The plate must be the hero of the image, centered or slightly centered, juicy and natural, never dry or overloaded.",
+    cleanIngredients.length ? `Place real, recognizable ingredients around the plate in a harmonious and balanced way: ${cleanIngredients.join(", ")}.` : "",
+    cleanPreparation.length ? `Use these preparation cues only to guide the final plating: ${cleanPreparation.join(" ")}` : "",
+    "Allowed accessories only if subtle and useful: fresh herbs, spices, olive oil, salt, pepper, neutral utensils.",
+    "Do not add ingredients that are not in the recipe.",
+    "Forbidden: beige backgrounds, dark backgrounds, grey backgrounds, wood, colored napkins, decorative elements that distract, text, labels, logos, frames, packaging, hands, commercial brands or watermarks.",
+    "Composition: balanced, clean and professional, optimized for a mobile wellness recipe app.",
+    "Format: vertical 4:5, high resolution.",
   ].filter(Boolean).join(" ");
 }
 
