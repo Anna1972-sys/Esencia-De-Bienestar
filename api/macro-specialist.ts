@@ -134,6 +134,8 @@ type ProviderMacroMatch = {
   provider: "usda" | "fatsecret";
 };
 
+type MatchMode = "exact" | "partial";
+
 const BASIC_FOODS: Record<string, FoodMacro> = {
   pollo: { kcal: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, aliases: ["pechuga de pollo", "pollo cocido"] },
   "pechuga de pavo": { kcal: 105, protein: 22.5, carbs: 1, fat: 1.5, fiber: 0, aliases: ["pavo", "fiambre de pavo", "pavo cocido", "turkey breast", "sliced turkey breast"] },
@@ -297,10 +299,16 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
 
 function parseRawIngredient(raw: unknown): IngredientInput {
   const rawText = String(raw ?? "").trim();
-  const qtyMatch = rawText.match(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
+  const qtyPattern = /(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i;
+  const qtyMatch = rawText.match(qtyPattern);
   const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
   const unit = qtyMatch?.[2] ? safeLowerCase(qtyMatch[2], "parseRawIngredient.unit") : undefined;
-  const rawName = rawText.replace(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
+  const rawName = rawText
+    .replace(qtyPattern, " ")
+    .replace(/^\s*(de|del|la|el)\s+/i, "")
+    .replace(/\s+(de|del|la|el)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
   const name = simplifyFoodName(rawName || unit || rawText);
   const grams = quantity && unit ? quantityToGrams(quantity, unit, name) : undefined;
   return { raw: rawText, name, grams, quantity, unit };
@@ -341,10 +349,19 @@ function simplifyFoodName(value: unknown) {
   const cleaned = cleanSearchName(value);
   const simplifications: Array<[RegExp, string]> = [
     [/\baceite\s+oliva\b.*/, "aceite de oliva"],
+    [/\bfilete\s+ternera\b.*/, "ternera"],
+    [/\bternera\b.*/, "ternera"],
+    [/\bcaldo\s+carne\b.*/, "caldo de carne"],
+    [/\bchampiñones?\b.*/, "champiñones"],
+    [/\bchampinones?\b.*/, "champiñones"],
+    [/\bmaicena\b.*/, "maicena"],
+    [/\bajo\b.*/, "ajo"],
     [/\bcarne\s+pavo\b.*/, "carne de pavo"],
     [/\bpechuga\s+pavo\b.*/, "pechuga de pavo"],
     [/\bpechuga\s+pollo\b.*/, "pechuga de pollo"],
+    [/\bqueso\s+fresco\s+batido\b.*/, "queso fresco batido"],
     [/\bqueso\s+fresco\b.*/, "queso fresco"],
+    [/\byogur\s+griego\s+0\b.*/, "yogur griego 0"],
     [/\byogur\s+griego\b.*/, "yogur griego"],
     [/\byogur\s+natural\b.*/, "yogur natural"],
   ];
@@ -354,15 +371,24 @@ function simplifyFoodName(value: unknown) {
   return cleaned;
 }
 
+function densityForLiquid(foodName: unknown) {
+  const normalizedFood = normalizeName(foodName);
+  if (/\b(aceite|oliva|oil)\b/.test(normalizedFood)) return 0.9;
+  if (/\b(miel|honey)\b/.test(normalizedFood)) return 1.4;
+  if (/\b(jarabe|sirope|syrup)\b/.test(normalizedFood)) return 1.33;
+  return 1;
+}
+
 function quantityToGrams(quantity: number, unit: unknown, foodName: unknown) {
   const normalizedUnit = safeLowerCase(unit, "quantityToGrams.unit");
-  if (["g", "gr", "gramos", "ml", "mililitros"].includes(normalizedUnit)) return quantity;
+  if (["g", "gr", "gramos"].includes(normalizedUnit)) return quantity;
+  if (["ml", "mililitros"].includes(normalizedUnit)) return quantity * densityForLiquid(foodName);
   if (["cucharada", "cucharadas", "cda", "cdas"].includes(normalizedUnit)) {
-    if (normalizeName(foodName).includes("aceite")) return quantity * 10;
+    if (normalizeName(foodName).includes("aceite")) return quantity * 13.5;
     return quantity * 10;
   }
   if (["cucharadita", "cucharaditas", "cdta", "cdtas"].includes(normalizedUnit)) {
-    if (normalizeName(foodName).includes("aceite")) return quantity * 5;
+    if (normalizeName(foodName).includes("aceite")) return quantity * 4.5;
     return quantity * 5;
   }
   if (["diente", "dientes"].includes(normalizedUnit)) return quantity * 4;
@@ -402,6 +428,10 @@ function foodFromInternalRow(row: InternalFoodRow): FoodMacro {
 }
 
 function findInternalFood(name: string, foods: InternalFoodRow[]) {
+  return findInternalFoodByMode(name, foods, "partial");
+}
+
+function findInternalFoodByMode(name: string, foods: InternalFoodRow[], mode: MatchMode) {
   const normalized = normalizeName(name);
   const isDisallowedInternalCandidate = (food: InternalFoodRow) =>
     normalizeName(food.name) !== normalized &&
@@ -415,6 +445,7 @@ function findInternalFood(name: string, foods: InternalFoodRow[]) {
 
   const exact = candidates.find(candidate => candidate.exact && !isDisallowedInternalCandidate(candidate.food));
   if (exact) return { key: exact.key, row: exact.food, food: foodFromInternalRow(exact.food) };
+  if (mode === "exact") return null;
 
   const partial = candidates
     .filter(candidate => candidate.normalized && !isDisallowedInternalCandidate(candidate.food) && isReliableFoodNameMatch(candidate.key, name))
@@ -475,6 +506,10 @@ function unifiedFoodStateMatches(estado: UnifiedFoodRow["estado"], requestedStat
 }
 
 function findUnifiedFood(name: string, foods: UnifiedFoodRow[], sourceTypes?: Array<NonNullable<UnifiedFoodRow["source_type"]>>) {
+  return findUnifiedFoodByMode(name, foods, sourceTypes, "partial");
+}
+
+function findUnifiedFoodByMode(name: string, foods: UnifiedFoodRow[], sourceTypes?: Array<NonNullable<UnifiedFoodRow["source_type"]>>, mode: MatchMode = "partial") {
   const normalized = normalizeName(name);
   const rankingQuery = normalizeFoodRankingText(name);
   const requestedState = requestedCookingState(name);
@@ -490,7 +525,7 @@ function findUnifiedFood(name: string, foods: UnifiedFoodRow[], sourceTypes?: Ar
         const normalizedKey = normalizeName(key);
         const rankingKey = normalizeFoodRankingText(key);
         const exact = normalizedKey === normalized || rankingKey === rankingQuery;
-        const partial = normalizedKey && isReliableFoodNameMatch(key, name);
+        const partial = mode === "partial" && normalizedKey && isReliableFoodNameMatch(key, name);
         const disallowedFoodName =
           normalizeName(food.nombre) !== normalized &&
           normalizeFoodRankingText(food.nombre) !== rankingQuery &&
@@ -546,6 +581,7 @@ function measureFoodMacro(measure: ProductMeasureRow): FoodMacro {
 function findProduct(input: IngredientInput, products: ProductRow[]) {
   const normalizedRaw = normalizeName(String(input.raw ?? ""));
   const normalizedName = normalizeName(String(input.name ?? ""));
+  const simpleGenericQuery = isGenericSimpleFoodQuery(normalizedName);
   const searchable = `${normalizedRaw} ${normalizedName}`.trim();
   if (!searchable) return null;
 
@@ -555,10 +591,12 @@ function findProduct(input: IngredientInput, products: ProductRow[]) {
       const normalizedProduct = normalizeName(product.name);
       const normalizedSlug = normalizeName(product.slug ?? "");
       const normalizedAliases = (product.aliases ?? []).map(alias => normalizeName(alias)).filter(Boolean);
-      const exactProduct = normalizedProduct === normalizedName || normalizedProduct === normalizedRaw || normalizedAliases.includes(normalizedName) || normalizedAliases.includes(normalizedRaw);
+      const exactProductName = normalizedProduct === normalizedName || normalizedProduct === normalizedRaw;
+      const exactProductAlias = normalizedAliases.includes(normalizedName) || normalizedAliases.includes(normalizedRaw);
+      const exactProduct = exactProductName || (!simpleGenericQuery && exactProductAlias);
       const fullProductMentioned = Boolean(normalizedProduct && searchable.includes(normalizedProduct));
       const fullSlugMentioned = Boolean(normalizedSlug && searchable.includes(normalizedSlug));
-      const fullAliasMentioned = normalizedAliases.some(alias => alias && searchable.includes(alias));
+      const fullAliasMentioned = !simpleGenericQuery && normalizedAliases.some(alias => alias && searchable.includes(alias));
       const disallowedProductName =
         normalizedProduct !== normalizedName &&
         normalizedProduct !== normalizedRaw &&
@@ -1967,7 +2005,120 @@ export default async function handler(req: any, res: any) {
       continue;
     }
 
-    const manualUnifiedMatch = findUnifiedFood(name, unifiedFoods, ["manual"]);
+    const internalExactMatch = findInternalFoodByMode(name, internalFoods, "exact");
+    if (internalExactMatch) {
+      const itemMacros = scaleInternalFood(internalExactMatch.row, grams);
+      addMacros(totals, itemMacros);
+      debugEntry.status = "incluido";
+      debugEntry.source = "alimentos_internos";
+      debugEntry.sourceLabel = sourceLabelForFoundItem("alimentos_internos");
+      debugEntry.matchedAs = internalExactMatch.row.name;
+      debugEntry.foodId = internalExactMatch.row.id;
+      debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.calorieCheck = calorieCheck(itemMacros);
+      debugEntry.attempts?.push({
+        provider: "alimentos_internos",
+        used: true,
+        matchedAs: internalExactMatch.row.name,
+        matchedBy: internalExactMatch.key,
+        matchMode: "exact",
+        baseQuantity: internalExactMatch.row.base_quantity,
+        baseUnit: internalExactMatch.row.base_unit,
+        source: internalExactMatch.row.source,
+        skippedExternalApis: true,
+        macros: roundMacros(itemMacros),
+      });
+      found.push({
+        name,
+        matchedAs: internalExactMatch.row.name,
+        grams,
+        source: "alimentos_internos",
+        sourceLabel: sourceLabelForFoundItem("alimentos_internos"),
+        foodId: internalExactMatch.row.id,
+        macros: roundMacros(itemMacros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
+    const manualUnifiedExactMatch = findUnifiedFoodByMode(name, unifiedFoods, ["manual"], "exact");
+    if (manualUnifiedExactMatch) {
+      const itemMacros = scaleUnifiedFood(manualUnifiedExactMatch.row, grams);
+      addMacros(totals, itemMacros);
+      debugEntry.status = "incluido";
+      debugEntry.source = "base_interna";
+      debugEntry.sourceLabel = sourceLabelForFoundItem("alimentos_unificados", manualUnifiedExactMatch.row.source_type);
+      debugEntry.matchedAs = manualUnifiedExactMatch.row.nombre;
+      debugEntry.foodId = manualUnifiedExactMatch.row.id;
+      debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.calorieCheck = calorieCheck(itemMacros);
+      debugEntry.attempts?.push({
+        provider: "food_items_manual",
+        used: true,
+        matchedAs: manualUnifiedExactMatch.row.nombre,
+        matchedBy: manualUnifiedExactMatch.key,
+        matchMode: "exact",
+        category: manualUnifiedExactMatch.row.categoria,
+        state: manualUnifiedExactMatch.row.estado,
+        sourceType: manualUnifiedExactMatch.row.source_type,
+        source: manualUnifiedExactMatch.row.fuente,
+        verified: manualUnifiedExactMatch.row.verificado,
+        skippedExternalApis: true,
+        macros: roundMacros(itemMacros),
+      });
+      found.push({
+        name,
+        matchedAs: manualUnifiedExactMatch.row.nombre,
+        displayName: manualUnifiedExactMatch.row.nombre,
+        grams,
+        source: "alimentos_unificados",
+        sourceType: manualUnifiedExactMatch.row.source_type,
+        sourceLabel: sourceLabelForFoundItem("alimentos_unificados", manualUnifiedExactMatch.row.source_type),
+        foodId: manualUnifiedExactMatch.row.id,
+        macros: roundMacros(itemMacros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
+    const internalMatch = findInternalFoodByMode(name, internalFoods, "partial");
+    if (internalMatch) {
+      const itemMacros = scaleInternalFood(internalMatch.row, grams);
+      addMacros(totals, itemMacros);
+      fallbackUsed.push({ name, matchedAs: internalMatch.row.name, source: "alimentos_internos" });
+      debugEntry.status = "incluido";
+      debugEntry.source = "alimentos_internos";
+      debugEntry.sourceLabel = sourceLabelForFoundItem("alimentos_internos");
+      debugEntry.matchedAs = internalMatch.row.name;
+      debugEntry.foodId = internalMatch.row.id;
+      debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.calorieCheck = calorieCheck(itemMacros);
+      debugEntry.attempts?.push({
+        provider: "alimentos_internos",
+        used: true,
+        matchedAs: internalMatch.row.name,
+        matchedBy: internalMatch.key,
+        matchMode: "partial",
+        baseQuantity: internalMatch.row.base_quantity,
+        baseUnit: internalMatch.row.base_unit,
+        source: internalMatch.row.source,
+        skippedExternalApis: true,
+        macros: roundMacros(itemMacros),
+      });
+      found.push({
+        name,
+        matchedAs: internalMatch.row.name,
+        grams,
+        source: "alimentos_internos",
+        sourceLabel: sourceLabelForFoundItem("alimentos_internos"),
+        foodId: internalMatch.row.id,
+        macros: roundMacros(itemMacros),
+      });
+      debug.push(debugEntry);
+      continue;
+    }
+
+    const manualUnifiedMatch = findUnifiedFoodByMode(name, unifiedFoods, ["manual"], "partial");
     if (manualUnifiedMatch) {
       const itemMacros = scaleUnifiedFood(manualUnifiedMatch.row, grams);
       addMacros(totals, itemMacros);
@@ -1983,6 +2134,7 @@ export default async function handler(req: any, res: any) {
         used: true,
         matchedAs: manualUnifiedMatch.row.nombre,
         matchedBy: manualUnifiedMatch.key,
+        matchMode: "partial",
         category: manualUnifiedMatch.row.categoria,
         state: manualUnifiedMatch.row.estado,
         sourceType: manualUnifiedMatch.row.source_type,
@@ -2000,42 +2152,6 @@ export default async function handler(req: any, res: any) {
         sourceType: manualUnifiedMatch.row.source_type,
         sourceLabel: sourceLabelForFoundItem("alimentos_unificados", manualUnifiedMatch.row.source_type),
         foodId: manualUnifiedMatch.row.id,
-        macros: roundMacros(itemMacros),
-      });
-      debug.push(debugEntry);
-      continue;
-    }
-
-    const internalMatch = findInternalFood(name, internalFoods);
-    if (internalMatch) {
-      const itemMacros = scaleInternalFood(internalMatch.row, grams);
-      addMacros(totals, itemMacros);
-      fallbackUsed.push({ name, matchedAs: internalMatch.row.name, source: "alimentos_internos" });
-      debugEntry.status = "incluido";
-      debugEntry.source = "alimentos_internos";
-      debugEntry.sourceLabel = sourceLabelForFoundItem("alimentos_internos");
-      debugEntry.matchedAs = internalMatch.row.name;
-      debugEntry.foodId = internalMatch.row.id;
-      debugEntry.macros = roundMacros(itemMacros);
-      debugEntry.calorieCheck = calorieCheck(itemMacros);
-      debugEntry.attempts?.push({
-        provider: "alimentos_internos",
-        used: true,
-        matchedAs: internalMatch.row.name,
-        matchedBy: internalMatch.key,
-        baseQuantity: internalMatch.row.base_quantity,
-        baseUnit: internalMatch.row.base_unit,
-        source: internalMatch.row.source,
-        skippedExternalApis: true,
-        macros: roundMacros(itemMacros),
-      });
-      found.push({
-        name,
-        matchedAs: internalMatch.row.name,
-        grams,
-        source: "alimentos_internos",
-        sourceLabel: sourceLabelForFoundItem("alimentos_internos"),
-        foodId: internalMatch.row.id,
         macros: roundMacros(itemMacros),
       });
       debug.push(debugEntry);
