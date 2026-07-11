@@ -52,21 +52,26 @@ function buildFoodPhotoPrompt(title: string, ingredients: string[], preparation:
   const cleanPreparation = preparation.map(cleanText).filter(Boolean).slice(0, 6);
 
   return [
-    `Generate a hyper-realistic professional food photograph of ${cleanTitle} served in a white ceramic plate or shallow white bowl, overhead or slightly angled view.`,
-    "Style: professional cookbook editorial photography, premium wellness recipe app, realistic texture, never illustration, never 3D render.",
+    `Generate a hyper-realistic professional food photograph of ${cleanTitle} served in a white ceramic shallow bowl or elegant white plate, overhead or slightly angled view.`,
+    "Style: real professional cookbook or gastronomic magazine photography, not typical AI imagery, never illustration, never 3D render.",
+    "Visual reference style: clean close-up recipe-card photography like a modern healthy cookbook, with the white bowl or plate large, centered and filling most of the frame.",
+    "The finished dish must match the recipe title and preparation exactly: if it says steak, show steak; if it says beef strips, show strips; if it says salad, show a salad; if it says sauté, show a sauté. Never change the type of dish.",
     "The background must be clean white, bright and minimalist, but never overexposed, never empty, never almost completely white.",
     "Lighting: soft natural light, natural contrast, gentle shadows that give volume to the plate and food.",
-    "Colors: vivid, natural and appetizing, clearly showing the real ingredients and the finished dish.",
-    "The plated food must be perfectly visible, centered, sharp, juicy, realistic and appetizing, similar to a clean mobile recipe-card photo.",
-    "The white plate or bowl must be the hero and occupy approximately 70–80% of the image area, with the food filling the dish clearly.",
-    cleanIngredients.length ? `Place real, recognizable ingredients around the plate in a harmonious and balanced way: ${cleanIngredients.join(", ")}.` : "",
+    "Colors: vivid but realistic, clearly showing the real ingredients and the finished dish.",
+    "Textures must be very detailed and realistic: juicy browned meat, fresh vegetables, natural sauce, no artificial or deformed food.",
+    "The plated food must be perfectly visible, centered, sharp, freshly cooked, realistic and appetizing, similar to a clean mobile recipe-card photo.",
+    "The white bowl or plate must be the absolute hero and occupy approximately 75–85% of the image area, with the food filling the dish clearly.",
+    "Keep the composition tight and elegant: most ingredients should appear inside the bowl or plate, neatly arranged and easy to recognize.",
+    cleanIngredients.length ? `Use only these parser-recognized recipe ingredients, without inventing anything else: ${cleanIngredients.join(", ")}.` : "",
+    cleanIngredients.length ? "If showing ingredients around the plate, use only one or two tiny accents from that exact list, such as a small piece of onion, mushrooms, garlic or herbs only when they are present in the recipe. Prefer no external decoration if it distracts from the dish." : "",
     cleanPreparation.length ? `Use these preparation cues only to guide the final plating: ${cleanPreparation.join(" ")}` : "",
-    "Use only real ingredients from the recipe. Do not add ingredients that are not in the recipe.",
+    "Do not invent ingredients, garnishes, side dishes or decorative elements. Do not add ingredients that are not in the recipe.",
     "Composition: clean, elegant, balanced and appetizing, optimized for a mobile wellness recipe app.",
     "Forbidden: text, labels, logos, frames, packaging, hands, people, commercial brands, watermarks, artificial decorations, beige backgrounds, dark backgrounds, grey backgrounds, wood or colored napkins.",
-    "Forbidden: blank image, empty plate, mostly white image, washed-out food, overexposed background, low contrast, dry food, cluttered composition.",
+    "Forbidden: blank image, empty plate, missing main food, mostly white image, washed-out food, overexposed background, low contrast, dry food, cluttered composition.",
     "Format: vertical 4:5, high resolution.",
-    retryReason ? `Important retry correction: the previous generated image was rejected because ${retryReason}. Regenerate with clearly visible food, stronger natural contrast and a non-empty plate while keeping the white background and white plate.` : "",
+    retryReason ? `Important retry correction: the previous generated image was rejected because ${retryReason}. Regenerate with the main food clearly visible, stronger natural contrast and a non-empty plate while keeping the white background and white plate.` : "",
   ].filter(Boolean).join(" ");
 }
 
