@@ -162,6 +162,117 @@ function numberOrZero(value: unknown): number {
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
 }
 
+const SYNC_STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "en", "a", "al", "con", "y"]);
+const NO_MACRO_SYNC_WORDS = new Set([
+  "agua",
+  "sal",
+  "pimienta",
+  "especia",
+  "especias",
+  "hierba",
+  "hierbas",
+  "perejil",
+  "oregano",
+  "orégano",
+  "tomillo",
+  "romero",
+  "albahaca",
+]);
+
+function syncTokens(value: unknown) {
+  return normalizeName(value)
+    .split(" ")
+    .map(token => token.trim())
+    .filter(token => token.length > 1 && !SYNC_STOP_WORDS.has(token));
+}
+
+function isNoMacroSyncIngredient(value: unknown) {
+  const tokens = syncTokens(value);
+  return tokens.length > 0 && tokens.every(token => NO_MACRO_SYNC_WORDS.has(token));
+}
+
+function quantityToSyncGrams(quantity: number, unit: string, name: string) {
+  const normalizedUnit = normalizeName(unit);
+  const normalizedName = normalizeName(name);
+  if (["g", "gr", "gramos"].includes(normalizedUnit)) return quantity;
+  if (["ml", "mililitros"].includes(normalizedUnit)) return quantity;
+  if (["cucharadita", "cucharaditas", "cdta", "cdtas"].includes(normalizedUnit)) {
+    if (normalizedName.includes("aceite")) return quantity * 4.5;
+    return quantity * 5;
+  }
+  if (["cucharada", "cucharadas", "cda", "cdas"].includes(normalizedUnit)) {
+    if (normalizedName.includes("aceite")) return quantity * 13.5;
+    return quantity * 10;
+  }
+  if (["diente", "dientes"].includes(normalizedUnit) && normalizedName.includes("ajo")) return quantity * 4;
+  return quantity;
+}
+
+function parseSourceIngredientForSync(value: unknown): { name: string; quantity: string; grams: number; raw: string } | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const quantityPattern = /(\d+(?:[,.]\d+)?)\s*(g|gr|gramos|ml|mililitros|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas|diente|dientes)\b/i;
+  const quantityMatch = raw.match(quantityPattern);
+  if (!quantityMatch) return null;
+  const quantity = Number(quantityMatch[1].replace(",", "."));
+  const unit = quantityMatch[2].trim();
+  const name = raw
+    .replace(quantityPattern, " ")
+    .replace(/^\s*(de|del|la|el)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name || isNoMacroSyncIngredient(name)) return null;
+  return {
+    name,
+    quantity: `${quantityMatch[1].replace(",", ".")} ${unit}`,
+    grams: numberOrZero(quantityToSyncGrams(quantity, unit, name)),
+    raw,
+  };
+}
+
+function ingredientNamesOverlap(left: unknown, right: unknown) {
+  const leftNormalized = normalizeName(left);
+  const rightNormalized = normalizeName(right);
+  if (!leftNormalized || !rightNormalized) return false;
+  if (leftNormalized === rightNormalized || leftNormalized.includes(rightNormalized) || rightNormalized.includes(leftNormalized)) return true;
+  const leftTokens = syncTokens(leftNormalized);
+  const rightTokens = syncTokens(rightNormalized);
+  if (!leftTokens.length || !rightTokens.length) return false;
+  const overlap = leftTokens.filter(token => rightTokens.includes(token)).length;
+  return overlap >= Math.min(2, Math.min(leftTokens.length, rightTokens.length)) || (overlap >= 1 && Math.min(leftTokens.length, rightTokens.length) === 1);
+}
+
+function preparationMentionsIngredient(steps: string[], ingredientName: string) {
+  const normalizedSteps = normalizeName(steps.join(" "));
+  if (!normalizedSteps) return false;
+  const normalizedIngredient = normalizeName(ingredientName);
+  if (normalizedIngredient && normalizedSteps.includes(normalizedIngredient)) return true;
+  const tokens = syncTokens(ingredientName);
+  return tokens.some(token => normalizedSteps.includes(token));
+}
+
+function syncRecipeIngredientsWithPreparation(recipe: RecipeResult, sourceIngredients: string[]): RecipeResult {
+  const missingIngredients = sourceIngredients
+    .map(parseSourceIngredientForSync)
+    .filter((item): item is { name: string; quantity: string; grams: number; raw: string } => Boolean(item))
+    .filter(item => preparationMentionsIngredient(recipe.steps, item.name))
+    .filter(item => !recipe.ingredients.some(existing => ingredientNamesOverlap(existing.name, item.name)));
+
+  if (missingIngredients.length === 0) return recipe;
+
+  return {
+    ...recipe,
+    ingredients: [
+      ...recipe.ingredients,
+      ...missingIngredients.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        grams: item.grams,
+      })),
+    ],
+  };
+}
+
 function numericValueIsPresent(value: unknown) {
   if (value === null || value === undefined || value === "") return false;
   const n = Number(value);
@@ -373,11 +484,11 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
     .slice(0, 20);
 }
 
-function normalizeRecipe(raw: any, category: RecipeCategory, servings: number): RecipeResult {
+function normalizeRecipe(raw: any, category: RecipeCategory, servings: number, sourceIngredients: string[] = []): RecipeResult {
   const macros = raw?.macros ?? {};
   const nutritionStatus = raw?.nutrition_status === "verified" ? "verified" : "estimated";
 
-  return {
+  const recipe = {
     title: String(raw?.title || "Receta Esencia").trim(),
     description: String(raw?.description || "Receta generada con tus ingredientes.").trim(),
     category,
@@ -403,6 +514,8 @@ function normalizeRecipe(raw: any, category: RecipeCategory, servings: number): 
     nutrition_reference: String(raw?.nutrition_reference || "").trim(),
     tags: Array.isArray(raw?.tags) ? raw.tags.map(String).map(t => t.trim()).filter(Boolean).slice(0, 8) : [],
   };
+
+  return syncRecipeIngredientsWithPreparation(recipe, sourceIngredients);
 }
 
 function validateRecipe(recipe: RecipeResult): string[] {
@@ -456,6 +569,7 @@ function buildUserPrompt(
       "Si un ingrediente coincide con productos_propios_reconocidos, úsalo como referencia prioritaria y conserva su nombre de forma reconocible para que el recalculador use la base oficial de productos.",
       "Si un producto propio tiene medidas habituales, puedes usar esas medidas exactas en quantity y grams.",
       "Si un ingrediente coincide con alimentos_internos_reconocidos por nombre o sinónimo, usa ese alimento interno como referencia principal y conserva su nombre de forma reconocible.",
+      "Todo ingrediente que menciones en la preparación debe aparecer también en ingredients con su cantidad exacta.",
       "Nunca presentes valores estimados como exactos.",
       "Si no hay referencia nutricional suficiente, usa Valores nutricionales estimados.",
     ],
@@ -569,7 +683,7 @@ export default async function handler(req: any, res: any) {
   try {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const raw = await callOpenAI(apiKey, buildUserPrompt(requestBody, issues, internalFoods, products));
-      const recipe = normalizeRecipe(raw, category, servings);
+      const recipe = normalizeRecipe(raw, category, servings, ingredients);
       issues = validateRecipe(recipe);
 
       if (issues.length === 0) {
