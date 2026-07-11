@@ -53,6 +53,7 @@ function normalizePayload(input: any) {
     carbs: Number(input?.carbs) || 0,
     fat: Number(input?.fat) || 0,
     fiber: Number(input?.fiber) || 0,
+    salt: Number(input?.salt) || 0,
     category: String(input?.category ?? "general").trim() || "general",
     source: "Tabla interna",
     is_active: Boolean(input?.is_active ?? true),
@@ -87,11 +88,19 @@ export default async function handler(req: any, res: any) {
   if (userError || !userData?.user) return res.status(401).json({ error: "Sesión no válida" });
 
   if (req.method === "GET") {
-    const { data, error } = await (authClient as any)
-    .schema("public")
-    .from("internal_foods")
-    .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
-    .order("name", { ascending: true });
+    const readFoods = (select: string) => (authClient as any)
+      .schema("public")
+      .from("internal_foods")
+      .select(select)
+      .order("name", { ascending: true });
+
+    let { data, error } = await readFoods(INTERNAL_FOOD_SELECT);
+
+    if (error && isMissingSaltColumn(error)) {
+      const legacy = await readFoods(INTERNAL_FOOD_SELECT_LEGACY);
+      data = (legacy.data ?? []).map(withDefaultSalt);
+      error = legacy.error;
+    }
 
     if (error) {
       console.warn("[internal-foods] Supabase read failed", {
@@ -171,7 +180,8 @@ export default async function handler(req: any, res: any) {
   return res.status(200).json({ ok: true });
 }
 
-const INTERNAL_FOOD_SELECT = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active";
+const INTERNAL_FOOD_SELECT = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,category,source,is_active";
+const INTERNAL_FOOD_SELECT_LEGACY = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active";
 
 async function writeInternalFood({
   supabaseUrl,
@@ -190,39 +200,53 @@ async function writeInternalFood({
   id?: string;
   payload?: Record<string, any>;
 }) {
-  const filter = id ? `&id=eq.${encodeURIComponent(id)}` : "";
-  const select = method === "DELETE" ? "" : `?select=${INTERNAL_FOOD_SELECT}${filter}`;
-  const deleteFilter = method === "DELETE" ? `?id=eq.${encodeURIComponent(id ?? "")}` : "";
-  const url = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/internal_foods${select || deleteFilter}`;
   const attempts = buildWriteAuthAttempts({ serviceRoleKey, anonKey, userToken });
   let lastError: any = null;
+  let useLegacySalt = false;
 
-  for (const attempt of attempts) {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        apikey: attempt.apikey,
-        Authorization: `Bearer ${attempt.authorization}`,
-        ...(payload ? { "Content-Type": "application/json" } : {}),
-        Prefer: method === "DELETE" ? "return=minimal" : "return=representation",
-      },
-      ...(payload ? { body: JSON.stringify(payload) } : {}),
-    });
+  for (let saltRetry = 0; saltRetry < 2; saltRetry += 1) {
+    const filter = id ? `&id=eq.${encodeURIComponent(id)}` : "";
+    const selectColumns = useLegacySalt ? INTERNAL_FOOD_SELECT_LEGACY : INTERNAL_FOOD_SELECT;
+    const select = method === "DELETE" ? "" : `?select=${selectColumns}${filter}`;
+    const deleteFilter = method === "DELETE" ? `?id=eq.${encodeURIComponent(id ?? "")}` : "";
+    const url = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/internal_foods${select || deleteFilter}`;
+    const bodyPayload = useLegacySalt && payload ? omitSalt(payload) : payload;
 
-    if (response.ok) {
-      if (method === "DELETE") return { data: null, error: null };
-      const rows = await response.json().catch(() => []);
-      return { data: Array.isArray(rows) ? rows[0] : rows, error: null };
+    for (const attempt of attempts) {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          apikey: attempt.apikey,
+          Authorization: `Bearer ${attempt.authorization}`,
+          ...(bodyPayload ? { "Content-Type": "application/json" } : {}),
+          Prefer: method === "DELETE" ? "return=minimal" : "return=representation",
+        },
+        ...(bodyPayload ? { body: JSON.stringify(bodyPayload) } : {}),
+      });
+
+      if (response.ok) {
+        if (method === "DELETE") return { data: null, error: null };
+        const rows = await response.json().catch(() => []);
+        const row = Array.isArray(rows) ? rows[0] : rows;
+        return { data: withDefaultSalt(row), error: null };
+      }
+
+      const errorPayload = await response.json().catch(async () => ({ message: await response.text().catch(() => response.statusText) }));
+      lastError = {
+        message: errorPayload?.message || errorPayload?.error || response.statusText,
+        code: errorPayload?.code || String(response.status),
+        details: errorPayload?.details,
+      };
+
+      if (isMissingSaltColumn(lastError) && !useLegacySalt) {
+        useLegacySalt = true;
+        break;
+      }
+
+      if (!/invalid api key|wrong key type|no suitable key/i.test(String(lastError.message))) break;
     }
 
-    const errorPayload = await response.json().catch(async () => ({ message: await response.text().catch(() => response.statusText) }));
-    lastError = {
-      message: errorPayload?.message || errorPayload?.error || response.statusText,
-      code: errorPayload?.code || String(response.status),
-      details: errorPayload?.details,
-    };
-
-    if (!/invalid api key|wrong key type|no suitable key/i.test(String(lastError.message))) break;
+    if (!useLegacySalt || !isMissingSaltColumn(lastError)) break;
   }
 
   return { data: null, error: lastError ?? { message: "Error al guardar el alimento interno" } };
@@ -262,6 +286,21 @@ function safeSupabaseHost(url: string) {
   } catch {
     return "";
   }
+}
+
+function isMissingSaltColumn(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
+  return /salt/i.test(message) && /column|schema|cache|find|exist/i.test(message);
+}
+
+function withDefaultSalt(row: any) {
+  if (!row || typeof row !== "object") return row;
+  return { ...row, salt: Number(row.salt ?? 0) };
+}
+
+function omitSalt(payload: Record<string, any>) {
+  const { salt, ...rest } = payload;
+  return rest;
 }
 
 function normalizeSupabaseWriteError(error: any) {

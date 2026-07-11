@@ -18,6 +18,7 @@ type FoodMacro = {
   carbs: number;
   fat: number;
   fiber: number;
+  micronutrients?: Record<string, number>;
   aliases?: string[];
 };
 
@@ -32,6 +33,7 @@ type InternalFoodRow = {
   carbs: number | string;
   fat: number | string;
   fiber: number | string;
+  salt?: number | string | null;
   category: string | null;
   source: string | null;
   is_active: boolean;
@@ -223,6 +225,70 @@ function cleanSearchName(value: unknown) {
     .trim();
 }
 
+const MATCH_STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "the", "of", "a", "al"]);
+
+function significantFoodTokens(value: unknown) {
+  return normalizeFoodRankingText(value)
+    .split(" ")
+    .map(token => token.trim())
+    .filter(token => token.length > 1 && !MATCH_STOP_WORDS.has(token));
+}
+
+function tokenSimilarity(candidate: unknown, query: unknown) {
+  const candidateTokens = significantFoodTokens(candidate);
+  const queryTokens = significantFoodTokens(query);
+  if (!candidateTokens.length || !queryTokens.length) return 0;
+  const candidateSet = new Set(candidateTokens);
+  const overlap = queryTokens.filter(token => candidateSet.has(token)).length;
+  return overlap / Math.max(candidateTokens.length, queryTokens.length);
+}
+
+function foodCategoryGroup(value: unknown, category?: unknown) {
+  const text = normalizeName(`${String(value ?? "")} ${String(category ?? "")}`);
+  if (!text) return null;
+  if (/\b(caldo|broth|stock)\b/.test(text)) return "broth";
+  if (/\b(ternera|vacuno|res|beef|pollo|chicken|pavo|turkey|carne|meat|cerdo|pork)\b/.test(text)) return "meat";
+  if (/\b(queso|cheese|yogur|yogurt|leche|milk|lacteo|dairy)\b/.test(text)) return "dairy";
+  if (/\b(cebolla|onion|tomate|tomato|zanahoria|carrot|calabacin|zucchini|verdura|vegetable)\b/.test(text)) return "vegetable";
+  if (/\b(ajo|garlic|pimienta|pepper|sal|salt|especia|spice)\b/.test(text)) return "seasoning";
+  if (/\b(champinon|champinones|seta|setas|hongo|hongos|mushroom|mushrooms)\b/.test(text)) return "mushroom";
+  if (/\b(arroz|rice|avena|oat|oats|maicena|cornstarch|almidon|starch|fecula|patata|potato)\b/.test(text)) return "starch";
+  if (/\b(aceite|oil|oliva|olive)\b/.test(text)) return "oil";
+  if (/\b(manzana|apple|platano|banana|fruta|fruit)\b/.test(text)) return "fruit";
+  return null;
+}
+
+function hasFoodCategoryConflict(candidate: unknown, query: unknown, candidateCategory?: unknown) {
+  const candidateGroup = foodCategoryGroup(candidate, candidateCategory);
+  const queryGroup = foodCategoryGroup(query);
+  return Boolean(candidateGroup && queryGroup && candidateGroup !== queryGroup);
+}
+
+function isReliableFoodNameMatch(candidate: unknown, query: unknown) {
+  const candidateName = normalizeName(candidate);
+  const queryName = normalizeName(query);
+  if (!candidateName || !queryName) return false;
+  if (candidateName === queryName) return true;
+  if (hasFoodCategoryConflict(candidate, query)) return false;
+  if (isDisallowedDefaultProcessedMatch(String(candidate ?? ""), String(query ?? ""))) return false;
+
+  const candidateTokens = significantFoodTokens(candidate);
+  const queryTokens = significantFoodTokens(query);
+  if (!candidateTokens.length || !queryTokens.length) return false;
+
+  const candidateSet = new Set(candidateTokens);
+  const querySet = new Set(queryTokens);
+  const queryCovered = queryTokens.every(token => candidateSet.has(token));
+  const candidateCovered = candidateTokens.every(token => querySet.has(token));
+  const similarity = tokenSimilarity(candidate, query);
+
+  if (isGenericSimpleFoodQuery(String(query ?? ""))) {
+    return queryCovered && candidateTokens.length <= queryTokens.length + 1 && similarity >= 0.5;
+  }
+
+  return (queryCovered || candidateCovered) && similarity >= 0.6;
+}
+
 const FOOD_INDEX = new Map<string, { key: string; food: FoodMacro }>();
 for (const [key, food] of Object.entries(BASIC_FOODS)) {
   FOOD_INDEX.set(normalizeName(key), { key, food });
@@ -231,11 +297,11 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
 
 function parseRawIngredient(raw: unknown): IngredientInput {
   const rawText = String(raw ?? "").trim();
-  const qtyMatch = rawText.match(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
+  const qtyMatch = rawText.match(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i);
   const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
   const unit = qtyMatch?.[2] ? safeLowerCase(qtyMatch[2], "parseRawIngredient.unit") : undefined;
-  const rawName = rawText.replace(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
-  const name = simplifyFoodName(rawName);
+  const rawName = rawText.replace(/(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i, "").trim();
+  const name = simplifyFoodName(rawName || unit || rawText);
   const grams = quantity && unit ? quantityToGrams(quantity, unit, name) : undefined;
   return { raw: rawText, name, grams, quantity, unit };
 }
@@ -292,16 +358,20 @@ function quantityToGrams(quantity: number, unit: unknown, foodName: unknown) {
   const normalizedUnit = safeLowerCase(unit, "quantityToGrams.unit");
   if (["g", "gr", "gramos", "ml", "mililitros"].includes(normalizedUnit)) return quantity;
   if (["cucharada", "cucharadas", "cda", "cdas"].includes(normalizedUnit)) {
-    if (normalizeName(foodName).includes("aceite")) return quantity * 15;
+    if (normalizeName(foodName).includes("aceite")) return quantity * 10;
     return quantity * 10;
   }
   if (["cucharadita", "cucharaditas", "cdta", "cdtas"].includes(normalizedUnit)) {
     if (normalizeName(foodName).includes("aceite")) return quantity * 5;
     return quantity * 5;
   }
+  if (["diente", "dientes"].includes(normalizedUnit)) return quantity * 4;
+  if (["clara", "claras"].includes(normalizedUnit)) return quantity * 33;
+  if (["huevo mediano", "huevos medianos", "huevo", "huevos"].includes(normalizedUnit)) return quantity * 60;
   if (["pieza", "piezas", "unidad", "unidades"].includes(normalizedUnit)) {
     const normalizedFood = normalizeName(foodName);
-    if (normalizedFood.includes("huevo")) return quantity * 50;
+    if (normalizedFood.includes("huevo")) return quantity * 60;
+    if (normalizedFood.includes("clara")) return quantity * 33;
     if (normalizedFood.includes("manzana")) return quantity * 180;
     if (normalizedFood.includes("platano") || normalizedFood.includes("banana")) return quantity * 120;
   }
@@ -312,7 +382,7 @@ function findFood(name: string) {
   const normalized = normalizeName(name);
   if (FOOD_INDEX.has(normalized)) return FOOD_INDEX.get(normalized)!;
   for (const [candidate, value] of FOOD_INDEX.entries()) {
-    if (normalized.includes(candidate) || candidate.includes(normalized)) return value;
+    if (isReliableFoodNameMatch(candidate, name)) return value;
   }
   return null;
 }
@@ -324,12 +394,18 @@ function foodFromInternalRow(row: InternalFoodRow): FoodMacro {
     carbs: numberValue(row.carbs),
     fat: numberValue(row.fat),
     fiber: numberValue(row.fiber),
+    micronutrients: {
+      ...(numericValueIsPresent(row.salt) ? { sal: numberValue(row.salt) } : {}),
+    },
     aliases: row.synonyms ?? [],
   };
 }
 
 function findInternalFood(name: string, foods: InternalFoodRow[]) {
   const normalized = normalizeName(name);
+  const isDisallowedInternalCandidate = (food: InternalFoodRow) =>
+    normalizeName(food.name) !== normalized &&
+    (isDisallowedDefaultProcessedMatch(food.name, name) || hasFoodCategoryConflict(food.name, name, food.category));
   const candidates = foods
     .filter(food => food.is_active)
     .flatMap(food => [
@@ -337,12 +413,12 @@ function findInternalFood(name: string, foods: InternalFoodRow[]) {
       ...((food.synonyms ?? []).map(alias => ({ key: alias, food, normalized: normalizeName(alias), exact: normalizeName(alias) === normalized }))),
     ]);
 
-  const exact = candidates.find(candidate => candidate.exact);
+  const exact = candidates.find(candidate => candidate.exact && !isDisallowedInternalCandidate(candidate.food));
   if (exact) return { key: exact.key, row: exact.food, food: foodFromInternalRow(exact.food) };
 
   const partial = candidates
-    .filter(candidate => candidate.normalized && (normalized.includes(candidate.normalized) || candidate.normalized.includes(normalized)))
-    .sort((a, b) => b.normalized.length - a.normalized.length)[0];
+    .filter(candidate => candidate.normalized && !isDisallowedInternalCandidate(candidate.food) && isReliableFoodNameMatch(candidate.key, name))
+    .sort((a, b) => tokenSimilarity(b.key, name) - tokenSimilarity(a.key, name) || a.normalized.length - b.normalized.length)[0];
   return partial ? { key: partial.key, row: partial.food, food: foodFromInternalRow(partial.food) } : null;
 }
 
@@ -390,10 +466,19 @@ function sourceLabelForFoundItem(source: string, sourceType?: string | null) {
   return source;
 }
 
+function unifiedFoodStateMatches(estado: UnifiedFoodRow["estado"], requestedState: ReturnType<typeof requestedCookingState>) {
+  if (!requestedState) return false;
+  if (requestedState === "raw") return estado === "crudo" || estado === "natural";
+  if (requestedState === "cooked" || requestedState === "boiled" || requestedState === "grilled") return estado === "cocido";
+  if (requestedState === "fried") return estado === "procesado";
+  return false;
+}
+
 function findUnifiedFood(name: string, foods: UnifiedFoodRow[], sourceTypes?: Array<NonNullable<UnifiedFoodRow["source_type"]>>) {
   const normalized = normalizeName(name);
   const rankingQuery = normalizeFoodRankingText(name);
   const requestedState = requestedCookingState(name);
+  const defaultState = defaultCookingStateForBaseFood(name, name);
   const allowedSourceTypes = sourceTypes?.length ? new Set(sourceTypes) : null;
 
   const candidates = foods
@@ -405,26 +490,34 @@ function findUnifiedFood(name: string, foods: UnifiedFoodRow[], sourceTypes?: Ar
         const normalizedKey = normalizeName(key);
         const rankingKey = normalizeFoodRankingText(key);
         const exact = normalizedKey === normalized || rankingKey === rankingQuery;
-        const partial = normalizedKey && (normalized.includes(normalizedKey) || normalizedKey.includes(normalized));
-        const stateBonus = requestedState && food.estado === requestedState ? 40 : 0;
+        const partial = normalizedKey && isReliableFoodNameMatch(key, name);
+        const disallowedFoodName =
+          normalizeName(food.nombre) !== normalized &&
+          normalizeFoodRankingText(food.nombre) !== rankingQuery &&
+          (isDisallowedDefaultProcessedMatch(food.nombre, name) || hasFoodCategoryConflict(food.nombre, name, food.categoria));
+        const stateBonus = requestedState && unifiedFoodStateMatches(food.estado, requestedState) ? 40 : 0;
         const defaultStateBonus =
           !requestedState &&
-          defaultCookingStateForBaseFood(name) &&
-          food.estado === defaultCookingStateForBaseFood(name)
+          defaultState &&
+          unifiedFoodStateMatches(food.estado, defaultState)
             ? 24
             : 0;
+        const simplicityBonus = isGenericSimpleFoodQuery(name) && significantFoodTokens(key).length <= significantFoodTokens(name).length + 1 ? 18 : 0;
         return {
           key,
           food,
           normalized: normalizedKey,
           exact,
           partial,
-          score: (exact ? 120 : partial ? 55 : 0) + stateBonus + defaultStateBonus + sourcePriority(food.source_type) + processingScore(food.nombre, name),
+          score: disallowedFoodName
+            ? -999
+            : (exact ? 120 : partial ? 55 : 0) + stateBonus + defaultStateBonus + simplicityBonus + sourcePriority(food.source_type) + processingScore(food.nombre, name),
         };
       });
     })
+    .filter(candidate => candidate.exact || candidate.partial)
     .filter(candidate => candidate.score > 0)
-    .sort((a, b) => b.score - a.score || b.normalized.length - a.normalized.length);
+    .sort((a, b) => b.score - a.score || tokenSimilarity(b.key, name) - tokenSimilarity(a.key, name) || a.normalized.length - b.normalized.length);
 
   const match = candidates[0];
   return match ? { key: match.key, row: match.food, food: foodFromUnifiedRow(match.food) } : null;
@@ -462,17 +555,32 @@ function findProduct(input: IngredientInput, products: ProductRow[]) {
       const normalizedProduct = normalizeName(product.name);
       const normalizedSlug = normalizeName(product.slug ?? "");
       const normalizedAliases = (product.aliases ?? []).map(alias => normalizeName(alias)).filter(Boolean);
+      const exactProduct = normalizedProduct === normalizedName || normalizedProduct === normalizedRaw || normalizedAliases.includes(normalizedName) || normalizedAliases.includes(normalizedRaw);
+      const fullProductMentioned = Boolean(normalizedProduct && searchable.includes(normalizedProduct));
+      const fullSlugMentioned = Boolean(normalizedSlug && searchable.includes(normalizedSlug));
+      const fullAliasMentioned = normalizedAliases.some(alias => alias && searchable.includes(alias));
+      const disallowedProductName =
+        normalizedProduct !== normalizedName &&
+        normalizedProduct !== normalizedRaw &&
+        (isDisallowedDefaultProcessedMatch(product.name, normalizedName) || hasFoodCategoryConflict(product.name, normalizedName));
+      const reliableApproximation =
+        !isGenericSimpleFoodQuery(normalizedName) &&
+        !disallowedProductName &&
+        (isReliableFoodNameMatch(product.name, normalizedName) || normalizedAliases.some(alias => isReliableFoodNameMatch(alias, normalizedName)));
       const productMatches =
-        Boolean(normalizedProduct && (searchable.includes(normalizedProduct) || normalizedProduct.includes(normalizedName))) ||
-        Boolean(normalizedSlug && searchable.includes(normalizedSlug)) ||
-        normalizedAliases.some(alias => searchable.includes(alias) || alias.includes(normalizedName));
+        !disallowedProductName &&
+        (exactProduct ||
+          fullProductMentioned ||
+          fullSlugMentioned ||
+          fullAliasMentioned ||
+          reliableApproximation);
       const aliasScore = normalizedAliases
-        .filter(alias => searchable.includes(alias) || alias.includes(normalizedName))
+        .filter(alias => searchable.includes(alias) || alias === normalizedName || alias === normalizedRaw)
         .sort((a, b) => b.length - a.length)[0]?.length ?? 0;
       return {
         product,
         normalizedProduct,
-        score: productMatches ? Math.max(normalizedProduct.length, aliasScore) + (searchable.includes(normalizedProduct) ? 30 : 0) : 0,
+        score: productMatches ? Math.max(normalizedProduct.length, aliasScore) + (exactProduct ? 80 : 0) + (fullProductMentioned ? 30 : 0) : 0,
       };
     })
     .filter(match => match.score > 0)
@@ -573,7 +681,9 @@ function scale(food: FoodMacro, grams: number): MacroValues {
     carbs: food.carbs * factor,
     fat: food.fat * factor,
     fiber: food.fiber * factor,
-    micronutrients: {},
+    micronutrients: Object.fromEntries(
+      Object.entries(food.micronutrients ?? {}).map(([key, value]) => [key, value * factor])
+    ),
   });
 }
 
@@ -586,7 +696,9 @@ function scaleInternalFood(row: InternalFoodRow, grams: number): MacroValues {
     carbs: numberValue(row.carbs) * factor,
     fat: numberValue(row.fat) * factor,
     fiber: numberValue(row.fiber) * factor,
-    micronutrients: {},
+    micronutrients: {
+      ...(numericValueIsPresent(row.salt) ? { sal: numberValue(row.salt) * factor } : {}),
+    },
   });
 }
 
@@ -665,12 +777,27 @@ function createSupabaseForToken(token: string) {
 async function loadInternalFoods(token: string, attempts?: any[]) {
   const supabase = createSupabaseForToken(token);
   if (!supabase) return [];
-  const { data, error } = await (supabase as any)
+  const query = (select: string) => (supabase as any)
     .schema("public")
     .from("internal_foods")
-    .select("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active")
+    .select(select)
     .eq("is_active", true)
     .order("name", { ascending: true });
+
+  const { data, error } = await query("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,category,source,is_active");
+
+  if (error && isMissingSaltColumn(error)) {
+    const legacy = await query("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active");
+    if (!legacy.error) {
+      attempts?.push({
+        provider: "alimentos_internos",
+        rejected: false,
+        reason: "columna_sal_pendiente_de_migracion",
+        fallback: "sal_0_temporal",
+      });
+      return (legacy.data ?? []).map((item: any) => ({ ...item, salt: 0 })) as InternalFoodRow[];
+    }
+  }
 
   if (error) {
     attempts?.push({
@@ -779,6 +906,11 @@ function numericValueIsPresent(value: any) {
   return Number.isFinite(n);
 }
 
+function isMissingSaltColumn(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
+  return /salt/i.test(message) && /column|schema|cache|find|exist/i.test(message);
+}
+
 function hasCompleteVerifiedProductNutrition(product: ProductRow) {
   if (product.verification_status !== "verificado") return false;
   return [product.calories, product.protein, product.carbs, product.fat, product.fiber].every(numericValueIsPresent);
@@ -826,6 +958,10 @@ function asksForFriedOrProcessedFood(query: string) {
 function asksForPreparedFood(query: string) {
   return asksForFriedOrProcessedFood(query) ||
     hasRankingTerm(query, /\b(preparado|preparada|plato|receta|salsa|sauce|sandwich|pizza|ensalada|salad|burger|hamburguesa|with|and|con|y|mixed|mix|mixto|mezcla|cookie|cookies|bread|cake|cereal|snack|crackers|biscuit|barrita|barritas|dulce|pan|galleta|galletas)\b/);
+}
+
+function asksForBrothFood(query: string) {
+  return hasRankingTerm(query, /\b(caldo|broth|stock)\b/);
 }
 
 function asksForDerivedFood(query: string) {
@@ -877,6 +1013,14 @@ function readableMatchedFoodLabel(providerName: string, originalQuery: string) {
     label = state === "fried" ? "patata frita" : state === "raw" ? "patata cruda" : "patata cocida";
   } else if (/\b(chicken|pollo)\b/.test(normalizedProvider) || /\bpollo\b/.test(normalizedQuery)) {
     label = state === "raw" ? "pechuga de pollo cruda" : state === "grilled" ? "pechuga de pollo a la plancha" : "pechuga de pollo cocinada";
+  } else if (/\b(beef|ternera|vacuno)\b/.test(normalizedProvider) || /\b(ternera|vacuno)\b/.test(normalizedQuery)) {
+    label = state === "raw" ? "ternera cruda" : state === "grilled" ? "ternera a la plancha" : "ternera";
+  } else if (/\b(beef broth|broth beef|caldo carne)\b/.test(normalizedProvider) || /\bcaldo carne\b/.test(normalizedQuery)) {
+    label = "caldo de carne";
+  } else if (/\b(cornstarch|corn starch|maicena|almidon maiz|fecula maiz)\b/.test(normalizedProvider) || /\b(maicena|almidon maiz|fecula maiz)\b/.test(normalizedQuery)) {
+    label = "maicena";
+  } else if (/\b(garlic|ajo)\b/.test(normalizedProvider) || /\bajo\b/.test(normalizedQuery)) {
+    label = "ajo";
   } else if (/\b(tomato|tomate)\b/.test(normalizedProvider) || /\btomate\b/.test(normalizedQuery)) {
     label = state === "cooked" || state === "boiled" ? "tomate cocinado" : "tomate natural";
   } else if (/\b(zucchini|calabacin|calabacín)\b/.test(normalizedProvider) || /\bcalabacin\b/.test(normalizedQuery)) {
@@ -885,6 +1029,8 @@ function readableMatchedFoodLabel(providerName: string, originalQuery: string) {
     label = state === "cooked" || state === "boiled" ? "zanahoria cocida" : "zanahoria cruda";
   } else if (/\b(onion|cebolla)\b/.test(normalizedProvider) || /\bcebolla\b/.test(normalizedQuery)) {
     label = state === "cooked" || state === "grilled" ? "cebolla cocinada" : "cebolla cruda";
+  } else if (/\b(mushroom|mushrooms|setas|champinon|champinones|champiñon|champiñones)\b/.test(normalizedProvider) || /\b(setas|champinones|champiñones)\b/.test(normalizedQuery)) {
+    label = "champiñones";
   } else if (/\b(oats|oat|avena)\b/.test(normalizedProvider) || /\bavena\b/.test(normalizedQuery)) {
     label = "copos de avena";
   } else if (/\b(apple|manzana)\b/.test(normalizedProvider) || /\bmanzana\b/.test(normalizedQuery)) {
@@ -984,9 +1130,10 @@ function processingScore(foodName: string, query: string) {
 function isDisallowedDefaultProcessedMatch(foodName: string, query: string) {
   if (asksForPreparedFood(query)) return false;
   if (asksForDerivedFood(query)) return false;
+  const brothQuery = asksForBrothFood(query);
   return isFriedOrUltraProcessedFoodName(foodName) ||
     (isGenericSimpleFoodQuery(query) && isDerivedFoodName(foodName)) ||
-    isPreparedFoodName(foodName) ||
+    (!brothQuery && isPreparedFoodName(foodName)) ||
     (isGenericSimpleFoodQuery(query) && isCommercialOrPackagedFoodName(foodName)) ||
     hasExtraFoodAfterConnector(foodName, query);
 }
@@ -1056,8 +1203,9 @@ function isBasicFoodForUsda(query: string) {
   return [
     "pollo", "chicken", "pavo", "turkey", "carne", "beef", "cerdo", "pork",
     "pescado", "fish", "lubina", "merluza", "salmon", "atun", "hake", "bass", "tuna",
-    "huevo", "egg", "tomate", "brocoli", "calabacin", "zanahoria", "lechuga", "espinacas",
+    "huevo", "egg", "tomate", "brocoli", "calabacin", "zanahoria", "lechuga", "espinacas", "cebolla", "onion", "ajo", "garlic",
     "fruta", "fresa", "platano", "manzana", "arroz", "rice", "pasta",
+    "maicena", "cornstarch", "caldo", "broth", "champiñones", "champinones", "mushroom",
     "garbanzo", "lenteja", "aceite oliva", "olive oil",
     "leche", "milk", "yogur", "yogurt", "queso", "cheese",
   ].some(token => normalized.includes(token));
@@ -1069,6 +1217,10 @@ function usdaSearchCandidates(name: string) {
     [/\baceite\s+oliva\b/, "olive oil"],
     [/\bpechuga\s+pollo\b|\bpollo\b/, "chicken breast"],
     [/\bpechuga\s+pavo\b|\bpavo\b/, "turkey breast"],
+    [/\bternera\b|\bcarne\s+ternera\b|\bvacuno\b/, "beef"],
+    [/\bcaldo\s+carne\b/, "beef broth"],
+    [/\bmaicena\b|\bfecula\s+maiz\b|\balmidon\s+maiz\b/, "cornstarch"],
+    [/\bajo\b|\bajos\b/, "garlic"],
     [/\bhuevo\b|\bhuevos\b/, "egg"],
     [/\blubina\b|\brobalo\b/, "sea bass"],
     [/\bmerluza\b/, "hake"],
@@ -1077,6 +1229,7 @@ function usdaSearchCandidates(name: string) {
     [/\bbrocoli\b/, "broccoli"],
     [/\bcalabacin\b/, "zucchini"],
     [/\btomate\b/, "tomato"],
+    [/\bcebolla\b/, "onion"],
     [/\bzanahoria\b/, "carrot"],
     [/\blechuga\b/, "lettuce"],
     [/\bespinacas\b/, "spinach"],
@@ -1097,6 +1250,7 @@ function usdaSearchCandidates(name: string) {
     [/\baguacate\b/, "avocado"],
     [/\bavena\b/, "oats"],
     [/\bquinoa\b/, "quinoa"],
+    [/\bchampiñones\b|\bchampinones\b|\bsetas\b|\bhongos\b/, "mushrooms"],
   ];
   const translated = translations.find(([pattern]) => pattern.test(normalized))?.[1];
   const qualifiedTranslated = translated ? qualifySearchCandidate(translated, name) : undefined;
@@ -1117,9 +1271,15 @@ function localizedSearchCandidate(name: string) {
     if (state === "grilled") return "pechuga de pollo a la plancha";
     return "pechuga de pollo cocinada";
   }
+  if (/\bternera\b|\bcarne\s+ternera\b|\bvacuno\b/.test(normalized)) return "ternera";
+  if (/\bcaldo\s+carne\b/.test(normalized)) return "caldo de carne";
+  if (/\bmaicena\b|\bfecula\s+maiz\b|\balmidon\s+maiz\b/.test(normalized)) return "maicena";
+  if (/\bajo\b|\bajos\b/.test(normalized)) return "ajo";
   if (/\btomate\b/.test(normalized) && !state) return "tomate natural";
   if (/\bcalabacin\b/.test(normalized) && !state) return "calabacín crudo";
   if (/\bzanahoria\b/.test(normalized) && !state) return "zanahoria cruda";
+  if (/\bcebolla\b/.test(normalized) && !state) return "cebolla";
+  if (/\bchampiñones\b|\bchampinones\b|\bsetas\b|\bhongos\b/.test(normalized) && !state) return "champiñones";
   return undefined;
 }
 
@@ -1203,10 +1363,9 @@ function isAllowedUsdaFood(food: any, query: string) {
   if (isDisallowedDefaultProcessedMatch(food?.description ?? "", query)) return false;
 
   const compositeWords = /\b(soup|sandwich|pizza|restaurant|fast food|meal|dish|recipe|with sauce|in sauce|breaded|casserole|salad dressing|mayonnaise)\b/;
-  if (compositeWords.test(description) && !asksForPreparedFood(query)) return false;
+  if (compositeWords.test(description) && !asksForPreparedFood(query) && !asksForBrothFood(query)) return false;
 
-  const queryTokens = normalizedQuery.split(" ").filter(token => token.length > 2);
-  return queryTokens.some(token => description.includes(token));
+  return description === normalizedQuery || isReliableFoodNameMatch(description, normalizedQuery);
 }
 
 function scoreUsdaFood(food: any, query: string) {
@@ -1371,6 +1530,7 @@ function scoreFood(food: any, query: string) {
   if (!normalizedFood || !normalizedQuery) return 0;
   if (isDisallowedDefaultProcessedMatch(food?.food_name ?? "", query)) return -999;
   if (normalizedFood === normalizedQuery) return 100;
+  if (!isReliableFoodNameMatch(food?.food_name ?? "", query)) return -999;
   const foodTokens = new Set(normalizedFood.split(" "));
   const queryTokens = normalizedQuery.split(" ").filter(Boolean);
   const overlap = queryTokens.filter(token => foodTokens.has(token)).length;
@@ -1739,8 +1899,10 @@ export default async function handler(req: any, res: any) {
     if (!name) continue;
 
     for (const attempt of loadAttempts) debugEntry.attempts?.push(attempt);
-    const productMatch = findProduct(ingredient, products);
-    if (productMatch) {
+    const hasValidGrams = Number.isFinite(grams) && grams > 0;
+    const tryProductMatch = () => {
+      const productMatch = findProduct(ingredient, products);
+      if (!productMatch) return false;
       const productCalculation = calculateProductMacros(ingredient, productMatch, Number.isFinite(grams) ? grams : null);
       if (!productCalculation) {
         missingGrams.push({ name, raw: ingredient.raw ?? name, reason: "Producto encontrado, pero su ficha nutricional está pendiente o la medida no tiene gramos válidos" });
@@ -1758,7 +1920,7 @@ export default async function handler(req: any, res: any) {
           skippedExternalApis: true,
         });
         debug.push(debugEntry);
-        continue;
+        return true;
       }
 
       addMacros(totals, productCalculation.macros);
@@ -1791,10 +1953,14 @@ export default async function handler(req: any, res: any) {
         macros: roundMacros(productCalculation.macros),
       });
       debug.push(debugEntry);
+      return true;
+    };
+
+    if (!hasValidGrams && tryProductMatch()) {
       continue;
     }
 
-    if (!Number.isFinite(grams) || grams <= 0) {
+    if (!hasValidGrams) {
       missingGrams.push({ name, raw: ingredient.raw ?? name });
       debugEntry.status = "sin_gramos";
       debug.push(debugEntry);
@@ -1873,6 +2039,10 @@ export default async function handler(req: any, res: any) {
         macros: roundMacros(itemMacros),
       });
       debug.push(debugEntry);
+      continue;
+    }
+
+    if (tryProductMatch()) {
       continue;
     }
 

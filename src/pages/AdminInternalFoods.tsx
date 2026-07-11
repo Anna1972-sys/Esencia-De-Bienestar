@@ -16,12 +16,13 @@ type InternalFood = {
   carbs: number;
   fat: number;
   fiber: number;
+  salt: number;
   category: string;
   source: string;
   is_active: boolean;
 };
 
-type FormState = Omit<InternalFood, "id" | "synonyms" | "base_quantity" | "calories" | "protein" | "carbs" | "fat" | "fiber"> & {
+type FormState = Omit<InternalFood, "id" | "synonyms" | "base_quantity" | "calories" | "protein" | "carbs" | "fat" | "fiber" | "salt"> & {
   synonyms: string;
   base_quantity: AdminNumberValue;
   calories: AdminNumberValue;
@@ -29,10 +30,11 @@ type FormState = Omit<InternalFood, "id" | "synonyms" | "base_quantity" | "calor
   carbs: AdminNumberValue;
   fat: AdminNumberValue;
   fiber: AdminNumberValue;
+  salt: AdminNumberValue;
 };
 
 type BaseUnitOption = "100g" | "50g" | "25g" | "100ml" | "serving";
-type NutrientFieldKey = "calories" | "protein" | "carbs" | "fat" | "fiber";
+type NutrientFieldKey = "calories" | "protein" | "carbs" | "fat" | "fiber" | "salt";
 
 const NUTRIENT_FIELDS: Array<[NutrientFieldKey, string]> = [
   ["calories", "Calorías"],
@@ -40,6 +42,7 @@ const NUTRIENT_FIELDS: Array<[NutrientFieldKey, string]> = [
   ["carbs", "Hidratos"],
   ["fat", "Grasas"],
   ["fiber", "Fibra"],
+  ["salt", "Sal"],
 ];
 
 const emptyForm: FormState = {
@@ -52,6 +55,7 @@ const emptyForm: FormState = {
   carbs: 0,
   fat: 0,
   fiber: 0,
+  salt: 0,
   category: "general",
   source: "Tabla interna",
   is_active: true,
@@ -151,6 +155,7 @@ export default function AdminInternalFoods() {
       carbs: toNumber(item.carbs),
       fat: toNumber(item.fat),
       fiber: toNumber(item.fiber),
+      salt: toNumber(item.salt),
       synonyms: item.synonyms ?? [],
     })));
   };
@@ -193,6 +198,7 @@ export default function AdminInternalFoods() {
       carbs: food.carbs,
       fat: food.fat,
       fiber: food.fiber,
+      salt: food.salt,
       category: food.category,
       source: "Tabla interna",
       is_active: food.is_active,
@@ -213,6 +219,7 @@ export default function AdminInternalFoods() {
       carbs: numberOrFallback(form.carbs),
       fat: numberOrFallback(form.fat),
       fiber: numberOrFallback(form.fiber),
+      salt: numberOrFallback(form.salt),
       category: form.category.trim() || "general",
       source: "Tabla interna",
       is_active: form.is_active,
@@ -391,12 +398,13 @@ export default function AdminInternalFoods() {
                     {food.category} · Base: {food.base_quantity} {food.base_unit === "serving" ? "ración" : food.base_unit} · Fuente: {food.source}
                   </p>
                   {food.synonyms.length > 0 && <p className="text-xs muted mt-1">Sinónimos: {food.synonyms.join(", ")}</p>}
-                  <div className="grid grid-cols-5 gap-1 text-center text-[11px] mt-2">
+                  <div className="grid grid-cols-2 min-[420px]:grid-cols-3 md:grid-cols-6 gap-1 text-center text-[11px] mt-2">
                     <span className="rounded-lg bg-secondary p-1">{food.calories} kcal</span>
                     <span className="rounded-lg bg-secondary p-1">{food.protein}g prot</span>
                     <span className="rounded-lg bg-secondary p-1">{food.carbs}g hidr</span>
                     <span className="rounded-lg bg-secondary p-1">{food.fat}g grasa</span>
                     <span className="rounded-lg bg-secondary p-1">{food.fiber}g fibra</span>
+                    <span className="rounded-lg bg-secondary p-1">{food.salt}g sal</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">

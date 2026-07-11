@@ -754,13 +754,16 @@ function RecipeCard({
 }
 
 function NutritionStats({ values }: { values: any }) {
+  const salt = Number(values?.micronutrients?.sal);
+  const hasSalt = values?.micronutrients && Object.prototype.hasOwnProperty.call(values.micronutrients, "sal") && Number.isFinite(salt);
   return (
-    <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
+    <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-6 gap-1.5 text-center text-xs">
       <Stat label="Kcal" value={`${values.calories ?? 0}`} />
       <Stat label="Prot" value={`${values.protein ?? 0}g`} />
       <Stat label="Hidratos" value={`${values.carbs ?? 0}g`} />
       <Stat label="Grasas" value={`${values.fat ?? 0}g`} />
       <Stat label="Fibra" value={`${values.fiber ?? 0}g`} />
+      {hasSalt && <Stat label="Sal" value={`${Math.round(salt * 100) / 100}g`} />}
     </div>
   );
 }
