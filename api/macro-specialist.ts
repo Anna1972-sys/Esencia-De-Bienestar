@@ -394,9 +394,16 @@ function simplifyFoodName(value: unknown) {
   const cleaned = cleanSearchName(value);
   const simplifications: Array<[RegExp, string]> = [
     [/\baceite\s+oliva\b.*/, "aceite de oliva"],
+    [/\bcaldo\s+carne\b.*\bbajo\s+en?\s+sal\b.*/, "caldo de carne bajo en sal"],
+    [/\bcaldo\s+pollo\b.*\bbajo\s+en?\s+sal\b.*/, "caldo de pollo bajo en sal"],
+    [/\bcaldo\s+verduras\b.*\bbajo\s+en?\s+sal\b.*/, "caldo de verduras bajo en sal"],
+    [/\bcaldo\s+ternera\b.*\bbajo\s+en?\s+sal\b.*/, "caldo de ternera bajo en sal"],
+    [/\bcaldo\s+carne\b.*/, "caldo de carne"],
+    [/\bcaldo\s+pollo\b.*/, "caldo de pollo"],
+    [/\bcaldo\s+verduras\b.*/, "caldo de verduras"],
+    [/\bcaldo\s+ternera\b.*/, "caldo de ternera"],
     [/\bfilete\s+ternera\b.*/, "ternera"],
     [/\bternera\b.*/, "ternera"],
-    [/\bcaldo\s+carne\b.*/, "caldo de carne"],
     [/\bchampiñones?\b.*/, "champiñones"],
     [/\bchampinones?\b.*/, "champiñones"],
     [/\bmaicena\b.*/, "maicena"],
@@ -1089,12 +1096,17 @@ function readableMatchedFoodLabel(providerName: string, originalQuery: string) {
     label = state === "raw" ? "arroz blanco crudo" : "arroz blanco cocido";
   } else if (/\b(potato|patata|papa)\b/.test(normalizedProvider) || /\b(patata|papa)\b/.test(normalizedQuery)) {
     label = state === "fried" ? "patata frita" : state === "raw" ? "patata cruda" : "patata cocida";
+  } else if (/\b(chicken broth|broth chicken|caldo pollo)\b/.test(normalizedProvider) || /\bcaldo pollo\b/.test(normalizedQuery)) {
+    label = normalizedQuery.includes("bajo sal") || normalizedQuery.includes("bajo en sal") ? "caldo de pollo bajo en sal" : "caldo de pollo";
+  } else if (/\b(vegetable broth|broth vegetable|caldo verduras)\b/.test(normalizedProvider) || /\bcaldo verduras\b/.test(normalizedQuery)) {
+    label = normalizedQuery.includes("bajo sal") || normalizedQuery.includes("bajo en sal") ? "caldo de verduras bajo en sal" : "caldo de verduras";
+  } else if (/\b(beef broth|broth beef|caldo carne|caldo ternera)\b/.test(normalizedProvider) || /\bcaldo (carne|ternera)\b/.test(normalizedQuery)) {
+    const base = normalizedQuery.includes("caldo ternera") ? "caldo de ternera" : "caldo de carne";
+    label = normalizedQuery.includes("bajo sal") || normalizedQuery.includes("bajo en sal") ? `${base} bajo en sal` : base;
   } else if (/\b(chicken|pollo)\b/.test(normalizedProvider) || /\bpollo\b/.test(normalizedQuery)) {
     label = state === "raw" ? "pechuga de pollo cruda" : state === "grilled" ? "pechuga de pollo a la plancha" : "pechuga de pollo cocinada";
   } else if (/\b(beef|ternera|vacuno)\b/.test(normalizedProvider) || /\b(ternera|vacuno)\b/.test(normalizedQuery)) {
     label = state === "raw" ? "ternera cruda" : state === "grilled" ? "ternera a la plancha" : "ternera";
-  } else if (/\b(beef broth|broth beef|caldo carne)\b/.test(normalizedProvider) || /\bcaldo carne\b/.test(normalizedQuery)) {
-    label = "caldo de carne";
   } else if (/\b(cornstarch|corn starch|maicena|almidon maiz|fecula maiz)\b/.test(normalizedProvider) || /\b(maicena|almidon maiz|fecula maiz)\b/.test(normalizedQuery)) {
     label = "maicena";
   } else if (/\b(garlic|ajo)\b/.test(normalizedProvider) || /\bajo\b/.test(normalizedQuery)) {
@@ -1293,10 +1305,15 @@ function usdaSearchCandidates(name: string) {
   const normalized = normalizeName(name);
   const translations: Array<[RegExp, string]> = [
     [/\baceite\s+oliva\b/, "olive oil"],
+    [/\bcaldo\s+pollo\b.*\bbajo\s+en?\s+sal\b/, "low sodium chicken broth"],
+    [/\bcaldo\s+(carne|ternera)\b.*\bbajo\s+en?\s+sal\b/, "low sodium beef broth"],
+    [/\bcaldo\s+verduras\b.*\bbajo\s+en?\s+sal\b/, "low sodium vegetable broth"],
+    [/\bcaldo\s+pollo\b/, "chicken broth"],
+    [/\bcaldo\s+verduras\b/, "vegetable broth"],
+    [/\bcaldo\s+ternera\b|\bcaldo\s+carne\b/, "beef broth"],
     [/\bpechuga\s+pollo\b|\bpollo\b/, "chicken breast"],
     [/\bpechuga\s+pavo\b|\bpavo\b/, "turkey breast"],
     [/\bternera\b|\bcarne\s+ternera\b|\bvacuno\b/, "beef"],
-    [/\bcaldo\s+carne\b/, "beef broth"],
     [/\bmaicena\b|\bfecula\s+maiz\b|\balmidon\s+maiz\b/, "cornstarch"],
     [/\bajo\b|\bajos\b/, "garlic"],
     [/\bhuevo\b|\bhuevos\b/, "egg"],
@@ -1338,6 +1355,13 @@ function usdaSearchCandidates(name: string) {
 function localizedSearchCandidate(name: string) {
   const normalized = normalizeName(name);
   const state = requestedCookingState(name);
+  if (/\bcaldo\s+pollo\b.*\bbajo\s+en?\s+sal\b/.test(normalized)) return "caldo de pollo bajo en sal";
+  if (/\bcaldo\s+(carne|ternera)\b.*\bbajo\s+en?\s+sal\b/.test(normalized)) return normalized.includes("ternera") ? "caldo de ternera bajo en sal" : "caldo de carne bajo en sal";
+  if (/\bcaldo\s+verduras\b.*\bbajo\s+en?\s+sal\b/.test(normalized)) return "caldo de verduras bajo en sal";
+  if (/\bcaldo\s+pollo\b/.test(normalized)) return "caldo de pollo";
+  if (/\bcaldo\s+verduras\b/.test(normalized)) return "caldo de verduras";
+  if (/\bcaldo\s+ternera\b/.test(normalized)) return "caldo de ternera";
+  if (/\bcaldo\s+carne\b/.test(normalized)) return "caldo de carne";
   if (/\barroz\b/.test(normalized)) return state === "raw" ? "arroz crudo" : "arroz cocido";
   if (/\bpatatas?\b|\bpapas?\b/.test(normalized)) {
     if (state === "fried") return "patata frita";
@@ -1350,7 +1374,6 @@ function localizedSearchCandidate(name: string) {
     return "pechuga de pollo cocinada";
   }
   if (/\bternera\b|\bcarne\s+ternera\b|\bvacuno\b/.test(normalized)) return "ternera";
-  if (/\bcaldo\s+carne\b/.test(normalized)) return "caldo de carne";
   if (/\bmaicena\b|\bfecula\s+maiz\b|\balmidon\s+maiz\b/.test(normalized)) return "maicena";
   if (/\bajo\b|\bajos\b/.test(normalized)) return "ajo";
   if (/\btomate\b/.test(normalized) && !state) return "tomate natural";

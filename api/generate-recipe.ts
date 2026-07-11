@@ -191,6 +191,26 @@ function isNoMacroSyncIngredient(value: unknown) {
   return tokens.length > 0 && tokens.every(token => NO_MACRO_SYNC_WORDS.has(token));
 }
 
+function syncIngredientGroup(value: unknown) {
+  const normalized = normalizeName(value);
+  if (!normalized) return null;
+  if (/\b(caldo|broth|stock)\b/.test(normalized)) return "broth";
+  if (/\b(ternera|vacuno|pollo|pavo|carne|filete)\b/.test(normalized)) return "meat";
+  if (/\b(champiñon|champiñones|champinon|champinones|seta|setas|hongo|hongos)\b/.test(normalized)) return "mushroom";
+  if (/\b(cebolla|tomate|calabacin|calabacín|zanahoria|verdura|verduras)\b/.test(normalized)) return "vegetable";
+  if (/\b(ajo|pimienta|especia|especias)\b/.test(normalized)) return "seasoning";
+  if (/\b(maicena|almidon|almidón|fecula|fécula|arroz|patata|papa)\b/.test(normalized)) return "starch";
+  if (/\b(aceite|oliva)\b/.test(normalized)) return "oil";
+  if (/\b(vino|vinagre|agua)\b/.test(normalized)) return "liquid";
+  return null;
+}
+
+function containsWholeNormalizedPhrase(container: string, phrase: string) {
+  if (!container || !phrase) return false;
+  const phrasePattern = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  return new RegExp(`(^|\\s)${phrasePattern}($|\\s)`).test(container);
+}
+
 function quantityToSyncGrams(quantity: number, unit: string, name: string) {
   const normalizedUnit = normalizeName(unit);
   const normalizedName = normalizeName(name);
@@ -234,7 +254,11 @@ function ingredientNamesOverlap(left: unknown, right: unknown) {
   const leftNormalized = normalizeName(left);
   const rightNormalized = normalizeName(right);
   if (!leftNormalized || !rightNormalized) return false;
-  if (leftNormalized === rightNormalized || leftNormalized.includes(rightNormalized) || rightNormalized.includes(leftNormalized)) return true;
+  if (leftNormalized === rightNormalized) return true;
+  const leftGroup = syncIngredientGroup(leftNormalized);
+  const rightGroup = syncIngredientGroup(rightNormalized);
+  if (leftGroup && rightGroup && leftGroup !== rightGroup) return false;
+  if (containsWholeNormalizedPhrase(leftNormalized, rightNormalized) || containsWholeNormalizedPhrase(rightNormalized, leftNormalized)) return true;
   const leftTokens = syncTokens(leftNormalized);
   const rightTokens = syncTokens(rightNormalized);
   if (!leftTokens.length || !rightTokens.length) return false;
