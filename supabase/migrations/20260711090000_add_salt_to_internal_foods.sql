@@ -7,7 +7,7 @@ WHERE salt IS NULL;
 
 UPDATE public.food_items i
 SET
-  sal_100g = COALESCE(f.salt * 100 / NULLIF(f.base_quantity, 0), 0),
+  sal_100g = COALESCE(i.sal_100g, f.salt * 100 / NULLIF(f.base_quantity, 0), 0),
   raw_data = COALESCE(i.raw_data, '{}'::jsonb) || jsonb_build_object('internal_foods_salt_synced_at', now())
 FROM public.internal_foods f
 WHERE i.source_type = 'manual'
