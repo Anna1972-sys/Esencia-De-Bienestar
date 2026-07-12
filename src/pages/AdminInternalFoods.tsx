@@ -99,6 +99,7 @@ const NUTRIENT_FIELDS: Array<[NutrientFieldKey, string]> = [
   ["fiber", "Fibra"],
   ["salt", "Sal"],
 ];
+const NUTRIENT_QUICK_STEPS = [-50, -10, -1, 1, 10, 50];
 
 const emptyForm: FormState = {
   name: "",
@@ -840,22 +841,17 @@ export default function AdminInternalFoods() {
                 onChange={e => updateForm({ [key]: numberInputValue(e.target.value) } as Partial<FormState>)}
               />
               <div className="admin-fast-number-actions">
-                <button
-                  type="button"
-                  className="admin-fast-number-button"
-                  onClick={() => quickAdjustNutrient(key, -50)}
-                  aria-label={`Restar 50 a ${label}`}
-                >
-                  -50
-                </button>
-                <button
-                  type="button"
-                  className="admin-fast-number-button"
-                  onClick={() => quickAdjustNutrient(key, 50)}
-                  aria-label={`Sumar 50 a ${label}`}
-                >
-                  +50
-                </button>
+                {NUTRIENT_QUICK_STEPS.map(step => (
+                  <button
+                    key={step}
+                    type="button"
+                    className="admin-fast-number-button"
+                    onClick={() => quickAdjustNutrient(key, step)}
+                    aria-label={`${step > 0 ? "Sumar" : "Restar"} ${Math.abs(step)} a ${label}`}
+                  >
+                    {step > 0 ? `+${step}` : step}
+                  </button>
+                ))}
               </div>
             </div>
           ))}
