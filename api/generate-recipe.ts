@@ -121,9 +121,8 @@ const SYSTEM_PROMPT = `Eres el motor nutricional de Esencia de Bienestar.
 Generas recetas prácticas, realistas y seguras en español.
 Debes responder SIEMPRE con JSON válido, sin markdown y sin texto adicional.
 La receta debe usar como base los ingredientes disponibles del usuario. Puedes añadir básicos de despensa solo si son mínimos: agua, sal, pimienta, especias, limón o una cantidad pequeña de aceite.
-No inventes valores exactos como verificados si no hay una referencia nutricional suficiente. En ese caso usa nutrition_status="estimated" y nutrition_note="Valores nutricionales estimados".
-Si usas una referencia nutricional general fiable, indica nutrition_status="verified", nutrition_note="Valores nutricionales verificados" y una referencia breve.
-Los macros son siempre para 1 persona / 1 ración, no totales de la receta.
+No calcules calorías ni macros. El cálculo nutricional final lo hace otro módulo con bases de datos verificadas.
+Si devuelves valores nutricionales, serán ignorados.
 Todos los ingredientes deben incluir gramos exactos.
 Estructura obligatoria:
 {
@@ -134,10 +133,10 @@ Estructura obligatoria:
   "prep_time": number,
   "ingredients": [{"name":"string","quantity":"string","grams":number}],
   "steps": ["string"],
-  "macros": {"calories":number,"protein":number,"carbs":number,"fat":number,"fiber":number},
-  "nutrition_status": "verified | estimated",
-  "nutrition_note": "Valores nutricionales verificados | Valores nutricionales estimados",
-  "nutrition_reference": "string",
+  "macros": {},
+  "nutrition_status": "estimated",
+  "nutrition_note": "Pendiente de cálculo nutricional por base interna",
+  "nutrition_reference": "",
   "tags": ["string"]
 }`;
 
@@ -435,20 +434,20 @@ async function loadFoodItemsForIngredients(authHeader: string | undefined, ingre
 }
 
 async function loadRecognizedFoodsForIngredients(authHeader: string | undefined, ingredients: string[]) {
-  const foodItems = await loadFoodItemsForIngredients(authHeader, ingredients);
+  const internalFoods = await loadInternalFoodsForIngredients(authHeader, ingredients);
   const matchedIngredients = new Set(
     ingredients
-      .filter(ingredient => foodItems.some(food => matchesInternalFood(ingredient, food)))
+      .filter(ingredient => internalFoods.some(food => matchesInternalFood(ingredient, food)))
       .map(normalizeName),
   );
   const missingIngredients = ingredients.filter(ingredient => !matchedIngredients.has(normalizeName(ingredient)));
 
-  if (missingIngredients.length === 0) return foodItems;
+  if (missingIngredients.length === 0) return internalFoods;
 
-  const fallbackFoods = await loadInternalFoodsForIngredients(authHeader, missingIngredients);
-  const existingNames = new Set(foodItems.map(food => normalizeName(food.name)));
+  const fallbackFoods = await loadFoodItemsForIngredients(authHeader, missingIngredients);
+  const existingNames = new Set(internalFoods.map(food => normalizeName(food.name)));
   const mergedFallback = fallbackFoods.filter(food => !existingNames.has(normalizeName(food.name)));
-  return [...foodItems, ...mergedFallback].slice(0, 20);
+  return [...internalFoods, ...mergedFallback].slice(0, 20);
 }
 
 async function loadProductsForIngredients(authHeader: string | undefined, ingredients: string[]) {
@@ -509,9 +508,6 @@ async function loadProductsForIngredients(authHeader: string | undefined, ingred
 }
 
 function normalizeRecipe(raw: any, category: RecipeCategory, servings: number, sourceIngredients: string[] = []): RecipeResult {
-  const macros = raw?.macros ?? {};
-  const nutritionStatus = raw?.nutrition_status === "verified" ? "verified" : "estimated";
-
   const recipe = {
     title: String(raw?.title || "Receta Esencia").trim(),
     description: String(raw?.description || "Receta generada con tus ingredientes.").trim(),
@@ -527,15 +523,15 @@ function normalizeRecipe(raw: any, category: RecipeCategory, servings: number, s
       : [],
     steps: Array.isArray(raw?.steps) ? raw.steps.map(String).map(s => s.trim()).filter(Boolean) : [],
     macros: {
-      calories: numberOrZero(macros.calories),
-      protein: numberOrZero(macros.protein),
-      carbs: numberOrZero(macros.carbs),
-      fat: numberOrZero(macros.fat),
-      fiber: numberOrZero(macros.fiber),
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
     },
-    nutrition_status: nutritionStatus,
-    nutrition_note: nutritionStatus === "verified" ? "Valores nutricionales verificados" : "Valores nutricionales estimados",
-    nutrition_reference: String(raw?.nutrition_reference || "").trim(),
+    nutrition_status: "estimated" as const,
+    nutrition_note: "Valores nutricionales estimados" as const,
+    nutrition_reference: "",
     tags: Array.isArray(raw?.tags) ? raw.tags.map(String).map(t => t.trim()).filter(Boolean).slice(0, 8) : [],
   };
 
@@ -543,25 +539,10 @@ function normalizeRecipe(raw: any, category: RecipeCategory, servings: number, s
 }
 
 function validateRecipe(recipe: RecipeResult): string[] {
-  const category = CATEGORIES[recipe.category];
   const issues: string[] = [];
-  const calories = Number(recipe.macros.calories);
-  const protein = Number(recipe.macros.protein);
 
   if (!recipe.title || recipe.ingredients.length === 0 || recipe.steps.length === 0) {
     issues.push("La receta debe incluir nombre, ingredientes y preparación completa.");
-  }
-  if (!calories) {
-    issues.push("Debe incluir calorías por ración.");
-  }
-  if (category.minCalories && calories < category.minCalories) {
-    issues.push(`Debe ajustar cantidades para llegar al menos a ${category.minCalories} kcal por ración.`);
-  }
-  if (category.maxCalories && calories > category.maxCalories) {
-    issues.push(`No puede superar ${category.maxCalories} kcal por ración.`);
-  }
-  if (protein < category.minProtein) {
-    issues.push(`Debe subir la proteína por ración hasta al menos ${category.minProtein} g si es posible con los ingredientes disponibles.`);
   }
   return issues;
 }
@@ -588,68 +569,73 @@ function buildUserPrompt(
     validacion_previa_a_corregir: issues,
     instrucciones: [
       "Devuelve solo JSON válido con la estructura obligatoria.",
-      "Ajusta gramos y cantidades antes de responder para cumplir las reglas.",
-      "Calcula macros siempre para 1 persona / 1 ración.",
+      "Ajusta gramos y cantidades culinarias antes de responder para cumplir las reglas de la categoría.",
+      "No calcules calorías, proteínas, hidratos, grasas, fibra ni sal.",
+      "Deja macros vacío o con ceros; el cálculo nutricional lo hace el sistema después.",
       "Si un ingrediente coincide con productos_propios_reconocidos, úsalo como referencia prioritaria y conserva su nombre de forma reconocible para que el recalculador use la base oficial de productos.",
       "Si un producto propio tiene medidas habituales, puedes usar esas medidas exactas en quantity y grams.",
       "Si un ingrediente coincide con alimentos_internos_reconocidos por nombre o sinónimo, usa ese alimento interno como referencia principal y conserva su nombre de forma reconocible.",
       "Todo ingrediente que menciones en la preparación debe aparecer también en ingredients con su cantidad exacta.",
-      "Nunca presentes valores estimados como exactos.",
-      "Si no hay referencia nutricional suficiente, usa Valores nutricionales estimados.",
+      "Nunca presentes valores nutricionales como verificados.",
     ],
   });
 }
 
-async function callOpenAI(apiKey: string, prompt: string) {
+async function callGemini(apiKey: string, prompt: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.35,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: prompt },
-        ],
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.35,
+        },
       }),
     });
 
     const text = await response.text();
     if (!response.ok) {
-      throw new Error(`OpenAI ${response.status}: ${text.slice(0, 1200)}`);
+      throw new Error(`Gemini ${response.status}: ${text.slice(0, 1200)}`);
     }
 
     const payload = JSON.parse(text);
-    const content = payload?.choices?.[0]?.message?.content;
-    if (!content) throw new Error("OpenAI no devolvió contenido");
-    return JSON.parse(content);
+    const content = payload?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text ?? "").join("") ?? "";
+    if (!content) throw new Error("Gemini no devolvió contenido");
+
+    try {
+      return JSON.parse(content);
+    } catch {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Gemini no devolvió JSON válido");
+      return JSON.parse(match[0]);
+    }
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function getFriendlyOpenAIError(err: any) {
+function getFriendlyGeminiError(err: any) {
   const raw = String(err?.message || "");
   const lower = raw.toLowerCase();
 
-  if (lower.includes("insufficient_quota") || lower.includes("openai 429")) {
-    return "No se ha podido generar la receta porque la API de OpenAI no dispone de crédito o ha alcanzado su límite de uso.";
+  if (lower.includes("429") || lower.includes("quota") || lower.includes("resource_exhausted")) {
+    return "El generador gratuito no está disponible temporalmente. Inténtalo de nuevo más tarde.";
   }
 
   if (err?.name === "AbortError") {
     return "La generación ha tardado demasiado. Inténtalo de nuevo.";
   }
 
-  return raw || "Error generando receta";
+  return "El generador gratuito no está disponible temporalmente. Inténtalo de nuevo más tarde.";
 }
 
 async function verifySupabaseSession(authHeader: string | undefined) {
@@ -692,9 +678,9 @@ export default async function handler(req: any, res: any) {
     return res.status(session.status).json({ error: session.error });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY no está configurada en Vercel" });
+    return res.status(500).json({ error: "El generador gratuito no está disponible temporalmente. Inténtalo de nuevo más tarde." });
   }
 
   const body = (req.body ?? {}) as GenerateBody;
@@ -721,7 +707,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const raw = await callOpenAI(apiKey, buildUserPrompt(requestBody, issues, internalFoods, products));
+      const raw = await callGemini(apiKey, buildUserPrompt(requestBody, issues, internalFoods, products));
       const recipe = normalizeRecipe(raw, category, servings, ingredients);
       issues = validateRecipe(recipe);
 
@@ -735,6 +721,6 @@ export default async function handler(req: any, res: any) {
       validation_issues: issues,
     });
   } catch (err: any) {
-    return res.status(500).json({ error: getFriendlyOpenAIError(err) });
+    return res.status(500).json({ error: getFriendlyGeminiError(err) });
   }
 }

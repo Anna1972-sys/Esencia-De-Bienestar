@@ -125,6 +125,21 @@ const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategor
     restrictions: restrictions || undefined,
   });
   const macros = macrosFromSpecialist(macroResult);
+  const calculationDetail = {
+    calculated_at: new Date().toISOString(),
+    ingredients: (macroResult.found ?? []).map((item: any) => ({
+      name: item.name,
+      matchedAs: item.matchedAs,
+      source: item.source,
+      sourceType: item.sourceType ?? null,
+      sourceLabel: item.sourceLabel,
+      foodId: item.foodId ?? null,
+      grams: item.grams,
+      macros: item.macros,
+    })),
+    pending_review: macroResult.notFound ?? [],
+    missing_grams: macroResult.missingGrams ?? [],
+  };
   return {
     ...recipe,
     servings,
@@ -132,9 +147,11 @@ const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategor
       ...(recipe?.macros ?? {}),
       ...macros,
       servings,
+      calculation_detail: calculationDetail,
     },
     nutrition_status: macros.nutrition_status,
     nutrition_note: macros.nutrition_note,
+    nutrition_reference: macros.nutrition_source ?? recipe?.nutrition_reference ?? "",
   };
 };
 
