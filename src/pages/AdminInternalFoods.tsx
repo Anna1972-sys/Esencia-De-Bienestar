@@ -100,7 +100,6 @@ const NUTRIENT_FIELDS: Array<[NutrientFieldKey, string]> = [
   ["salt", "Sal"],
 ];
 const NUTRIENT_QUICK_STEPS = [-50, -10, -1, 1, 10, 50];
-
 const emptyForm: FormState = {
   name: "",
   synonyms: "",
@@ -548,17 +547,9 @@ export default function AdminInternalFoods() {
       const incoming = candidate[field];
       if (incoming === undefined) return;
       const current = payload[field];
-      if (isImportValueEmpty(current)) {
+      if (!importValuesAreEqual(current, incoming)) {
         (payload as any)[field] = incoming;
         changedFields.push(field);
-      } else if (!importValuesAreEqual(current, incoming)) {
-        conflicts.push({
-          row,
-          name: payload.name,
-          field: String(field),
-          current: formatImportValue(current),
-          incoming: formatImportValue(incoming),
-        });
       }
     });
 
@@ -731,7 +722,7 @@ export default function AdminInternalFoods() {
 
   const importActionLabel = (action: ImportPlanItem["action"]) => {
     if (action === "create") return "Crear";
-    if (action === "update") return "Actualizar campos vacíos";
+    if (action === "update") return "Actualizar con Excel";
     return "Sin cambios";
   };
 
@@ -740,7 +731,7 @@ export default function AdminInternalFoods() {
 
   const downloadImportPreviewReport = () => {
     if (!importPreview) return;
-    const headers = ["Fila", "Alimento", "Acción", "Campos que se rellenarán", "Campos del Excel", "Posibles cambios no aplicados"];
+    const headers = ["Fila", "Alimento", "Acción", "Campos que se actualizarán", "Campos del Excel", "Avisos"];
     const rows = importPreview.items.map(item => [
       item.row,
       item.name,
@@ -899,7 +890,7 @@ export default function AdminInternalFoods() {
               <div className="rounded-xl bg-secondary p-2"><strong>{importPreview.skipped.length}</strong><br /><span className="text-xs muted">se omitirán</span></div>
             </div>
             <p className="text-xs muted">
-              No se eliminará ningún alimento. En alimentos existentes solo se rellenan campos vacíos; si la base ya tiene un valor, no se sobrescribe automáticamente.
+              No se eliminará ningún alimento. En alimentos existentes, el Excel actualizará los campos que incluya; las columnas que no estén en el Excel conservarán el valor actual de la base.
             </p>
             {importPreview.conflicts.length > 0 && (
               <details className="text-xs">
@@ -938,7 +929,7 @@ export default function AdminInternalFoods() {
                       <div>Se creará con los campos incluidos en el Excel: {importFieldsText(item.includedFields)}</div>
                     )}
                     {item.action === "update" && (
-                      <div>Se rellenarán campos vacíos: {importFieldsText(item.changedFields)}</div>
+                      <div>Se actualizarán con los datos del Excel: {importFieldsText(item.changedFields)}</div>
                     )}
                     {item.action === "unchanged" && (
                       <div>No se aplicarán cambios automáticos.</div>
