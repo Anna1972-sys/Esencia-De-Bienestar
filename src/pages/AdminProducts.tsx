@@ -2077,14 +2077,14 @@ export default function AdminProducts() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} quickSteps={[-50, 50]} step="0.1" />
-                  <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} quickSteps={[-50, 50]} step="0.1" />
+                  <NumberField label="Calorías" value={form.calories} onChange={value => updateNutrition({ calories: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Proteínas" value={form.protein} onChange={value => updateNutrition({ protein: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Hidratos" value={form.carbs} onChange={value => updateNutrition({ carbs: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Grasas" value={form.fat} onChange={value => updateNutrition({ fat: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Grasas saturadas" value={form.saturated_fat} onChange={value => updateNutrition({ saturated_fat: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Fibra" value={form.fiber} onChange={value => updateNutrition({ fiber: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Azúcares" value={form.sugars} onChange={value => updateNutrition({ sugars: value })} quickSteps={[-50, 50]} step="0.001" />
+                  <NumberField label="Sal" value={form.salt} onChange={value => updateNutrition({ salt: value })} quickSteps={[-50, 50]} step="0.001" />
                 </div>
               </div>
 
@@ -2141,13 +2141,13 @@ export default function AdminProducts() {
                         quickSteps={[-50, 50]}
                         step="0.1"
                       />
-                      <NumberField label="Calorías" value={measure.calories} onChange={value => updateMeasure(index, { calories: value })} quickSteps={[-50, 50]} step="0.1" />
-                      <NumberField label="Proteínas" value={measure.protein} onChange={value => updateMeasure(index, { protein: value })} quickSteps={[-50, 50]} step="0.1" />
-                      <NumberField label="Hidratos" value={measure.carbs} onChange={value => updateMeasure(index, { carbs: value })} quickSteps={[-50, 50]} step="0.1" />
-                      <NumberField label="Grasas" value={measure.fat} onChange={value => updateMeasure(index, { fat: value })} quickSteps={[-50, 50]} step="0.1" />
-                      <NumberField label="Fibra" value={measure.fiber} onChange={value => updateMeasure(index, { fiber: value })} quickSteps={[-50, 50]} step="0.1" />
-                      <NumberField label="Azúcares" value={measure.sugars ?? ""} onChange={value => updateMeasure(index, { sugars: value })} quickSteps={[-50, 50]} step="0.1" />
-                      <NumberField label="Sal" value={measure.salt ?? ""} onChange={value => updateMeasure(index, { salt: value })} quickSteps={[-50, 50]} step="0.1" />
+                      <NumberField label="Calorías" value={measure.calories} onChange={value => updateMeasure(index, { calories: value })} quickSteps={[-50, 50]} step="0.001" />
+                      <NumberField label="Proteínas" value={measure.protein} onChange={value => updateMeasure(index, { protein: value })} quickSteps={[-50, 50]} step="0.001" />
+                      <NumberField label="Hidratos" value={measure.carbs} onChange={value => updateMeasure(index, { carbs: value })} quickSteps={[-50, 50]} step="0.001" />
+                      <NumberField label="Grasas" value={measure.fat} onChange={value => updateMeasure(index, { fat: value })} quickSteps={[-50, 50]} step="0.001" />
+                      <NumberField label="Fibra" value={measure.fiber} onChange={value => updateMeasure(index, { fiber: value })} quickSteps={[-50, 50]} step="0.001" />
+                      <NumberField label="Azúcares" value={measure.sugars ?? ""} onChange={value => updateMeasure(index, { sugars: value })} quickSteps={[-50, 50]} step="0.001" />
+                      <NumberField label="Sal" value={measure.salt ?? ""} onChange={value => updateMeasure(index, { salt: value })} quickSteps={[-50, 50]} step="0.001" />
                     </div>
                     <div className="admin-product-measure-actions">
                       <select
@@ -2464,7 +2464,7 @@ function NumberField({
 
   const quickAdjust = (delta: number) => {
     const next = Math.max(0, toNumber(draft || value) + delta);
-    const cleanValue = Number(next.toFixed(1));
+    const cleanValue = Number(next.toFixed(3));
     setDraft(String(cleanValue));
     onChange(cleanValue);
   };

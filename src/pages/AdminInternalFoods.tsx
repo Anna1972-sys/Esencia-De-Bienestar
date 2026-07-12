@@ -706,7 +706,7 @@ export default function AdminInternalFoods() {
     setForm(prev => {
       const current = numberOrFallback(prev[key], 0);
       const next = Math.max(0, current + delta);
-      return { ...prev, [key]: Number(next.toFixed(1)) };
+      return { ...prev, [key]: Number(next.toFixed(3)) };
     });
   };
 
@@ -834,7 +834,7 @@ export default function AdminInternalFoods() {
               <input
                 className="field"
                 type="number"
-                step="0.1"
+                step="0.001"
                 min="0"
                 value={form[key]}
                 onChange={e => updateForm({ [key]: numberInputValue(e.target.value) } as Partial<FormState>)}
