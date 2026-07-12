@@ -34,6 +34,8 @@ type InternalFoodRow = {
   fat: number | string;
   fiber: number | string;
   salt?: number | string | null;
+  azucares_g?: number | string | null;
+  grasas_saturadas_g?: number | string | null;
   category: string | null;
   source: string | null;
   is_active: boolean;
@@ -473,6 +475,8 @@ function foodFromInternalRow(row: InternalFoodRow): FoodMacro {
     fat: numberValue(row.fat),
     fiber: numberValue(row.fiber),
     micronutrients: {
+      ...(numericValueIsPresent(row.azucares_g) ? { azucares: numberValue(row.azucares_g) } : {}),
+      ...(numericValueIsPresent(row.grasas_saturadas_g) ? { grasas_saturadas: numberValue(row.grasas_saturadas_g) } : {}),
       ...(numericValueIsPresent(row.salt) ? { sal: numberValue(row.salt) } : {}),
     },
     aliases: row.synonyms ?? [],
@@ -782,6 +786,8 @@ function scaleInternalFood(row: InternalFoodRow, grams: number): MacroValues {
     fat: numberValue(row.fat) * factor,
     fiber: numberValue(row.fiber) * factor,
     micronutrients: {
+      ...(numericValueIsPresent(row.azucares_g) ? { azucares: numberValue(row.azucares_g) * factor } : {}),
+      ...(numericValueIsPresent(row.grasas_saturadas_g) ? { grasas_saturadas: numberValue(row.grasas_saturadas_g) * factor } : {}),
       ...(numericValueIsPresent(row.salt) ? { sal: numberValue(row.salt) * factor } : {}),
     },
   });
@@ -869,7 +875,22 @@ async function loadInternalFoods(token: string, attempts?: any[]) {
     .eq("is_active", true)
     .order("name", { ascending: true });
 
-  const { data, error } = await query("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,category,source,is_active");
+  let { data, error } = await query("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,azucares_g,grasas_saturadas_g,category,source,is_active");
+
+  if (error && isMissingInternalOptionalNutritionColumn(error)) {
+    const withoutNewFields = await query("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,category,source,is_active");
+    if (!withoutNewFields.error) {
+      attempts?.push({
+        provider: "alimentos_internos",
+        rejected: false,
+        reason: "columnas_azucares_grasas_saturadas_pendientes_de_migracion",
+        fallback: "campos_opcionales_vacios",
+      });
+      return (withoutNewFields.data ?? []).map((item: any) => ({ ...item, azucares_g: null, grasas_saturadas_g: null })) as InternalFoodRow[];
+    }
+    error = withoutNewFields.error;
+    data = withoutNewFields.data;
+  }
 
   if (error && isMissingSaltColumn(error)) {
     const legacy = await query("id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active");
@@ -994,6 +1015,11 @@ function numericValueIsPresent(value: any) {
 function isMissingSaltColumn(error: any) {
   const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
   return /salt/i.test(message) && /column|schema|cache|find|exist/i.test(message);
+}
+
+function isMissingInternalOptionalNutritionColumn(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
+  return /(azucares_g|azucares_9|grasas_saturadas_g)/i.test(message) && /column|schema|cache|find|exist/i.test(message);
 }
 
 function hasCompleteVerifiedProductNutrition(product: ProductRow) {

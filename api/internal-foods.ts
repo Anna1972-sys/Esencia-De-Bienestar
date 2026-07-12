@@ -40,6 +40,12 @@ async function readBody(req: any) {
   return raw ? JSON.parse(raw) : {};
 }
 
+function nullableNumber(value: any) {
+  if (value === "" || value === null || value === undefined) return null;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalizePayload(input: any) {
   return {
     name: String(input?.name ?? "").trim(),
@@ -54,8 +60,10 @@ function normalizePayload(input: any) {
     fat: Number(input?.fat) || 0,
     fiber: Number(input?.fiber) || 0,
     salt: Number(input?.salt) || 0,
+    azucares_g: nullableNumber(input?.azucares_g ?? input?.azucares_9),
+    grasas_saturadas_g: nullableNumber(input?.grasas_saturadas_g),
     category: String(input?.category ?? "general").trim() || "general",
-    source: "Tabla interna",
+    source: String(input?.source ?? "Tabla interna").trim() || "Tabla interna",
     is_active: Boolean(input?.is_active ?? true),
     updated_at: new Date().toISOString(),
   };
@@ -96,9 +104,15 @@ export default async function handler(req: any, res: any) {
 
     let { data, error } = await readFoods(INTERNAL_FOOD_SELECT);
 
+    if (error && isMissingOptionalInternalFoodColumn(error)) {
+      const withoutNewFields = await readFoods(INTERNAL_FOOD_SELECT_WITH_SALT);
+      data = (withoutNewFields.data ?? []).map(withDefaultOptionalNutrition);
+      error = withoutNewFields.error;
+    }
+
     if (error && isMissingSaltColumn(error)) {
       const legacy = await readFoods(INTERNAL_FOOD_SELECT_LEGACY);
-      data = (legacy.data ?? []).map(withDefaultSalt);
+      data = (legacy.data ?? []).map(withDefaultOptionalNutrition);
       error = legacy.error;
     }
 
@@ -180,8 +194,10 @@ export default async function handler(req: any, res: any) {
   return res.status(200).json({ ok: true });
 }
 
-const INTERNAL_FOOD_SELECT = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,category,source,is_active";
+const INTERNAL_FOOD_SELECT = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,azucares_g,grasas_saturadas_g,category,source,is_active";
+const INTERNAL_FOOD_SELECT_WITH_SALT = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,salt,category,source,is_active";
 const INTERNAL_FOOD_SELECT_LEGACY = "id,name,synonyms,base_quantity,base_unit,calories,protein,carbs,fat,fiber,category,source,is_active";
+const NEW_INTERNAL_FOOD_COLUMNS = ["azucares_g", "azucares_9", "grasas_saturadas_g"];
 
 async function writeInternalFood({
   supabaseUrl,
@@ -202,15 +218,24 @@ async function writeInternalFood({
 }) {
   const attempts = buildWriteAuthAttempts({ serviceRoleKey, anonKey, userToken });
   let lastError: any = null;
-  let useLegacySalt = false;
+  let omitNewNutritionFields = false;
+  let omitSaltAndNewNutritionFields = false;
 
-  for (let saltRetry = 0; saltRetry < 2; saltRetry += 1) {
+  for (let optionalNutritionRetry = 0; optionalNutritionRetry < 2; optionalNutritionRetry += 1) {
     const filter = id ? `&id=eq.${encodeURIComponent(id)}` : "";
-    const selectColumns = useLegacySalt ? INTERNAL_FOOD_SELECT_LEGACY : INTERNAL_FOOD_SELECT;
+    const selectColumns = omitSaltAndNewNutritionFields
+      ? INTERNAL_FOOD_SELECT_LEGACY
+      : omitNewNutritionFields
+        ? INTERNAL_FOOD_SELECT_WITH_SALT
+        : INTERNAL_FOOD_SELECT;
     const select = method === "DELETE" ? "" : `?select=${selectColumns}${filter}`;
     const deleteFilter = method === "DELETE" ? `?id=eq.${encodeURIComponent(id ?? "")}` : "";
     const url = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/internal_foods${select || deleteFilter}`;
-    const bodyPayload = useLegacySalt && payload ? omitSalt(payload) : payload;
+    const bodyPayload = omitSaltAndNewNutritionFields && payload
+      ? omitSaltAndNewNutrition(payload)
+      : omitNewNutritionFields && payload
+        ? omitNewNutrition(payload)
+        : payload;
 
     for (const attempt of attempts) {
       const response = await fetch(url, {
@@ -228,7 +253,7 @@ async function writeInternalFood({
         if (method === "DELETE") return { data: null, error: null };
         const rows = await response.json().catch(() => []);
         const row = Array.isArray(rows) ? rows[0] : rows;
-        return { data: withDefaultSalt(row), error: null };
+        return { data: withDefaultOptionalNutrition(row), error: null };
       }
 
       const errorPayload = await response.json().catch(async () => ({ message: await response.text().catch(() => response.statusText) }));
@@ -238,15 +263,23 @@ async function writeInternalFood({
         details: errorPayload?.details,
       };
 
-      if (isMissingSaltColumn(lastError) && !useLegacySalt) {
-        useLegacySalt = true;
+      if (isMissingOptionalInternalFoodColumn(lastError) && !omitNewNutritionFields) {
+        omitNewNutritionFields = true;
+        break;
+      }
+
+      if (isMissingSaltColumn(lastError) && !omitSaltAndNewNutritionFields) {
+        omitSaltAndNewNutritionFields = true;
         break;
       }
 
       if (!/invalid api key|wrong key type|no suitable key/i.test(String(lastError.message))) break;
     }
 
-    if (!useLegacySalt || !isMissingSaltColumn(lastError)) break;
+    if (
+      (!omitNewNutritionFields || !isMissingOptionalInternalFoodColumn(lastError)) &&
+      (!omitSaltAndNewNutritionFields || !isMissingSaltColumn(lastError))
+    ) break;
   }
 
   return { data: null, error: lastError ?? { message: "Error al guardar el alimento interno" } };
@@ -288,18 +321,34 @@ function safeSupabaseHost(url: string) {
   }
 }
 
+function isMissingOptionalInternalFoodColumn(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
+  return NEW_INTERNAL_FOOD_COLUMNS.some(column => message.includes(column)) &&
+    /column|schema|cache|find|exist/i.test(message);
+}
+
 function isMissingSaltColumn(error: any) {
   const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
   return /salt/i.test(message) && /column|schema|cache|find|exist/i.test(message);
 }
 
-function withDefaultSalt(row: any) {
+function withDefaultOptionalNutrition(row: any) {
   if (!row || typeof row !== "object") return row;
-  return { ...row, salt: Number(row.salt ?? 0) };
+  return {
+    ...row,
+    salt: Number(row.salt ?? 0),
+    azucares_g: row.azucares_g ?? row.azucares_9 ?? null,
+    grasas_saturadas_g: row.grasas_saturadas_g ?? null,
+  };
 }
 
-function omitSalt(payload: Record<string, any>) {
-  const { salt, ...rest } = payload;
+function omitNewNutrition(payload: Record<string, any>) {
+  const { azucares_g, azucares_9, grasas_saturadas_g, ...rest } = payload;
+  return rest;
+}
+
+function omitSaltAndNewNutrition(payload: Record<string, any>) {
+  const { salt, azucares_g, azucares_9, grasas_saturadas_g, ...rest } = payload;
   return rest;
 }
 
