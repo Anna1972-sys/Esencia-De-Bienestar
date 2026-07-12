@@ -183,6 +183,7 @@ export default function AdminUserRecipes() {
     const { error } = await supabase.from("recipes").update({
       title: payload.title ?? r.title,
       description: payload.description ?? r.description,
+      image_url: payload.image_url ?? r.image_url,
       macros,
       ingredients,
       steps,
