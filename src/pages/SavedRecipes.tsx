@@ -14,6 +14,7 @@ const firstUrl = (...values: any[]) =>
   values.find(value => typeof value === "string" && value.trim())?.trim() ?? "";
 const imageErrorLabel = (recipe: any) =>
   String(recipe?.macros?.image_generation_error ?? "").trim();
+const RECIPE_IMAGE_GENERATION_ENABLED = false;
 
 export default function SavedRecipes() {
   const { user, isAdmin } = useAuth();
@@ -150,9 +151,9 @@ export default function SavedRecipes() {
             const isHighProtein = nutritionAvailable && macroValue(macros, "protein") >= 25;
             const recipeImageUrl = firstUrl(r.image_url);
             const hasImage = Boolean(recipeImageUrl);
-            const imagePending = !hasImage;
-            const imageError = imageErrorLabel(r);
-            const generatingThisImage = generatingImageId === r.id;
+            const imagePending = RECIPE_IMAGE_GENERATION_ENABLED && !hasImage;
+            const imageError = RECIPE_IMAGE_GENERATION_ENABLED ? imageErrorLabel(r) : "";
+            const generatingThisImage = RECIPE_IMAGE_GENERATION_ENABLED && generatingImageId === r.id;
             return <details key={r.id} className="recipe-premium saved-recipe-card rounded-[24px] bg-white/90 group">
               <summary className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <div className="saved-recipe-summary grid grid-cols-[42%_1fr] h-[142px] items-stretch">

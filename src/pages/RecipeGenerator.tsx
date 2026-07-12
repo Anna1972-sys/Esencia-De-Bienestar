@@ -14,6 +14,7 @@ import {
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 
 type RecipeCategory = string;
+const RECIPE_IMAGE_GENERATION_ENABLED = false;
 
 const ingredientsToMacroText = (ingredients: any[] = []) =>
   ingredients
@@ -162,6 +163,19 @@ export default function RecipeGenerator() {
   const [generatedImageError, setGeneratedImageError] = useState("");
   const imageGenerationPromiseRef = useRef<Promise<string | null> | null>(null);
   const imageGenerationErrorRef = useRef("");
+  const savedRecipeIdRef = useRef<string | null>(null);
+  const generatedImagePersistentUrlRef = useRef("");
+
+  const updateSavedRecipeId = (nextRecipeId: string | null) => {
+    savedRecipeIdRef.current = nextRecipeId;
+    setSavedRecipeId(nextRecipeId);
+  };
+
+  const updateGeneratedImagePersistentUrl = (nextUrl: string) => {
+    const cleanUrl = String(nextUrl ?? "").trim();
+    generatedImagePersistentUrlRef.current = cleanUrl;
+    setGeneratedImagePersistentUrl(cleanUrl);
+  };
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
 
@@ -204,9 +218,9 @@ export default function RecipeGenerator() {
     setDraft("");
     setIngredients(finalIngredients);
     setResult(null);
-    setSavedRecipeId(null);
+    updateSavedRecipeId(null);
     setGeneratedImageUrl("");
-    setGeneratedImagePersistentUrl("");
+    updateGeneratedImagePersistentUrl("");
     setImageGenerationAttempted(false);
     setGeneratedImageError("");
     imageGenerationErrorRef.current = "";
@@ -251,7 +265,6 @@ export default function RecipeGenerator() {
         toast.warning("Receta generada. Revisa los macros si es necesario.");
       }
       setResult(enrichedRecipe);
-      void generateRecipeImage(enrichedRecipe, { automatic: true });
     } catch (err: any) {
       toast.error(err?.message || "Error generando receta");
     } finally {
@@ -261,7 +274,7 @@ export default function RecipeGenerator() {
 
   const generateRecipeImage = (recipe: any, options: { automatic?: boolean } = {}) => {
     if (!recipe) return Promise.resolve(null);
-    const existingImage = firstUrl(generatedImagePersistentUrl, recipe.image_url);
+    const existingImage = firstUrl(generatedImagePersistentUrlRef.current, generatedImagePersistentUrl, recipe.image_url);
     if (existingImage && !isTemporaryImageUrl(existingImage)) return Promise.resolve(existingImage);
     if (imageGenerationPromiseRef.current) return imageGenerationPromiseRef.current;
 
@@ -301,12 +314,13 @@ export default function RecipeGenerator() {
         : firstUrl(data?.image_url, data?.url);
 
       setGeneratedImageUrl(imageUrl);
-      setGeneratedImagePersistentUrl(persistentUrl || "");
+      updateGeneratedImagePersistentUrl(persistentUrl || "");
       if (persistentUrl) {
         imageGenerationErrorRef.current = "";
         setGeneratedImageError("");
         setResult(current => current ? { ...current, image_url: persistentUrl } : current);
-        if (savedRecipeId && user?.id) {
+        const targetRecipeId = savedRecipeIdRef.current;
+        if (targetRecipeId && user?.id) {
           const { error: updateError } = await supabase
             .from("recipes")
             .update({
@@ -317,7 +331,7 @@ export default function RecipeGenerator() {
                 image_generation_error: "",
               },
             } as any)
-            .eq("id", savedRecipeId)
+            .eq("id", targetRecipeId)
             .eq("user_id", user.id);
           if (updateError) throw updateError;
         }
@@ -325,7 +339,8 @@ export default function RecipeGenerator() {
         return persistentUrl;
       } else {
         const warning = rememberImageError(data?.storage_warning || "La imagen se creó, pero no se pudo guardar en Storage.");
-        if (savedRecipeId && user?.id) {
+        const targetRecipeId = savedRecipeIdRef.current;
+        if (targetRecipeId && user?.id) {
           await supabase
             .from("recipes")
             .update({
@@ -335,7 +350,7 @@ export default function RecipeGenerator() {
                 image_generation_error: warning,
               },
             } as any)
-            .eq("id", savedRecipeId)
+            .eq("id", targetRecipeId)
             .eq("user_id", user.id);
         }
         toast.warning(`${warning} La receta se guardará sin imagen.`);
@@ -345,7 +360,8 @@ export default function RecipeGenerator() {
     .catch(async (err: any) => {
       console.error("[recipe-generator] error generando imagen del plato", err);
       const message = rememberImageError(err?.message || "No se pudo crear la imagen del plato.");
-      if (savedRecipeId && user?.id) {
+      const targetRecipeId = savedRecipeIdRef.current;
+      if (targetRecipeId && user?.id) {
         await supabase
           .from("recipes")
           .update({
@@ -355,7 +371,7 @@ export default function RecipeGenerator() {
               image_generation_error: message,
             },
           } as any)
-          .eq("id", savedRecipeId)
+          .eq("id", targetRecipeId)
           .eq("user_id", user.id);
       }
       toast.warning(
@@ -429,21 +445,17 @@ export default function RecipeGenerator() {
       if (duplicateError) throw duplicateError;
       const duplicate = (existingRecipes ?? []).find((item: any) => ingredientSignature(item.ingredients ?? []) === currentSignature);
       if (duplicate?.id) {
-        setSavedRecipeId(duplicate.id);
+        updateSavedRecipeId(duplicate.id);
         toast.warning("Esta receta ya existe en Mis recetas. No se ha creado un duplicado.");
         if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
         return;
       }
 
       const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      let pendingGeneratedImageUrl = generatedImagePersistentUrl;
-      if (!pendingGeneratedImageUrl && imageGenerationPromiseRef.current) {
-        toast.info("Terminando de preparar la imagen de la receta…");
-        pendingGeneratedImageUrl = await imageGenerationPromiseRef.current ?? "";
-      }
       const imageUrl = firstUrl(
         enrichedRecipe.image_url,
-        pendingGeneratedImageUrl,
+        generatedImagePersistentUrlRef.current,
+        generatedImagePersistentUrl,
         enrichedRecipe.imageUrl,
         enrichedRecipe.cover_image_url,
         enrichedRecipe.image?.url,
@@ -453,8 +465,9 @@ export default function RecipeGenerator() {
       if (generatedImageUrl && !finalImageUrl) {
         toast.warning("La receta se guardará, pero la imagen no quedó guardada de forma permanente.");
       }
-      const imageGenerationError = finalImageUrl ? "" : (imageGenerationErrorRef.current || "Imagen pendiente de generar.");
-      const imageGenerationStatus = finalImageUrl ? "ready" : "pending";
+      const imageGenerationMetadata = finalImageUrl
+        ? { image_generation_status: "ready", image_generation_error: "" }
+        : {};
       const { error } = await supabase.from("recipes").insert({
         id: recipeId,
         user_id: user.id,
@@ -467,8 +480,7 @@ export default function RecipeGenerator() {
         image_url: finalImageUrl,
         macros: {
           ...macros,
-          image_generation_status: imageGenerationStatus,
-          image_generation_error: imageGenerationError,
+          ...imageGenerationMetadata,
         },
         ingredients: recipeIngredients,
         steps: enrichedRecipe.steps ?? [],
@@ -485,13 +497,15 @@ export default function RecipeGenerator() {
         image_url: finalImageUrl,
         macros: {
           ...macros,
-          image_generation_status: imageGenerationStatus,
-          image_generation_error: imageGenerationError,
+          ...imageGenerationMetadata,
         },
         servings,
       };
       setResult(savedRecipe);
-      setSavedRecipeId(recipeId);
+      updateSavedRecipeId(recipeId);
+      if (RECIPE_IMAGE_GENERATION_ENABLED && !finalImageUrl && imageGenerationPromiseRef.current) {
+        toast.info("Receta guardada. La imagen sigue preparándose en segundo plano.");
+      }
       toast.success(options.successMessage ?? "Guardada en Mis recetas");
       if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
     } catch (err: any) {
@@ -505,9 +519,9 @@ export default function RecipeGenerator() {
   const discardGeneratedRecipe = async () => {
     if (!user || !savedRecipeId) {
       setResult(null);
-      setSavedRecipeId(null);
+      updateSavedRecipeId(null);
       setGeneratedImageUrl("");
-      setGeneratedImagePersistentUrl("");
+      updateGeneratedImagePersistentUrl("");
       setImageGenerationAttempted(false);
       setGeneratedImageError("");
       imageGenerationErrorRef.current = "";
@@ -523,9 +537,9 @@ export default function RecipeGenerator() {
       return;
     }
     setResult(null);
-    setSavedRecipeId(null);
+    updateSavedRecipeId(null);
     setGeneratedImageUrl("");
-    setGeneratedImagePersistentUrl("");
+    updateGeneratedImagePersistentUrl("");
     setImageGenerationAttempted(false);
     setGeneratedImageError("");
     imageGenerationErrorRef.current = "";
@@ -710,7 +724,7 @@ function RecipeCard({
             <Download className="h-4 w-4" /> Descargar imagen
           </a>
         </div>
-      ) : (
+      ) : RECIPE_IMAGE_GENERATION_ENABLED ? (
         <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/5 p-3">
           <div className="text-sm font-semibold text-primary">Imagen pendiente</div>
           {generatedImageError && <p className="text-xs muted mt-1">{generatedImageError}</p>}
@@ -718,7 +732,7 @@ function RecipeCard({
             {generatingImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando imagen…</> : <><ImagePlus className="h-4 w-4" /> {imageGenerationAttempted ? "Reintentar imagen" : "Generar imagen"}</>}
           </button>
         </div>
-      )}
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2 text-sm mt-4">
         <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.servings ?? 1}</div><div className="muted text-[10px] uppercase tracking-wide">Raciones</div></div>
