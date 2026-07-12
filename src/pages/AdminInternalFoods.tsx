@@ -147,7 +147,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
   name: ["nombre", "name", "alimento", "food"],
   category: ["categoria", "category"],
   status: ["estado", "estado_del_alimento", "estado_alimento", "estado_de_revision", "activo", "is_active"],
-  base_unit: ["unidad_base", "unidad", "base_unit", "cantidad_base"],
+  base_quantity: ["cantidad_base", "cantidad", "base_quantity", "valor_base"],
+  base_unit: ["unidad_base", "unidad", "base_unit"],
   calories: ["calorias", "calorias_kcal", "kcal", "energia", "energia_kcal", "calories"],
   protein: ["proteinas", "proteinas_g", "proteina", "protein"],
   carbs: ["hidratos", "hidratos_g", "hidratos_de_carbono", "carbohidratos", "carbs"],
@@ -451,11 +452,16 @@ export default function AdminInternalFoods() {
       candidate.is_active = parseActiveState(value("status"));
       candidate.includedFields.push("is_active");
     }
+    if (hasField("base_quantity") && String(value("base_quantity") ?? "").trim()) {
+      candidate.base_quantity = parseRequiredImportNumber(value("base_quantity"), "Cantidad base");
+      candidate.includedFields.push("base_quantity");
+    }
     if (hasField("base_unit") && String(value("base_unit") ?? "").trim()) {
       const base = parseBaseUnit(value("base_unit"));
-      candidate.base_quantity = base.base_quantity;
+      candidate.base_quantity = candidate.base_quantity ?? base.base_quantity;
       candidate.base_unit = base.base_unit;
-      candidate.includedFields.push("base_quantity", "base_unit");
+      if (!candidate.includedFields.includes("base_quantity")) candidate.includedFields.push("base_quantity");
+      candidate.includedFields.push("base_unit");
     }
 
     const numericFields: Array<[keyof ImportableFoodPayload, string, string]> = [
@@ -558,13 +564,7 @@ export default function AdminInternalFoods() {
 
   const ensureNewFoodIsComplete = (candidate: ImportCandidate) => {
     const required: Array<[keyof ImportableFoodPayload, string]> = [
-      ["base_unit", "Unidad base"],
-      ["calories", "Calorías"],
-      ["protein", "Proteínas"],
-      ["carbs", "Hidratos"],
-      ["fat", "Grasas"],
-      ["fiber", "Fibra"],
-      ["salt", "Sal"],
+      ["name", "Nombre"],
     ];
     const missing = required
       .filter(([key]) => (candidate as any)[key] === undefined)
