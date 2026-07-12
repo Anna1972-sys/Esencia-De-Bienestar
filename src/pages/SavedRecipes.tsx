@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Trash2, ShoppingBag, ArrowLeft, ChefHat, ImagePlus, Loader2 } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowLeft, ChefHat } from "lucide-react";
 import { toast } from "sonner";
 
 const macroValue = (macros: any, key: string) => Number(macros?.[key] ?? 0);
@@ -12,9 +12,6 @@ const nutritionLabel = (macros: any) =>
   macros?.nutrition_status === "verified" ? "Valores verificados" : "Valores estimados";
 const firstUrl = (...values: any[]) =>
   values.find(value => typeof value === "string" && value.trim())?.trim() ?? "";
-const imageErrorLabel = (recipe: any) =>
-  String(recipe?.macros?.image_generation_error ?? "").trim();
-const RECIPE_IMAGE_GENERATION_ENABLED = false;
 
 export default function SavedRecipes() {
   const { user, isAdmin } = useAuth();
@@ -23,7 +20,7 @@ export default function SavedRecipes() {
   const [loading, setLoading] = useState(true);
   const [confirmRecipe, setConfirmRecipe] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -71,64 +68,61 @@ export default function SavedRecipes() {
     if (error) toast.error(error.message); else toast.success("Añadido a la lista");
   };
 
-  const generateRecipeImage = async (recipe: any) => {
-    if (!user || !recipe?.id || generatingImageId) return;
-    setGeneratingImageId(recipe.id);
+  const uploadRecipeImage = async (event: ChangeEvent<HTMLInputElement>, recipe: any) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !user || !recipe?.id) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecciona una imagen válida.");
+      return;
+    }
+    setUploadingImageId(recipe.id);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const response = await fetch("/api/generate-recipe-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          title: recipe.title,
-          ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
-          preparation: Array.isArray(recipe.steps) ? recipe.steps : [],
-          recipe,
-        }),
-      });
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `manual/${user.id}/${recipe.id}-${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const tenYears = 60 * 60 * 24 * 365 * 10;
+      const { data: signed, error: signedError } = await supabase.storage
+        .from("recipe-images")
+        .createSignedUrl(path, tenYears);
+      if (signedError || !signed?.signedUrl) throw signedError ?? new Error("No se pudo preparar la imagen.");
 
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || "Error de OpenAI o conexión al generar la imagen.");
-      }
-      const persistentUrl = data?.persistent === false ? "" : firstUrl(data?.image_url, data?.url);
-      if (!persistentUrl) {
-        throw new Error(data?.storage_warning || "La imagen se creó, pero no pudo guardarse en Storage.");
-      }
+      const { error: updateError } = await supabase
+        .from("recipes")
+        .update({ image_url: signed.signedUrl } as any)
+        .eq("id", recipe.id)
+        .eq("user_id", user.id);
+      if (updateError) throw updateError;
 
-      const nextMacros = {
-        ...(recipe.macros ?? {}),
-        image_generation_status: "ready",
-        image_generation_error: "",
-      };
+      setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: signed.signedUrl } : item));
+      toast.success("Imagen guardada correctamente.");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo subir la imagen.");
+    } finally {
+      setUploadingImageId(null);
+    }
+  };
+
+  const clearRecipeImage = async (recipe: any) => {
+    if (!user || !recipe?.id) return;
+    if (!confirm("¿Seguro que deseas eliminar esta imagen?")) return;
+    setUploadingImageId(recipe.id);
+    try {
       const { error } = await supabase
         .from("recipes")
-        .update({ image_url: persistentUrl, macros: nextMacros } as any)
+        .update({ image_url: null } as any)
         .eq("id", recipe.id)
         .eq("user_id", user.id);
       if (error) throw error;
-
-      setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: persistentUrl, macros: nextMacros } : item));
-      toast.success("Imagen generada y guardada correctamente.");
+      setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: null } : item));
+      toast.success("Imagen eliminada correctamente.");
     } catch (err: any) {
-      const message = String(err?.message || "No se pudo generar la imagen.").trim();
-      const nextMacros = {
-        ...(recipe.macros ?? {}),
-        image_generation_status: "pending",
-        image_generation_error: message,
-      };
-      await supabase
-        .from("recipes")
-        .update({ macros: nextMacros } as any)
-        .eq("id", recipe.id)
-        .eq("user_id", user.id);
-      setItems(current => current.map(item => item.id === recipe.id ? { ...item, macros: nextMacros } : item));
-      toast.error(`No se pudo generar la imagen: ${message}`);
+      toast.error(err?.message || "No se pudo eliminar la imagen.");
     } finally {
-      setGeneratingImageId(null);
+      setUploadingImageId(null);
     }
   };
 
@@ -151,9 +145,6 @@ export default function SavedRecipes() {
             const isHighProtein = nutritionAvailable && macroValue(macros, "protein") >= 25;
             const recipeImageUrl = firstUrl(r.image_url);
             const hasImage = Boolean(recipeImageUrl);
-            const imagePending = RECIPE_IMAGE_GENERATION_ENABLED && !hasImage;
-            const imageError = RECIPE_IMAGE_GENERATION_ENABLED ? imageErrorLabel(r) : "";
-            const generatingThisImage = RECIPE_IMAGE_GENERATION_ENABLED && generatingImageId === r.id;
             return <details key={r.id} className="recipe-premium saved-recipe-card rounded-[24px] bg-white/90 group">
               <summary className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <div className="saved-recipe-summary grid grid-cols-[42%_1fr] h-[142px] items-stretch">
@@ -179,7 +170,6 @@ export default function SavedRecipes() {
                       <div className="text-[11px] leading-relaxed muted mt-2.5">
                         {r.prep_time ?? "—"} min · {nutritionAvailable ? nutritionLabel(macros) : "Nutrición no registrada"}
                       </div>
-                      {imagePending && <div className="text-[11px] font-semibold text-primary mt-1">Imagen pendiente</div>}
                     </div>
                     <div className="saved-recipe-actions flex flex-col items-center justify-center gap-2 shrink-0 self-center">
                         {nutritionAvailable && isHighProtein ? (
@@ -209,20 +199,38 @@ export default function SavedRecipes() {
               </summary>
               <div className="text-sm px-4 pb-4 space-y-3">
                 <h2 className="font-semibold text-lg leading-tight text-foreground pt-1">{r.title}</h2>
-                {imagePending && (
-                  <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
-                    <div className="font-semibold text-primary">Imagen pendiente</div>
-                    {isAdmin && imageError && <p className="text-xs muted mt-1">{imageError}</p>}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        className="btn-primary w-full mt-3"
-                        onClick={() => generateRecipeImage(r)}
-                        disabled={generatingThisImage}
-                      >
-                        {generatingThisImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando imagen…</> : <><ImagePlus className="h-4 w-4" /> Generar imagen</>}
-                      </button>
+                {isAdmin && (
+                  <div className="rounded-2xl border border-primary/20 bg-white/80 p-3">
+                    <div className="font-medium mb-2">Imagen de la receta</div>
+                    {hasImage && (
+                      <img
+                        src={recipeImageUrl}
+                        alt={r.title}
+                        className="mb-3 h-32 w-full rounded-2xl object-cover"
+                      />
                     )}
+                    <div className="flex flex-wrap gap-2">
+                      <label className={`btn-primary text-xs cursor-pointer ${uploadingImageId === r.id ? "opacity-70 pointer-events-none" : ""}`}>
+                        {uploadingImageId === r.id ? "Subiendo…" : hasImage ? "Cambiar imagen" : "Subir imagen"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingImageId === r.id}
+                          onChange={(event) => uploadRecipeImage(event, r)}
+                        />
+                      </label>
+                      {hasImage && (
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs text-destructive"
+                          onClick={() => clearRecipeImage(r)}
+                          disabled={uploadingImageId === r.id}
+                        >
+                          Eliminar imagen
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 <p className="muted">{r.description}</p>

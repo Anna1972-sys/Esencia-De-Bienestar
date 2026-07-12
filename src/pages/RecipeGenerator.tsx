@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
-import { ArrowLeft, CheckCircle2, Download, ImagePlus, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,7 +14,6 @@ import {
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 
 type RecipeCategory = string;
-const RECIPE_IMAGE_GENERATION_ENABLED = false;
 
 const ingredientsToMacroText = (ingredients: any[] = []) =>
   ingredients
@@ -156,25 +155,9 @@ export default function RecipeGenerator() {
   const [savingRecipe, setSavingRecipe] = useState(false);
   const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
   const [discardingGenerated, setDiscardingGenerated] = useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState("");
-  const [generatedImagePersistentUrl, setGeneratedImagePersistentUrl] = useState("");
-  const [generatingImage, setGeneratingImage] = useState(false);
-  const [imageGenerationAttempted, setImageGenerationAttempted] = useState(false);
-  const [generatedImageError, setGeneratedImageError] = useState("");
-  const imageGenerationPromiseRef = useRef<Promise<string | null> | null>(null);
-  const imageGenerationErrorRef = useRef("");
-  const savedRecipeIdRef = useRef<string | null>(null);
-  const generatedImagePersistentUrlRef = useRef("");
 
   const updateSavedRecipeId = (nextRecipeId: string | null) => {
-    savedRecipeIdRef.current = nextRecipeId;
     setSavedRecipeId(nextRecipeId);
-  };
-
-  const updateGeneratedImagePersistentUrl = (nextUrl: string) => {
-    const cleanUrl = String(nextUrl ?? "").trim();
-    generatedImagePersistentUrlRef.current = cleanUrl;
-    setGeneratedImagePersistentUrl(cleanUrl);
   };
 
   const selectedCategory = useMemo(() => categories.find(c => c.id === category) ?? categories[0], [categories, category]);
@@ -219,12 +202,6 @@ export default function RecipeGenerator() {
     setIngredients(finalIngredients);
     setResult(null);
     updateSavedRecipeId(null);
-    setGeneratedImageUrl("");
-    updateGeneratedImagePersistentUrl("");
-    setImageGenerationAttempted(false);
-    setGeneratedImageError("");
-    imageGenerationErrorRef.current = "";
-    imageGenerationPromiseRef.current = null;
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -270,124 +247,6 @@ export default function RecipeGenerator() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateRecipeImage = (recipe: any, options: { automatic?: boolean } = {}) => {
-    if (!recipe) return Promise.resolve(null);
-    const existingImage = firstUrl(generatedImagePersistentUrlRef.current, generatedImagePersistentUrl, recipe.image_url);
-    if (existingImage && !isTemporaryImageUrl(existingImage)) return Promise.resolve(existingImage);
-    if (imageGenerationPromiseRef.current) return imageGenerationPromiseRef.current;
-
-    const rememberImageError = (message: string) => {
-      const cleanMessage = String(message || "No se pudo generar la imagen.").trim();
-      imageGenerationErrorRef.current = cleanMessage;
-      setGeneratedImageError(cleanMessage);
-      return cleanMessage;
-    };
-
-    const task = (async () => {
-      setGeneratingImage(true);
-      setImageGenerationAttempted(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const response = await fetch("/api/generate-recipe-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          title: recipe.title,
-          ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.filter((item: any) => !isNoMacroIngredient(item)) : [],
-          preparation: Array.isArray(recipe.steps) ? recipe.steps : [],
-          recipe,
-        }),
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || "No se pudo crear la imagen del plato");
-      }
-      const imageUrl = firstUrl(data?.image_url, data?.preview_url, data?.url);
-      if (!imageUrl) throw new Error("No se recibió ninguna imagen");
-      const persistentUrl = data?.persistent === false
-        ? ""
-        : firstUrl(data?.image_url, data?.url);
-
-      setGeneratedImageUrl(imageUrl);
-      updateGeneratedImagePersistentUrl(persistentUrl || "");
-      if (persistentUrl) {
-        imageGenerationErrorRef.current = "";
-        setGeneratedImageError("");
-        setResult(current => current ? { ...current, image_url: persistentUrl } : current);
-        const targetRecipeId = savedRecipeIdRef.current;
-        if (targetRecipeId && user?.id) {
-          const { error: updateError } = await supabase
-            .from("recipes")
-            .update({
-              image_url: persistentUrl,
-              macros: {
-                ...(recipe?.macros ?? {}),
-                image_generation_status: "ready",
-                image_generation_error: "",
-              },
-            } as any)
-            .eq("id", targetRecipeId)
-            .eq("user_id", user.id);
-          if (updateError) throw updateError;
-        }
-        toast.success(options.automatic ? "Imagen del plato generada automáticamente." : "Imagen del plato generada y guardada.");
-        return persistentUrl;
-      } else {
-        const warning = rememberImageError(data?.storage_warning || "La imagen se creó, pero no se pudo guardar en Storage.");
-        const targetRecipeId = savedRecipeIdRef.current;
-        if (targetRecipeId && user?.id) {
-          await supabase
-            .from("recipes")
-            .update({
-              macros: {
-                ...(recipe?.macros ?? {}),
-                image_generation_status: "pending",
-                image_generation_error: warning,
-              },
-            } as any)
-            .eq("id", targetRecipeId)
-            .eq("user_id", user.id);
-        }
-        toast.warning(`${warning} La receta se guardará sin imagen.`);
-        return null;
-      }
-    })()
-    .catch(async (err: any) => {
-      console.error("[recipe-generator] error generando imagen del plato", err);
-      const message = rememberImageError(err?.message || "No se pudo crear la imagen del plato.");
-      const targetRecipeId = savedRecipeIdRef.current;
-      if (targetRecipeId && user?.id) {
-        await supabase
-          .from("recipes")
-          .update({
-            macros: {
-              ...(recipe?.macros ?? {}),
-              image_generation_status: "pending",
-              image_generation_error: message,
-            },
-          } as any)
-          .eq("id", targetRecipeId)
-          .eq("user_id", user.id);
-      }
-      toast.warning(
-        options.automatic
-          ? `La receta se ha generado, pero la imagen no se pudo crear: ${message}`
-          : message
-      );
-      return null;
-    })
-    .finally(() => {
-      setGeneratingImage(false);
-      imageGenerationPromiseRef.current = null;
-    });
-
-    imageGenerationPromiseRef.current = task;
-    return task;
   };
 
   const saveRecipe = async (
@@ -454,17 +313,12 @@ export default function RecipeGenerator() {
       const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const imageUrl = firstUrl(
         enrichedRecipe.image_url,
-        generatedImagePersistentUrlRef.current,
-        generatedImagePersistentUrl,
         enrichedRecipe.imageUrl,
         enrichedRecipe.cover_image_url,
         enrichedRecipe.image?.url,
         enrichedRecipe.image
       );
       const finalImageUrl = isTemporaryImageUrl(imageUrl) ? null : imageUrl;
-      if (generatedImageUrl && !finalImageUrl) {
-        toast.warning("La receta se guardará, pero la imagen no quedó guardada de forma permanente.");
-      }
       const imageGenerationMetadata = finalImageUrl
         ? { image_generation_status: "ready", image_generation_error: "" }
         : {};
@@ -503,9 +357,6 @@ export default function RecipeGenerator() {
       };
       setResult(savedRecipe);
       updateSavedRecipeId(recipeId);
-      if (RECIPE_IMAGE_GENERATION_ENABLED && !finalImageUrl && imageGenerationPromiseRef.current) {
-        toast.info("Receta guardada. La imagen sigue preparándose en segundo plano.");
-      }
       toast.success(options.successMessage ?? "Guardada en Mis recetas");
       if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
     } catch (err: any) {
@@ -520,12 +371,6 @@ export default function RecipeGenerator() {
     if (!user || !savedRecipeId) {
       setResult(null);
       updateSavedRecipeId(null);
-      setGeneratedImageUrl("");
-      updateGeneratedImagePersistentUrl("");
-      setImageGenerationAttempted(false);
-      setGeneratedImageError("");
-      imageGenerationErrorRef.current = "";
-      imageGenerationPromiseRef.current = null;
       setConfirmDiscardGenerated(false);
       return;
     }
@@ -538,12 +383,6 @@ export default function RecipeGenerator() {
     }
     setResult(null);
     updateSavedRecipeId(null);
-    setGeneratedImageUrl("");
-    updateGeneratedImagePersistentUrl("");
-    setImageGenerationAttempted(false);
-    setGeneratedImageError("");
-    imageGenerationErrorRef.current = "";
-    imageGenerationPromiseRef.current = null;
     setConfirmDiscardGenerated(false);
     toast.success("Receta descartada correctamente.");
   };
@@ -642,12 +481,7 @@ export default function RecipeGenerator() {
           categories={categories}
           saved={Boolean(savedRecipeId)}
           saving={savingRecipe}
-          generatedImageUrl={generatedImageUrl}
-          generatingImage={generatingImage}
-          imageGenerationAttempted={imageGenerationAttempted}
-          generatedImageError={generatedImageError}
           onSave={() => saveRecipe(result)}
-          onGenerateImage={() => generateRecipeImage(result)}
           onRequestDiscard={() => setConfirmDiscardGenerated(true)}
         />
       )}
@@ -676,24 +510,14 @@ function RecipeCard({
   categories,
   saved,
   saving,
-  generatedImageUrl,
-  generatingImage,
-  imageGenerationAttempted,
-  generatedImageError,
   onSave,
-  onGenerateImage,
   onRequestDiscard,
 }: {
   recipe: any;
   categories: RecipeGeneratorCategory[];
   saved: boolean;
   saving: boolean;
-  generatedImageUrl: string;
-  generatingImage: boolean;
-  imageGenerationAttempted: boolean;
-  generatedImageError: string;
   onSave: () => void;
-  onGenerateImage: () => void;
   onRequestDiscard: () => void;
 }) {
   const perServing = recipe.macros ?? {};
@@ -716,23 +540,6 @@ function RecipeCard({
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
       </div>
-
-      {generatedImageUrl ? (
-        <div className="rounded-3xl overflow-hidden border border-primary/30 bg-white shadow-sm mt-4">
-          <img src={generatedImageUrl} alt={`Imagen del plato ${recipe.title ?? ""}`} className="w-full aspect-square object-cover" />
-          <a href={generatedImageUrl} download={`${normalizeForDuplicate(recipe.title) || "receta"}.png`} className="btn-primary w-full rounded-none">
-            <Download className="h-4 w-4" /> Descargar imagen
-          </a>
-        </div>
-      ) : RECIPE_IMAGE_GENERATION_ENABLED ? (
-        <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/5 p-3">
-          <div className="text-sm font-semibold text-primary">Imagen pendiente</div>
-          {generatedImageError && <p className="text-xs muted mt-1">{generatedImageError}</p>}
-          <button type="button" onClick={onGenerateImage} disabled={generatingImage} className="btn-primary w-full mt-3">
-            {generatingImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando imagen…</> : <><ImagePlus className="h-4 w-4" /> {imageGenerationAttempted ? "Reintentar imagen" : "Generar imagen"}</>}
-          </button>
-        </div>
-      ) : null}
 
       <div className="grid grid-cols-2 gap-2 text-sm mt-4">
         <div className="nutrition-stat text-left"><div className="font-semibold">{recipe.servings ?? 1}</div><div className="muted text-[10px] uppercase tracking-wide">Raciones</div></div>
