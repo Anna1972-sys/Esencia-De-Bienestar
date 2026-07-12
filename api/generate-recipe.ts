@@ -637,6 +637,21 @@ async function callOpenAI(apiKey: string, prompt: string) {
   }
 }
 
+function getFriendlyOpenAIError(err: any) {
+  const raw = String(err?.message || "");
+  const lower = raw.toLowerCase();
+
+  if (lower.includes("insufficient_quota") || lower.includes("openai 429")) {
+    return "No se ha podido generar la receta porque la API de OpenAI no dispone de crédito o ha alcanzado su límite de uso.";
+  }
+
+  if (err?.name === "AbortError") {
+    return "La generación ha tardado demasiado. Inténtalo de nuevo.";
+  }
+
+  return raw || "Error generando receta";
+}
+
 async function verifySupabaseSession(authHeader: string | undefined) {
   const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
   if (!token) return { ok: false, status: 401, error: "Debes iniciar sesión para generar recetas" };
@@ -720,9 +735,6 @@ export default async function handler(req: any, res: any) {
       validation_issues: issues,
     });
   } catch (err: any) {
-    const message = err?.name === "AbortError"
-      ? "La generación ha tardado demasiado. Inténtalo de nuevo."
-      : err?.message || "Error generando receta";
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: getFriendlyOpenAIError(err) });
   }
 }
