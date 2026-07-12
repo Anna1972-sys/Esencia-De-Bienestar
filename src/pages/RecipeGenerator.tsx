@@ -88,6 +88,14 @@ const ingredientLabel = (item: any) =>
 const ingredientName = (item: any) =>
   typeof item === "string" ? item : item?.name ?? ingredientLabel(item);
 
+const numberOrZero = (value: unknown) => {
+  const parsed = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeIngredientKey = (value: unknown) =>
+  normalizeIngredientText(value).replace(/\s+/g, " ").trim();
+
 const isNoMacroIngredient = (item: any) => {
   const normalized = normalizeIngredientText(ingredientName(item));
   if (!normalized) return false;
@@ -111,6 +119,173 @@ const seasoningNote = (items: any[]) => {
     return `${parts.join(", ").replace(/, ([^,]*)$/, " y $1")} al gusto.`;
   }
   return "Condimentar al gusto.";
+};
+
+type NutritionConstraint = {
+  label: string;
+  minCalories?: number;
+  maxCalories?: number;
+};
+
+const getRecipeNutritionConstraint = (
+  categoryId: RecipeCategory,
+  categoryList: RecipeGeneratorCategory[],
+): NutritionConstraint | null => {
+  const categoryInfo = categoryList.find(item => item.id === categoryId);
+  const normalized = normalizeForDuplicate(`${categoryId} ${categoryInfo?.label ?? ""} ${categoryInfo?.description ?? ""}`);
+
+  if (normalized.includes("nutricion deportiva") || normalized.includes("deportiva")) {
+    return { label: categoryInfo?.label ?? "Nutrición deportiva" };
+  }
+
+  if (normalized.includes("merienda") || normalized.includes("almuerzo")) {
+    return { label: categoryInfo?.label ?? "Almuerzos y meriendas", minCalories: 170, maxCalories: 180 };
+  }
+
+  if (normalized.includes("cena") && normalized.includes("sin")) {
+    return { label: categoryInfo?.label ?? "Cenas sin Herbalife", maxCalories: 250 };
+  }
+
+  if (normalized.includes("comida") || normalized.includes("principal") || normalized.includes("saludable")) {
+    return { label: categoryInfo?.label ?? "Comidas saludables", maxCalories: 500 };
+  }
+
+  return null;
+};
+
+const adjustmentProfiles = [
+  { words: ["aceite", "mantequilla", "margarina"], priority: 1, maxReduction: 0.7, minAmount: 2 },
+  { words: ["arroz", "pasta", "patata", "boniato", "pan", "harina", "maicena", "avena", "quinoa", "cuscus", "couscous"], priority: 2, maxReduction: 0.45, minAmount: 20 },
+  { words: ["vino"], priority: 3, maxReduction: 0.45, minAmount: 15 },
+  { words: ["aguacate", "fruto seco", "nuez", "almendra", "cacahuete", "queso"], priority: 4, maxReduction: 0.35, minAmount: 15 },
+  { words: ["ternera", "cerdo", "cordero", "carne"], priority: 5, maxReduction: 0.2, minAmount: 100 },
+  { words: ["pollo", "pavo", "atun", "atún", "huevo", "tofu"], priority: 6, maxReduction: 0.12, minAmount: 90 },
+];
+
+const getAdjustmentProfile = (name: unknown, kcal: number) => {
+  const normalized = normalizeIngredientKey(name);
+  const matched = adjustmentProfiles.find(profile => profile.words.some(word => normalized.includes(normalizeIngredientKey(word))));
+  if (matched) return matched;
+  return kcal >= 120 ? { priority: 9, maxReduction: 0.12, minAmount: 20 } : null;
+};
+
+const formatQuantityAmount = (value: number) => {
+  if (!Number.isFinite(value)) return "0";
+  const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
+  return String(rounded).replace(".", ",");
+};
+
+const inferQuantityUnit = (item: any) => {
+  const quantity = String(item?.quantity ?? "");
+  const unitMatch = quantity.match(/\b(ml|mililitros?|g|gr|gramos?)\b/i);
+  if (unitMatch) return unitMatch[1].toLowerCase().startsWith("m") ? "ml" : "g";
+  const normalized = normalizeIngredientKey(ingredientName(item));
+  return ["aceite", "caldo", "vino", "agua", "vinagre", "leche", "bebida"].some(word => normalized.includes(word)) ? "ml" : "g";
+};
+
+const updateIngredientAmount = (item: any, nextAmount: number) => {
+  const unit = inferQuantityUnit(item);
+  const quantity = `${formatQuantityAmount(nextAmount)} ${unit}`;
+  if (typeof item === "string") {
+    return { name: item.replace(/^\s*[\d.,]+\s*(g|gr|gramos?|ml|mililitros?)\s+/i, "").trim() || item, quantity, grams: nextAmount };
+  }
+  return {
+    ...item,
+    quantity,
+    grams: nextAmount,
+  };
+};
+
+const ingredientDetailCalories = (recipe: any, item: any, index: number) => {
+  const details = Array.isArray(recipe?.macros?.calculation_detail?.ingredients)
+    ? recipe.macros.calculation_detail.ingredients
+    : [];
+  const key = normalizeIngredientKey(ingredientName(item));
+  const byName = details.find((detail: any) => {
+    const candidates = [detail?.name, detail?.matchedAs, detail?.displayName].map(normalizeIngredientKey).filter(Boolean);
+    return candidates.some(candidate => candidate === key || candidate.includes(key) || key.includes(candidate));
+  });
+  const detail = byName ?? details[index];
+  return numberOrZero(detail?.macros?.kcal);
+};
+
+const reduceCaloriesOnce = (recipe: any, maxCalories: number) => {
+  const ingredients = Array.isArray(recipe?.ingredients) ? recipe.ingredients : [];
+  const currentCalories = numberOrZero(recipe?.macros?.calories);
+  let excess = currentCalories - maxCalories;
+  if (excess <= 0 || ingredients.length === 0) return null;
+
+  const candidates = ingredients
+    .map((item: any, index: number) => {
+      const kcal = ingredientDetailCalories(recipe, item, index);
+      const amount = numberOrZero(item?.grams) || numberOrZero(String(item?.quantity ?? item).match(/[\d.,]+/)?.[0]);
+      const profile = getAdjustmentProfile(ingredientName(item), kcal);
+      return { item, index, kcal, amount, profile };
+    })
+    .filter(candidate => candidate.profile && candidate.kcal > 0 && candidate.amount > 0)
+    .sort((a, b) => (a.profile!.priority - b.profile!.priority) || (b.kcal - a.kcal));
+
+  if (candidates.length === 0) return null;
+
+  const nextIngredients = [...ingredients];
+  let changed = false;
+
+  for (const candidate of candidates) {
+    if (excess <= 0) break;
+    const profile = candidate.profile!;
+    const minAmount = Math.min(profile.minAmount, candidate.amount * 0.85);
+    const maxReductionAmount = Math.max(0, candidate.amount - minAmount);
+    if (maxReductionAmount <= 0) continue;
+
+    const desiredRatio = Math.min(profile.maxReduction, Math.max(0.08, (excess / candidate.kcal) * 1.15));
+    const targetAmount = Math.max(minAmount, candidate.amount * (1 - desiredRatio));
+    const reducedAmount = Math.max(0, candidate.amount - targetAmount);
+    if (reducedAmount < 0.5) continue;
+
+    const nextAmount = Math.round(targetAmount * 10) / 10;
+    nextIngredients[candidate.index] = updateIngredientAmount(candidate.item, nextAmount);
+    const estimatedDrop = candidate.kcal * (reducedAmount / candidate.amount);
+    excess -= estimatedDrop;
+    changed = true;
+  }
+
+  if (!changed) return null;
+
+  return {
+    ...recipe,
+    ingredients: nextIngredients,
+  };
+};
+
+const validateNutritionBeforeDisplay = async (
+  recipe: any,
+  fallbackCategory: RecipeCategory,
+  categoryList: RecipeGeneratorCategory[],
+  preferences?: string,
+  restrictions?: string,
+) => {
+  const constraint = getRecipeNutritionConstraint(recipe?.category ?? fallbackCategory, categoryList);
+  if (!constraint?.maxCalories) return recipe;
+
+  let currentRecipe = recipe;
+  let attempts = 0;
+  while (numberOrZero(currentRecipe?.macros?.calories) > constraint.maxCalories && attempts < 3) {
+    const adjusted = reduceCaloriesOnce(currentRecipe, constraint.maxCalories);
+    if (!adjusted) break;
+    attempts += 1;
+    currentRecipe = await withSpecialistMacros(adjusted, fallbackCategory, preferences, restrictions);
+  }
+
+  const finalCalories = numberOrZero(currentRecipe?.macros?.calories);
+  if (finalCalories > constraint.maxCalories) {
+    throw new Error(`No se pudo ajustar la receta a ${constraint.maxCalories} kcal por ración. Prueba con menos aceite, patata, arroz, pasta o carne grasa.`);
+  }
+
+  if (attempts > 0) {
+    toast.info(`He ajustado las cantidades para que ${constraint.label} cumpla el objetivo nutricional.`);
+  }
+
+  return currentRecipe;
 };
 
 const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategory, preferences?: string, restrictions?: string) => {
@@ -254,9 +429,16 @@ export default function RecipeGenerator() {
           [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
           [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
         );
+        enrichedRecipe = await validateNutritionBeforeDisplay(
+          enrichedRecipe,
+          category,
+          categories,
+          [preferences.trim(), likes.trim() ? `Alimentos que le gustan: ${likes.trim()}` : ""].filter(Boolean).join(" · "),
+          [dislikes.trim(), avoid.trim()].filter(Boolean).join(" · "),
+        );
       } catch (macroError: any) {
         console.error("[recipe-generator] no se pudieron recalcular macros al generar", macroError);
-        toast.warning("Receta generada. Revisa los macros si es necesario.");
+        throw macroError;
       }
       setResult(enrichedRecipe);
     } catch (err: any) {
