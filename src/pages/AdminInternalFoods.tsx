@@ -179,17 +179,32 @@ const looksLikeImportHeader = (headers: string[]) => {
   return recognizedFields.filter(field => Boolean(findHeaderKey(headers, field))).length >= 2;
 };
 
+const looksLikeImportDataRow = (row: any[]) => {
+  const firstCell = String(row[0] ?? "").trim();
+  if (!firstCell) return false;
+  const numericCells = row.slice(1).filter(value => parseImportNumber(value) !== null).length;
+  return numericCells >= 2;
+};
+
+const fallbackHeadersForNutritionRows = (rowLength: number) => {
+  const defaults = ["nombre", "category", "calories", "fat", "protein", "azucares_g", "salt", "carbs", "fiber", "grasas_saturadas_g"];
+  return Array.from({ length: rowLength }, (_, index) => defaults[index] ?? `extra_${index}`);
+};
+
 const worksheetToImportRows = (sheet: XLSX.WorkSheet) => {
   const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
   const normalizedMatrix = matrix.map(row => row.map(cell => normalizeImportHeader(cell)));
   const headerWithNameIndex = normalizedMatrix.findIndex(headers => Boolean(findHeaderKey(headers, "name")));
-  const headerRowIndex = headerWithNameIndex >= 0 ? headerWithNameIndex : normalizedMatrix.findIndex(looksLikeImportHeader);
-  if (headerRowIndex === -1) throw new Error("No se encontró la columna Nombre o Alimento en el archivo");
+  let headerRowIndex = headerWithNameIndex >= 0 ? headerWithNameIndex : normalizedMatrix.findIndex(looksLikeImportHeader);
+  const dataFallbackIndex = matrix.findIndex(looksLikeImportDataRow);
+  if (headerRowIndex === -1 && dataFallbackIndex === -1) throw new Error("No se encontró la columna Nombre o Alimento en el archivo");
 
-  const headers = [...normalizedMatrix[headerRowIndex]];
-  if (!findHeaderKey(headers, "name") && !headers[0]) headers[0] = "nombre";
+  const hasHeaderRow = headerRowIndex >= 0;
+  if (!hasHeaderRow) headerRowIndex = Math.max(dataFallbackIndex - 1, 0);
+  const headers = hasHeaderRow ? [...normalizedMatrix[headerRowIndex]] : fallbackHeadersForNutritionRows(matrix[dataFallbackIndex]?.length ?? 0);
+  if (!findHeaderKey(headers, "name")) headers[0] = "nombre";
   return matrix
-    .slice(headerRowIndex + 1)
+    .slice(hasHeaderRow ? headerRowIndex + 1 : dataFallbackIndex)
     .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])))
     .filter(row => Object.values(row).some(value => String(value ?? "").trim() !== ""));
 };
