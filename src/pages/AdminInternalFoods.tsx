@@ -166,6 +166,19 @@ const findHeaderKey = (headers: string[], field: string) => {
   return headers.find(header => aliases.includes(header));
 };
 
+const worksheetToImportRows = (sheet: XLSX.WorkSheet) => {
+  const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
+  const normalizedMatrix = matrix.map(row => row.map(cell => normalizeImportHeader(cell)));
+  const headerRowIndex = normalizedMatrix.findIndex(headers => Boolean(findHeaderKey(headers, "name")));
+  if (headerRowIndex === -1) throw new Error("No se encontró la columna Nombre o Alimento en el archivo");
+
+  const headers = normalizedMatrix[headerRowIndex];
+  return matrix
+    .slice(headerRowIndex + 1)
+    .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])))
+    .filter(row => Object.values(row).some(value => String(value ?? "").trim() !== ""));
+};
+
 const parseImportNumber = (value: unknown) => {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -637,8 +650,7 @@ export default function AdminInternalFoods() {
     try {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" })
-        .map(row => Object.fromEntries(Object.entries(row).map(([key, val]) => [normalizeImportHeader(key), val])));
+      const rows = worksheetToImportRows(sheet);
       const preview = buildImportPreview(file.name, rows);
       setImportPreview(preview);
       toast.success(`Archivo analizado: ${preview.created.length} se crearán, ${preview.updated.length} se actualizarán, ${preview.skipped.length} se omitirán.`);
