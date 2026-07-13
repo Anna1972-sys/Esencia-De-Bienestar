@@ -514,9 +514,6 @@ export default function AdminShopping() {
         </div>
       </section>
 
-      {tab === "clients" && clientItemsList}
-      {tab === "templates" && templateItemsList}
-
       {/* === CLIENT ITEMS TAB === */}
       {tab === "clients" && (
         <section>
@@ -573,6 +570,7 @@ export default function AdminShopping() {
             </button>
           </div>
 
+          {clientItemsList}
         </section>
       )}
 
@@ -628,6 +626,7 @@ export default function AdminShopping() {
             </button>
           </div>
 
+          {templateItemsList}
         </section>
       )}
     </div>
