@@ -294,8 +294,7 @@ function buildWriteAuthAttempts({
   anonKey: string;
   userToken: string;
 }) {
-  const serviceRoleIsJwt = serviceRoleKey.startsWith("eyJ");
-  const candidates = serviceRoleIsJwt
+  const candidates = serviceRoleKey
     ? [
         { apikey: serviceRoleKey, authorization: serviceRoleKey },
         { apikey: anonKey, authorization: userToken },
@@ -307,7 +306,7 @@ function buildWriteAuthAttempts({
   const seen = new Set<string>();
   return candidates.filter(item => {
     const key = `${item.apikey}|${item.authorization}`;
-    if (seen.has(key)) return false;
+    if (!item.apikey || !item.authorization || seen.has(key)) return false;
     seen.add(key);
     return true;
   });

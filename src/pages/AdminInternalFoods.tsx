@@ -980,10 +980,10 @@ export default function AdminInternalFoods() {
               <details className="text-xs">
                 <summary className="cursor-pointer font-medium">Ver filas omitidas</summary>
                 <ul className="mt-2 space-y-1">
-                  {importReport.skipped.slice(0, 12).map(item => (
+                  {importReport.skipped.slice(0, 40).map(item => (
                     <li key={`${item.row}-${item.name}`}>Fila {item.row}: {item.name} · {item.reason}</li>
                   ))}
-                  {importReport.skipped.length > 12 && <li>…y {importReport.skipped.length - 12} filas más.</li>}
+                  {importReport.skipped.length > 40 && <li>…y {importReport.skipped.length - 40} filas más.</li>}
                 </ul>
               </details>
             )}
