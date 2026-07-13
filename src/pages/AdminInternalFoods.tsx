@@ -145,6 +145,12 @@ const normalizeImportHeader = (value: unknown) =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+const importHeaderWithoutUnit = (header: string) =>
+  header
+    .replace(/_(?:kcal|kj|g|mg|ml)_100(?:g|ml)$/g, "")
+    .replace(/_100(?:g|ml)$/g, "")
+    .replace(/_por_100(?:g|ml)$/g, "");
+
 const HEADER_ALIASES: Record<string, string[]> = {
   name: ["nombre", "name", "alimento", "food"],
   category: ["categoria", "category"],
@@ -165,16 +171,23 @@ const HEADER_ALIASES: Record<string, string[]> = {
 
 const findHeaderKey = (headers: string[], field: string) => {
   const aliases = HEADER_ALIASES[field] ?? [field];
-  return headers.find(header => aliases.includes(header));
+  return headers.find(header => aliases.includes(header) || aliases.includes(importHeaderWithoutUnit(header)));
+};
+
+const looksLikeImportHeader = (headers: string[]) => {
+  const recognizedFields = ["category", "calories", "protein", "carbs", "azucares_g", "fat", "grasas_saturadas_g", "fiber", "salt"];
+  return recognizedFields.filter(field => Boolean(findHeaderKey(headers, field))).length >= 2;
 };
 
 const worksheetToImportRows = (sheet: XLSX.WorkSheet) => {
   const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
   const normalizedMatrix = matrix.map(row => row.map(cell => normalizeImportHeader(cell)));
-  const headerRowIndex = normalizedMatrix.findIndex(headers => Boolean(findHeaderKey(headers, "name")));
+  const headerWithNameIndex = normalizedMatrix.findIndex(headers => Boolean(findHeaderKey(headers, "name")));
+  const headerRowIndex = headerWithNameIndex >= 0 ? headerWithNameIndex : normalizedMatrix.findIndex(looksLikeImportHeader);
   if (headerRowIndex === -1) throw new Error("No se encontró la columna Nombre o Alimento en el archivo");
 
-  const headers = normalizedMatrix[headerRowIndex];
+  const headers = [...normalizedMatrix[headerRowIndex]];
+  if (!findHeaderKey(headers, "name") && !headers[0]) headers[0] = "nombre";
   return matrix
     .slice(headerRowIndex + 1)
     .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])))
@@ -473,6 +486,19 @@ export default function AdminInternalFoods() {
       candidate.base_unit = base.base_unit;
       if (!candidate.includedFields.includes("base_quantity")) candidate.includedFields.push("base_quantity");
       candidate.includedFields.push("base_unit");
+    }
+    if (!candidate.base_unit) {
+      if (headers.some(header => /100ml/.test(header))) {
+        candidate.base_quantity = candidate.base_quantity ?? 100;
+        candidate.base_unit = "ml";
+        if (!candidate.includedFields.includes("base_quantity")) candidate.includedFields.push("base_quantity");
+        candidate.includedFields.push("base_unit");
+      } else if (headers.some(header => /100g/.test(header))) {
+        candidate.base_quantity = candidate.base_quantity ?? 100;
+        candidate.base_unit = "g";
+        if (!candidate.includedFields.includes("base_quantity")) candidate.includedFields.push("base_quantity");
+        candidate.includedFields.push("base_unit");
+      }
     }
 
     const numericFields: Array<[keyof ImportableFoodPayload, string, string]> = [
