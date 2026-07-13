@@ -127,6 +127,8 @@ const toNullableNumber = (value: any) => {
 const hasNumericValue = (value: unknown) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 const formatOptionalGramValue = (value: unknown) => hasNumericValue(value) ? `${value}g` : "—";
 const synonymsToText = (value: string[] | null | undefined) => (value ?? []).join(", ");
+const UNCATEGORIZED_INTERNAL_FOOD_CATEGORY = "Sin categoría";
+const displayFoodCategory = (value: string | null | undefined) => String(value ?? "").trim() || UNCATEGORIZED_INTERNAL_FOOD_CATEGORY;
 const textToSynonyms = (value: string) =>
   value
     .split(/[,;]/)
@@ -453,10 +455,6 @@ export default function AdminInternalFoods() {
       candidate.synonyms = textToSynonyms(String(value("synonyms") ?? ""));
       candidate.includedFields.push("synonyms");
     }
-    if (hasField("category") && String(value("category") ?? "").trim()) {
-      candidate.category = String(value("category") ?? "").trim();
-      candidate.includedFields.push("category");
-    }
     if (hasField("source") && String(value("source") ?? "").trim()) {
       candidate.source = String(value("source") ?? "").trim();
       candidate.includedFields.push("source");
@@ -530,7 +528,7 @@ export default function AdminInternalFoods() {
       grasas_saturadas_g: existing?.grasas_saturadas_g ?? null,
       fiber: existing?.fiber ?? 0,
       salt: existing?.salt ?? 0,
-      category: existing?.category ?? "general",
+      category: displayFoodCategory(existing?.category),
       source: existing?.source ?? "Tabla interna",
       is_active: existing?.is_active ?? true,
     };
@@ -552,7 +550,7 @@ export default function AdminInternalFoods() {
           grasas_saturadas_g: candidate.grasas_saturadas_g ?? null,
           fiber: candidate.fiber ?? 0,
           salt: candidate.salt ?? 0,
-          category: candidate.category ?? "general",
+          category: UNCATEGORIZED_INTERNAL_FOOD_CATEGORY,
           source: candidate.source ?? "Tabla interna",
           is_active: candidate.is_active ?? true,
         },
@@ -903,6 +901,7 @@ export default function AdminInternalFoods() {
             </div>
             <p className="text-xs muted">
               No se eliminará ningún alimento. En alimentos existentes, el Excel actualizará los campos que incluya; las columnas que no estén en el Excel conservarán el valor actual de la base.
+              Las categorías del Excel no se aplican automáticamente: los alimentos nuevos quedarán en “Sin categoría” y los existentes conservarán su categoría actual.
             </p>
             {importPreview.conflicts.length > 0 && (
               <details className="text-xs">
@@ -1025,7 +1024,7 @@ export default function AdminInternalFoods() {
                     {!food.is_active && <span className="text-[10px] rounded-full px-2 py-0.5 bg-muted">Inactivo</span>}
                   </div>
                   <p className="text-xs muted mt-1">
-                    {food.category} · Base: {food.base_quantity} {food.base_unit === "serving" ? "ración" : food.base_unit} · Fuente: {food.source}
+                    {displayFoodCategory(food.category)} · Base: {food.base_quantity} {food.base_unit === "serving" ? "ración" : food.base_unit} · Fuente: {food.source}
                   </p>
                   {food.synonyms.length > 0 && <p className="text-xs muted mt-1">Sinónimos: {food.synonyms.join(", ")}</p>}
                   <div className="grid grid-cols-2 min-[420px]:grid-cols-3 md:grid-cols-4 gap-1 text-center text-[11px] mt-2">
