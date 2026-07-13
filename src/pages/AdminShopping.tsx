@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Package, ArrowLeft } from "lucide-react";
 import BackButton from "@/components/BackButton";
@@ -25,6 +25,7 @@ const normalizeCategoryName = (value: unknown) =>
 
 export default function AdminShopping() {
   const [tab, setTab] = useState<Tab>("templates");
+  const categoryScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [cats, setCats] = useState<Category[]>([]);
   const [items, setItems] = useState<Template[]>([]);
@@ -318,6 +319,16 @@ export default function AdminShopping() {
   const activeChips = tab === "templates"
     ? templateFilterChips.map((ch) => ({ ...ch, total: counts[ch.key] ?? 0, active: filterCat === ch.key, onClick: () => setFilterCat(ch.key) }))
     : clientFilterChips.map((ch) => ({ ...ch, total: cCounts[ch.key] ?? 0, active: cFilterCat === ch.key, onClick: () => setCFilterCat(ch.key) }));
+  const scrollCategoryBar = (direction: -1 | 1) => {
+    categoryScrollRef.current?.scrollBy({ left: direction * 190, behavior: "smooth" });
+  };
+  const handleCategoryWheel = (event: any) => {
+    const element = categoryScrollRef.current;
+    if (!element || element.scrollWidth <= element.clientWidth) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    element.scrollLeft += event.deltaY;
+  };
 
   const filteredIngredientGroups = useMemo(() => {
     const grouped = new Map<string, Template[]>();
@@ -457,19 +468,27 @@ export default function AdminShopping() {
             </div>
           </div>
 
-          <div className="shopping-category-scroll" role="tablist" aria-label="Categorías de lista de compra">
-            {activeChips.map((ch) => (
-              <button
-                key={ch.key}
-                type="button"
-                onClick={ch.onClick}
-                className={`shopping-filter-chip ${ch.active ? "is-active" : ""}`}
-                role="tab"
-                aria-selected={ch.active}
-              >
-                {ch.label} <span className="opacity-70">· {ch.total}</span>
-              </button>
-            ))}
+          <div className="shopping-category-scroll-wrap">
+            <button type="button" className="shopping-category-scroll-button" onClick={() => scrollCategoryBar(-1)} aria-label="Ver categorías anteriores">
+              ‹
+            </button>
+            <div ref={categoryScrollRef} className="shopping-category-scroll" role="tablist" aria-label="Categorías de lista de compra" onWheel={handleCategoryWheel}>
+              {activeChips.map((ch) => (
+                <button
+                  key={ch.key}
+                  type="button"
+                  onClick={ch.onClick}
+                  className={`shopping-filter-chip ${ch.active ? "is-active" : ""}`}
+                  role="tab"
+                  aria-selected={ch.active}
+                >
+                  {ch.label} <span className="opacity-70">· {ch.total}</span>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="shopping-category-scroll-button" onClick={() => scrollCategoryBar(1)} aria-label="Ver más categorías">
+              ›
+            </button>
           </div>
 
           <div className="shopping-category-toolbar">
