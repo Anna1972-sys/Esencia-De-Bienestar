@@ -30,6 +30,15 @@ type Row = {
 
 const UNCATEGORIZED = "__uncat__";
 
+const normalizeCategoryName = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
 export default function ShoppingList() {
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
@@ -86,12 +95,28 @@ export default function ShoppingList() {
   useEffect(() => { loadCats(); }, []);
   useEffect(() => { loadTemplates(); loadItems(); }, [user]);
 
+  const categoryByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    cats.forEach((category) => {
+      map.set(normalizeCategoryName(category.name), category.name);
+    });
+    return map;
+  }, [cats]);
+
+  const resolveCategory = (category?: string | null) => {
+    const key = normalizeCategoryName(category);
+    return key ? categoryByKey.get(key) ?? null : null;
+  };
+
+  const shoppingRowKey = (name: unknown, category?: string | null) =>
+    `${String(name ?? "").trim().toLowerCase()}|${normalizeCategoryName(resolveCategory(category) ?? category)}`;
+
   // Map of personal items keyed by "name|category" for matching templates
   const personalByKey = useMemo(() => {
     const m = new Map<string, Item>();
-    for (const i of items) m.set(`${String(i.name ?? "").toLowerCase()}|${i.category ?? ""}`, i);
+    for (const i of items) m.set(shoppingRowKey(i.name, i.category), i);
     return m;
-  }, [items]);
+  }, [items, categoryByKey]);
 
   const togglePersonal = async (id: string, checked: boolean) => {
     const { error } = await supabase.from("shopping_list_items").update({ checked: !checked }).eq("id", id);
@@ -101,7 +126,7 @@ export default function ShoppingList() {
 
   const toggleTemplate = async (t: Template, currentlyChecked: boolean) => {
     if (!user) return;
-    const key = `${String(t.name ?? "").toLowerCase()}|${t.category ?? ""}`;
+    const key = shoppingRowKey(t.name, t.category);
     const existing = personalByKey.get(key);
     if (currentlyChecked && existing) {
       // uncheck → remove the personal "checked marker"
@@ -119,15 +144,13 @@ export default function ShoppingList() {
     }
   };
 
-  const catNames = useMemo(() => new Set(cats.map(c => c.name)), [cats]);
-
   // Build unified rows: templates + personal items that aren't already mirroring a template
   const allRows = useMemo<Row[]>(() => {
     const rows: Row[] = [];
     const usedPersonalIds = new Set<string>();
 
     for (const t of templates) {
-      const key = `${String(t.name ?? "").toLowerCase()}|${t.category ?? ""}`;
+      const key = shoppingRowKey(t.name, t.category);
       const personal = personalByKey.get(key);
       if (personal) usedPersonalIds.add(personal.id);
       rows.push({
@@ -155,31 +178,31 @@ export default function ShoppingList() {
       });
     }
     return rows;
-  }, [templates, items, personalByKey]);
+  }, [templates, items, personalByKey, categoryByKey]);
 
   const filtered = useMemo(() => {
     const byCategory =
       filter === "all" ? allRows
-      : filter === UNCATEGORIZED ? allRows.filter(r => !r.category || !catNames.has(r.category))
-      : allRows.filter(r => r.category === filter);
+      : filter === UNCATEGORIZED ? allRows.filter(r => !resolveCategory(r.category))
+      : allRows.filter(r => resolveCategory(r.category) === filter);
     const q = String(query ?? "").trim().toLowerCase();
     if (!q) return byCategory;
     return byCategory.filter(r => String(r.name ?? "").toLowerCase().includes(q));
-  }, [allRows, filter, catNames, query]);
+  }, [allRows, filter, query, categoryByKey]);
 
   const grouped = useMemo(() => {
     const m = new Map<string, Row[]>();
     for (const c of cats) m.set(c.name, []);
     m.set(UNCATEGORIZED, []);
     for (const r of filtered) {
-      const key = r.category && catNames.has(r.category) ? r.category : UNCATEGORIZED;
+      const key = resolveCategory(r.category) ?? UNCATEGORIZED;
       if (!m.has(key)) m.set(key, []);
       m.get(key)!.push(r);
     }
     return m;
-  }, [filtered, cats, catNames]);
+  }, [filtered, cats, categoryByKey]);
 
-  const hasUncategorized = (grouped.get(UNCATEGORIZED)?.length ?? 0) > 0;
+  const hasUncategorized = allRows.some((row) => !resolveCategory(row.category));
 
   const total = filtered.length;
   const done = filtered.filter(r => r.checked).length;

@@ -14,6 +14,15 @@ type Profile = { id: string; display_name: string | null };
 const UNCAT = "__uncat__";
 type Tab = "templates" | "clients";
 
+const normalizeCategoryName = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
 export default function AdminShopping() {
   const [tab, setTab] = useState<Tab>("templates");
 
@@ -68,54 +77,67 @@ export default function AdminShopping() {
   };
   useEffect(() => { load(); }, []);
 
+  const categoryByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    cats.forEach((category) => {
+      map.set(normalizeCategoryName(category.name), category.name);
+    });
+    return map;
+  }, [cats]);
+
+  const resolveCategory = (category?: string | null) => {
+    const key = normalizeCategoryName(category);
+    return key ? categoryByKey.get(key) ?? null : null;
+  };
+
   // ---- Counts (templates) ----
   const counts = useMemo(() => {
     const m: Record<string, number> = { all: items.length, [UNCAT]: 0 };
     cats.forEach((c) => (m[c.name] = 0));
     items.forEach((it) => {
-      const k = it.category ?? UNCAT;
+      const k = resolveCategory(it.category) ?? UNCAT;
       m[k] = (m[k] ?? 0) + 1;
     });
     return m;
-  }, [items, cats]);
+  }, [items, cats, categoryByKey]);
 
   // ---- Counts (client items) ----
   const cCounts = useMemo(() => {
     const m: Record<string, number> = { all: clientItems.length, [UNCAT]: 0 };
     cats.forEach((c) => (m[c.name] = 0));
-    const known = new Set(cats.map((c) => c.name));
     clientItems.forEach((it) => {
-      const k = it.category && known.has(it.category) ? it.category : UNCAT;
+      const k = resolveCategory(it.category) ?? UNCAT;
       m[k] = (m[k] ?? 0) + 1;
     });
     return m;
-  }, [clientItems, cats]);
+  }, [clientItems, cats, categoryByKey]);
 
   const filtered = useMemo(() => {
-    const q = String(query ?? "").trim().toLowerCase();
+    const q = normalizeCategoryName(query);
     return items
       .filter((it) => {
         if (filterCat === "all") return true;
-        if (filterCat === UNCAT) return !it.category;
-        return it.category === filterCat;
+        const category = resolveCategory(it.category);
+        if (filterCat === UNCAT) return !category;
+        return category === filterCat;
       })
-      .filter((it) => (q ? String(it.name ?? "").toLowerCase().includes(q) : true))
+      .filter((it) => (q ? normalizeCategoryName(it.name).includes(q) : true))
       .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
-  }, [items, query, filterCat]);
+  }, [items, query, filterCat, categoryByKey]);
 
   const cFiltered = useMemo(() => {
-    const q = String(cQuery ?? "").trim().toLowerCase();
-    const known = new Set(cats.map((c) => c.name));
+    const q = normalizeCategoryName(cQuery);
     return clientItems
       .filter((it) => {
         if (cFilterCat === "all") return true;
-        if (cFilterCat === UNCAT) return !it.category || !known.has(it.category);
-        return it.category === cFilterCat;
+        const category = resolveCategory(it.category);
+        if (cFilterCat === UNCAT) return !category;
+        return category === cFilterCat;
       })
       .filter((it) => cFilterUser === "all" || it.user_id === cFilterUser)
-      .filter((it) => (q ? String(it.name ?? "").toLowerCase().includes(q) : true))
+      .filter((it) => (q ? normalizeCategoryName(it.name).includes(q) : true))
       .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
-  }, [clientItems, cQuery, cFilterCat, cFilterUser, cats]);
+  }, [clientItems, cQuery, cFilterCat, cFilterUser, categoryByKey]);
 
   const clientUsers = useMemo(() => {
     const ids = Array.from(new Set(clientItems.map((i) => i.user_id)));
@@ -274,29 +296,21 @@ export default function AdminShopping() {
 
   const templateFilterChips: { key: string; label: string }[] = useMemo(() => {
     const ordered = cats.map((c) => c.name);
-    const extras = Array.from(new Set(items.map((it) => it.category).filter((value): value is string => Boolean(value && value.trim()))))
-      .filter((name) => !ordered.includes(name))
-      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
     return [
       { key: "all", label: "Todas" },
       ...ordered.map((name) => ({ key: name, label: name })),
-      ...extras.map((name) => ({ key: name, label: name })),
       { key: UNCAT, label: "Sin categoría" },
     ];
-  }, [cats, items]);
+  }, [cats]);
 
   const clientFilterChips: { key: string; label: string }[] = useMemo(() => {
     const ordered = cats.map((c) => c.name);
-    const extras = Array.from(new Set(clientItems.map((it) => it.category).filter((value): value is string => Boolean(value && value.trim()))))
-      .filter((name) => !ordered.includes(name))
-      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
     return [
       { key: "all", label: "Todas" },
       ...ordered.map((name) => ({ key: name, label: name })),
-      ...extras.map((name) => ({ key: name, label: name })),
       { key: UNCAT, label: "Sin categoría" },
     ];
-  }, [cats, clientItems]);
+  }, [cats]);
 
   const activeCategory = tab === "templates" ? filterCat : cFilterCat;
   const activeCategoryRecord = activeCategory !== "all" && activeCategory !== UNCAT ? cats.find((c) => c.name === activeCategory) ?? null : null;
@@ -308,30 +322,26 @@ export default function AdminShopping() {
   const filteredIngredientGroups = useMemo(() => {
     const grouped = new Map<string, Template[]>();
     filtered.forEach((it) => {
-      const key = it.category?.trim() || UNCAT;
+      const key = resolveCategory(it.category) ?? UNCAT;
       grouped.set(key, [...(grouped.get(key) ?? []), it]);
     });
 
     const orderedCategoryNames = cats.map((c) => c.name);
-    const extraCategoryNames = Array.from(grouped.keys())
-      .filter((name) => name !== UNCAT && !orderedCategoryNames.includes(name))
-      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
     const order = filterCat === "all"
-      ? [...orderedCategoryNames, ...extraCategoryNames, UNCAT]
+      ? [...orderedCategoryNames, UNCAT]
       : [filterCat];
 
     return order
       .map((key) => ({ key, label: key === UNCAT ? "Sin categoría" : key, items: grouped.get(key) ?? [] }))
       .filter((group) => group.items.length > 0);
-  }, [filtered, cats, filterCat]);
+  }, [filtered, cats, filterCat, categoryByKey]);
 
   const clientItemsList = (
     <section className="mb-5">
       <div className="space-y-2">
         {cFiltered.map((it) => {
-          const known = cats.some((c) => c.name === it.category);
-          const displayCat = it.category && known ? it.category : "";
+          const displayCat = resolveCategory(it.category) ?? "";
           return (
             <div key={it.id} className="card-soft shopping-inner-card p-3 flex items-center gap-2">
               <input
@@ -345,7 +355,7 @@ export default function AdminShopping() {
                 <div className="text-xs muted truncate">
                   {profiles[it.user_id] || "Clienta"}
                   {it.quantity ? ` · ${it.quantity}` : ""}
-                  {!known && it.category ? ` · ⚠ "${it.category}" (categoría desconocida)` : ""}
+                  {!displayCat && it.category ? ` · Sin categoría` : ""}
                 </div>
               </div>
               <select
@@ -392,9 +402,9 @@ export default function AdminShopping() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{it.name}</div>
-                    <div className="text-xs muted truncate">{it.category ?? "Sin categoría"}</div>
+                    <div className="text-xs muted truncate">{resolveCategory(it.category) ?? "Sin categoría"}</div>
                   </div>
-                  <button onClick={() => { setItemForm({ id: it.id, name: it.name, category: it.category ?? "", sort_order: it.sort_order }); document.getElementById("tpl-form")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="p-1 text-primary" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => { setItemForm({ id: it.id, name: it.name, category: resolveCategory(it.category) ?? "", sort_order: it.sort_order }); document.getElementById("tpl-form")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="p-1 text-primary" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
                   <button onClick={() => delItem(it.id)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
                 </div>
               ))}
