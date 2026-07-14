@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Trash2, ShoppingBag, ArrowLeft, ChefHat } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowLeft, ChefHat, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const macroValue = (macros: any, key: string) => Number(macros?.[key] ?? 0);
@@ -21,6 +21,7 @@ export default function SavedRecipes() {
   const [confirmRecipe, setConfirmRecipe] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
+  const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -126,6 +127,53 @@ export default function SavedRecipes() {
     }
   };
 
+  const generateRecipeImage = async (recipe: any) => {
+    if (!user || !recipe?.id) return;
+    if (!isAdmin) {
+      toast.error("Solo la administradora puede generar imágenes.");
+      return;
+    }
+    if (generatingImageId) return;
+    setGeneratingImageId(recipe.id);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (sessionError || !token) throw new Error("Vuelve a iniciar sesión para generar la imagen.");
+
+      const response = await fetch("/api/generate-recipe-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ recipe }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo generar la imagen con Gemini.");
+      }
+
+      const imageUrl = firstUrl(payload?.image_url);
+      if (!imageUrl) {
+        throw new Error(payload?.storage_warning || "Gemini creó la imagen, pero no se pudo guardar de forma permanente.");
+      }
+
+      const { error: updateError } = await supabase
+        .from("recipes")
+        .update({ image_url: imageUrl } as any)
+        .eq("id", recipe.id)
+        .eq("user_id", user.id);
+      if (updateError) throw updateError;
+
+      setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: imageUrl } : item));
+      toast.success("Imagen creada con Gemini y guardada correctamente.");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo generar la imagen.");
+    } finally {
+      setGeneratingImageId(null);
+    }
+  };
+
   const filtered = items.filter(r => String(r.title ?? "").toLowerCase().includes(String(q ?? "").toLowerCase()));
 
   return (
@@ -220,6 +268,17 @@ export default function SavedRecipes() {
                           onChange={(event) => uploadRecipeImage(event, r)}
                         />
                       </label>
+                      {!hasImage && (
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs"
+                          onClick={() => generateRecipeImage(r)}
+                          disabled={generatingImageId === r.id || uploadingImageId === r.id}
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          {generatingImageId === r.id ? "Generando imagen…" : "Generar imagen con Gemini"}
+                        </button>
+                      )}
                       {hasImage && (
                         <button
                           type="button"

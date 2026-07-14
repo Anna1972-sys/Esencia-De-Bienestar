@@ -120,7 +120,8 @@ function pickSupabaseUrl(...candidates: Array<string | undefined>) {
 const SYSTEM_PROMPT = `Eres el motor nutricional de Esencia de Bienestar.
 Generas recetas prácticas, realistas y seguras en español.
 Debes responder SIEMPRE con JSON válido, sin markdown y sin texto adicional.
-La receta debe usar como base los ingredientes disponibles del usuario. Puedes añadir básicos de despensa solo si son mínimos: agua, sal, pimienta, especias, limón o una cantidad pequeña de aceite.
+La receta debe usar EXCLUSIVAMENTE los ingredientes disponibles del usuario.
+No añadas ningún ingrediente nuevo, ni básicos de despensa, ni aceite, ni agua, ni sal, ni especias, ni limón, ni guarniciones si no aparecen literalmente en los ingredientes disponibles.
 No calcules calorías ni macros. El cálculo nutricional final lo hace otro módulo con bases de datos verificadas.
 Si devuelves valores nutricionales, serán ignorados.
 Todos los ingredientes deben incluir gramos exactos.
@@ -246,6 +247,161 @@ function parseSourceIngredientForSync(value: unknown): { name: string; quantity:
     quantity: `${quantityMatch[1].replace(",", ".")} ${unit}`,
     grams: numberOrZero(quantityToSyncGrams(quantity, unit, name)),
     raw,
+  };
+}
+
+const ALLOWED_RECIPE_DESCRIPTOR_TOKENS = new Set([
+  "filete",
+  "filetes",
+  "tira",
+  "tiras",
+  "trozo",
+  "trozos",
+  "dados",
+  "laminado",
+  "laminados",
+  "laminada",
+  "laminadas",
+  "picado",
+  "picada",
+  "picados",
+  "picadas",
+  "cortado",
+  "cortada",
+  "cortados",
+  "cortadas",
+  "troceado",
+  "troceada",
+  "troceados",
+  "troceadas",
+  "cocido",
+  "cocida",
+  "cocidos",
+  "cocidas",
+  "asado",
+  "asada",
+  "asados",
+  "asadas",
+  "salteado",
+  "salteada",
+  "salteados",
+  "salteadas",
+  "fresco",
+  "fresca",
+  "frescos",
+  "frescas",
+  "virgen",
+  "extra",
+  "oliva",
+  "blanco",
+  "blanca",
+  "bajo",
+  "baja",
+]);
+
+const FORBIDDEN_AUTO_INGREDIENT_TOKENS = new Set([
+  "chips",
+  "barrita",
+  "barritas",
+  "batido",
+  "batidos",
+  "formula",
+  "fórmula",
+  "herbalife",
+  "proteina",
+  "proteína",
+  "protein",
+  "snack",
+  "snacks",
+  "queso",
+  "cottage",
+  "guisante",
+  "guisantes",
+  "huevo",
+  "huevos",
+]);
+
+function sourceIngredientForGuard(value: unknown): { name: string; quantity: string; grams: number; raw: string } | null {
+  const parsed = parseSourceIngredientForSync(value);
+  if (parsed) return parsed;
+  const raw = String(value ?? "").trim();
+  if (!raw || isNoMacroSyncIngredient(raw)) return null;
+  return { name: raw, quantity: "", grams: 0, raw };
+}
+
+function recipeIngredientMatchesSource(ingredientName: unknown, sourceIngredient: { name: string; raw: string }) {
+  const candidate = normalizeName(ingredientName);
+  const sourceName = normalizeName(sourceIngredient.name);
+  const sourceRaw = normalizeName(sourceIngredient.raw);
+  if (!candidate || (!sourceName && !sourceRaw)) return false;
+  if (candidate === sourceName || candidate === sourceRaw) return true;
+
+  const sourceTokens = syncTokens(sourceName || sourceRaw);
+  const rawTokens = syncTokens(sourceRaw);
+  const candidateTokens = syncTokens(candidate);
+  if (!sourceTokens.length || !candidateTokens.length) return false;
+
+  const sourceTokenSet = new Set([...sourceTokens, ...rawTokens]);
+  const candidateTokenSet = new Set(candidateTokens);
+  const requiredTokensPresent = sourceTokens.every(token => candidateTokenSet.has(token))
+    || candidateTokens.every(token => sourceTokenSet.has(token));
+  if (!requiredTokensPresent) return false;
+
+  const sourceGroup = syncIngredientGroup(sourceName || sourceRaw);
+  const candidateGroup = syncIngredientGroup(candidate);
+  if (sourceGroup && candidateGroup && sourceGroup !== candidateGroup) return false;
+
+  const extraTokens = candidateTokens.filter(token => !sourceTokenSet.has(token) && !ALLOWED_RECIPE_DESCRIPTOR_TOKENS.has(token));
+  const forbiddenExtras = extraTokens.filter(token => FORBIDDEN_AUTO_INGREDIENT_TOKENS.has(token));
+  if (forbiddenExtras.length > 0) return false;
+
+  return extraTokens.length === 0;
+}
+
+function allowedSourceIngredients(sourceIngredients: string[]) {
+  return sourceIngredients
+    .map(sourceIngredientForGuard)
+    .filter((item): item is { name: string; quantity: string; grams: number; raw: string } => Boolean(item));
+}
+
+function isRecipeIngredientAllowed(ingredientName: unknown, sourceIngredients: string[]) {
+  const allowed = allowedSourceIngredients(sourceIngredients);
+  return allowed.some(source => recipeIngredientMatchesSource(ingredientName, source));
+}
+
+function unexpectedRecipeIngredients(recipe: RecipeResult, sourceIngredients: string[]) {
+  return recipe.ingredients
+    .map(item => item.name)
+    .filter(name => !isRecipeIngredientAllowed(name, sourceIngredients));
+}
+
+function unexpectedRawRecipeIngredients(raw: any, sourceIngredients: string[]) {
+  if (!Array.isArray(raw?.ingredients)) return [];
+  return raw.ingredients
+    .map((item: any) => String(item?.name ?? item ?? "").trim())
+    .filter(Boolean)
+    .filter(name => !isRecipeIngredientAllowed(name, sourceIngredients));
+}
+
+function enforceRecipeIngredientsFromSource(recipe: RecipeResult, sourceIngredients: string[]): RecipeResult {
+  const allowed = allowedSourceIngredients(sourceIngredients);
+  const filteredIngredients = recipe.ingredients
+    .filter(item => allowed.some(source => recipeIngredientMatchesSource(item.name, source)));
+
+  const completedIngredients = [...filteredIngredients];
+  for (const source of allowed) {
+    if (!completedIngredients.some(item => recipeIngredientMatchesSource(item.name, source))) {
+      completedIngredients.push({
+        name: source.name,
+        quantity: source.quantity,
+        grams: source.grams,
+      });
+    }
+  }
+
+  return {
+    ...recipe,
+    ingredients: completedIngredients,
   };
 }
 
@@ -535,14 +691,18 @@ function normalizeRecipe(raw: any, category: RecipeCategory, servings: number, s
     tags: Array.isArray(raw?.tags) ? raw.tags.map(String).map(t => t.trim()).filter(Boolean).slice(0, 8) : [],
   };
 
-  return syncRecipeIngredientsWithPreparation(recipe, sourceIngredients);
+  return enforceRecipeIngredientsFromSource(syncRecipeIngredientsWithPreparation(recipe, sourceIngredients), sourceIngredients);
 }
 
-function validateRecipe(recipe: RecipeResult): string[] {
+function validateRecipe(recipe: RecipeResult, sourceIngredients: string[] = []): string[] {
   const issues: string[] = [];
 
   if (!recipe.title || recipe.ingredients.length === 0 || recipe.steps.length === 0) {
     issues.push("La receta debe incluir nombre, ingredientes y preparación completa.");
+  }
+  const unexpected = unexpectedRecipeIngredients(recipe, sourceIngredients);
+  if (unexpected.length > 0) {
+    issues.push(`No añadas ingredientes que no están en la lista original: ${unexpected.join(", ")}.`);
   }
   return issues;
 }
@@ -569,7 +729,9 @@ function buildUserPrompt(
     validacion_previa_a_corregir: issues,
     instrucciones: [
       "Devuelve solo JSON válido con la estructura obligatoria.",
-      "Ajusta gramos y cantidades culinarias antes de responder para cumplir las reglas de la categoría.",
+      "Usa EXCLUSIVAMENTE los ingredientes de ingredientes_disponibles. No añadas ningún alimento externo.",
+      "No añadas básicos de despensa, aceite, agua, sal, pimienta, especias ni limón si no aparecen en ingredientes_disponibles.",
+      "Ajusta únicamente los gramos de los ingredientes disponibles antes de responder para cumplir las reglas de la categoría.",
       "No calcules calorías, proteínas, hidratos, grasas, fibra ni sal.",
       "Deja macros vacío o con ceros; el cálculo nutricional lo hace el sistema después.",
       "Si un ingrediente coincide con productos_propios_reconocidos, úsalo como referencia prioritaria y conserva su nombre de forma reconocible para que el recalculador use la base oficial de productos.",
@@ -708,8 +870,13 @@ export default async function handler(req: any, res: any) {
   try {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const raw = await callGemini(apiKey, buildUserPrompt(requestBody, issues, internalFoods, products));
+      const unexpectedRawIngredients = unexpectedRawRecipeIngredients(raw, ingredients);
+      if (unexpectedRawIngredients.length > 0) {
+        issues = [`No añadas ingredientes que no están en la lista original: ${unexpectedRawIngredients.join(", ")}.`];
+        continue;
+      }
       const recipe = normalizeRecipe(raw, category, servings, ingredients);
-      issues = validateRecipe(recipe);
+      issues = validateRecipe(recipe, ingredients);
 
       if (issues.length === 0) {
         return res.status(200).json({ result: recipe });

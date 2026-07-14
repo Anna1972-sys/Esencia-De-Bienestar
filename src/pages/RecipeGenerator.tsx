@@ -345,6 +345,7 @@ export default function RecipeGenerator() {
   const [result, setResult] = useState<any>(null);
   const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
   const [savingRecipe, setSavingRecipe] = useState(false);
+  const [generatingResultImage, setGeneratingResultImage] = useState(false);
   const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
   const [discardingGenerated, setDiscardingGenerated] = useState(false);
 
@@ -450,18 +451,20 @@ export default function RecipeGenerator() {
 
   const saveRecipe = async (
     r: any,
-    options: { navigateAfterSave?: boolean; successMessage?: string } = {},
+    options: { navigateAfterSave?: boolean; successMessage?: string; quietAlreadySaved?: boolean } = {},
   ) => {
     if (!user) {
       toast.error("No hay sesión activa. Vuelve a iniciar sesión para guardar la receta.");
-      return;
+      return null;
     }
     if (savedRecipeId) {
-      toast.warning("Esta receta ya está guardada en Mis recetas. No se ha creado un duplicado.");
+      if (!options.quietAlreadySaved) {
+        toast.warning("Esta receta ya está guardada en Mis recetas. No se ha creado un duplicado.");
+      }
       if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
-      return;
+      return { id: savedRecipeId, recipe: r };
     }
-    if (savingRecipe) return;
+    if (savingRecipe) return null;
     setSavingRecipe(true);
     const servings = Number(r.servings) || 1;
     let enrichedRecipe = r;
@@ -506,7 +509,7 @@ export default function RecipeGenerator() {
         updateSavedRecipeId(duplicate.id);
         toast.warning("Esta receta ya existe en Mis recetas. No se ha creado un duplicado.");
         if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
-        return;
+        return { id: duplicate.id, recipe: enrichedRecipe };
       }
 
       const recipeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -558,11 +561,96 @@ export default function RecipeGenerator() {
       updateSavedRecipeId(recipeId);
       toast.success(options.successMessage ?? "Guardada en Mis recetas");
       if (options.navigateAfterSave !== false) navigate("/app/mis-recetas");
+      return { id: recipeId, recipe: savedRecipe };
     } catch (err: any) {
       console.error("[recipe-generator] error guardando receta", err);
       toast.error(err?.message || "No se pudo guardar la receta");
+      return null;
     } finally {
       setSavingRecipe(false);
+    }
+  };
+
+  const generateImageForGeneratedRecipe = async () => {
+    if (!result) return;
+    if (!user) {
+      toast.error("No hay sesión activa. Vuelve a iniciar sesión para generar la imagen.");
+      return;
+    }
+    if (!isAdmin) {
+      toast.error("Solo la administradora puede generar imágenes.");
+      return;
+    }
+    if (generatingResultImage || savingRecipe) return;
+
+    setGeneratingResultImage(true);
+    try {
+      let recipeId = savedRecipeId;
+      let recipeForImage = result;
+
+      if (!recipeId) {
+        const saved = await saveRecipe(result, {
+          navigateAfterSave: false,
+          successMessage: "Receta guardada. Generando imagen…",
+          quietAlreadySaved: true,
+        });
+        if (!saved?.id) {
+          throw new Error("No se pudo guardar la receta antes de generar la imagen.");
+        }
+        recipeId = saved.id;
+        recipeForImage = saved.recipe ?? result;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (sessionError || !token) throw new Error("Vuelve a iniciar sesión para generar la imagen.");
+
+      const response = await fetch("/api/generate-recipe-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ recipe: recipeForImage }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo generar la imagen con Gemini.");
+      }
+
+      const imageUrl = firstUrl(payload?.image_url);
+      if (!imageUrl) {
+        throw new Error(payload?.storage_warning || "Gemini creó la imagen, pero no se pudo guardar de forma permanente.");
+      }
+
+      const { error: updateError } = await supabase
+        .from("recipes")
+        .update({
+          image_url: imageUrl,
+          macros: {
+            ...(recipeForImage.macros ?? {}),
+            image_generation_status: "ready",
+            image_generation_error: "",
+          },
+        } as any)
+        .eq("id", recipeId)
+        .eq("user_id", user.id);
+      if (updateError) throw updateError;
+
+      setResult((current: any) => ({
+        ...(current ?? recipeForImage),
+        image_url: imageUrl,
+        macros: {
+          ...((current ?? recipeForImage)?.macros ?? {}),
+          image_generation_status: "ready",
+          image_generation_error: "",
+        },
+      }));
+      toast.success("Imagen generada con Gemini y guardada correctamente.");
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo generar la imagen.");
+    } finally {
+      setGeneratingResultImage(false);
     }
   };
 
@@ -680,7 +768,10 @@ export default function RecipeGenerator() {
           categories={categories}
           saved={Boolean(savedRecipeId)}
           saving={savingRecipe}
+          isAdmin={isAdmin}
+          generatingImage={generatingResultImage}
           onSave={() => saveRecipe(result)}
+          onGenerateImage={generateImageForGeneratedRecipe}
           onRequestDiscard={() => setConfirmDiscardGenerated(true)}
         />
       )}
@@ -709,14 +800,20 @@ function RecipeCard({
   categories,
   saved,
   saving,
+  isAdmin,
+  generatingImage,
   onSave,
+  onGenerateImage,
   onRequestDiscard,
 }: {
   recipe: any;
   categories: RecipeGeneratorCategory[];
   saved: boolean;
   saving: boolean;
+  isAdmin: boolean;
+  generatingImage: boolean;
   onSave: () => void;
+  onGenerateImage: () => void;
   onRequestDiscard: () => void;
 }) {
   const perServing = recipe.macros ?? {};
@@ -728,6 +825,7 @@ function RecipeCard({
   const macroIngredients = allIngredients.filter((item: any) => !isNoMacroIngredient(item));
   const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
   const finalSeasoningNote = noMacroIngredients.length > 0 ? seasoningNote(noMacroIngredients) : "";
+  const recipeImageUrl = firstUrl(recipe.image_url, recipe.imageUrl, recipe.cover_image_url);
 
   return (
     <div className="card-soft generator-result-card p-5 animate-fade-in">
@@ -736,6 +834,26 @@ function RecipeCard({
         {recipe.category && <span className="chip shrink-0">{categoryLabel}</span>}
       </div>
       <p className="muted text-sm">{recipe.description}</p>
+      {recipeImageUrl && (
+        <img
+          src={recipeImageUrl}
+          alt={recipe.title}
+          className="mt-4 h-56 w-full rounded-3xl object-cover"
+        />
+      )}
+      {isAdmin && !recipeImageUrl && (
+        <button onClick={onGenerateImage} disabled={generatingImage || saving} className="btn-ghost w-full mt-4">
+          {generatingImage ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Generando imagen…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" /> Generar imagen con Gemini
+            </>
+          )}
+        </button>
+      )}
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
       </div>

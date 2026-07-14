@@ -22,7 +22,14 @@ export default function Invite() {
       }
 
       const { data, error } = await supabase.functions.invoke("validate-invitation", { body: { token } });
-      if (error || !data?.valid) {
+      if (error) {
+        console.warn("[Invite] validate-invitation unavailable; continuing with secure accept-invitation validation", {
+          message: error.message,
+        });
+        setState("valid");
+        return;
+      }
+      if (!data?.valid) {
         // Used/invalid invitations must never block existing users.
         // If there is no active session, continue through the normal login flow.
         toast.info("Inicia sesión con tu correo y contraseña.");

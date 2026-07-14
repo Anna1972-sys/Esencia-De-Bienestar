@@ -46,6 +46,110 @@ type PreparedGeneratedImage = {
   buffer: Buffer;
 };
 
+function geminiImageFromResponse(payload: any): PreparedGeneratedImage | null {
+  const direct = payload?.output_image ?? payload?.outputImage;
+  const directData = direct?.data;
+  if (typeof directData === "string" && directData.length > 1000) {
+    return {
+      contentType: direct?.mime_type || direct?.mimeType || "image/png",
+      buffer: Buffer.from(directData, "base64"),
+    };
+  }
+
+  const stack = [payload];
+  const seen = new Set<any>();
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+
+    const inline = current.inline_data ?? current.inlineData;
+    const inlineData = inline?.data;
+    if (typeof inlineData === "string" && inlineData.length > 1000) {
+      return {
+        contentType: inline?.mime_type || inline?.mimeType || "image/png",
+        buffer: Buffer.from(inlineData, "base64"),
+      };
+    }
+
+    const mime = current.mime_type || current.mimeType;
+    if (
+      typeof current.data === "string" &&
+      current.data.length > 1000 &&
+      (String(mime ?? "").startsWith("image/") || current.type === "image")
+    ) {
+      return {
+        contentType: mime || "image/png",
+        buffer: Buffer.from(current.data, "base64"),
+      };
+    }
+
+    for (const value of Object.values(current)) {
+      if (value && typeof value === "object") stack.push(value);
+    }
+  }
+
+  return null;
+}
+
+async function generateImageWithGemini(apiKey: string, prompt: string, signal: AbortSignal): Promise<PreparedGeneratedImage> {
+  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify({
+      model,
+      input: [{ type: "text", text: prompt }],
+      response_format: {
+        type: "image",
+        mime_type: "image/png",
+        aspect_ratio: "4:5",
+        image_size: "1K",
+      },
+    }),
+  });
+
+  const text = await response.text();
+  let payload: any = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message = payload?.error?.message || text || "Gemini no pudo generar la imagen";
+    throw new Error(`Gemini ${response.status}: ${String(message).slice(0, 500)}`);
+  }
+
+  const image = geminiImageFromResponse(payload);
+  if (!image) {
+    throw new Error("Gemini no devolvió una imagen válida.");
+  }
+  return image;
+}
+
+function friendlyGeminiImageError(err: any) {
+  const message = String(err?.message ?? "");
+  if (/429|quota|RESOURCE_EXHAUSTED|rate limit/i.test(message)) {
+    return "Gemini no está disponible temporalmente para generar imágenes. Puedes volver a intentarlo más tarde.";
+  }
+  if (/GEMINI_API_KEY/i.test(message)) {
+    return "GEMINI_API_KEY no está configurada en este entorno.";
+  }
+  if (/timeout|abort|network|fetch/i.test(message)) {
+    return "No se pudo conectar con Gemini para generar la imagen. Inténtalo de nuevo más tarde.";
+  }
+  if (/valid|devolvió|imagen/i.test(message)) {
+    return message;
+  }
+  return "No se pudo generar la imagen con Gemini. Inténtalo de nuevo más tarde.";
+}
+
 function buildFoodPhotoPrompt(title: string, ingredients: string[], preparation: string[] = [], retryReason = "") {
   const cleanTitle = cleanText(title) || "healthy homemade recipe";
   const cleanIngredients = ingredients.map(cleanText).filter(Boolean).slice(0, 14);
@@ -342,9 +446,9 @@ export default async function handler(req: any, res: any) {
     return res.status(session.status).json({ error: session.error });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY no está configurada en Vercel" });
+    return res.status(500).json({ error: "GEMINI_API_KEY no está configurada en este entorno." });
   }
 
   const body = req.body ?? {};
@@ -372,37 +476,8 @@ export default async function handler(req: any, res: any) {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const prompt = buildFoodPhotoPrompt(title, ingredients, preparation, retryReason);
-      const response = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-          prompt,
-          size: process.env.OPENAI_IMAGE_SIZE || "1024x1536",
-          n: 1,
-        }),
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = data?.error?.message || data?.error || "No se pudo generar la imagen";
-        throw new Error(`OpenAI ${response.status}: ${message}`);
-      }
-
-      const imageData = data?.data?.[0];
-      imageUrl = imageData?.b64_json
-        ? `data:image/png;base64,${imageData.b64_json}`
-        : imageData?.url;
-
-      if (!imageUrl) {
-        throw new Error("OpenAI no devolvió una imagen");
-      }
-
-      preparedImage = await prepareGeneratedImage(imageUrl);
+      preparedImage = await generateImageWithGemini(apiKey, prompt, controller.signal);
+      imageUrl = `data:${preparedImage.contentType};base64,${preparedImage.buffer.toString("base64")}`;
       const validation = validateGeneratedFoodImage(preparedImage);
       if (validation.ok) break;
 
@@ -443,7 +518,7 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     const message = err?.name === "AbortError"
       ? "La imagen ha tardado demasiado. Inténtalo de nuevo."
-      : err?.message || "Error generando imagen";
+      : friendlyGeminiImageError(err);
     return res.status(500).json({ error: message });
   } finally {
     clearTimeout(timeout);
