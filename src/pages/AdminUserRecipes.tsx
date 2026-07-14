@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Eye, Star, Trash2, Upload, X, Save } from "lucide-react";
+import { Eye, Star, Trash2, Upload, X, Save, Sparkles } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import { LIBRARY_CATEGORIES } from "@/lib/libraryCategories";
@@ -57,6 +57,64 @@ const displayCategory = (category?: string | null) =>
 const parseEditableIngredients = (text: string) =>
   text.split("\n").map(s => s.trim()).filter(Boolean);
 
+const INGREDIENT_QTY_RE = /^\s*\d+(?:[.,]\d+)?\s*(g|gr|gramos?|ml|mililitros?|unidad(?:es)?|unidades|raci[oó]n(?:es)?|cucharaditas?|cucharadas?|dientes?)\b/i;
+
+const ingredientLineHasQuantity = (line: string) => INGREDIENT_QTY_RE.test(String(line ?? "").trim());
+
+const recipeHasIncompleteIngredients = (ingredients: any) => {
+  const list = Array.isArray(ingredients) ? ingredients : [];
+  if (!list.length) return false;
+  return list.some((item: any) => {
+    if (typeof item === "string") return !ingredientLineHasQuantity(item);
+    const name = String(item?.name ?? item?.ingredient ?? item?.food ?? item?.label ?? "").trim();
+    const quantity = String(item?.quantity ?? item?.amount ?? item?.qty ?? "").trim();
+    const grams = Number(item?.grams ?? item?.gramos ?? item?.ml);
+    return !name || (!/\d/.test(quantity) && (!Number.isFinite(grams) || grams <= 0));
+  });
+};
+
+const completedIngredientToLine = (item: any) => {
+  const name = String(item?.name ?? "").trim();
+  const quantity = String(item?.quantity ?? "").trim();
+  const grams = Number(item?.grams);
+  const fallback = Number.isFinite(grams) && grams > 0 ? `${grams} g` : "";
+  return `${quantity || fallback} ${name}`.replace(/\s+/g, " ").trim();
+};
+
+const completedIngredientsForStorage = (items: any[]) =>
+  items.map((item: any) => ({
+    name: String(item?.name ?? "").trim(),
+    quantity: String(item?.quantity ?? "").trim(),
+    unit: String(item?.unit ?? "").trim(),
+    grams: Number(item?.grams) || null,
+    estimated: Boolean(item?.estimated),
+  })).filter(item => item.name);
+
+const completeRecipeQuantities = async (recipe: Pick<Recipe, "title" | "category" | "servings" | "ingredients" | "steps" | "macros">) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Debes iniciar sesión como administradora");
+
+  const response = await fetch("/api/complete-recipe-quantities", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      title: recipe.title,
+      category: recipe.category,
+      servings: Number(recipe.servings ?? recipe.macros?.servings) || 1,
+      ingredients: recipe.ingredients,
+      steps: recipe.steps,
+      calorieLimit: recipe.category === "comidas_saludables" ? 500 : null,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || "No se pudieron completar las cantidades");
+  return payload as { servings: number; ingredients: any[]; notice?: string };
+};
+
 const calculateRecipeMacros = async (ingredientsText: string, servings: number, category?: string | null, fallbackMacros: any = {}) => {
   const ingredients = parseEditableIngredients(ingredientsText);
   if (!ingredients.length) return fallbackMacros ?? {};
@@ -79,6 +137,8 @@ export default function AdminUserRecipes() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bulkCompleting, setBulkCompleting] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState("");
 
   const load = async () => {
     const { data: recs } = await supabase.from("recipes").select("*").eq("is_library", false).order("created_at", { ascending: false });
@@ -109,6 +169,58 @@ export default function AdminUserRecipes() {
     const { error } = await supabase.from("recipes").delete().eq("id", r.id);
     if (error) toast.error(error.message);
     else { toast.success("Eliminada"); load(); }
+  };
+
+  const completeOldRecipes = async () => {
+    const targets = recipes.filter(r => recipeHasIncompleteIngredients(r.ingredients));
+    if (!targets.length) {
+      toast.success("No hay recetas antiguas con ingredientes incompletos");
+      setBulkSummary("No había recetas pendientes de completar.");
+      return;
+    }
+    if (!confirm(`Se revisarán ${targets.length} recetas antiguas. No se tocarán las recetas completas. ¿Continuar?`)) return;
+
+    setBulkCompleting(true);
+    let completed = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const recipe of targets) {
+      try {
+        const result = await completeRecipeQuantities(recipe);
+        const lines = result.ingredients.map(completedIngredientToLine).filter(Boolean);
+        if (!lines.length) throw new Error("No se devolvieron cantidades");
+        const ingredientsText = lines.join("\n");
+        const servings = Number(result.servings || recipe.servings || recipe.macros?.servings) || 1;
+        const macros = await calculateRecipeMacros(ingredientsText, servings, recipe.category, recipe.macros ?? {});
+        const nextMacros = {
+          ...(macros ?? {}),
+          servings: macros?.servings ?? servings,
+          quantity_completion: {
+            completed_at: new Date().toISOString(),
+            estimated: true,
+            original_ingredients: recipe.ingredients,
+          },
+        };
+        const { error } = await supabase.from("recipes").update({
+          ingredients: completedIngredientsForStorage(result.ingredients),
+          macros: nextMacros,
+          servings,
+        } as any).eq("id", recipe.id);
+        if (error) throw error;
+        completed += 1;
+      } catch (err: any) {
+        failed += 1;
+        errors.push(`${recipe.title}: ${err.message || "error"}`);
+      }
+    }
+
+    setBulkCompleting(false);
+    await load();
+    const summary = `Revisión terminada: ${completed} completada(s), ${failed} con aviso.`;
+    setBulkSummary(errors.length ? `${summary} ${errors.slice(0, 3).join(" · ")}` : summary);
+    if (failed) toast.warning(summary);
+    else toast.success(summary);
   };
 
   const publishToLibrary = async (r: Recipe, payload: Partial<Recipe>) => {
@@ -167,7 +279,7 @@ export default function AdminUserRecipes() {
       ? payload.stepsText.split("\n").map(s => s.trim()).filter(Boolean)
       : r.steps;
     const ingredientsText = payload.ingredientsText ?? ingredientsToText(r.ingredients);
-    let macros: any = r.macros ?? {};
+    let macros: any = payload.macros ?? r.macros ?? {};
     try {
       const servings = Number(r.servings ?? macros?.servings) || 1;
       macros = await calculateRecipeMacros(ingredientsText, servings, payload.category ?? r.category, macros);
@@ -209,6 +321,16 @@ export default function AdminUserRecipes() {
           <option value="">Todos los usuarios</option>
           {userOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
+        <button
+          type="button"
+          onClick={completeOldRecipes}
+          disabled={bulkCompleting}
+          className="btn-primary w-full"
+        >
+          <Sparkles className="h-4 w-4" />
+          {bulkCompleting ? "Completando recetas antiguas…" : "Completar cantidades de recetas antiguas"}
+        </button>
+        {bulkSummary && <div className="rounded-2xl bg-secondary/70 p-3 text-xs">{bulkSummary}</div>}
       </div>
 
       <div className="space-y-2">
@@ -225,6 +347,7 @@ export default function AdminUserRecipes() {
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary">Pendiente de revisión</span>
+                  {recipeHasIncompleteIngredients(r.ingredients) && <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground">Faltan cantidades</span>}
                   {r.category && <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary">{displayCategory(r.category)}</span>}
                   <span className="text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary">{nutritionLabel(r)}</span>
                 </div>
@@ -278,6 +401,16 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
   const [categories, setCategories] = useState<string[]>(recipe.categories ?? []);
   const [imageUrl, setImageUrl] = useState(recipe.image_url ?? "");
   const [uploading, setUploading] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [quantityNotice, setQuantityNotice] = useState("");
+  const [macroPreview, setMacroPreview] = useState<any | null>(null);
+
+  const macrosForDisplay = macroPreview ?? recipe.macros ?? {};
+  const modalRecipeForCompletion = {
+    ...recipe,
+    ingredients: parseEditableIngredients(ingredientsText),
+    steps: parseEditableIngredients(stepsText),
+  };
 
   const toggleCat = (id: string) =>
     setCategories(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id]);
@@ -302,7 +435,26 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
     }
   };
 
-  const payload = { title, description, ingredientsText, stepsText, category, categories, image_url: imageUrl };
+  const completeQuantities = async () => {
+    setCompleting(true);
+    setQuantityNotice("");
+    try {
+      const result = await completeRecipeQuantities(modalRecipeForCompletion);
+      const completedText = result.ingredients.map(completedIngredientToLine).filter(Boolean).join("\n");
+      setIngredientsText(completedText);
+      const servings = Number(result.servings || recipe.servings || recipe.macros?.servings) || 1;
+      const macros = await calculateRecipeMacros(completedText, servings, recipe.category, recipe.macros ?? {});
+      setMacroPreview({ ...(macros ?? {}), servings: macros?.servings ?? servings });
+      setQuantityNotice(result.notice || "Cantidades estimadas automáticamente. Revísalas antes de guardar.");
+      toast.success("Cantidades completadas. Revisa y guarda los cambios.");
+    } catch (err: any) {
+      toast.error(err.message || "No se pudieron completar las cantidades");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const payload = { title, description, ingredientsText, stepsText, category, categories, image_url: imageUrl, macros: macroPreview ?? undefined };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-end sm:place-items-center p-0 sm:p-4" onClick={onClose}>
@@ -359,17 +511,24 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
           <div className="card-soft p-3">
             <div className="text-xs font-semibold mb-2">Datos nutricionales</div>
             <div className="grid grid-cols-5 gap-1.5 text-center text-[11px]">
-              <MiniMacro label="Kcal" value={getMacro(recipe, "calories")} />
-              <MiniMacro label="Prot" value={`${getMacro(recipe, "protein")}g`} />
-              <MiniMacro label="Hidr" value={`${getMacro(recipe, "carbs")}g`} />
-              <MiniMacro label="Grasa" value={`${getMacro(recipe, "fat")}g`} />
-              <MiniMacro label="Fibra" value={`${getMacro(recipe, "fiber")}g`} />
+              <MiniMacro label="Kcal" value={Number(macrosForDisplay?.calories ?? 0)} />
+              <MiniMacro label="Prot" value={`${Number(macrosForDisplay?.protein ?? 0)}g`} />
+              <MiniMacro label="Hidr" value={`${Number(macrosForDisplay?.carbs ?? 0)}g`} />
+              <MiniMacro label="Grasa" value={`${Number(macrosForDisplay?.fat ?? 0)}g`} />
+              <MiniMacro label="Fibra" value={`${Number(macrosForDisplay?.fiber ?? 0)}g`} />
             </div>
             <div className="text-[11px] muted mt-2">{nutritionLabel(recipe)}</div>
           </div>
           <div>
             <label className="text-xs muted">Ingredientes (uno por línea)</label>
             <textarea className="field min-h-28" value={ingredientsText} onChange={e => setIngredientsText(e.target.value)} />
+            {recipeHasIncompleteIngredients(parseEditableIngredients(ingredientsText)) && (
+              <button type="button" onClick={completeQuantities} disabled={completing || busy} className="btn-primary w-full mt-2">
+                <Sparkles className="h-4 w-4" />
+                {completing ? "Completando cantidades…" : "Completar cantidades automáticamente"}
+              </button>
+            )}
+            {quantityNotice && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 p-3 text-xs mt-2">{quantityNotice}</div>}
           </div>
           <div>
             <label className="text-xs muted">Preparación (un paso por línea)</label>

@@ -177,6 +177,39 @@ const missingIngredientNames = (data: any) => [
   ...(data?.missingGrams ?? []).map((item: any) => item?.name ?? item).filter(Boolean),
 ];
 
+const INGREDIENT_QTY_RE = /^\s*\d+(?:[.,]\d+)?\s*(g|gr|gramos?|ml|mililitros?|unidad(?:es)?|unidades|raci[oó]n(?:es)?|cucharaditas?|cucharadas?|dientes?)\b/i;
+const hasIncompleteIngredientLines = (text: string) => parseLines(text).some(line => !INGREDIENT_QTY_RE.test(line));
+const completedIngredientToLine = (item: any) => {
+  const name = String(item?.name ?? "").trim();
+  const quantity = String(item?.quantity ?? "").trim();
+  const grams = Number(item?.grams);
+  const fallback = Number.isFinite(grams) && grams > 0 ? `${grams} g` : "";
+  return `${quantity || fallback} ${name}`.replace(/\s+/g, " ").trim();
+};
+
+const completeRecipeQuantities = async (payload: {
+  title: string;
+  category: string;
+  servings: string | number;
+  ingredients: string[];
+  steps: string[];
+}) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Debes iniciar sesión como administradora");
+  const response = await fetch("/api/complete-recipe-quantities", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || "No se pudieron completar las cantidades");
+  return data as { servings: number; ingredients: any[]; notice?: string };
+};
+
 export default function AdminRecipes() {
   const [items, setItems] = useState<RecipeRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -188,6 +221,8 @@ export default function AdminRecipes() {
   const [saving, setSaving] = useState(false);
   const [macroDebug, setMacroDebug] = useState<any[]>([]);
   const [lastMacroWarning, setLastMacroWarning] = useState("");
+  const [completingQuantities, setCompletingQuantities] = useState(false);
+  const [quantityNotice, setQuantityNotice] = useState("");
 
   const editingRecipe = useMemo(() => items.find(item => item.id === editingId) ?? null, [items, editingId]);
 
@@ -213,6 +248,7 @@ export default function AdminRecipes() {
     setEditingId(null);
     setMacroDebug([]);
     setLastMacroWarning("");
+    setQuantityNotice("");
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -315,6 +351,36 @@ export default function AdminRecipes() {
     }
   };
 
+  const completeQuantitiesForForm = async () => {
+    const ingredients = parseLines(form.ingredients);
+    if (!ingredients.length) { toast.error("Añade ingredientes antes de completar cantidades"); return; }
+    setCompletingQuantities(true);
+    setQuantityNotice("");
+    try {
+      const result = await completeRecipeQuantities({
+        title: form.title,
+        category: form.category,
+        servings: form.servings || 1,
+        ingredients,
+        steps: parseLines(form.steps),
+      });
+      const completedText = result.ingredients.map(completedIngredientToLine).filter(Boolean).join("\n");
+      updateForm({ ingredients: completedText, servings: String(result.servings || form.servings || "1") });
+      const data = await calculateWithMacroSpecialist({
+        ingredientsText: completedText,
+        servings: Number(result.servings || form.servings) || 1,
+        category: form.category,
+      });
+      applyMacros(data);
+      setQuantityNotice(result.notice || "Cantidades estimadas automáticamente. Revísalas antes de guardar.");
+      toast.success("Cantidades completadas. Revisa y guarda la receta.");
+    } catch (err: any) {
+      toast.error(err.message || "No se pudieron completar las cantidades");
+    } finally {
+      setCompletingQuantities(false);
+    }
+  };
+
   const payloadFromForm = (base?: RecipeRow, overrideMacros?: any) => {
     const macros = {
       ...(overrideMacros ?? macrosFromForm(form, base?.macros)),
@@ -370,6 +436,7 @@ export default function AdminRecipes() {
     setForm(formFromRecipe(recipe));
     setMacroDebug([]);
     setLastMacroWarning("");
+    setQuantityNotice("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -519,8 +586,20 @@ export default function AdminRecipes() {
           className="field min-h-32"
           placeholder={'Ingredientes con gramos exactos, uno por línea\nEj: 100 g pollo\n50 g arroz cocido'}
           value={form.ingredients}
-          onChange={e => { setMacroDebug([]); setLastMacroWarning(""); updateForm({ ingredients: e.target.value }); }}
+          onChange={e => { setMacroDebug([]); setLastMacroWarning(""); setQuantityNotice(""); updateForm({ ingredients: e.target.value }); }}
         />
+        {parseLines(form.ingredients).length > 0 && hasIncompleteIngredientLines(form.ingredients) && (
+          <button
+            type="button"
+            onClick={completeQuantitiesForForm}
+            disabled={completingQuantities || calculating || uploading || saving}
+            className="btn-primary w-full"
+          >
+            <Sparkles className="h-4 w-4" />
+            {completingQuantities ? "Completando cantidades…" : "Completar cantidades automáticamente"}
+          </button>
+        )}
+        {quantityNotice && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 p-3 text-xs">{quantityNotice}</div>}
         <textarea className="field min-h-28" placeholder="Preparación paso a paso, un paso por línea" value={form.steps} onChange={e => updateForm({ steps: e.target.value })} />
         <input className="field" placeholder="Etiquetas separadas por coma" value={form.tags} onChange={e => updateForm({ tags: e.target.value })} />
 
