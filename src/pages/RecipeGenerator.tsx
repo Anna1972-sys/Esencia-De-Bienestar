@@ -892,16 +892,21 @@ function RecipeCard({
 }
 
 function NutritionStats({ values }: { values: any }) {
-  const salt = Number(values?.micronutrients?.sal);
-  const hasSalt = values?.micronutrients && Object.prototype.hasOwnProperty.call(values.micronutrients, "sal") && Number.isFinite(salt);
+  const micronutrients = values?.micronutrients ?? {};
+  const micronutrientValue = (key: string) => Number(micronutrients?.[key]);
+  const hasMicronutrient = (key: string) =>
+    Object.prototype.hasOwnProperty.call(micronutrients, key) && Number.isFinite(micronutrientValue(key));
+  const formatGram = (value: number) => `${Math.round(value * 100) / 100}g`;
   return (
-    <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-6 gap-1.5 text-center text-xs">
+    <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-4 gap-1.5 text-center text-xs">
       <Stat label="Kcal" value={`${values.calories ?? 0}`} />
       <Stat label="Prot" value={`${values.protein ?? 0}g`} />
       <Stat label="Hidratos" value={`${values.carbs ?? 0}g`} />
+      {hasMicronutrient("azucares") && <Stat label="Azúcares" value={formatGram(micronutrientValue("azucares"))} />}
       <Stat label="Grasas" value={`${values.fat ?? 0}g`} />
+      {hasMicronutrient("grasas_saturadas") && <Stat label="Grasas sat." value={formatGram(micronutrientValue("grasas_saturadas"))} />}
       <Stat label="Fibra" value={`${values.fiber ?? 0}g`} />
-      {hasSalt && <Stat label="Sal" value={`${Math.round(salt * 100) / 100}g`} />}
+      {hasMicronutrient("sal") && <Stat label="Sal" value={formatGram(micronutrientValue("sal"))} />}
     </div>
   );
 }

@@ -626,6 +626,11 @@ export default function AdminRecipes() {
                   <div className="muted">Interpretado como: {item.parsedName || "—"}</div>
                   <div className="muted">Cantidad: {item.grams ?? "—"} g/ml · Estado: {item.status} · Fuente: {item.sourceLabel ?? item.source ?? "—"}</div>
                   <div className="muted">Coincidencia: {item.matchedAs ?? "No encontrada"}</div>
+                  {item.rawNutrition && (
+                    <pre className="mt-2 overflow-auto rounded-lg bg-secondary/70 p-2 text-[10px] text-muted-foreground">
+                      {JSON.stringify(item.rawNutrition, null, 2)}
+                    </pre>
+                  )}
                 </div>
               ))}
             </div>

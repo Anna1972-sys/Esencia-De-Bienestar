@@ -33,6 +33,18 @@ type InternalFoodRow = {
   carbs: number | string;
   fat: number | string;
   fiber: number | string;
+  hidratos?: number | string | null;
+  hidratos_g?: number | string | null;
+  hidratos_de_carbono?: number | string | null;
+  carbohidratos?: number | string | null;
+  fibra?: number | string | null;
+  fibra_g?: number | string | null;
+  calorias?: number | string | null;
+  kcal?: number | string | null;
+  proteinas?: number | string | null;
+  proteinas_g?: number | string | null;
+  grasas?: number | string | null;
+  grasas_g?: number | string | null;
   salt?: number | string | null;
   azucares_g?: number | string | null;
   grasas_saturadas_g?: number | string | null;
@@ -118,6 +130,7 @@ type IngredientDebugEntry = {
   providerMatchedAs?: string;
   foodId?: string;
   macros?: Record<string, any>;
+  rawNutrition?: Record<string, any>;
   calorieCheck?: { formulaKcal: number; displayedKcal: number; difference: number };
   attempts?: any[];
 };
@@ -229,7 +242,15 @@ function cleanSearchName(value: unknown) {
     .trim();
 }
 
-const MATCH_STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "the", "of", "a", "al"]);
+const MATCH_STOP_WORDS = new Set([
+  "de", "del", "la", "el", "los", "las", "the", "of", "a", "al",
+  "verde", "verdes", "rojo", "roja", "rojos", "rojas", "blanco", "blanca", "blancos", "blancas",
+  "negro", "negra", "negros", "negras", "fresco", "fresca", "frescos", "frescas",
+  "natural", "naturales", "laminado", "laminada", "laminados", "laminadas",
+  "troceado", "troceada", "troceados", "troceadas", "picado", "picada", "picados", "picadas",
+  "entero", "entera", "enteros", "enteras", "cocido", "cocida", "cocidos", "cocidas",
+  "crudo", "cruda", "crudos", "crudas", "sin", "con",
+]);
 const BASIC_INGREDIENT_PRODUCT_BLOCKLIST = new Set([
   "aceite",
   "agua",
@@ -380,7 +401,12 @@ function formulaCalories(value: Pick<MacroValues, "protein" | "carbs" | "fat">) 
 }
 
 function enforceMacroCalories(value: MacroValues): MacroValues {
-  return { ...value, kcal: formulaCalories(value), micronutrients: value.micronutrients ?? {} };
+  const storedKcal = Number(value.kcal);
+  return {
+    ...value,
+    kcal: Number.isFinite(storedKcal) && storedKcal > 0 ? storedKcal : formulaCalories(value),
+    micronutrients: value.micronutrients ?? {},
+  };
 }
 
 function calorieCheck(value: MacroValues) {
@@ -468,16 +494,17 @@ function findFood(name: string) {
 }
 
 function foodFromInternalRow(row: InternalFoodRow): FoodMacro {
+  const nutrition = internalFoodNutrition(row);
   return {
-    kcal: numberValue(row.calories),
-    protein: numberValue(row.protein),
-    carbs: numberValue(row.carbs),
-    fat: numberValue(row.fat),
-    fiber: numberValue(row.fiber),
+    kcal: nutrition.calories,
+    protein: nutrition.protein,
+    carbs: nutrition.carbs,
+    fat: nutrition.fat,
+    fiber: nutrition.fiber,
     micronutrients: {
-      ...(numericValueIsPresent(row.azucares_g) ? { azucares: numberValue(row.azucares_g) } : {}),
-      ...(numericValueIsPresent(row.grasas_saturadas_g) ? { grasas_saturadas: numberValue(row.grasas_saturadas_g) } : {}),
-      ...(numericValueIsPresent(row.salt) ? { sal: numberValue(row.salt) } : {}),
+      ...(numericValueIsPresent(nutrition.azucares) ? { azucares: nutrition.azucares } : {}),
+      ...(numericValueIsPresent(nutrition.grasas_saturadas) ? { grasas_saturadas: nutrition.grasas_saturadas } : {}),
+      ...(numericValueIsPresent(nutrition.sal) ? { sal: nutrition.sal } : {}),
     },
     aliases: row.synonyms ?? [],
   };
@@ -523,7 +550,7 @@ function foodFromUnifiedRow(row: UnifiedFoodRow): FoodMacro {
 function scaleUnifiedFood(row: UnifiedFoodRow, grams: number): MacroValues {
   const factor = grams / 100;
   return enforceMacroCalories({
-    kcal: 0,
+    kcal: numberValue(row.kcal_100g) * factor,
     protein: numberValue(row.proteina_100g) * factor,
     carbs: numberValue(row.hidratos_100g) * factor,
     fat: numberValue(row.grasa_100g) * factor,
@@ -765,7 +792,7 @@ function calculateProductMacros(input: IngredientInput, product: ProductRow, exp
 function scale(food: FoodMacro, grams: number): MacroValues {
   const factor = grams / 100;
   return enforceMacroCalories({
-    kcal: 0,
+    kcal: food.kcal * factor,
     protein: food.protein * factor,
     carbs: food.carbs * factor,
     fat: food.fat * factor,
@@ -777,18 +804,19 @@ function scale(food: FoodMacro, grams: number): MacroValues {
 }
 
 function scaleInternalFood(row: InternalFoodRow, grams: number): MacroValues {
+  const nutrition = internalFoodNutrition(row);
   const baseQuantity = Math.max(1, numberValue(row.base_quantity) || 100);
   const factor = grams / baseQuantity;
   return enforceMacroCalories({
-    kcal: 0,
-    protein: numberValue(row.protein) * factor,
-    carbs: numberValue(row.carbs) * factor,
-    fat: numberValue(row.fat) * factor,
-    fiber: numberValue(row.fiber) * factor,
+    kcal: nutrition.calories * factor,
+    protein: nutrition.protein * factor,
+    carbs: nutrition.carbs * factor,
+    fat: nutrition.fat * factor,
+    fiber: nutrition.fiber * factor,
     micronutrients: {
-      ...(numericValueIsPresent(row.azucares_g) ? { azucares: numberValue(row.azucares_g) * factor } : {}),
-      ...(numericValueIsPresent(row.grasas_saturadas_g) ? { grasas_saturadas: numberValue(row.grasas_saturadas_g) * factor } : {}),
-      ...(numericValueIsPresent(row.salt) ? { sal: numberValue(row.salt) * factor } : {}),
+      ...(numericValueIsPresent(nutrition.azucares) ? { azucares: nutrition.azucares * factor } : {}),
+      ...(numericValueIsPresent(nutrition.grasas_saturadas) ? { grasas_saturadas: nutrition.grasas_saturadas * factor } : {}),
+      ...(numericValueIsPresent(nutrition.sal) ? { sal: nutrition.sal * factor } : {}),
     },
   });
 }
@@ -815,7 +843,7 @@ function addMacros(target: MacroValues, value: MacroValues) {
 function divideMacros(value: MacroValues, divisor: number): MacroValues {
   const safeDivisor = Math.max(1, divisor);
   return enforceMacroCalories({
-    kcal: 0,
+    kcal: value.kcal / safeDivisor,
     protein: value.protein / safeDivisor,
     carbs: value.carbs / safeDivisor,
     fat: value.fat / safeDivisor,
@@ -1012,6 +1040,27 @@ function numericValueIsPresent(value: any) {
   return Number.isFinite(n);
 }
 
+function firstNumericValue(row: Record<string, any>, keys: string[]) {
+  for (const key of keys) {
+    if (numericValueIsPresent(row?.[key])) return numberValue(row[key]);
+  }
+  return 0;
+}
+
+function internalFoodNutrition(row: InternalFoodRow) {
+  const source = row as unknown as Record<string, any>;
+  return {
+    calories: firstNumericValue(source, ["calories", "calorias", "calorias_kcal", "kcal", "energia", "energia_kcal"]),
+    protein: firstNumericValue(source, ["protein", "proteinas", "proteinas_g", "proteina", "proteina_g"]),
+    carbs: firstNumericValue(source, ["carbs", "hidratos", "hidratos_g", "hidratos_de_carbono", "carbohidratos"]),
+    fat: firstNumericValue(source, ["fat", "grasas", "grasas_g", "grasa", "grasa_g"]),
+    fiber: firstNumericValue(source, ["fiber", "fibra", "fibra_g"]),
+    azucares: firstNumericValue(source, ["azucares_g", "azucares", "azucares_9", "azucares_totales"]),
+    grasas_saturadas: firstNumericValue(source, ["grasas_saturadas_g", "grasas_saturadas", "saturadas"]),
+    sal: firstNumericValue(source, ["salt", "sal", "sal_g"]),
+  };
+}
+
 function isMissingSaltColumn(error: any) {
   const message = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.details ?? ""}`;
   return /salt/i.test(message) && /column|schema|cache|find|exist/i.test(message);
@@ -1039,7 +1088,7 @@ function servingToMacros(serving: any, amount: number): MacroValues | null {
 
   const factor = amount / metricAmount;
   return enforceMacroCalories({
-    kcal: 0,
+    kcal: numberValue(serving?.calories) * factor,
     protein: numberValue(serving?.protein) * factor,
     carbs: numberValue(serving?.carbohydrate) * factor,
     fat: numberValue(serving?.fat) * factor,
@@ -1199,10 +1248,7 @@ function cookingStateScore(foodName: string, query: string) {
 function isGenericSimpleFoodQuery(query: string) {
   if (asksForPreparedFood(query)) return false;
   if (asksForDerivedFood(query)) return false;
-  const tokens = normalizeFoodRankingText(query)
-    .split(" ")
-    .filter(token => token.length > 1)
-    .filter(token => !["de", "del", "la", "el", "los", "las", "the", "of"].includes(token));
+  const tokens = significantFoodTokens(query);
   return tokens.length > 0 && tokens.length <= 3;
 }
 
@@ -1456,6 +1502,7 @@ function usdaMicronutrients(food: any, factor: number) {
 }
 
 function usdaFoodToMacros(food: any, amount: number): MacroValues | null {
+  const calories = nutrientValue(food, ["Energy", "Energy (Atwater General Factors)", "Energy (Atwater Specific Factors)"]);
   const protein = nutrientValue(food, ["Protein"]);
   const carbs = nutrientValue(food, ["Carbohydrate, by difference", "Carbohydrate"]);
   const fat = nutrientValue(food, ["Total lipid (fat)", "Total lipid", "fat"]);
@@ -1464,7 +1511,7 @@ function usdaFoodToMacros(food: any, amount: number): MacroValues | null {
 
   const factor = amount / 100;
   return enforceMacroCalories({
-    kcal: 0,
+    kcal: calories * factor,
     protein: protein * factor,
     carbs: carbs * factor,
     fat: fat * factor,
@@ -2113,6 +2160,7 @@ export default async function handler(req: any, res: any) {
       debugEntry.matchedAs = internalExactMatch.row.name;
       debugEntry.foodId = internalExactMatch.row.id;
       debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.rawNutrition = internalFoodNutrition(internalExactMatch.row);
       debugEntry.calorieCheck = calorieCheck(itemMacros);
       debugEntry.attempts?.push({
         provider: "alimentos_internos",
@@ -2123,6 +2171,7 @@ export default async function handler(req: any, res: any) {
         baseQuantity: internalExactMatch.row.base_quantity,
         baseUnit: internalExactMatch.row.base_unit,
         source: internalExactMatch.row.source,
+        rawNutrition: internalFoodNutrition(internalExactMatch.row),
         skippedExternalApis: true,
         macros: roundMacros(itemMacros),
       });
@@ -2190,6 +2239,7 @@ export default async function handler(req: any, res: any) {
       debugEntry.matchedAs = internalMatch.row.name;
       debugEntry.foodId = internalMatch.row.id;
       debugEntry.macros = roundMacros(itemMacros);
+      debugEntry.rawNutrition = internalFoodNutrition(internalMatch.row);
       debugEntry.calorieCheck = calorieCheck(itemMacros);
       debugEntry.attempts?.push({
         provider: "alimentos_internos",
@@ -2200,6 +2250,7 @@ export default async function handler(req: any, res: any) {
         baseQuantity: internalMatch.row.base_quantity,
         baseUnit: internalMatch.row.base_unit,
         source: internalMatch.row.source,
+        rawNutrition: internalFoodNutrition(internalMatch.row),
         skippedExternalApis: true,
         macros: roundMacros(itemMacros),
       });
@@ -2447,6 +2498,7 @@ export default async function handler(req: any, res: any) {
       sourceLabel: item.sourceLabel,
       matchedAs: item.matchedAs,
       foodId: item.foodId,
+      rawNutrition: item.rawNutrition,
       macros: item.macros,
       calorieCheck: item.calorieCheck,
       attempts: item.attempts,

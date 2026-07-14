@@ -77,10 +77,17 @@ export default async function handler(req: any, res: any) {
 
   const authHeader = String(req.headers.authorization || "");
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  console.info("[internal-foods auth diagnostic] api request", {
+    method: req.method,
+    hasAuthorizationHeader: Boolean(authHeader),
+    hasBearerPrefix: /^Bearer\s+/i.test(authHeader),
+    tokenPresent: Boolean(token),
+  });
   if (!token) return res.status(401).json({ error: "Sesión requerida" });
 
   const config = getSupabaseConfig();
   if (!config) {
+    console.warn("[internal-foods auth diagnostic] api config missing");
     return res.status(500).json({
       error: "Supabase no está configurado en la API de Alimentos internos.",
     });
@@ -93,6 +100,12 @@ export default async function handler(req: any, res: any) {
   });
 
   const { data: userData, error: userError } = await authClient.auth.getUser(token);
+  console.info("[internal-foods auth diagnostic] api supabase validation", {
+    validSession: Boolean(userData?.user),
+    rejectedBySupabase: Boolean(userError),
+    errorMessage: userError?.message ?? null,
+    errorStatus: (userError as any)?.status ?? null,
+  });
   if (userError || !userData?.user) return res.status(401).json({ error: "Sesión no válida" });
 
   if (req.method === "GET") {

@@ -158,12 +158,12 @@ const HEADER_ALIASES: Record<string, string[]> = {
   base_quantity: ["cantidad_base", "cantidad", "base_quantity", "valor_base"],
   base_unit: ["unidad_base", "unidad", "base_unit"],
   calories: ["calorias", "calorias_kcal", "kcal", "energia", "energia_kcal", "calories"],
-  protein: ["proteinas", "proteinas_g", "proteina", "protein"],
-  carbs: ["hidratos", "hidratos_g", "hidratos_de_carbono", "carbohidratos", "carbs"],
+  protein: ["proteinas", "proteinas_g", "proteina", "proteina_g", "protein"],
+  carbs: ["hidratos", "hidratos_g", "hidratos_de_carbono", "hidratos_de_carbono_g", "carbohidratos", "carbohidratos_g", "carbs"],
   azucares_g: ["azucares", "azucares_g", "azucares_9", "azucares_totales", "sugars"],
-  fat: ["grasas", "grasas_g", "grasa", "fat"],
-  grasas_saturadas_g: ["grasas_saturadas", "grasas_saturadas_g", "saturadas", "saturated_fat"],
-  fiber: ["fibra", "fibra_g", "fiber"],
+  fat: ["grasas", "grasas_g", "grasa", "grasa_g", "grasas_saludables", "grasas_saludables_g", "fat"],
+  grasas_saturadas_g: ["grasas_saturadas", "grasas_saturadas_g", "saturadas", "saturadas_g", "saturated_fat"],
+  fiber: ["fibra", "fibra_g", "fibra_alimentaria", "fibra_alimentaria_g", "fibra_dietetica", "fibra_dietetica_g", "fiber"],
   salt: ["sal", "sal_g", "salt"],
   synonyms: ["sinonimos", "sinonimo", "aliases", "synonyms"],
   source: ["origen", "fuente", "source", "fuente_principal"],
@@ -271,27 +271,54 @@ const SEARCH_FAMILIES: Record<string, string[]> = {
 };
 
 const getSessionHeaders = async (refresh = false) => {
-  if (refresh) await supabase.auth.refreshSession().catch(() => null);
-  const { data: sessionData } = await supabase.auth.getSession();
-  return sessionData.session?.access_token
+  const refreshResult = refresh ? await supabase.auth.refreshSession().catch((error) => ({ error })) : null;
+  const { data: sessionData, error } = await supabase.auth.getSession();
+  const expiresAt = sessionData.session?.expires_at ?? null;
+  const expiresInSeconds = expiresAt ? expiresAt - Math.floor(Date.now() / 1000) : null;
+  const hasAccessToken = Boolean(sessionData.session?.access_token);
+  console.info("[internal-foods auth diagnostic] frontend session", {
+    refreshRequested: refresh,
+    refreshOk: refresh ? !refreshResult?.error : null,
+    hasSession: Boolean(sessionData.session),
+    hasAccessToken,
+    expiresInSeconds,
+    expired: typeof expiresInSeconds === "number" ? expiresInSeconds <= 0 : null,
+    getSessionError: error?.message ?? null,
+  });
+  return hasAccessToken
     ? { Authorization: `Bearer ${sessionData.session.access_token}` }
     : {};
 };
 
 const fetchInternalFoodsApi = async (init: RequestInit = {}) => {
-  const buildRequest = async (refresh = false) => fetch("/api/internal-foods", {
-    ...init,
-    headers: {
+  const buildRequest = async (refresh = false) => {
+    const headers = {
       ...((init.headers as Record<string, string> | undefined) ?? {}),
       ...(await getSessionHeaders(refresh)),
-    },
-  });
+    };
+    console.info("[internal-foods auth diagnostic] frontend request", {
+      refreshRequested: refresh,
+      hasAuthorizationHeader: Boolean((headers as Record<string, string>).Authorization),
+    });
+    return fetch("/api/internal-foods", {
+      ...init,
+      headers,
+    });
+  };
 
   let response = await buildRequest(false);
+  console.info("[internal-foods auth diagnostic] frontend response", {
+    status: response.status,
+    retriedAfterRefresh: false,
+  });
   if (response.status === 401) {
     const payload = await response.clone().json().catch(() => null);
     if (/sesión|session/i.test(String(payload?.error ?? ""))) {
       response = await buildRequest(true);
+      console.info("[internal-foods auth diagnostic] frontend response", {
+        status: response.status,
+        retriedAfterRefresh: true,
+      });
     }
   }
   return response;
@@ -311,29 +338,35 @@ export default function AdminInternalFoods() {
 
   const loadFoods = async () => {
     setLoading(true);
-    const response = await fetchInternalFoodsApi();
-    const payload = await response.json().catch(() => null);
-    setLoading(false);
-    if (!response.ok) {
-      toast.error(payload?.error || "No se pudieron cargar los alimentos internos");
-      return;
+    try {
+      const response = await fetchInternalFoodsApi();
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(payload?.error || "No se pudieron cargar los alimentos internos");
+        return;
+      }
+      if (payload?.warning) {
+        toast.warning("Mostrando base interna de respaldo hasta que Supabase exponga la tabla.");
+      }
+      setFoods((payload?.data ?? []).map((item: any) => ({
+        ...item,
+        base_quantity: toNumber(item.base_quantity),
+        calories: toNumber(item.calories),
+        protein: toNumber(item.protein),
+        carbs: toNumber(item.carbs),
+        fat: toNumber(item.fat),
+        fiber: toNumber(item.fiber),
+        salt: toNumber(item.salt),
+        azucares_g: toNullableNumber(item.azucares_g ?? item.azucares_9),
+        grasas_saturadas_g: toNullableNumber(item.grasas_saturadas_g),
+        synonyms: item.synonyms ?? [],
+      })));
+    } catch (error) {
+      console.error("[AdminInternalFoods] Error al cargar alimentos internos", error);
+      toast.error("No se pudieron cargar los alimentos internos. Revisa la conexión o vuelve a iniciar sesión.");
+    } finally {
+      setLoading(false);
     }
-    if (payload?.warning) {
-      toast.warning("Mostrando base interna de respaldo hasta que Supabase exponga la tabla.");
-    }
-    setFoods((payload?.data ?? []).map((item: any) => ({
-      ...item,
-      base_quantity: toNumber(item.base_quantity),
-      calories: toNumber(item.calories),
-      protein: toNumber(item.protein),
-      carbs: toNumber(item.carbs),
-      fat: toNumber(item.fat),
-      fiber: toNumber(item.fiber),
-      salt: toNumber(item.salt),
-      azucares_g: toNullableNumber(item.azucares_g ?? item.azucares_9),
-      grasas_saturadas_g: toNullableNumber(item.grasas_saturadas_g),
-      synonyms: item.synonyms ?? [],
-    })));
   };
 
   useEffect(() => {
@@ -541,6 +574,17 @@ export default function AdminInternalFoods() {
     return value === null || value === undefined || value === "";
   };
 
+  const shouldFillExistingImportField = (current: unknown, incoming: unknown) => {
+    if (isImportValueEmpty(incoming)) return false;
+    if (isImportValueEmpty(current)) return true;
+    const currentNumber = Number(current);
+    const incomingNumber = Number(incoming);
+    if (Number.isFinite(currentNumber) && Number.isFinite(incomingNumber)) {
+      return currentNumber === 0 && incomingNumber !== 0;
+    }
+    return false;
+  };
+
   const formatImportValue = (value: unknown) => Array.isArray(value) ? value.join(", ") : String(value ?? "");
 
   const importValuesAreEqual = (current: unknown, incoming: unknown) => {
@@ -606,8 +650,18 @@ export default function AdminInternalFoods() {
       if (incoming === undefined) return;
       const current = payload[field];
       if (!importValuesAreEqual(current, incoming)) {
-        (payload as any)[field] = incoming;
-        changedFields.push(field);
+        if (shouldFillExistingImportField(current, incoming)) {
+          (payload as any)[field] = incoming;
+          changedFields.push(field);
+        } else {
+          conflicts.push({
+            row,
+            name: payload.name,
+            field,
+            current: formatImportValue(current),
+            incoming: formatImportValue(incoming),
+          });
+        }
       }
     });
 
@@ -941,7 +995,7 @@ export default function AdminInternalFoods() {
               <div className="rounded-xl bg-secondary p-2"><strong>{importPreview.skipped.length}</strong><br /><span className="text-xs muted">se omitirán</span></div>
             </div>
             <p className="text-xs muted">
-              No se eliminará ningún alimento. En alimentos existentes, el Excel actualizará los campos que incluya; las columnas que no estén en el Excel conservarán el valor actual de la base.
+              No se eliminará ningún alimento. En alimentos existentes, el Excel solo rellenará campos vacíos o a 0 cuando traiga un valor real; si la base ya tiene un valor distinto, se conservará y aparecerá como posible actualización.
               Las categorías del Excel no se aplican automáticamente: los alimentos nuevos quedarán en “Sin categoría” y los existentes conservarán su categoría actual.
             </p>
             {importPreview.conflicts.length > 0 && (

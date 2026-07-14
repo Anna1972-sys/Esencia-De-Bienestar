@@ -521,6 +521,11 @@ function MacroResult({ result }: { result: any }) {
                 <div className="text-xs muted">
                   Fuente: {item.sourceLabel ?? "Base externa"} · Coincidencia: {item.displayName ?? item.matchedAs} · {item.macros?.kcal} kcal · {item.macros?.protein} g prot
                 </div>
+                {item.rawNutrition && (
+                  <pre className="mt-2 overflow-auto rounded-lg bg-white/70 p-2 text-[10px] text-muted-foreground">
+                    {JSON.stringify(item.rawNutrition, null, 2)}
+                  </pre>
+                )}
               </div>
             ))}
           </div>

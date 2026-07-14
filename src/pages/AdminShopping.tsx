@@ -23,6 +23,9 @@ const normalizeCategoryName = (value: unknown) =>
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
 
+const isUncategorizedCategoryName = (value: unknown) =>
+  normalizeCategoryName(value) === "sin categoria";
+
 export default function AdminShopping() {
   const [tab, setTab] = useState<Tab>("templates");
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
@@ -46,6 +49,7 @@ export default function AdminShopping() {
   const [cFilterUser, setCFilterUser] = useState<string>("all");
   const [cSelected, setCSelected] = useState<Set<string>>(new Set());
   const [cBulkTarget, setCBulkTarget] = useState<string>("");
+  const visibleCats = useMemo(() => cats.filter((c) => !isUncategorizedCategoryName(c.name)), [cats]);
 
   const load = async () => {
     const [{ data: c, error: cError }, { data: t, error: tError }, { data: items, error: itemsError }, { data: profs, error: profsError }] = await Promise.all([
@@ -81,6 +85,7 @@ export default function AdminShopping() {
   const categoryByKey = useMemo(() => {
     const map = new Map<string, string>();
     cats.forEach((category) => {
+      if (isUncategorizedCategoryName(category.name)) return;
       map.set(normalizeCategoryName(category.name), category.name);
     });
     return map;
@@ -88,30 +93,31 @@ export default function AdminShopping() {
 
   const resolveCategory = (category?: string | null) => {
     const key = normalizeCategoryName(category);
+    if (key === "sin categoria") return null;
     return key ? categoryByKey.get(key) ?? null : null;
   };
 
   // ---- Counts (templates) ----
   const counts = useMemo(() => {
     const m: Record<string, number> = { all: items.length, [UNCAT]: 0 };
-    cats.forEach((c) => (m[c.name] = 0));
+    visibleCats.forEach((c) => (m[c.name] = 0));
     items.forEach((it) => {
       const k = resolveCategory(it.category) ?? UNCAT;
       m[k] = (m[k] ?? 0) + 1;
     });
     return m;
-  }, [items, cats, categoryByKey]);
+  }, [items, visibleCats, categoryByKey]);
 
   // ---- Counts (client items) ----
   const cCounts = useMemo(() => {
     const m: Record<string, number> = { all: clientItems.length, [UNCAT]: 0 };
-    cats.forEach((c) => (m[c.name] = 0));
+    visibleCats.forEach((c) => (m[c.name] = 0));
     clientItems.forEach((it) => {
       const k = resolveCategory(it.category) ?? UNCAT;
       m[k] = (m[k] ?? 0) + 1;
     });
     return m;
-  }, [clientItems, cats, categoryByKey]);
+  }, [clientItems, visibleCats, categoryByKey]);
 
   const filtered = useMemo(() => {
     const q = normalizeCategoryName(query);
@@ -296,22 +302,22 @@ export default function AdminShopping() {
   };
 
   const templateFilterChips: { key: string; label: string }[] = useMemo(() => {
-    const ordered = cats.map((c) => c.name);
+    const ordered = visibleCats.map((c) => c.name);
     return [
       { key: "all", label: "Todas" },
       ...ordered.map((name) => ({ key: name, label: name })),
       { key: UNCAT, label: "Sin categoría" },
     ];
-  }, [cats]);
+  }, [visibleCats]);
 
   const clientFilterChips: { key: string; label: string }[] = useMemo(() => {
-    const ordered = cats.map((c) => c.name);
+    const ordered = visibleCats.map((c) => c.name);
     return [
       { key: "all", label: "Todas" },
       ...ordered.map((name) => ({ key: name, label: name })),
       { key: UNCAT, label: "Sin categoría" },
     ];
-  }, [cats]);
+  }, [visibleCats]);
 
   const activeCategory = tab === "templates" ? filterCat : cFilterCat;
   const activeCategoryRecord = activeCategory !== "all" && activeCategory !== UNCAT ? cats.find((c) => c.name === activeCategory) ?? null : null;
@@ -337,7 +343,7 @@ export default function AdminShopping() {
       grouped.set(key, [...(grouped.get(key) ?? []), it]);
     });
 
-    const orderedCategoryNames = cats.map((c) => c.name);
+    const orderedCategoryNames = visibleCats.map((c) => c.name);
 
     const order = filterCat === "all"
       ? [...orderedCategoryNames, UNCAT]
@@ -346,7 +352,7 @@ export default function AdminShopping() {
     return order
       .map((key) => ({ key, label: key === UNCAT ? "Sin categoría" : key, items: grouped.get(key) ?? [] }))
       .filter((group) => group.items.length > 0);
-  }, [filtered, cats, filterCat, categoryByKey]);
+  }, [filtered, visibleCats, filterCat, categoryByKey]);
 
   const clientItemsList = (
     <section className="mb-5">
@@ -375,7 +381,7 @@ export default function AdminShopping() {
                 onChange={(e) => cSetCategory(it.id, e.target.value || null)}
               >
                 <option value="">Sin categoría</option>
-                {cats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {visibleCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               <button onClick={() => cDelete(it.id, it.name)} className="p-1 text-destructive" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
             </div>
@@ -578,7 +584,7 @@ export default function AdminShopping() {
             <FolderInput className="h-4 w-4 muted" />
             <select className="field w-48" value={cBulkTarget} onChange={(e) => setCBulkTarget(e.target.value)}>
               <option value="">Mover a…</option>
-              {cats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              {visibleCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
               <option value={UNCAT}>Sin categoría</option>
             </select>
             <button onClick={cBulkMove} disabled={cSelected.size === 0 || !cBulkTarget} className="btn-primary disabled:opacity-50">
@@ -607,7 +613,7 @@ export default function AdminShopping() {
               <input className="field flex-1 min-w-[180px]" placeholder="Nombre" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} required />
               <select className="field w-48" value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}>
                 <option value="">Sin categoría</option>
-                {cats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {visibleCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               <button className="btn-primary"><Plus className="h-4 w-4" /> {itemForm.id ? "Guardar" : "Añadir"}</button>
               {itemForm.id && <button type="button" className="btn-secondary" onClick={resetItem}>Cancelar</button>}
@@ -637,7 +643,7 @@ export default function AdminShopping() {
             <FolderInput className="h-4 w-4 muted" />
             <select className="field w-48" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
               <option value="">Elegir categoría…</option>
-              {cats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              {visibleCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
               <option value={UNCAT}>Sin categoría</option>
             </select>
             <button onClick={bulkMove} disabled={selected.size === 0 || !bulkTarget} className="btn-primary disabled:opacity-50">
