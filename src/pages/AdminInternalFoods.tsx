@@ -420,41 +420,59 @@ export default function AdminInternalFoods() {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
-    const payload = {
-      name: form.name.trim(),
-      synonyms: textToSynonyms(form.synonyms),
-      base_quantity: numberOrFallback(form.base_quantity, 100),
-      base_unit: form.base_unit,
-      calories: numberOrFallback(form.calories),
-      protein: numberOrFallback(form.protein),
-      carbs: numberOrFallback(form.carbs),
-      fat: numberOrFallback(form.fat),
-      fiber: numberOrFallback(form.fiber),
-      salt: numberOrFallback(form.salt),
-      azucares_g: toNullableNumber(form.azucares_g),
-      grasas_saturadas_g: toNullableNumber(form.grasas_saturadas_g),
-      category: form.category.trim() || "general",
-      source: form.source.trim() || "Tabla interna",
-      is_active: form.is_active,
-      updated_at: new Date().toISOString(),
-    };
-
-    const response = await fetchInternalFoodsApi({
-      method: editingId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
-    });
-    const result = await response.json().catch(() => null);
-    setSaving(false);
-    if (!response.ok) {
-      toast.error(result?.error || "No se pudo guardar el alimento");
-      return;
+    try {
+      const synonyms = textToSynonyms(form.synonyms);
+      const payload = {
+        name: form.name.trim(),
+        synonyms,
+        base_quantity: numberOrFallback(form.base_quantity, 100),
+        base_unit: form.base_unit,
+        calories: numberOrFallback(form.calories),
+        protein: numberOrFallback(form.protein),
+        carbs: numberOrFallback(form.carbs),
+        fat: numberOrFallback(form.fat),
+        fiber: numberOrFallback(form.fiber),
+        salt: numberOrFallback(form.salt),
+        azucares_g: toNullableNumber(form.azucares_g),
+        grasas_saturadas_g: toNullableNumber(form.grasas_saturadas_g),
+        category: form.category.trim() || "general",
+        source: form.source.trim() || "Tabla interna",
+        is_active: form.is_active,
+        updated_at: new Date().toISOString(),
+      };
+      const normalizedNames = new Set([payload.name, ...synonyms].map(normalizeText).filter(Boolean));
+      const existingFood = editingId
+        ? null
+        : foods.find(food => {
+            const currentNames = [food.name, ...(food.synonyms ?? [])].map(normalizeText).filter(Boolean);
+            return currentNames.some(name => normalizedNames.has(name));
+          });
+      const targetId = editingId ?? existingFood?.id ?? null;
+      const response = await fetchInternalFoodsApi({
+        method: targetId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(targetId ? { id: targetId, ...payload } : payload),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(result?.error || "No se pudo guardar el alimento");
+        return;
+      }
+      if (!result?.data?.id) {
+        toast.error("No se pudo confirmar el guardado en la base de datos");
+        return;
+      }
+      reset();
+      await loadFoods();
+      toast.success(targetId ? "Alimento actualizado" : "Alimento creado");
+    } catch (error) {
+      console.error("[AdminInternalFoods] Error al guardar alimento interno", error);
+      toast.error("No se pudo guardar el alimento. Revisa la conexión o vuelve a iniciar sesión.");
+    } finally {
+      setSaving(false);
     }
-    toast.success(editingId ? "Alimento actualizado" : "Alimento creado");
-    reset();
-    loadFoods();
   };
 
   const remove = async (food: InternalFood) => {

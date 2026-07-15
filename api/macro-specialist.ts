@@ -376,15 +376,49 @@ for (const [key, food] of Object.entries(BASIC_FOODS)) {
   for (const alias of food.aliases ?? []) FOOD_INDEX.set(normalizeName(alias), { key, food });
 }
 
+function ingredientInputToRawText(raw: unknown) {
+  if (typeof raw === "string" || typeof raw === "number") return String(raw ?? "").trim();
+  if (!raw || typeof raw !== "object") return String(raw ?? "").trim();
+  const item = raw as Record<string, any>;
+  const name = String(
+    item.name ??
+    item.ingredient ??
+    item.food ??
+    item.food_name ??
+    item.label ??
+    item.title ??
+    item.text ??
+    item.raw ??
+    "",
+  ).trim();
+  const quantity = String(item.quantity ?? item.amount ?? item.qty ?? "").trim();
+  const unit = String(item.unit ?? item.units ?? "").trim();
+  const grams = item.grams ?? item.gramos ?? item.weight_g ?? item.weight;
+  if (quantity && name) {
+    const quantityWithUnit = unit && !normalizeName(quantity).split(" ").includes(normalizeName(unit))
+      ? `${quantity} ${unit}`
+      : quantity;
+    return `${quantityWithUnit} ${name}`.replace(/\s+/g, " ").trim();
+  }
+  if (grams !== undefined && grams !== null && grams !== "" && name) {
+    return `${grams} g ${name}`.replace(/\s+/g, " ").trim();
+  }
+  return name || String(item.raw ?? "").trim();
+}
+
 function parseRawIngredient(raw: unknown): IngredientInput {
-  const rawText = String(raw ?? "").trim();
+  const rawText = ingredientInputToRawText(raw);
   const qtyPattern = /(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i;
   const qtyMatch = rawText.match(qtyPattern);
-  const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : undefined;
+  const unitlessCountMatch = !qtyMatch ? rawText.match(/^\s*(\d+(?:[,.]\d+)?)\s+(.+)$/i) : null;
+  const quantity = qtyMatch
+    ? Number(qtyMatch[1].replace(",", "."))
+    : unitlessCountMatch
+      ? Number(unitlessCountMatch[1].replace(",", "."))
+      : undefined;
   const unit = qtyMatch?.[2] ? safeLowerCase(qtyMatch[2], "parseRawIngredient.unit") : undefined;
-  const rawName = rawText
-    .replace(qtyPattern, " ")
-    .replace(/^\s*(de|del|la|el)\s+/i, "")
+  const rawName = (qtyMatch ? rawText.replace(qtyPattern, " ") : unitlessCountMatch?.[2] ?? rawText)
+    .replace(/^\s*(de|del|la|el|una?|unos|unas)\s+/i, "")
     .replace(/\s+(de|del|la|el)\s*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -2028,7 +2062,7 @@ export default async function handler(req: any, res: any) {
     const body = req.body ?? {};
     servings = Math.max(1, Math.round(Number(body.servings) || 1));
     inputIngredients = Array.isArray(body.ingredients)
-      ? body.ingredients
+      ? body.ingredients.map(parseRawIngredient)
       : String(body.ingredientsText || "")
         .split("\n")
         .map((line: string) => line.trim())

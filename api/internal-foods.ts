@@ -145,12 +145,6 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ data: data ?? [], source: "supabase" });
   }
 
-  if (!config.supabaseServiceRoleKey) {
-    return res.status(500).json({
-      error: "Falta SUPABASE_SERVICE_ROLE_KEY en el backend para guardar alimentos internos de forma segura.",
-    });
-  }
-
   if (req.method === "POST") {
     const payload = normalizePayload(await readBody(req));
     if (!payload.name) return res.status(400).json({ error: "El nombre del alimento es obligatorio" });
