@@ -248,6 +248,8 @@ const MATCH_STOP_WORDS = new Set([
   "negro", "negra", "negros", "negras", "fresco", "fresca", "frescos", "frescas",
   "natural", "naturales", "laminado", "laminada", "laminados", "laminadas",
   "troceado", "troceada", "troceados", "troceadas", "picado", "picada", "picados", "picadas",
+  "molido", "molida", "molidos", "molidas", "rallado", "rallada", "rallados", "ralladas",
+  "escurrido", "escurrida", "escurridos", "escurridas",
   "entero", "entera", "enteros", "enteras", "cocido", "cocida", "cocidos", "cocidas",
   "crudo", "cruda", "crudos", "crudas", "sin", "con",
 ]);
@@ -311,6 +313,15 @@ function tokenSimilarity(candidate: unknown, query: unknown) {
   const candidateSet = new Set(candidateTokens);
   const overlap = queryTokens.filter(token => candidateSet.has(token)).length;
   return overlap / Math.max(candidateTokens.length, queryTokens.length);
+}
+
+function hasSameSignificantFoodTokens(candidate: unknown, query: unknown) {
+  const candidateTokens = Array.from(new Set(significantFoodTokens(candidate)));
+  const queryTokens = Array.from(new Set(significantFoodTokens(query)));
+  if (!candidateTokens.length || !queryTokens.length) return false;
+  if (candidateTokens.length !== queryTokens.length) return false;
+  const querySet = new Set(queryTokens);
+  return candidateTokens.every(token => querySet.has(token));
 }
 
 function foodCategoryGroup(value: unknown, category?: unknown) {
@@ -518,6 +529,7 @@ function findInternalFoodByMode(name: string, foods: InternalFoodRow[], mode: Ma
   const normalized = normalizeName(name);
   const isDisallowedInternalCandidate = (food: InternalFoodRow) =>
     normalizeName(food.name) !== normalized &&
+    !hasSameSignificantFoodTokens(food.name, name) &&
     (isDisallowedDefaultProcessedMatch(food.name, name) || hasFoodCategoryConflict(food.name, name, food.category));
   const candidates = foods
     .filter(food => food.is_active)
