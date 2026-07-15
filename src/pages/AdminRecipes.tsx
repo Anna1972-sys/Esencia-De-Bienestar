@@ -10,6 +10,7 @@ import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroS
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar esta receta oficial? Esta acción no se puede deshacer.";
 const QTY_RE = /\d/;
+const ADMIN_RECIPE_DRAFT_KEY = "admin-recipes-editor-draft-v1";
 
 type OfficialStatus = "visible" | "hidden" | "featured";
 
@@ -153,6 +154,26 @@ const macrosFromForm = (form: LibForm, existing: any = {}) => ({
   nutrition_note: existing?.nutrition_note ?? "pendiente de revisión",
 });
 
+const formHasDraftContent = (form: LibForm) =>
+  Boolean(
+    form.title.trim() ||
+    form.description.trim() ||
+    form.ingredients.trim() ||
+    form.steps.trim() ||
+    form.tags.trim() ||
+    form.image_url.trim() ||
+    form.video_url.trim() ||
+    form.prep_time.trim() ||
+    (form.servings.trim() && form.servings.trim() !== "1") ||
+    ["protein", "carbs", "fat", "calories", "fiber"].some((key) => String((form as any)[key] ?? "0") !== "0")
+  );
+
+type RecipeEditorDraft = {
+  editingId: string | null;
+  form: LibForm;
+  savedAt: string;
+};
+
 const formFromRecipe = (recipe: RecipeRow): LibForm => ({
   title: recipe.title ?? "",
   description: recipe.description ?? "",
@@ -223,6 +244,8 @@ export default function AdminRecipes() {
   const [lastMacroWarning, setLastMacroWarning] = useState("");
   const [completingQuantities, setCompletingQuantities] = useState(false);
   const [quantityNotice, setQuantityNotice] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const [availableDraft, setAvailableDraft] = useState<RecipeEditorDraft | null>(null);
 
   const editingRecipe = useMemo(() => items.find(item => item.id === editingId) ?? null, [items, editingId]);
 
@@ -243,12 +266,65 @@ export default function AdminRecipes() {
   useEffect(() => { load(); }, []);
 
   const updateForm = (patch: Partial<LibForm>) => setForm(prev => ({ ...prev, ...patch }));
+  const clearLocalDraft = () => {
+    try {
+      window.localStorage.removeItem(ADMIN_RECIPE_DRAFT_KEY);
+    } catch {
+      // El borrador local es una ayuda; si el navegador no permite borrarlo, no bloquea el guardado.
+    }
+    setAvailableDraft(null);
+  };
   const resetForm = () => {
+    clearLocalDraft();
     setForm(emptyForm);
     setEditingId(null);
     setMacroDebug([]);
     setLastMacroWarning("");
     setQuantityNotice("");
+  };
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(ADMIN_RECIPE_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as RecipeEditorDraft;
+        if (draft?.form && formHasDraftContent(draft.form)) setAvailableDraft(draft);
+      }
+    } catch {
+      window.localStorage.removeItem(ADMIN_RECIPE_DRAFT_KEY);
+    } finally {
+      setDraftReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (!formHasDraftContent(form)) return;
+    const timeout = window.setTimeout(() => {
+      try {
+        const draft: RecipeEditorDraft = {
+          editingId,
+          form,
+          savedAt: new Date().toISOString(),
+        };
+        window.localStorage.setItem(ADMIN_RECIPE_DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        // Si el almacenamiento local está lleno o bloqueado, no debe impedir editar ni guardar.
+      }
+    }, 1000);
+    return () => window.clearTimeout(timeout);
+  }, [draftReady, editingId, form]);
+
+  const recoverLocalDraft = () => {
+    if (!availableDraft) return;
+    setEditingId(availableDraft.editingId);
+    setForm(availableDraft.form);
+    setMacroDebug([]);
+    setLastMacroWarning("");
+    setQuantityNotice("Borrador recuperado. No se guardará en la receta hasta que pulses “Guardar”.");
+    setAvailableDraft(null);
+    toast.success("Borrador recuperado");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -546,6 +622,24 @@ export default function AdminRecipes() {
             </button>
           )}
         </div>
+
+        {availableDraft && (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 p-3 text-xs space-y-2">
+            <div>
+              <strong>Hay un borrador sin guardar.</strong>{" "}
+              {availableDraft.savedAt ? `Guardado localmente el ${new Date(availableDraft.savedAt).toLocaleString("es-ES")}.` : ""}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-primary py-2 text-xs" onClick={recoverLocalDraft}>
+                Recuperar borrador
+              </button>
+              <button type="button" className="btn-secondary py-2 text-xs" onClick={clearLocalDraft}>
+                Descartar borrador
+              </button>
+            </div>
+            <p className="muted">No se publicará ni sobrescribirá ninguna receta hasta que pulses “Guardar”.</p>
+          </div>
+        )}
 
         <input className="field" placeholder="Nombre de la receta *" value={form.title} onChange={e => updateForm({ title: e.target.value })} required />
         <select className="field" value={form.category} onChange={e => updateForm({ category: e.target.value })} required>
