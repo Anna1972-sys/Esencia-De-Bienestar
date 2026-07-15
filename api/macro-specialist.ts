@@ -408,13 +408,14 @@ function ingredientInputToRawText(raw: unknown) {
 
 function parseRawIngredient(raw: unknown): IngredientInput {
   const rawText = ingredientInputToRawText(raw);
-  const qtyPattern = /(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i;
+  const quantityValuePattern = String.raw`(\d+(?:[,.]\d+)?|\d+\s*\/\s*\d+|[¼½¾])`;
+  const qtyPattern = new RegExp(`${quantityValuePattern}\\s*(medio\\s+cacito|medios\\s+cacitos|huevo\\s+mediano|huevos\\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|lata|latas|tostada|tostadas|rebanada|rebanadas|rodaja|rodajas|vaso|vasos|taza|tazas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\\b`, "i");
   const qtyMatch = rawText.match(qtyPattern);
-  const unitlessCountMatch = !qtyMatch ? rawText.match(/^\s*(\d+(?:[,.]\d+)?)\s+(.+)$/i) : null;
+  const unitlessCountMatch = !qtyMatch ? rawText.match(new RegExp(`^\\s*${quantityValuePattern}\\s+(.+)$`, "i")) : null;
   const quantity = qtyMatch
-    ? Number(qtyMatch[1].replace(",", "."))
+    ? parseQuantityValue(qtyMatch[1])
     : unitlessCountMatch
-      ? Number(unitlessCountMatch[1].replace(",", "."))
+      ? parseQuantityValue(unitlessCountMatch[1])
       : undefined;
   const unit = qtyMatch?.[2] ? safeLowerCase(qtyMatch[2], "parseRawIngredient.unit") : undefined;
   const rawName = (qtyMatch ? rawText.replace(qtyPattern, " ") : unitlessCountMatch?.[2] ?? rawText)
@@ -425,6 +426,21 @@ function parseRawIngredient(raw: unknown): IngredientInput {
   const name = simplifyFoodName(rawName || unit || rawText);
   const grams = quantity && unit ? quantityToGrams(quantity, unit, name) : undefined;
   return { raw: rawText, name, grams, quantity, unit };
+}
+
+function parseQuantityValue(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (text === "¼") return 0.25;
+  if (text === "½") return 0.5;
+  if (text === "¾") return 0.75;
+  const fractionMatch = text.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (fractionMatch) {
+    const numerator = Number(fractionMatch[1]);
+    const denominator = Number(fractionMatch[2]);
+    return denominator ? numerator / denominator : undefined;
+  }
+  const parsed = Number(text.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function roundMacros(value: MacroValues) {
@@ -525,6 +541,9 @@ function quantityToGrams(quantity: number, unit: unknown, foodName: unknown) {
     if (normalizedFood.includes("clara")) return quantity * 33;
     if (normalizedFood.includes("manzana")) return quantity * 180;
     if (normalizedFood.includes("platano") || normalizedFood.includes("banana")) return quantity * 120;
+  }
+  if (["lata", "latas", "tostada", "tostadas", "rebanada", "rebanadas", "rodaja", "rodajas", "vaso", "vasos", "taza", "tazas"].includes(normalizedUnit)) {
+    return undefined;
   }
   return undefined;
 }

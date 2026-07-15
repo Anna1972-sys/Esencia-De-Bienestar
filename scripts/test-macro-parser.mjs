@@ -10,7 +10,20 @@ const quantityToGrams = (quantity, unit) => {
   const normalizedUnit = String(unit ?? "").toLowerCase();
   if (["g", "gr", "gramos"].includes(normalizedUnit)) return quantity;
   if (["ml", "mililitros"].includes(normalizedUnit)) return quantity;
+  if (["cucharada", "cucharadas", "cda", "cdas"].includes(normalizedUnit)) return quantity * 10;
+  if (["cucharadita", "cucharaditas", "cdta", "cdtas"].includes(normalizedUnit)) return quantity * 5;
   return undefined;
+};
+
+const parseQuantityValue = (value) => {
+  const text = String(value ?? "").trim();
+  if (text === "¼") return 0.25;
+  if (text === "½") return 0.5;
+  if (text === "¾") return 0.75;
+  const fractionMatch = text.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (fractionMatch) return Number(fractionMatch[1]) / Number(fractionMatch[2]);
+  const parsed = Number(text.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : undefined;
 };
 
 const ingredientInputToRawText = (raw) => {
@@ -30,10 +43,11 @@ const ingredientInputToRawText = (raw) => {
 
 const parseIngredient = (raw) => {
   const rawText = ingredientInputToRawText(raw);
-  const qtyPattern = /(\d+(?:[,.]\d+)?)\s*(medio\s+cacito|medios\s+cacitos|huevo\s+mediano|huevos\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\b/i;
+  const quantityValuePattern = String.raw`(\d+(?:[,.]\d+)?|\d+\s*\/\s*\d+|[¼½¾])`;
+  const qtyPattern = new RegExp(`${quantityValuePattern}\\s*(medio\\s+cacito|medios\\s+cacitos|huevo\\s+mediano|huevos\\s+medianos|cacito|cacitos|scoop|scoops|sobre|sobres|stick|sticks|barrita|barritas|lata|latas|tostada|tostadas|rebanada|rebanadas|rodaja|rodajas|vaso|vasos|taza|tazas|diente|dientes|clara|claras|huevo|huevos|g|gr|gramos|ml|mililitros|pieza|piezas|unidad|unidades|cucharada|cucharadas|cda|cdas|cucharadita|cucharaditas|cdta|cdtas)\\b`, "i");
   const qtyMatch = rawText.match(qtyPattern);
-  const unitlessCountMatch = !qtyMatch ? rawText.match(/^\s*(\d+(?:[,.]\d+)?)\s+(.+)$/i) : null;
-  const quantity = qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : unitlessCountMatch ? Number(unitlessCountMatch[1].replace(",", ".")) : undefined;
+  const unitlessCountMatch = !qtyMatch ? rawText.match(new RegExp(`^\\s*${quantityValuePattern}\\s+(.+)$`, "i")) : null;
+  const quantity = qtyMatch ? parseQuantityValue(qtyMatch[1]) : unitlessCountMatch ? parseQuantityValue(unitlessCountMatch[1]) : undefined;
   const unit = qtyMatch?.[2]?.toLowerCase();
   const grams = quantity && unit ? quantityToGrams(quantity, unit) : undefined;
   return { raw: rawText, quantity, unit, grams };
@@ -46,7 +60,16 @@ const cases = [
   ["250 ml caldo", 250, "ml", 250],
   [{ quantity: "125 g", grams: 25, name: "yogur natural 0%" }, 125, "g", 125],
   ["1 yogur", 1, undefined, undefined],
-  ["1 lata", 1, undefined, undefined],
+  ["1 lata", 1, "lata", undefined],
+  ["1 lata de atún", 1, "lata", undefined],
+  ["2 rebanadas pan", 2, "rebanadas", undefined],
+  ["1 tostada integral", 1, "tostada", undefined],
+  ["3 rodajas tomate", 3, "rodajas", undefined],
+  ["1 vaso leche", 1, "vaso", undefined],
+  ["1 taza arroz", 1, "taza", undefined],
+  ["1/2 cucharadita sal", 0.5, "cucharadita", 5 * 0.5],
+  ["½ cucharadita pimienta", 0.5, "cucharadita", 5 * 0.5],
+  ["¼ cucharadita canela", 0.25, "cucharadita", 5 * 0.25],
   ["1 unidad tomate", 1, "unidad", undefined],
 ];
 
