@@ -246,6 +246,7 @@ export default function AdminRecipes() {
   const [quantityNotice, setQuantityNotice] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const [availableDraft, setAvailableDraft] = useState<RecipeEditorDraft | null>(null);
+  const [changingCategoryId, setChangingCategoryId] = useState<string | null>(null);
 
   const editingRecipe = useMemo(() => items.find(item => item.id === editingId) ?? null, [items, editingId]);
 
@@ -596,6 +597,28 @@ export default function AdminRecipes() {
     }
   };
 
+  const changeRecipeCategory = async (recipe: RecipeRow, category: string) => {
+    if (!category || category === recipe.category || changingCategoryId) return;
+    setChangingCategoryId(recipe.id);
+    try {
+      const { data, error } = await supabase
+        .from("recipes")
+        .update({ category, categories: [category] })
+        .eq("id", recipe.id)
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("No se encontró la receta para cambiar la categoría");
+      setItems(current => current.map(item => item.id === recipe.id ? data as RecipeRow : item));
+      if (editingId === recipe.id) updateForm({ category });
+      toast.success("Categoría actualizada");
+    } catch (err: any) {
+      toast.error(err.message || "No se pudo cambiar la categoría");
+    } finally {
+      setChangingCategoryId(null);
+    }
+  };
+
   const visible = useMemo(() => {
     const term = String(query ?? "").trim().toLowerCase();
     return items.filter(item => {
@@ -774,6 +797,17 @@ export default function AdminRecipes() {
                 <button type="button" onClick={() => duplicateRecipe(recipe)} className="btn-ghost px-2 py-2"><Copy className="h-3.5 w-3.5" /> Duplicar</button>
                 <button type="button" onClick={() => recalculateRecipe(recipe)} disabled={calculating} className="btn-ghost px-2 py-2"><Calculator className="h-3.5 w-3.5" /> Macros</button>
                 <button type="button" onClick={() => deleteRecipe(recipe)} className="btn-ghost px-2 py-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Eliminar</button>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-white/70 p-2">
+                <label className="text-[10px] muted block mb-1">Cambiar categoría</label>
+                <select
+                  className="field text-xs py-2"
+                  value={recipe.category ?? ""}
+                  onChange={e => changeRecipeCategory(recipe, e.target.value)}
+                  disabled={changingCategoryId === recipe.id}
+                >
+                  {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
+                </select>
               </div>
             </div>
           );
