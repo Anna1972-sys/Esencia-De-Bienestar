@@ -2,6 +2,7 @@ import desayunoHerbalife from "@/assets/cat-desayuno-herbalife-premium.png";
 import desayunoSin from "@/assets/cat-desayuno-sin-premium.png";
 import snacks from "@/assets/cat-snacks-premium.png";
 import comidas from "@/assets/cat-comidas.jpg";
+import comidasHerbalife from "@/assets/cat-comidas-herbalife.jpg";
 import meriendas from "@/assets/cat-meriendas-premium.png";
 import cenaHerbalife from "@/assets/cat-cena-herbalife.jpg";
 import cenaSin from "@/assets/cat-cena-sin.jpg";
@@ -11,6 +12,7 @@ export const LIBRARY_CATEGORIES: { id: string; label: string; image?: string }[]
   { id: "desayunos_sin_herbalife", label: "Desayunos sin Herbalife", image: desayunoSin },
   { id: "snacks", label: "Snacks saludables", image: snacks },
   { id: "comidas", label: "Comidas", image: comidas },
+  { id: "comidas_herbalife", label: "Comidas con Herbalife", image: comidasHerbalife },
   { id: "meriendas", label: "Meriendas", image: meriendas },
   { id: "cenas_herbalife", label: "Cenas con Herbalife", image: cenaHerbalife },
   { id: "cenas_sin_herbalife", label: "Cenas sin Herbalife", image: cenaSin },
