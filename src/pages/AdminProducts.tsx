@@ -351,7 +351,6 @@ const toNullableNumber = (value: unknown): number | null => {
 const toFormNumber = (value: unknown): AdminNumberValue => value === null || value === undefined ? "" : toNumber(value);
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
 const textToArray = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
-const round1 = (value: number) => Math.round(value * 10) / 10;
 const round4 = (value: number | null) => value === null ? "" : Math.round(value * 10000) / 10000;
 
 function readProductBlockOrder(micronutrients: Record<string, unknown> | null | undefined): ProductBlockId[] {
@@ -431,7 +430,7 @@ function measureFromProductNutrition(measure: ProductMeasure, product: ProductFo
   const factor = grams / 100;
   const scale = (value: AdminNumberValue) => {
     const parsed = toNullableNumber(value);
-    return parsed === null ? "" : round1(parsed * factor);
+    return parsed === null ? "" : parsed * factor;
   };
   return {
     ...measure,
@@ -459,7 +458,7 @@ function nutritionFromServing(form: ProductForm) {
   if (!servingGrams || servingGrams <= 0) return form;
   const scale = (value: AdminNumberValue) => {
     const parsed = toNullableNumber(value);
-    return parsed === null ? "" : round1((parsed / servingGrams) * 100);
+    return parsed === null ? "" : (parsed / servingGrams) * 100;
   };
   const next = {
     ...form,
@@ -2146,6 +2145,7 @@ export default function AdminProducts() {
                       <NumberField label="Proteínas" value={measure.protein} onChange={value => updateMeasure(index, { protein: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
                       <NumberField label="Hidratos" value={measure.carbs} onChange={value => updateMeasure(index, { carbs: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
                       <NumberField label="Grasas" value={measure.fat} onChange={value => updateMeasure(index, { fat: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
+                      <NumberField label="Grasas saturadas" value={measure.saturated_fat ?? ""} onChange={value => updateMeasure(index, { saturated_fat: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
                       <NumberField label="Fibra" value={measure.fiber} onChange={value => updateMeasure(index, { fiber: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
                       <NumberField label="Azúcares" value={measure.sugars ?? ""} onChange={value => updateMeasure(index, { sugars: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
                       <NumberField label="Sal" value={measure.salt ?? ""} onChange={value => updateMeasure(index, { salt: value })} quickSteps={NUTRIENT_QUICK_STEPS} step="0.001" />
