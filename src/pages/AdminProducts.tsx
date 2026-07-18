@@ -352,6 +352,11 @@ const toFormNumber = (value: unknown): AdminNumberValue => value === null || val
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
 const textToArray = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 const round4 = (value: number | null) => value === null ? "" : Math.round(value * 10000) / 10000;
+const formatMeasureCalories = (value: number | null): AdminNumberValue => value === null ? "" : value.toFixed(1);
+const formatMeasureNutrient = (value: number | null): AdminNumberValue => {
+  if (value === null) return "";
+  return Number(value.toFixed(2)).toString();
+};
 
 function readProductBlockOrder(micronutrients: Record<string, unknown> | null | undefined): ProductBlockId[] {
   const rawOrder = micronutrients?.[PRODUCT_BLOCK_ORDER_KEY];
@@ -430,18 +435,18 @@ function measureFromProductNutrition(measure: ProductMeasure, product: ProductFo
   const factor = grams / 100;
   const scale = (value: AdminNumberValue) => {
     const parsed = toNullableNumber(value);
-    return parsed === null ? "" : parsed * factor;
+    return parsed === null ? null : parsed * factor;
   };
   return {
     ...measure,
-    calories: scale(product.calories),
-    protein: scale(product.protein),
-    carbs: scale(product.carbs),
-    fat: scale(product.fat),
-    saturated_fat: scale(product.saturated_fat),
-    fiber: scale(product.fiber),
-    sugars: scale(product.sugars),
-    salt: scale(product.salt),
+    calories: formatMeasureCalories(scale(product.calories)),
+    protein: formatMeasureNutrient(scale(product.protein)),
+    carbs: formatMeasureNutrient(scale(product.carbs)),
+    fat: formatMeasureNutrient(scale(product.fat)),
+    saturated_fat: formatMeasureNutrient(scale(product.saturated_fat)),
+    fiber: formatMeasureNutrient(scale(product.fiber)),
+    sugars: formatMeasureNutrient(scale(product.sugars)),
+    salt: formatMeasureNutrient(scale(product.salt)),
   };
 }
 
@@ -2302,14 +2307,14 @@ function normalizeMeasure(item: any): ProductMeasure {
     id: item.id,
     name: validMeasureName,
     grams: toFormNumber(item.grams),
-    calories: toFormNumber(item.calories),
-    protein: toFormNumber(item.protein),
-    carbs: toFormNumber(item.carbs),
-    fat: toFormNumber(item.fat),
-    saturated_fat: toFormNumber(item.saturated_fat),
-    fiber: toFormNumber(item.fiber),
-    sugars: toFormNumber(item.sugars),
-    salt: toFormNumber(item.salt),
+    calories: formatMeasureCalories(toNullableNumber(item.calories)),
+    protein: formatMeasureNutrient(toNullableNumber(item.protein)),
+    carbs: formatMeasureNutrient(toNullableNumber(item.carbs)),
+    fat: formatMeasureNutrient(toNullableNumber(item.fat)),
+    saturated_fat: formatMeasureNutrient(toNullableNumber(item.saturated_fat)),
+    fiber: formatMeasureNutrient(toNullableNumber(item.fiber)),
+    sugars: formatMeasureNutrient(toNullableNumber(item.sugars)),
+    salt: formatMeasureNutrient(toNullableNumber(item.salt)),
     source: item.source ?? "Pendiente de etiqueta oficial",
     verification_status: item.verification_status === "verificado" ? "verificado" : "pendiente",
     is_default: Boolean(item.is_default),
