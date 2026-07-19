@@ -75,17 +75,6 @@ async function verifyAdmin(authHeader: string | undefined) {
   return { ok: true, status: 200, error: "" };
 }
 
-function extractResponseText(payload: any) {
-  if (payload?.output_text) return String(payload.output_text);
-  const chunks: string[] = [];
-  for (const item of payload?.output ?? []) {
-    for (const content of item?.content ?? []) {
-      if (content?.text) chunks.push(String(content.text));
-    }
-  }
-  return chunks.join("\n");
-}
-
 function parseJsonText(text: string) {
   const trimmed = text.trim();
   try {
@@ -101,7 +90,26 @@ function isSupportedLabelMimeType(mimeType: unknown) {
   return ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"].includes(String(mimeType || "").toLowerCase());
 }
 
-async function readWithOpenAI(apiKey: string, body: any) {
+function dataUrlToInlineData(dataUrl: string, fallbackMimeType: string) {
+  const match = String(dataUrl).match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) throw new Error("El archivo de etiqueta no tiene un formato válido");
+  return {
+    mimeType: match[1] || fallbackMimeType,
+    data: match[2],
+  };
+}
+
+function extractGeminiText(payload: any) {
+  const chunks: string[] = [];
+  for (const candidate of payload?.candidates ?? []) {
+    for (const part of candidate?.content?.parts ?? []) {
+      if (part?.text) chunks.push(String(part.text));
+    }
+  }
+  return chunks.join("\n");
+}
+
+async function readWithGemini(apiKey: string, body: any) {
   const prompt = `Lee este PDF o imagen oficial de producto en español.
 Devuelve SOLO JSON, sin markdown.
 No inventes datos: si un valor no aparece claro, pon null.
@@ -118,60 +126,35 @@ Incluye source y confidence_notes.
 Formato exacto:
 {"short_description":"","description":"","ingredients_text":"","serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":""}`;
 
-  if (String(body.mimeType || "").startsWith("image/")) {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
+  const inlineData = dataUrlToInlineData(body.dataUrl, body.mimeType || "application/pdf");
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: inlineData.mimeType,
+                data: inlineData.data,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
         temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: body.dataUrl } },
-            ],
-          },
-        ],
-      }),
-    });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`OpenAI ${response.status}: ${text.slice(0, 600)}`);
-    const payload = JSON.parse(text);
-    return parseJsonText(payload?.choices?.[0]?.message?.content ?? "");
-  }
-
-  if (body.mimeType === "application/pdf") {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        responseMimeType: "application/json",
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        input: [
-          {
-            role: "user",
-            content: [
-              { type: "input_text", text: prompt },
-              { type: "input_file", filename: body.fileName || "etiqueta.pdf", file_data: body.dataUrl },
-            ],
-          },
-        ],
-      }),
-    });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`OpenAI ${response.status}: ${text.slice(0, 600)}`);
-    return parseJsonText(extractResponseText(JSON.parse(text)));
-  }
+    }),
+  });
 
-  throw new Error("Formato no admitido. Sube una imagen o un PDF de la etiqueta.");
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Gemini ${response.status}: ${text.slice(0, 600)}`);
+  return parseJsonText(extractGeminiText(JSON.parse(text)));
 }
 
 async function fileUrlToDataUrl(fileUrl: string, fallbackMimeType = "application/pdf") {
@@ -200,8 +183,8 @@ export default async function handler(req: any, res: any) {
   const admin = await verifyAdmin(req.headers.authorization);
   if (!admin.ok) return res.status(admin.status).json({ error: admin.error });
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "OPENAI_API_KEY no está configurada" });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY no está configurada" });
 
   const body = req.body ?? {};
   if (!body.dataUrl && body.fileUrl) {
@@ -226,7 +209,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const raw = await readWithOpenAI(apiKey, body);
+    const raw = await readWithGemini(apiKey, body);
     return res.status(200).json(cleanNutritionPayload(raw));
   } catch (error: any) {
     console.error("[read-nutrition-label] error", error);
