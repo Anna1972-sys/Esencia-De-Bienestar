@@ -115,6 +115,11 @@ Devuelve SOLO JSON, sin markdown.
 No inventes datos: si un valor no aparece claro, pon null.
 No marques nada como verificado.
 Extrae únicamente información que aparezca en el documento.
+REGLA CRÍTICA SOBRE VARIAS TABLAS NUTRICIONALES:
+- Si el documento contiene varias tablas nutricionales, por ejemplo "producto en polvo" y "producto preparado", usa por defecto EXCLUSIVAMENTE la tabla del producto tal como se vende: polvo, barrita, concentrado, bebida/listo para tomar, cápsula, comprimido, etc.
+- No uses nunca la tabla del producto preparado, mezclado con leche/agua/bebida vegetal u otra preparación para rellenar calories, protein, carbs, sugars, fat, saturated_fat, fiber o salt.
+- Si puedes identificar con seguridad cuál es la tabla del producto tal como se vende, rellena los campos con esa tabla y explica la elección en confidence_notes.
+- Si hay varias tablas y NO puedes distinguir con seguridad cuál corresponde al producto tal como se vende, no elijas automáticamente: pon requires_admin_confirmation en true, deja todos los valores nutricionales numéricos en null y explica qué tablas has detectado en available_nutrition_tables y confidence_notes.
 Si aparece una descripción oficial del producto, devuélvela en description. Si no aparece, pon "".
 Si aparece descripción oficial suficiente, crea short_description como resumen breve de 2 a 4 líneas usando solo esa información. Si no aparece, pon "".
 Si aparece una lista de ingredientes, devuélvela en ingredients_text. Si no aparece, pon "".
@@ -124,7 +129,7 @@ El tamaño de ración textual va en serving_size y los gramos de ración en serv
 Si el sodio aparece pero la sal no aparece, indica el dato en confidence_notes para revisión manual; no conviertas si no está claro.
 Incluye source y confidence_notes.
 Formato exacto:
-{"short_description":"","description":"","ingredients_text":"","serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":""}`;
+{"short_description":"","description":"","ingredients_text":"","serving_size":null,"serving_grams":null,"serving_calories":null,"serving_protein":null,"serving_carbs":null,"serving_sugars":null,"serving_fat":null,"serving_saturated_fat":null,"serving_fiber":null,"serving_salt":null,"calories":null,"protein":null,"carbs":null,"sugars":null,"fat":null,"saturated_fat":null,"fiber":null,"salt":null,"source":"Etiqueta nutricional pendiente de revisión","confidence_notes":"","requires_admin_confirmation":false,"available_nutrition_tables":[]}`;
 
   const inlineData = dataUrlToInlineData(body.dataUrl, body.mimeType || "application/pdf");
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -210,6 +215,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     const raw = await readWithGemini(apiKey, body);
+    if (raw?.requires_admin_confirmation === true) {
+      return res.status(409).json({
+        error: "La etiqueta contiene varias tablas nutricionales y no se puede elegir una con seguridad.",
+        detail: "Revisa manualmente si corresponde al producto tal como se vende o al producto preparado antes de rellenar los datos.",
+        available_nutrition_tables: Array.isArray(raw.available_nutrition_tables) ? raw.available_nutrition_tables : [],
+        confidence_notes: typeof raw.confidence_notes === "string" ? raw.confidence_notes : "",
+      });
+    }
     return res.status(200).json(cleanNutritionPayload(raw));
   } catch (error: any) {
     console.error("[read-nutrition-label] error", error);
