@@ -450,6 +450,42 @@ function measureFromProductNutrition(measure: ProductMeasure, product: ProductFo
   };
 }
 
+function measuresFromNutritionLabel(product: ProductForm): ProductMeasure[] {
+  const source = product.source || "Etiqueta nutricional verificada";
+  const per100Measure = measureFromProductNutrition(
+    {
+      ...emptyMeasure,
+      name: "100 g",
+      grams: 100,
+      source,
+      verification_status: "verificado",
+      is_default: true,
+      sort_order: 0,
+    },
+    product,
+  );
+
+  const servingMeasure: ProductMeasure = {
+    ...emptyMeasure,
+    name: "1 ración",
+    grams: toNullableNumber(product.serving_grams) ?? "",
+    calories: formatMeasureCalories(toNullableNumber(product.serving_calories)),
+    protein: formatMeasureNutrient(toNullableNumber(product.serving_protein)),
+    carbs: formatMeasureNutrient(toNullableNumber(product.serving_carbs)),
+    fat: formatMeasureNutrient(toNullableNumber(product.serving_fat)),
+    saturated_fat: formatMeasureNutrient(toNullableNumber(product.serving_saturated_fat)),
+    fiber: formatMeasureNutrient(toNullableNumber(product.serving_fiber)),
+    sugars: formatMeasureNutrient(toNullableNumber(product.serving_sugars)),
+    salt: formatMeasureNutrient(toNullableNumber(product.serving_salt)),
+    source,
+    verification_status: "verificado",
+    is_default: false,
+    sort_order: 1,
+  };
+
+  return limitProductMeasures([per100Measure, servingMeasure]);
+}
+
 function measuresFromProductNutrition(measures: ProductMeasure[], product: ProductForm) {
   return measures.map(measure => measureFromProductNutrition(measure, product));
 }
@@ -1279,6 +1315,36 @@ export default function AdminProducts() {
     if (error) throw error;
   };
 
+  const persistProductMeasures = async (productId: string, productMeasures: ProductMeasure[], fallbackSource?: string) => {
+    const { error: deleteError } = await (supabase as any).from("product_measures").delete().eq("product_id", productId);
+    if (deleteError) throw deleteError;
+
+    const measures = limitProductMeasures(productMeasures)
+      .filter(measure => measure.name.trim())
+      .map((measure, index) => ({
+        product_id: productId,
+        name: measure.name.trim(),
+        grams: toNullableNumber(measure.grams),
+        calories: toNullableNumber(measure.calories),
+        protein: toNullableNumber(measure.protein),
+        carbs: toNullableNumber(measure.carbs),
+        fat: toNullableNumber(measure.fat),
+        saturated_fat: toNullableNumber(measure.saturated_fat),
+        fiber: toNullableNumber(measure.fiber),
+        sugars: toNullableNumber(measure.sugars),
+        salt: toNullableNumber(measure.salt),
+        source: measure.source || fallbackSource || "Etiqueta nutricional verificada",
+        verification_status: measure.verification_status,
+        is_default: Boolean(measure.is_default),
+        sort_order: index,
+      }));
+
+    if (measures.length) {
+      const { error } = await (supabase as any).from("product_measures").insert(measures);
+      if (error) throw error;
+    }
+  };
+
   const markNutritionLabelPending = async (labelUrl: string, fileName: string) => {
     const pendingSource = `Pendiente de analizar: ${fileName}`;
     setForm(prev => ({
@@ -1329,8 +1395,9 @@ export default function AdminProducts() {
         verification_status: "verificado",
         nutrition_verified_at: verifiedAt,
       });
-      nextFormForSave = next;
-      return next;
+      const nextWithMeasures = { ...next, measures: measuresFromNutritionLabel(next) };
+      nextFormForSave = nextWithMeasures;
+      return nextWithMeasures;
     });
 
     const next = nextFormForSave;
@@ -1367,6 +1434,9 @@ export default function AdminProducts() {
       verification_status: "verificado",
       nutrition_verified_at: verifiedAt,
     });
+    if (form.id) {
+      await persistProductMeasures(form.id, next.measures, next.source);
+    }
   };
 
   const analyzeNutritionLabelData = async (fileName: string, mimeType: string, labelUrl: string, dataUrl?: string) => {
