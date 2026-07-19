@@ -512,7 +512,7 @@ function nutritionFromServing(form: ProductForm) {
     fiber: toNullableNumber(form.fiber) === null ? scale(form.serving_fiber) : form.fiber,
     salt: toNullableNumber(form.salt) === null ? scale(form.serving_salt) : form.salt,
   };
-  return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
+  return next;
 }
 
 function perGram(value: AdminNumberValue, servingValue?: AdminNumberValue, servingGrams?: AdminNumberValue) {
@@ -1242,22 +1242,14 @@ export default function AdminProducts() {
   };
 
   const updateMeasure = (index: number, patch: Partial<ProductMeasure>) => {
-    const shouldRecalculate = "grams" in patch && !("calories" in patch || "protein" in patch || "carbs" in patch || "fat" in patch || "fiber" in patch);
     setForm(prev => ({
       ...prev,
-      measures: prev.measures.map((measure, i) => {
-        if (i !== index) return measure;
-        const nextMeasure = { ...measure, ...patch };
-        return shouldRecalculate ? measureFromProductNutrition(nextMeasure, prev) : nextMeasure;
-      }),
+      measures: prev.measures.map((measure, i) => (i === index ? { ...measure, ...patch } : measure)),
     }));
   };
 
   const updateNutrition = (patch: Partial<Pick<ProductForm, "calories" | "protein" | "carbs" | "fat" | "saturated_fat" | "fiber" | "sugars" | "salt">>) => {
-    setForm(prev => {
-      const next = { ...prev, ...patch };
-      return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
-    });
+    setForm(prev => ({ ...prev, ...patch }));
   };
 
   const clearServingNutrition = () => {
@@ -1277,20 +1269,17 @@ export default function AdminProducts() {
   };
 
   const clearPer100Nutrition = () => {
-    setForm(prev => {
-      const next = {
-        ...prev,
-        calories: "",
-        protein: "",
-        carbs: "",
-        fat: "",
-        saturated_fat: "",
-        fiber: "",
-        sugars: "",
-        salt: "",
-      };
-      return { ...next, measures: measuresFromProductNutrition(next.measures, next) };
-    });
+    setForm(prev => ({
+      ...prev,
+      calories: "",
+      protein: "",
+      carbs: "",
+      fat: "",
+      saturated_fat: "",
+      fiber: "",
+      sugars: "",
+      salt: "",
+    }));
   };
 
   const clearProductBasics = () => {

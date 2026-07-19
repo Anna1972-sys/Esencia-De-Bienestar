@@ -1659,8 +1659,8 @@
 
   .admin-product-measure-fields {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .95rem .8rem;
+    grid-template-columns: repeat(2, minmax(8.75rem, 1fr));
+    gap: 1.05rem .9rem;
     align-items: start;
   }
 
@@ -1716,11 +1716,11 @@
   .admin-product-quick-number-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: .25rem;
-    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: .28rem;
+    flex-wrap: wrap;
     max-width: 100%;
-    margin-top: .35rem;
+    margin-top: .42rem;
     flex-shrink: 0;
   }
 
@@ -1735,8 +1735,9 @@
   .admin-product-quick-number-actions button {
     display: inline-grid;
     place-items: center;
-    min-width: 1.75rem !important;
-    width: 1.75rem !important;
+    flex: 0 0 2rem;
+    min-width: 2rem !important;
+    width: 2rem !important;
     min-height: 1.5rem !important;
     height: 1.5rem !important;
     padding: 0 !important;
@@ -1753,8 +1754,8 @@
   .admin-products .admin-measure-row .admin-product-quick-number-actions button {
     min-height: 1.5rem !important;
     height: 1.5rem !important;
-    min-width: 1.75rem !important;
-    width: 1.75rem !important;
+    min-width: 2rem !important;
+    width: 2rem !important;
     padding: 0 !important;
     border-radius: 999px !important;
     font-size: .5625rem !important;
@@ -1777,6 +1778,7 @@
   @media (max-width: 520px) {
     .admin-product-measure-fields {
       grid-template-columns: 1fr;
+      gap: 1rem;
     }
   }
 
