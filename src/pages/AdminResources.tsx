@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
+import GuideCardsGrid from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
@@ -323,6 +324,19 @@ export default function AdminResources() {
           <div className="text-xs muted">Crear, renombrar, reordenar y eliminar</div>
         </div>
       </Link>
+
+      <section className="card-soft p-4 mb-5">
+        <div className="mb-3 flex items-start gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="font-sans text-xl font-bold text-foreground">Guías y recursos</h2>
+            <p className="text-sm muted">Vista de tarjetas igual que la biblioteca de clientas.</p>
+          </div>
+        </div>
+        <GuideCardsGrid resources={items} />
+      </section>
 
       {!f.id && hasDraft && <DraftBanner onDiscard={() => { clearDraft(); setF(empty); }} />}
       <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">

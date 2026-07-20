@@ -10,6 +10,7 @@ import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
 import imgMentalidad from "@/assets/resource-mentalidad.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
+import GuideCardsGrid, { isGuidesCategory } from "@/components/resources/GuideCardsGrid";
 
 type Category = {
   id: string;
@@ -116,6 +117,7 @@ export default function Resources() {
 
   const currentTop = activeTop ? cats.find(c => c.id === activeTop) : null;
   const currentSub = activeSub ? cats.find(c => c.id === activeSub) : null;
+  const currentTopIsGuides = isGuidesCategory(currentTop);
   const inside = !!activeTop || searching;
 
   return (
@@ -135,8 +137,20 @@ export default function Resources() {
           </h1>
           <p className="text-sm muted mb-4">{filteredItems.length} publicación{filteredItems.length === 1 ? "" : "es"}</p>
 
+          {currentTopIsGuides && (
+            <div className="relative mb-4">
+              <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                className="field pl-9"
+                placeholder="Buscar por nombre o categoría…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+            </div>
+          )}
+
           {/* Subcategory chips */}
-          {currentTop && subsOf(currentTop.id).length > 0 && !searching && (
+          {currentTop && !currentTopIsGuides && subsOf(currentTop.id).length > 0 && !searching && (
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
               <button onClick={() => setActiveSub(null)} className={`shrink-0 text-xs px-3 py-1.5 rounded-full ${!activeSub ? "bg-primary text-white" : "bg-muted"}`}>Todo</button>
               {subsOf(currentTop.id).map(s => (
@@ -147,7 +161,9 @@ export default function Resources() {
             </div>
           )}
 
-          {filteredItems.length === 0 ? (
+          {currentTopIsGuides ? (
+            <GuideCardsGrid resources={items} query={query} />
+          ) : filteredItems.length === 0 ? (
             <div className="card-soft p-6 text-center muted">No hay publicaciones que coincidan.</div>
           ) : (
             <div className="space-y-3">
