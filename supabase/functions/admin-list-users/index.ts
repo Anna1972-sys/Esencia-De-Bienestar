@@ -8,22 +8,31 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+const requiredEnv = (name: string) => {
+  const value = Deno.env.get(name);
+  if (!value) throw new Error(`Falta ${name} en la función admin-list-users`);
+  return value;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ ok: false, error: "No autenticado" }, 401);
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SUPABASE_URL = requiredEnv("SUPABASE_URL");
+    const SERVICE = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const ANON = requiredEnv("SUPABASE_ANON_KEY");
 
     const userClient = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } } });
     const { data: userData, error: userErr } = await userClient.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (userErr || !userData?.user?.id) return json({ ok: false, error: "Sesión inválida" }, 401);
+    if (userErr || !userData?.user?.id) {
+      return json({ ok: false, error: userErr?.message ? `Sesión inválida: ${userErr.message}` : "Sesión inválida" }, 401);
+    }
 
     const admin = createClient(SUPABASE_URL, SERVICE);
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    const { data: isAdmin, error: roleErr } = await admin.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    if (roleErr) return json({ ok: false, error: `No se pudo comprobar el rol de administradora: ${roleErr.message}` }, 500);
     if (!isAdmin) return json({ ok: false, error: "Acceso denegado" }, 403);
 
     // Aggregate all auth users (paginated)
@@ -31,17 +40,19 @@ Deno.serve(async (req) => {
     let page = 1;
     while (true) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-      if (error) return json({ ok: false, error: error.message }, 500);
+      if (error) return json({ ok: false, error: `Supabase Auth no devolvió usuarios: ${error.message}` }, 500);
       all.push(...(data?.users ?? []));
       if (!data || data.users.length < 200) break;
       page++;
       if (page > 25) break; // safety
     }
 
-    const [{ data: profiles }, { data: roles }] = await Promise.all([
+    const [{ data: profiles, error: profilesErr }, { data: roles, error: rolesErr }] = await Promise.all([
       admin.from("profiles").select("id, display_name, created_at"),
       admin.from("user_roles").select("user_id, role"),
     ]);
+    if (profilesErr) return json({ ok: false, error: `No se pudieron leer perfiles: ${profilesErr.message}` }, 500);
+    if (rolesErr) return json({ ok: false, error: `No se pudieron leer roles: ${rolesErr.message}` }, 500);
     const profileMap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
     const rolesMap = new Map<string, string[]>();
     (roles ?? []).forEach((r: any) => {
@@ -67,7 +78,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    return json({ ok: true, users });
+    return json({ ok: true, users, count: users.length });
   } catch (e) {
     console.error("admin-list-users error", e);
     return json({ ok: false, error: (e as Error).message }, 500);

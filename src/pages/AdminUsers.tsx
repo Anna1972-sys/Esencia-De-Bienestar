@@ -29,12 +29,20 @@ export default function AdminUsers() {
   const [filterRole, setFilterRole] = useState<"all" | "admin" | "client">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "suspended" | "unconfirmed">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "lastSeen" | "az">("newest");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     const { data, error } = await supabase.functions.invoke("admin-list-users");
     setLoading(false);
-    if (error || !data?.ok) { toast.error(data?.error || error?.message || "Error al cargar"); return; }
+    if (error || !data?.ok) {
+      const message = data?.error || error?.message || "Error al cargar usuarias";
+      setRows([]);
+      setLoadError(message);
+      toast.error(message);
+      return;
+    }
     setRows(data.users ?? []);
   };
 
@@ -116,6 +124,13 @@ export default function AdminUsers() {
     <div className="pb-28">
       <AdminPageHeader title="Usuarias" subtitle={`${rows.length} usuario${rows.length === 1 ? "" : "s"} registrados.`} />
 
+      {loadError && (
+        <div className="card-soft p-4 mb-3 border-destructive/40 bg-destructive/5 text-sm">
+          <div className="font-semibold text-destructive mb-1">No se pudo cargar la lista de usuarias</div>
+          <div className="muted">{loadError}</div>
+          <button className="btn-primary mt-3 w-full" onClick={load}>Volver a intentar</button>
+        </div>
+      )}
 
       <div className="card-soft p-3 mb-3 space-y-2">
         <div className="relative">
