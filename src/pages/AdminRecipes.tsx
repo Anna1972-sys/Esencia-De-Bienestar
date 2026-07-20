@@ -724,6 +724,38 @@ export default function AdminRecipes() {
         <select className="field" value={form.category} onChange={e => updateForm({ category: e.target.value })} required>
           {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
+        {editingRecipe && (() => {
+          const categoryGroup = orderedRecipesInCategory(editingRecipe.category);
+          const categoryIndex = categoryGroup.findIndex(item => item.id === editingRecipe.id);
+          return (
+            <div className="rounded-2xl border border-border/70 bg-white/70 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[10px] muted">Orden en {getCategoryLabel(editingRecipe.category)}</div>
+                  <div className="text-xs font-medium">Posición {categoryIndex >= 0 ? categoryIndex + 1 : "—"} de {categoryGroup.length}</div>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    className="btn-ghost px-2 py-2 text-[11px]"
+                    onClick={() => moveRecipeWithinCategory(editingRecipe, -1)}
+                    disabled={categoryIndex <= 0}
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" /> Subir
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost px-2 py-2 text-[11px]"
+                    onClick={() => moveRecipeWithinCategory(editingRecipe, 1)}
+                    disabled={categoryIndex < 0 || categoryIndex >= categoryGroup.length - 1}
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" /> Bajar
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         <textarea className="field min-h-20" placeholder="Descripción" value={form.description} onChange={e => updateForm({ description: e.target.value })} />
 
         <div className="space-y-2">
