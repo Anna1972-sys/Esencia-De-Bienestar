@@ -7,6 +7,7 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import { LIBRARY_CATEGORIES } from "@/lib/libraryCategories";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
+import { normalizeRecipeImageUrl, recipeImagePublicUrl } from "@/lib/recipeImages";
 
 type Visibility = "private" | "community" | "featured";
 
@@ -334,11 +335,13 @@ export default function AdminUserRecipes() {
       </div>
 
       <div className="space-y-2">
-        {visible.map(r => (
+        {visible.map(r => {
+          const imageUrl = normalizeRecipeImageUrl(r.image_url);
+          return (
           <div key={r.id} className="card-soft p-3">
             <div className="flex items-center gap-3">
-              {r.image_url
-                ? <img src={r.image_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
+              {imageUrl
+                ? <img src={imageUrl} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
                 : <div className="h-12 w-12 rounded-lg bg-secondary shrink-0" />}
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-sm truncate">{r.title}</div>
@@ -366,7 +369,7 @@ export default function AdminUserRecipes() {
               <MiniMacro label="Fibra" value={`${getMacro(r, "fiber")}g`} />
             </div>
           </div>
-        ))}
+        )})}
         {visible.length === 0 && <div className="card-soft p-6 text-center muted">No hay recetas.</div>}
       </div>
 
@@ -399,7 +402,7 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
     : DEFAULT_LIBRARY_CATEGORY[recipe.category ?? ""] ?? LIBRARY_CATEGORIES[0].id;
   const [category, setCategory] = useState(initialLibraryCategory);
   const [categories, setCategories] = useState<string[]>(recipe.categories ?? []);
-  const [imageUrl, setImageUrl] = useState(recipe.image_url ?? "");
+  const [imageUrl, setImageUrl] = useState(normalizeRecipeImageUrl(recipe.image_url));
   const [uploading, setUploading] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [quantityNotice, setQuantityNotice] = useState("");
@@ -422,10 +425,9 @@ function EditorModal({ recipe, onClose, onSave, onPublish, busy }: {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("recipe-images").upload(path, file);
+      const { error } = await supabase.storage.from("recipe-images").upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
-      const { data: signed } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
-      setImageUrl(signed?.signedUrl ?? "");
+      setImageUrl(recipeImagePublicUrl(path));
       toast.success("Imagen subida");
     } catch (err: any) {
       toast.error(err.message);

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import VideoField from "@/components/VideoField";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
+import { normalizeRecipeImageUrl, recipeImagePublicUrl } from "@/lib/recipeImages";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar esta receta oficial? Esta acción no se puede deshacer.";
 const QTY_RE = /\d/;
@@ -189,7 +190,7 @@ const formFromRecipe = (recipe: RecipeRow): LibForm => ({
   ingredients: ingredientsToText(recipe.ingredients),
   steps: stepsToText(recipe.steps),
   tags: tagsToText(recipe.tags),
-  image_url: recipe.image_url ?? "",
+  image_url: normalizeRecipeImageUrl(recipe.image_url),
   video_url: recipe.video_url ?? "",
 });
 
@@ -335,11 +336,9 @@ export default function AdminRecipes() {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("recipe-images").upload(path, file, { upsert: false });
+      const { error: upErr } = await supabase.storage.from("recipe-images").upload(path, file, { upsert: false, contentType: file.type });
       if (upErr) throw upErr;
-      const { data: signed, error: signErr } = await supabase.storage.from("recipe-images").createSignedUrl(path, 60 * 60 * 24 * 7);
-      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("No se pudo preparar la imagen");
-      updateForm({ image_url: signed.signedUrl });
+      updateForm({ image_url: recipeImagePublicUrl(path) });
       toast.success("Imagen subida");
     } catch (err: any) {
       toast.error(err.message || "Error al subir imagen");
@@ -770,10 +769,11 @@ export default function AdminRecipes() {
       <div className="space-y-2">
         {visible.map(recipe => {
           const status = recipeStatus(recipe);
+          const imageUrl = normalizeRecipeImageUrl(recipe.image_url);
           return (
             <div key={recipe.id} className="card-soft p-3 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                {recipe.image_url && <img src={recipe.image_url} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />}
+                {imageUrl && <img src={imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate flex items-center gap-1">
                     {status === "featured" && <Star className="h-3 w-3 text-primary fill-primary" />}

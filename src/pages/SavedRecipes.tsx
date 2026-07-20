@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Trash2, ShoppingBag, ArrowLeft, ChefHat, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeRecipeImageUrl, recipeImagePublicUrl } from "@/lib/recipeImages";
 
 const macroValue = (macros: any, key: string) => Number(macros?.[key] ?? 0);
 const hasNutrition = (macros: any) =>
@@ -36,7 +37,8 @@ export default function SavedRecipes() {
       return;
     }
     setBrokenImageIds(new Set());
-    setItems(data ?? []); setLoading(false);
+    setItems((data ?? []).map((item: any) => ({ ...item, image_url: normalizeRecipeImageUrl(item.image_url) })));
+    setLoading(false);
   };
   useEffect(() => { load(); }, [user]);
 
@@ -87,20 +89,16 @@ export default function SavedRecipes() {
         .from("recipe-images")
         .upload(path, file, { upsert: false, contentType: file.type });
       if (uploadError) throw uploadError;
-      const tenYears = 60 * 60 * 24 * 365 * 10;
-      const { data: signed, error: signedError } = await supabase.storage
-        .from("recipe-images")
-        .createSignedUrl(path, tenYears);
-      if (signedError || !signed?.signedUrl) throw signedError ?? new Error("No se pudo preparar la imagen.");
+      const imageUrl = recipeImagePublicUrl(path);
 
       const { error: updateError } = await supabase
         .from("recipes")
-        .update({ image_url: signed.signedUrl } as any)
+        .update({ image_url: imageUrl } as any)
         .eq("id", recipe.id)
         .eq("user_id", user.id);
       if (updateError) throw updateError;
 
-      setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: signed.signedUrl } : item));
+      setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: imageUrl } : item));
       toast.success("Imagen guardada correctamente.");
     } catch (err: any) {
       toast.error(err?.message || "No se pudo subir la imagen.");
@@ -155,7 +153,7 @@ export default function SavedRecipes() {
         throw new Error(payload?.error || "No se pudo generar la imagen con Gemini.");
       }
 
-      const imageUrl = firstUrl(payload?.image_url);
+      const imageUrl = normalizeRecipeImageUrl(firstUrl(payload?.image_url));
       if (!imageUrl) {
         throw new Error(payload?.storage_warning || "Gemini creó la imagen, pero no se pudo guardar de forma permanente.");
       }
@@ -198,7 +196,7 @@ export default function SavedRecipes() {
             const macros = r.macros ?? {};
             const nutritionAvailable = hasNutrition(macros);
             const isHighProtein = nutritionAvailable && macroValue(macros, "protein") >= 25;
-            const recipeImageUrl = firstUrl(r.image_url);
+            const recipeImageUrl = normalizeRecipeImageUrl(firstUrl(r.image_url));
             const imageIsBroken = brokenImageIds.has(r.id);
             const hasImage = Boolean(recipeImageUrl) && !imageIsBroken;
             return <details key={r.id} className="recipe-premium saved-recipe-card rounded-[24px] bg-white/90 group">

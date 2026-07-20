@@ -424,15 +424,15 @@ async function uploadGeneratedImageToStorage(params: {
     .upload(path, buffer, { contentType, upsert: false });
   if (uploadError) throw uploadError;
 
-  const tenYears = 60 * 60 * 24 * 365 * 10;
-  const { data: signed, error: signedError } = await admin.storage
+  const { data: publicData } = admin.storage
     .from("recipe-images")
-    .createSignedUrl(path, tenYears);
-  if (signedError || !signed?.signedUrl) {
-    throw signedError ?? new Error("No se pudo preparar la URL de la imagen guardada.");
+    .getPublicUrl(path);
+  const publicUrl = publicData?.publicUrl;
+  if (!publicUrl) {
+    throw new Error("No se pudo preparar la URL permanente de la imagen guardada.");
   }
 
-  return { signedUrl: signed.signedUrl, storagePath: path };
+  return { signedUrl: publicUrl, storagePath: path };
 }
 
 export default async function handler(req: any, res: any) {
