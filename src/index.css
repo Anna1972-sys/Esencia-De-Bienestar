@@ -1725,10 +1725,17 @@
   }
 
   .admin-fast-number-actions {
-    display: flex;
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .25rem;
     margin-top: .35rem;
+    width: 100%;
+  }
+
+  .admin-fast-number-actions .admin-fast-number-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-basis: auto;
   }
 
   .admin-fast-number-button,

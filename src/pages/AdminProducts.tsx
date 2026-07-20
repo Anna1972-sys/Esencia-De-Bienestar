@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { selectInitialZero, type AdminNumberValue } from "@/lib/adminNumberInput";
+import { roundedNutritionInputValue, selectInitialZero, stableNutritionInputValue, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Pencil, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
@@ -348,14 +348,14 @@ const toNullableNumber = (value: unknown): number | null => {
   const parsed = Number(String(value).replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
 };
-const toFormNumber = (value: unknown): AdminNumberValue => value === null || value === undefined ? "" : toNumber(value);
+const toFormNumber = (value: unknown): AdminNumberValue => value === null || value === undefined ? "" : stableNutritionInputValue(value);
 const asTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter(Boolean).map(String) : [];
 const textToArray = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 const round4 = (value: number | null) => value === null ? "" : Math.round(value * 10000) / 10000;
 const formatMeasureCalories = (value: number | null): AdminNumberValue => value === null ? "" : value.toFixed(1);
 const formatMeasureNutrient = (value: number | null): AdminNumberValue => {
   if (value === null) return "";
-  return Number(value.toFixed(2)).toString();
+  return stableNutritionInputValue(Number(value.toFixed(2)));
 };
 
 function readProductBlockOrder(micronutrients: Record<string, unknown> | null | undefined): ProductBlockId[] {
@@ -2529,7 +2529,7 @@ function NumberField({
 
   const quickAdjust = (delta: number) => {
     const next = Math.max(0, toNumber(draft || value) + delta);
-    const cleanValue = Number(next.toFixed(3));
+    const cleanValue = roundedNutritionInputValue(next);
     setDraft(String(cleanValue));
     onChange(cleanValue);
   };

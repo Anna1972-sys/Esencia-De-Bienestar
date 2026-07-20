@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
+import { numberInputValue, numberOrFallback, roundedNutritionInputValue, stableNutritionInputValue, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { Calculator, Download, Edit3, Plus, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -403,13 +403,13 @@ export default function AdminInternalFoods() {
       base_quantity: food.base_quantity,
       base_unit: food.base_unit,
       calories: food.calories,
-      protein: food.protein,
-      carbs: food.carbs,
-      fat: food.fat,
-      fiber: food.fiber,
-      salt: food.salt,
-      azucares_g: food.azucares_g ?? "",
-      grasas_saturadas_g: food.grasas_saturadas_g ?? "",
+      protein: stableNutritionInputValue(food.protein),
+      carbs: stableNutritionInputValue(food.carbs),
+      fat: stableNutritionInputValue(food.fat),
+      fiber: stableNutritionInputValue(food.fiber),
+      salt: stableNutritionInputValue(food.salt),
+      azucares_g: stableNutritionInputValue(food.azucares_g),
+      grasas_saturadas_g: stableNutritionInputValue(food.grasas_saturadas_g),
       category: food.category,
       source: food.source || "Tabla interna",
       is_active: food.is_active,
@@ -821,7 +821,7 @@ export default function AdminInternalFoods() {
     setForm(prev => {
       const current = numberOrFallback(prev[key], 0);
       const next = Math.max(0, current + delta);
-      return { ...prev, [key]: Number(next.toFixed(3)) };
+      return { ...prev, [key]: roundedNutritionInputValue(next) };
     });
   };
 
