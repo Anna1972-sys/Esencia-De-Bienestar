@@ -7,10 +7,32 @@ import { toast } from "sonner";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
-import GuideCardsGrid from "@/components/resources/GuideCardsGrid";
+import imgImprescindibles from "@/assets/resource-imprescindibles.png";
+import imgVideos from "@/assets/resource-videos.png";
+import imgGuias from "@/assets/resource-guias.png";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
+
+const ADMIN_RESOURCE_ENTRY_CARDS = [
+  { key: "imprescindibles", title: "Imprescindibles", image: imgImprescindibles, subtitle: "Empieza por aquí." },
+  { key: "videos", title: "Vídeos", image: imgVideos, subtitle: "Aprende en pocos minutos." },
+  { key: "guias", title: "Guías y recursos", image: imgGuias, subtitle: "Herramientas para avanzar." },
+] as const;
+
+function getCategoryKey(category: Category) {
+  const value = (category.slug || category.name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  if (value.includes("imprescindible")) return "imprescindibles";
+  if (value.includes("guia")) return "guias";
+  if (value.includes("video")) return "videos";
+  return value;
+}
 
 type Category = {
   id: string;
@@ -317,26 +339,55 @@ export default function AdminResources() {
       <AdminPageHeader title="Vídeos y guías" subtitle="Contenido educativo y recursos" />
 
 
-      <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
-        <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
-        <div className="flex-1 text-sm">
-          <div className="font-medium">Gestionar categorías y subcategorías</div>
-          <div className="text-xs muted">Crear, renombrar, reordenar y eliminar</div>
-        </div>
-      </Link>
+      <section className="mb-5">
+        <h1 className="heading-lg mb-1">Vídeos y guías</h1>
+        <p className="text-sm muted mb-4">Explora los recursos por categoría.</p>
 
-      <section className="card-soft p-4 mb-5">
-        <div className="mb-3 flex items-start gap-2">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-            <FileText className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="font-sans text-xl font-bold text-foreground">Guías y recursos</h2>
-            <p className="text-sm muted">Vista de tarjetas igual que la biblioteca de clientas.</p>
-          </div>
+        <div className="relative mb-4">
+          <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            className="field pl-9"
+            placeholder="Buscar por nombre o categoría…"
+            value={searchQ}
+            onChange={e => setSearchQ(e.target.value)}
+          />
         </div>
-        <GuideCardsGrid resources={items} />
+
+        <div className="grid grid-cols-2 gap-5">
+          {ADMIN_RESOURCE_ENTRY_CARDS.map(card => {
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => {
+                  const category = tops.find(c => getCategoryKey(c) === card.key);
+                  setFilterCat(category?.id ?? "");
+                  setFilterSub("");
+                }}
+                className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                  <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                </div>
+                <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
+                  <div className="font-sans text-base font-bold leading-tight text-foreground">{card.title}</div>
+                  <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </section>
+
+      {false && filterCat && (
+        <>
+          <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
+            <div className="flex-1 text-sm">
+              <div className="font-medium">Gestionar categorías y subcategorías</div>
+              <div className="text-xs muted">Crear, renombrar, reordenar y eliminar</div>
+            </div>
+          </Link>
 
       {!f.id && hasDraft && <DraftBanner onDiscard={() => { clearDraft(); setF(empty); }} />}
       <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
@@ -700,6 +751,8 @@ export default function AdminResources() {
           </div>
         );
       })}</div>
+        </>
+      )}
     </div>
   );
 }
