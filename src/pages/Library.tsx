@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
-import { LIBRARY_CATEGORIES, getCategoryLabel, getCategoryImage } from "@/lib/libraryCategories";
+import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
 import BackButton from "@/components/BackButton";
 
@@ -201,8 +201,7 @@ export default function Library() {
             <div className="space-y-3">
               {filtered.map(r => {
                 const category = normalizeCategory(r.category);
-                const fallbackCover = getCategoryImage(category);
-                const cover = normalizeRecipeImageUrl(r.image_url) || fallbackCover;
+                const cover = normalizeRecipeImageUrl(r.image_url);
                 return (
                   <button
                     key={r.id}
@@ -218,10 +217,6 @@ export default function Library() {
                           className="app-photo-cover-image transition-transform duration-500 hover:scale-105"
                           onError={(e) => {
                             const image = e.currentTarget as HTMLImageElement;
-                            if (fallbackCover && image.src !== fallbackCover) {
-                              image.src = fallbackCover;
-                              return;
-                            }
                             image.style.display = "none";
                           }}
                         />
