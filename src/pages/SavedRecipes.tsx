@@ -22,6 +22,7 @@ export default function SavedRecipes() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
+  const [brokenImageIds, setBrokenImageIds] = useState<Set<string>>(() => new Set());
 
   const load = async () => {
     if (!user) return;
@@ -34,6 +35,7 @@ export default function SavedRecipes() {
       setLoading(false);
       return;
     }
+    setBrokenImageIds(new Set());
     setItems(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, [user]);
@@ -166,6 +168,11 @@ export default function SavedRecipes() {
       if (updateError) throw updateError;
 
       setItems(current => current.map(item => item.id === recipe.id ? { ...item, image_url: imageUrl } : item));
+      setBrokenImageIds(current => {
+        const next = new Set(current);
+        next.delete(recipe.id);
+        return next;
+      });
       toast.success("Imagen creada con Gemini y guardada correctamente.");
     } catch (err: any) {
       toast.error(err?.message || "No se pudo generar la imagen.");
@@ -192,7 +199,8 @@ export default function SavedRecipes() {
             const nutritionAvailable = hasNutrition(macros);
             const isHighProtein = nutritionAvailable && macroValue(macros, "protein") >= 25;
             const recipeImageUrl = firstUrl(r.image_url);
-            const hasImage = Boolean(recipeImageUrl);
+            const imageIsBroken = brokenImageIds.has(r.id);
+            const hasImage = Boolean(recipeImageUrl) && !imageIsBroken;
             return <details key={r.id} className="recipe-premium saved-recipe-card rounded-[24px] bg-white/90 group">
               <summary className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <div className="saved-recipe-summary grid grid-cols-[42%_1fr] h-[142px] items-stretch">
@@ -208,8 +216,16 @@ export default function SavedRecipes() {
                         alt={r.title}
                         loading="lazy"
                         className="relative h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          setBrokenImageIds(current => new Set(current).add(r.id));
+                        }}
                       />
+                    )}
+                    {!hasImage && isAdmin && (
+                      <div className="absolute inset-x-2 bottom-2 rounded-2xl bg-white/90 border border-primary/20 px-2 py-1 text-center text-[10px] font-semibold text-primary shadow-sm">
+                        Imagen pendiente
+                      </div>
                     )}
                   </div>
                   <div className="saved-recipe-content p-4 grid grid-cols-[minmax(0,1fr)_92px] gap-2 items-start min-w-0">
@@ -226,6 +242,20 @@ export default function SavedRecipes() {
                           <span className="saved-recipe-chip-placeholder" aria-hidden="true" />
                         )}
                         <span className="saved-recipe-view-btn">Ver</span>
+                        {isAdmin && !hasImage && (
+                          <button
+                            type="button"
+                            className="saved-recipe-view-btn text-[10px] px-2"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              generateRecipeImage(r);
+                            }}
+                            disabled={generatingImageId === r.id}
+                          >
+                            {generatingImageId === r.id ? "Generando…" : "Imagen"}
+                          </button>
+                        )}
                         {isAdmin && (
                           <button
                             type="button"
@@ -255,6 +285,10 @@ export default function SavedRecipes() {
                         src={recipeImageUrl}
                         alt={r.title}
                         className="mb-3 h-32 w-full rounded-2xl object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          setBrokenImageIds(current => new Set(current).add(r.id));
+                        }}
                       />
                     )}
                     <div className="flex flex-wrap gap-2">
