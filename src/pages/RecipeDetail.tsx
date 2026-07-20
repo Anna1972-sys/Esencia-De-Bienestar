@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { classifyShoppingItem } from "@/lib/shoppingCategories";
 import { getCategoryImage, getCategoryLabel } from "@/lib/libraryCategories";
+import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
 import BackButton from "@/components/BackButton";
 
 import { videoEmbedUrl, videoThumbnail } from "@/components/VideoField";
@@ -79,7 +80,8 @@ export default function RecipeDetail() {
   const formatGram = (value: number) => `${Math.round(value * 100) / 100}g`;
   const hasMacros = Number(macros.protein) > 0 || Number(macros.carbs) > 0 || Number(macros.fat) > 0 || Number(macros.calories) > 0 || Number(macros.fiber) > 0;
   const videoThumb = r.video_url ? videoThumbnail(r.video_url) : null;
-  const cover = r.image_url || videoThumb || getCategoryImage(r.category);
+  const fallbackCover = videoThumb || getCategoryImage(r.category);
+  const cover = normalizeRecipeImageUrl(r.image_url) || fallbackCover;
 
   return (
     <div className="recipe-detail-page pb-28">
@@ -94,7 +96,20 @@ export default function RecipeDetail() {
         </div>
       ) : cover ? (
         <div className="rounded-2xl overflow-hidden mb-4 aspect-[4/3] bg-muted">
-          <img src={cover} alt={r.title} loading="lazy" className="w-full h-full object-cover" />
+          <img
+            src={cover}
+            alt={r.title}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const image = e.currentTarget as HTMLImageElement;
+              if (fallbackCover && image.src !== fallbackCover) {
+                image.src = fallbackCover;
+                return;
+              }
+              image.style.display = "none";
+            }}
+          />
         </div>
       ) : null}
       <h1 className="heading-lg mb-1">{r.title}</h1>

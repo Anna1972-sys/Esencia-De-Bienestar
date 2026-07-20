@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel, getCategoryImage } from "@/lib/libraryCategories";
+import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
 import BackButton from "@/components/BackButton";
 
 type Recipe = {
@@ -200,7 +201,8 @@ export default function Library() {
             <div className="space-y-3">
               {filtered.map(r => {
                 const category = normalizeCategory(r.category);
-                const cover = r.image_url || getCategoryImage(category);
+                const fallbackCover = getCategoryImage(category);
+                const cover = normalizeRecipeImageUrl(r.image_url) || fallbackCover;
                 return (
                   <button
                     key={r.id}
@@ -209,7 +211,20 @@ export default function Library() {
                   >
                     {cover && (
                       <div className="library-recipe-thumb shrink-0 bg-muted">
-                        <img src={cover} alt={r.title} loading="lazy" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                        <img
+                          src={cover}
+                          alt={r.title}
+                          loading="lazy"
+                          className="app-photo-cover-image transition-transform duration-500 hover:scale-105"
+                          onError={(e) => {
+                            const image = e.currentTarget as HTMLImageElement;
+                            if (fallbackCover && image.src !== fallbackCover) {
+                              image.src = fallbackCover;
+                              return;
+                            }
+                            image.style.display = "none";
+                          }}
+                        />
                       </div>
                     )}
                     <div className="p-3 flex-1 min-w-0">
