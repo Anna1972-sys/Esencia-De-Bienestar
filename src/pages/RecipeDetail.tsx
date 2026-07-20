@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { classifyShoppingItem } from "@/lib/shoppingCategories";
 import { getCategoryLabel } from "@/lib/libraryCategories";
 import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
-import BackButton from "@/components/BackButton";
 
 import { videoEmbedUrl, videoThumbnail } from "@/components/VideoField";
 
@@ -25,11 +24,23 @@ type Recipe = {
 
 export default function RecipeDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [r, setR] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [adding, setAdding] = useState(false);
+  const routeState = location.state as { recipeBackTo?: string; libraryContext?: unknown } | null;
+  const recipeBackTo = routeState?.recipeBackTo || "/app/biblioteca";
+  const goBackToRecipes = () => {
+    navigate(recipeBackTo, {
+      replace: true,
+      state: recipeBackTo === "/app/biblioteca" && routeState?.libraryContext
+        ? { libraryContext: routeState.libraryContext }
+        : undefined,
+    });
+  };
 
   const addAllToShopping = async () => {
     if (!r || !user) return;
@@ -59,9 +70,9 @@ export default function RecipeDetail() {
   if (notFound || !r) {
     return (
       <div className="recipe-detail-page pb-28">
-        <BackButton fallbackTo="/app/biblioteca" className="text-sm muted inline-flex items-center gap-1 mb-3">
+        <button type="button" onClick={goBackToRecipes} className="back-button text-sm muted inline-flex items-center gap-1 mb-3">
           <ArrowLeft className="h-4 w-4" /> Volver
-        </BackButton>
+        </button>
         <div className="card-soft p-8 text-center">
           <div className="font-medium mb-1">Receta no disponible</div>
           <p className="text-sm muted">Esta receta ya no existe.</p>
@@ -84,9 +95,9 @@ export default function RecipeDetail() {
 
   return (
     <div className="recipe-detail-page pb-28">
-      <BackButton fallbackTo="/app/biblioteca" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <button type="button" onClick={goBackToRecipes} className="back-button text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
-      </BackButton>
+      </button>
       {r.video_url ? (
         <div className="rounded-2xl overflow-hidden mb-4 aspect-video bg-black">
           {videoEmbedUrl(r.video_url)

@@ -111,6 +111,7 @@ export default function Library() {
   const openRecipe = (id: string) => {
     navigate(`/app/biblioteca/${id}`, {
       state: {
+        recipeBackTo: "/app/biblioteca",
         libraryContext: {
           selectedCat,
           query: q,

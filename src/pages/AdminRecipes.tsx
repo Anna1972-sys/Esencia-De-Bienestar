@@ -792,7 +792,7 @@ export default function AdminRecipes() {
                 <MiniMacro label="Fibra" value={`${recipe.macros?.fiber ?? 0}g`} />
               </div>
               <div className="grid grid-cols-5 gap-1.5 text-[11px]">
-                <Link to={`/app/biblioteca/${recipe.id}`} className="btn-ghost px-2 py-2"><Eye className="h-3.5 w-3.5" /> Ver</Link>
+                <Link to={`/app/biblioteca/${recipe.id}`} state={{ recipeBackTo: "/app/admin/recetas" }} className="btn-ghost px-2 py-2"><Eye className="h-3.5 w-3.5" /> Ver</Link>
                 <button type="button" onClick={() => startEdit(recipe)} className="btn-ghost px-2 py-2"><Sparkles className="h-3.5 w-3.5" /> Editar</button>
                 <button type="button" onClick={() => duplicateRecipe(recipe)} className="btn-ghost px-2 py-2"><Copy className="h-3.5 w-3.5" /> Duplicar</button>
                 <button type="button" onClick={() => recalculateRecipe(recipe)} disabled={calculating} className="btn-ghost px-2 py-2"><Calculator className="h-3.5 w-3.5" /> Macros</button>
