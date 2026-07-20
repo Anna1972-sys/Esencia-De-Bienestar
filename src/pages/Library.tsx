@@ -19,6 +19,7 @@ type Recipe = {
   is_library?: boolean | null;
   user_id?: string | null;
   visibility?: string | null;
+  sort_order?: number | null;
 };
 
 type LibraryContext = {
@@ -57,6 +58,21 @@ export default function Library() {
     recipe.is_library === true ||
     recipe.visibility === "community" ||
     recipe.visibility === "featured";
+
+  const manualRecipeOrder = (recipe: Recipe) => {
+    const value = Number(recipe.sort_order ?? 0);
+    return Number.isFinite(value) && value > 0 ? value : Number.MAX_SAFE_INTEGER;
+  };
+
+  const applyManualRecipeOrder = (list: Recipe[]) => {
+    if (!list.some(recipe => manualRecipeOrder(recipe) !== Number.MAX_SAFE_INTEGER)) return list;
+    return [...list].sort((a, b) => {
+      const orderDiff = manualRecipeOrder(a) - manualRecipeOrder(b);
+      if (orderDiff !== 0) return orderDiff;
+      if (Boolean(a.is_featured) !== Boolean(b.is_featured)) return Number(Boolean(b.is_featured)) - Number(Boolean(a.is_featured));
+      return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
+    });
+  };
 
   const load = () =>
     supabase
@@ -99,7 +115,7 @@ export default function Library() {
         });
       });
     }
-    return list;
+    return applyManualRecipeOrder(list);
   }, [items, selectedCat, q]);
 
   useEffect(() => {

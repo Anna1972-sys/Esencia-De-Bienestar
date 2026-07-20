@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
-import { Calculator, Copy, Eye, Plus, Save, Sparkles, Star, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Calculator, Copy, Eye, Plus, Save, Sparkles, Star, Trash2, Upload, X } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
@@ -36,6 +36,7 @@ type RecipeRow = {
   user_id?: string | null;
   source_user_id?: string | null;
   created_at?: string | null;
+  sort_order?: number | null;
 };
 
 type LibForm = {
@@ -141,6 +142,19 @@ const statusPayload = (status: OfficialStatus) => ({
   is_featured: status === "featured",
   visibility: status === "featured" ? "featured" : status === "hidden" ? "private" : "community",
 });
+
+const manualRecipeOrder = (recipe: Pick<RecipeRow, "sort_order">) => {
+  const value = Number(recipe.sort_order ?? 0);
+  return Number.isFinite(value) && value > 0 ? value : Number.MAX_SAFE_INTEGER;
+};
+
+const compareRecipesByManualOrder = (a: RecipeRow, b: RecipeRow) => {
+  const orderDiff = manualRecipeOrder(a) - manualRecipeOrder(b);
+  if (orderDiff !== 0) return orderDiff;
+  const dateDiff = new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+  if (dateDiff !== 0) return dateDiff;
+  return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
+};
 
 const macrosFromForm = (form: LibForm, existing: any = {}) => ({
   ...(existing ?? {}),
@@ -618,6 +632,49 @@ export default function AdminRecipes() {
     }
   };
 
+  const orderedRecipesInCategory = (category: string | null | undefined) =>
+    items
+      .filter(item => (item.category ?? "") === (category ?? ""))
+      .sort(compareRecipesByManualOrder);
+
+  const moveRecipeWithinCategory = async (recipe: RecipeRow, direction: -1 | 1) => {
+    const group = orderedRecipesInCategory(recipe.category);
+    const currentIndex = group.findIndex(item => item.id === recipe.id);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= group.length) return;
+
+    const reordered = [...group];
+    [reordered[currentIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[currentIndex]];
+    const updates = reordered.map((item, index) => ({ id: item.id, sort_order: (index + 1) * 10 }));
+
+    setItems(current => current.map(item => {
+      const updated = updates.find(update => update.id === item.id);
+      return updated ? { ...item, sort_order: updated.sort_order } : item;
+    }));
+
+    try {
+      const results = await Promise.all(
+        updates.map(update =>
+          supabase
+            .from("recipes")
+            .update({ sort_order: update.sort_order } as any)
+            .eq("id", update.id)
+        )
+      );
+      const failed = results.find(result => result.error);
+      if (failed?.error) throw failed.error;
+      toast.success("Orden actualizado");
+    } catch (err: any) {
+      await load();
+      const message = String(err?.message ?? "");
+      if (message.toLowerCase().includes("sort_order")) {
+        toast.error("Falta activar el orden de recetas en Supabase. No se ha borrado nada.");
+      } else {
+        toast.error(message || "No se pudo guardar el orden");
+      }
+    }
+  };
+
   const visible = useMemo(() => {
     const term = String(query ?? "").trim().toLowerCase();
     return items.filter(item => {
@@ -625,7 +682,7 @@ export default function AdminRecipes() {
       const matchesSearch = !term || [item.title, item.description, item.category, ...(item.tags ?? [])]
         .filter(Boolean).join(" ").toLowerCase().includes(term);
       return matchesCategory && matchesSearch;
-    });
+    }).sort(compareRecipesByManualOrder);
   }, [items, filterCat, query]);
 
   return (
@@ -770,6 +827,8 @@ export default function AdminRecipes() {
         {visible.map(recipe => {
           const status = recipeStatus(recipe);
           const imageUrl = normalizeRecipeImageUrl(recipe.image_url);
+          const categoryGroup = orderedRecipesInCategory(recipe.category);
+          const categoryIndex = categoryGroup.findIndex(item => item.id === recipe.id);
           return (
             <div key={recipe.id} className="card-soft p-3 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -797,6 +856,32 @@ export default function AdminRecipes() {
                 <button type="button" onClick={() => duplicateRecipe(recipe)} className="btn-ghost px-2 py-2"><Copy className="h-3.5 w-3.5" /> Duplicar</button>
                 <button type="button" onClick={() => recalculateRecipe(recipe)} disabled={calculating} className="btn-ghost px-2 py-2"><Calculator className="h-3.5 w-3.5" /> Macros</button>
                 <button type="button" onClick={() => deleteRecipe(recipe)} className="btn-ghost px-2 py-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Eliminar</button>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-white/70 p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] muted">Orden en {getCategoryLabel(recipe.category)}</div>
+                    <div className="text-xs font-medium">Posición {categoryIndex >= 0 ? categoryIndex + 1 : "—"} de {categoryGroup.length}</div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      className="btn-ghost px-2 py-2 text-[11px]"
+                      onClick={() => moveRecipeWithinCategory(recipe, -1)}
+                      disabled={categoryIndex <= 0}
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" /> Subir
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost px-2 py-2 text-[11px]"
+                      onClick={() => moveRecipeWithinCategory(recipe, 1)}
+                      disabled={categoryIndex < 0 || categoryIndex >= categoryGroup.length - 1}
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" /> Bajar
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="rounded-2xl border border-border/70 bg-white/70 p-2">
                 <label className="text-[10px] muted block mb-1">Cambiar categoría</label>

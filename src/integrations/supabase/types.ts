@@ -371,6 +371,7 @@ export type Database = {
           prep_time: number | null
           servings: number | null
           source_user_id: string | null
+          sort_order: number
           steps: Json | null
           tags: string[] | null
           title: string
@@ -393,6 +394,7 @@ export type Database = {
           prep_time?: number | null
           servings?: number | null
           source_user_id?: string | null
+          sort_order?: number
           steps?: Json | null
           tags?: string[] | null
           title: string
@@ -415,6 +417,7 @@ export type Database = {
           prep_time?: number | null
           servings?: number | null
           source_user_id?: string | null
+          sort_order?: number
           steps?: Json | null
           tags?: string[] | null
           title?: string
