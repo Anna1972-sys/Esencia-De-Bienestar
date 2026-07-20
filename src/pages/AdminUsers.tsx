@@ -38,6 +38,11 @@ export default function AdminUsers() {
     setLoading(false);
     if (error || !data?.ok) {
       const message = data?.error || error?.message || "Error al cargar usuarias";
+      console.error("[admin-list-users] Error completo al cargar usuarias", {
+        functionName: "admin-list-users",
+        error,
+        data,
+      });
       setRows([]);
       setLoadError(message);
       toast.error(message);
