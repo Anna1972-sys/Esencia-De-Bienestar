@@ -225,7 +225,7 @@ export default function AdminResources() {
       count,
       displayTitle: cleanGuideTitle(category?.name || card.title, card.slug),
       displaySubtitle: category?.subtitle || card.subtitle,
-      displayImage: card.image,
+      displayImage: category?.cover_image || card.image,
       fallbackOrder,
     };
   }).sort((a, b) => {
@@ -262,6 +262,7 @@ export default function AdminResources() {
         name: card.title,
         slug: card.slug,
         icon: "📘",
+        subtitle: card.subtitle,
         parent_id: guideTopCategory.id,
         sort_order: index + 1,
       })))
@@ -518,6 +519,14 @@ export default function AdminResources() {
             </button>
             <h1 className="heading-lg mb-1">Guías y recursos</h1>
             <p className="text-sm muted mb-4">Elige una guía para gestionar sus publicaciones.</p>
+
+            <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
+              <div className="flex-1 text-sm text-left">
+                <div className="font-medium">Editar tarjetas de guías</div>
+                <div className="text-xs muted">Cambiar imagen, título, subtítulo y orden</div>
+              </div>
+            </Link>
 
             <div className="guide-resource-grid grid grid-cols-2 gap-5">
               {guideSubcategoryEntries.map(subcard => {

@@ -91,7 +91,7 @@ export default function GuideCardsGrid({
       const category = getCategoryForCard(card);
       const title = cleanGuideTitle(category?.name || card.title, card.slug);
       const description = category?.subtitle || card.description;
-      const image = card.image;
+      const image = category?.cover_image || card.image;
       return { card, category, title, description, image, fallbackOrder };
     })
     .filter(({ title, description }) => {
