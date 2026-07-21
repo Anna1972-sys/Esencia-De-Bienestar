@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
-import GuideCardsGrid, { isGuidesCategory } from "@/components/resources/GuideCardsGrid";
+import GuideCardsGrid, { isGuidesCategory, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
 
 type Category = {
   id: string;
@@ -26,7 +26,7 @@ const CATEGORY_CARDS = {
 } as const;
 
 type CategoryCardKey = keyof typeof CATEGORY_CARDS;
-const MAIN_CATEGORY_ORDER: CategoryCardKey[] = ["imprescindibles", "guias", "videos"];
+const MAIN_CATEGORY_ORDER: CategoryCardKey[] = ["imprescindibles", "videos", "guias"];
 
 function getCategoryKey(category: Category): CategoryCardKey | null {
   const value = (category.slug || category.name)
@@ -48,7 +48,7 @@ function getCategoryCard(category: Category) {
   const fallback = CATEGORY_CARDS[key];
   return {
     key,
-    image: category.cover_image || fallback.image,
+    image: resolveCategoryCoverImage(category, fallback.image),
     subtitle: category.subtitle || fallback.subtitle,
   };
 }

@@ -1,7 +1,7 @@
-import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
 import imgGuias from "@/assets/resource-guias.png";
-import imgMentalidad from "@/assets/resource-mentalidad.png";
-import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
+import imgSkincare from "@/assets/home-nutricion.png";
+import imgMenopause from "@/assets/home-nutrition-premium-light.png";
+import imgProteinGuide from "@/assets/resource-alimentacion.png";
 
 type GuideCard = {
   slug: string;
@@ -32,7 +32,19 @@ export const isGuidesCategory = (category?: { name?: string | null; slug?: strin
   return value.includes("guia") || value.includes("recurso");
 };
 
-const cards: GuideCard[] = [
+const isEditableCategoryCover = (coverImage?: string | null) => {
+  const value = String(coverImage ?? "");
+  return value.includes("category-covers/");
+};
+
+export const resolveCategoryCoverImage = (
+  category: { cover_image?: string | null } | null | undefined,
+  fallbackImage: string
+) => {
+  return isEditableCategoryCover(category?.cover_image) ? String(category?.cover_image) : fallbackImage;
+};
+
+export const cards: GuideCard[] = [
   {
     slug: "guia-bienvenida",
     title: "Guía de bienvenida",
@@ -43,23 +55,23 @@ const cards: GuideCard[] = [
     slug: "guia-cuidado-piel",
     title: "Guía de cuidado de la piel",
     description: "Recursos para cuidar tu piel con una rutina sencilla y constante.",
-    image: imgMentalidad,
+    image: imgSkincare,
   },
   {
     slug: "guia-menopausia",
     title: "Guía de menopausia",
     description: "Guías para acompañar esta etapa con bienestar y equilibrio.",
-    image: imgPerdidaPeso,
+    image: imgMenopause,
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
     title: "Ebook: Alimentos ricos en proteína",
     description: "Más de 300 alimentos organizados por categorías para ayudarte a elegir mejor cada día.",
-    image: proteinGuideCover,
+    image: imgProteinGuide,
   },
 ];
 
-const cleanGuideTitle = (title: string, slug: string) => {
+export const cleanGuideTitle = (title: string, slug: string) => {
   if (slug === "ebook-alimentos-ricos-en-proteina") {
     return title.replace(/^eBook/i, "Ebook");
   }
@@ -91,7 +103,7 @@ export default function GuideCardsGrid({
       const category = getCategoryForCard(card);
       const title = cleanGuideTitle(category?.name || card.title, card.slug);
       const description = category?.subtitle || card.description;
-      const image = category?.cover_image || card.image;
+      const image = resolveCategoryCoverImage(category, card.image);
       return { card, category, title, description, image, fallbackOrder };
     })
     .filter(({ title, description }) => {
@@ -112,7 +124,6 @@ export default function GuideCardsGrid({
     <div className="guide-resource-grid grid grid-cols-2 gap-5 md:grid-cols-3">
       {visibleCards.map(({ card, category, title, description, image }) => {
         const disabled = !category;
-        const isEbook = card.slug === "ebook-alimentos-ricos-en-proteina";
         return (
           <button
             key={card.slug}
@@ -127,9 +138,7 @@ export default function GuideCardsGrid({
               <img
                 src={image}
                 alt=""
-                className={`app-photo-cover-image guide-resource-card-image transition-transform duration-500 ${
-                  isEbook ? "guide-resource-card-image--ebook-clean" : "group-hover:scale-105"
-                }`}
+                className="app-photo-cover-image guide-resource-card-image transition-transform duration-500 group-hover:scale-105"
               />
             </div>
 

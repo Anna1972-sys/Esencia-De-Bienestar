@@ -9,17 +9,18 @@ import DraftBanner from "@/components/DraftBanner";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
-import imgMentalidad from "@/assets/resource-mentalidad.png";
-import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
-import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
+import imgSkincare from "@/assets/home-nutricion.png";
+import imgMenopause from "@/assets/home-nutrition-premium-light.png";
+import imgProteinGuide from "@/assets/resource-alimentacion.png";
+import { cleanGuideTitle, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
 
 const ADMIN_RESOURCE_ENTRY_CARDS = [
   { key: "imprescindibles", title: "Imprescindibles", image: imgImprescindibles, subtitle: "Empieza por aquí." },
-  { key: "guias", title: "Guías y recursos", image: imgGuias, subtitle: "Herramientas para avanzar." },
   { key: "videos", title: "Vídeos", image: imgVideos, subtitle: "Aprende en pocos minutos." },
+  { key: "guias", title: "Guías y recursos", image: imgGuias, subtitle: "Herramientas para avanzar." },
 ] as const;
 
 type AdminResourceSectionKey = (typeof ADMIN_RESOURCE_ENTRY_CARDS)[number]["key"];
@@ -34,29 +35,22 @@ const GUIDE_RESOURCE_SUBCATEGORY_CARDS = [
   {
     slug: "guia-cuidado-piel",
     title: "Guía de cuidado de la piel",
-    image: imgMentalidad,
+    image: imgSkincare,
     subtitle: "Recursos para cuidar tu piel con hábitos sencillos.",
   },
   {
     slug: "guia-menopausia",
     title: "Guía de menopausia",
-    image: imgPerdidaPeso,
+    image: imgMenopause,
     subtitle: "Información práctica para acompañar esta etapa.",
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
     title: "Ebook: Alimentos ricos en proteína",
-    image: proteinGuideCover,
+    image: imgProteinGuide,
     subtitle: "Más de 300 alimentos organizados por categorías.",
   },
 ] as const;
-
-const cleanGuideTitle = (title: string, slug: string) => {
-  if (slug === "ebook-alimentos-ricos-en-proteina") {
-    return title.replace(/^eBook/i, "Ebook");
-  }
-  return title;
-};
 
 function getCategoryKey(category: Category) {
   const value = (category.slug || category.name)
@@ -225,7 +219,7 @@ export default function AdminResources() {
       count,
       displayTitle: cleanGuideTitle(category?.name || card.title, card.slug),
       displaySubtitle: category?.subtitle || card.subtitle,
-      displayImage: category?.cover_image || card.image,
+      displayImage: resolveCategoryCoverImage(category, card.image),
       fallbackOrder,
     };
   }).sort((a, b) => {
@@ -530,7 +524,6 @@ export default function AdminResources() {
 
             <div className="guide-resource-grid grid grid-cols-2 gap-5">
               {guideSubcategoryEntries.map(subcard => {
-                const isEbook = subcard.slug === "ebook-alimentos-ricos-en-proteina";
                 return (
                 <button
                   key={subcard.slug}
@@ -551,9 +544,7 @@ export default function AdminResources() {
                     <img
                       src={subcard.displayImage}
                       alt=""
-                      className={`app-photo-cover-image guide-resource-card-image transition-transform duration-500 ${
-                        isEbook ? "guide-resource-card-image--ebook-clean" : "group-hover:scale-105"
-                      }`}
+                      className="app-photo-cover-image guide-resource-card-image transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
                   <div className="guide-resource-card-copy flex flex-col items-center justify-center px-3 py-3.5">
@@ -624,7 +615,7 @@ export default function AdminResources() {
                 const category = topCategoryForSection(card.key);
                 const displayTitle = category?.name || card.title;
                 const displaySubtitle = category?.subtitle || card.subtitle;
-                const displayImage = category?.cover_image || card.image;
+                const displayImage = resolveCategoryCoverImage(category, card.image);
                 return (
                   <button
                     key={card.key}
