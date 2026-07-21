@@ -9,8 +9,8 @@ import DraftBanner from "@/components/DraftBanner";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
-import imgAlimentacion from "@/assets/resource-alimentacion.png";
 import imgMentalidad from "@/assets/resource-mentalidad.png";
+import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
 import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
@@ -34,13 +34,13 @@ const GUIDE_RESOURCE_SUBCATEGORY_CARDS = [
   {
     slug: "guia-cuidado-piel",
     title: "Guía de cuidado de la piel",
-    image: imgAlimentacion,
+    image: imgMentalidad,
     subtitle: "Recursos para cuidar tu piel con hábitos sencillos.",
   },
   {
     slug: "guia-menopausia",
     title: "Guía de menopausia",
-    image: imgMentalidad,
+    image: imgPerdidaPeso,
     subtitle: "Información práctica para acompañar esta etapa.",
   },
   {
@@ -214,7 +214,7 @@ export default function AdminResources() {
     selectedFilterCategory?.parent_id === guideTopCategory.id
   );
 
-  const guideSubcategoryEntries = GUIDE_RESOURCE_SUBCATEGORY_CARDS.map(card => {
+  const guideSubcategoryEntries = GUIDE_RESOURCE_SUBCATEGORY_CARDS.map((card, fallbackOrder) => {
     const category = guideTopCategory
       ? subsOf(guideTopCategory.id).find(c => guideSubcategoryMatchesCard(c, card)) ?? null
       : null;
@@ -225,8 +225,13 @@ export default function AdminResources() {
       count,
       displayTitle: cleanGuideTitle(category?.name || card.title, card.slug),
       displaySubtitle: category?.subtitle || card.subtitle,
-      displayImage: category?.cover_image || card.image,
+      displayImage: card.image,
+      fallbackOrder,
     };
+  }).sort((a, b) => {
+    const orderA = a.category?.sort_order ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.category?.sort_order ?? Number.MAX_SAFE_INTEGER;
+    return orderA - orderB || a.fallbackOrder - b.fallbackOrder;
   });
 
   useEffect(() => {
@@ -514,8 +519,10 @@ export default function AdminResources() {
             <h1 className="heading-lg mb-1">Guías y recursos</h1>
             <p className="text-sm muted mb-4">Elige una guía para gestionar sus publicaciones.</p>
 
-            <div className="grid grid-cols-2 gap-5">
-              {guideSubcategoryEntries.map(subcard => (
+            <div className="guide-resource-grid grid grid-cols-2 gap-5">
+              {guideSubcategoryEntries.map(subcard => {
+                const isEbook = subcard.slug === "ebook-alimentos-ricos-en-proteina";
+                return (
                 <button
                   key={subcard.slug}
                   type="button"
@@ -529,17 +536,23 @@ export default function AdminResources() {
                     clearSelection();
                     setF(current => current.id ? current : { ...current, category_id: subcard.category!.id });
                   }}
-                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
+                  className="wellness-tile app-category-card guide-resource-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
                 >
                   <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                    <img src={subcard.displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                    <img
+                      src={subcard.displayImage}
+                      alt=""
+                      className={`app-photo-cover-image guide-resource-card-image transition-transform duration-500 ${
+                        isEbook ? "guide-resource-card-image--ebook-clean" : "group-hover:scale-105"
+                      }`}
+                    />
                   </div>
-                  <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
-                    <div className="font-sans text-base font-bold leading-tight text-foreground">{subcard.displayTitle}</div>
-                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{subcard.count} publicación{subcard.count === 1 ? "" : "es"}</p>
+                  <div className="guide-resource-card-copy flex flex-col items-center justify-center px-3 py-3.5">
+                    <div className="guide-resource-card-title font-sans font-bold leading-tight text-foreground">{subcard.displayTitle}</div>
+                    <p className="guide-resource-card-subtitle mt-1.5 tracking-wide text-muted-foreground">{subcard.count} publicación{subcard.count === 1 ? "" : "es"}</p>
                   </div>
                 </button>
-              ))}
+              )})}
             </div>
           </>
         ) : isGuideSubcategoryView ? (

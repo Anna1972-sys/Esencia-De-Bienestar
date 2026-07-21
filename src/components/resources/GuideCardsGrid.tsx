@@ -1,7 +1,7 @@
 import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
 import imgGuias from "@/assets/resource-guias.png";
 import imgMentalidad from "@/assets/resource-mentalidad.png";
-import imgAlimentacion from "@/assets/resource-alimentacion.png";
+import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
 
 type GuideCard = {
   slug: string;
@@ -16,6 +16,7 @@ type GuideCategory = {
   slug: string | null;
   subtitle?: string | null;
   cover_image?: string | null;
+  sort_order?: number | null;
 };
 
 const normalizeText = (value: unknown) =>
@@ -42,13 +43,13 @@ const cards: GuideCard[] = [
     slug: "guia-cuidado-piel",
     title: "Guía de cuidado de la piel",
     description: "Recursos para cuidar tu piel con una rutina sencilla y constante.",
-    image: imgAlimentacion,
+    image: imgMentalidad,
   },
   {
     slug: "guia-menopausia",
     title: "Guía de menopausia",
     description: "Guías para acompañar esta etapa con bienestar y equilibrio.",
-    image: imgMentalidad,
+    image: imgPerdidaPeso,
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
@@ -86,16 +87,21 @@ export default function GuideCardsGrid({
   };
 
   const visibleCards = cards
-    .map((card) => {
+    .map((card, fallbackOrder) => {
       const category = getCategoryForCard(card);
       const title = cleanGuideTitle(category?.name || card.title, card.slug);
       const description = category?.subtitle || card.description;
-      const image = category?.cover_image || card.image;
-      return { card, category, title, description, image };
+      const image = card.image;
+      return { card, category, title, description, image, fallbackOrder };
     })
     .filter(({ title, description }) => {
       if (!term) return true;
       return normalizeText(`${title} ${description}`).includes(term);
+    })
+    .sort((a, b) => {
+      const orderA = a.category?.sort_order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.category?.sort_order ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB || a.fallbackOrder - b.fallbackOrder;
     });
 
   if (visibleCards.length === 0) {
@@ -103,16 +109,17 @@ export default function GuideCardsGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
+    <div className="guide-resource-grid grid grid-cols-2 gap-5 md:grid-cols-3">
       {visibleCards.map(({ card, category, title, description, image }) => {
         const disabled = !category;
+        const isEbook = card.slug === "ebook-alimentos-ricos-en-proteina";
         return (
           <button
             key={card.slug}
             type="button"
             onClick={() => category && onOpenCategory(category.id)}
             disabled={disabled}
-            className={`wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 ${
+            className={`wellness-tile app-category-card guide-resource-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 ${
               disabled ? "cursor-default opacity-60" : "hover:-translate-y-1"
             }`}
           >
@@ -120,13 +127,15 @@ export default function GuideCardsGrid({
               <img
                 src={image}
                 alt=""
-                className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105"
+                className={`app-photo-cover-image guide-resource-card-image transition-transform duration-500 ${
+                  isEbook ? "guide-resource-card-image--ebook-clean" : "group-hover:scale-105"
+                }`}
               />
             </div>
 
-            <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
-              <h2 className="font-sans text-base font-bold leading-tight text-foreground">{title}</h2>
-              <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{description}</p>
+            <div className="guide-resource-card-copy flex flex-col items-center justify-center px-3 py-3.5">
+              <h2 className="guide-resource-card-title font-sans font-bold leading-tight text-foreground">{title}</h2>
+              <p className="guide-resource-card-subtitle mt-1.5 tracking-wide text-muted-foreground">{description}</p>
             </div>
           </button>
         );
