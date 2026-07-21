@@ -201,6 +201,11 @@ export default function AdminResources() {
   const isGuideSubcategoryOverview = Boolean(guideTopCategory && filterCat === guideTopCategory.id && !filterSub && !showEditor && !f.id);
   const sectionIsOpen = Boolean(filterCat);
   const selectedCategoryId = filterSub || filterCat || f.category_id;
+  const selectedFilterCategory = filterCat ? catById.get(filterCat) ?? null : null;
+  const isGuideSubcategoryView = Boolean(
+    guideTopCategory &&
+    selectedFilterCategory?.parent_id === guideTopCategory.id
+  );
 
   const guideSubcategoryEntries = GUIDE_RESOURCE_SUBCATEGORY_CARDS.map(card => {
     const category = guideTopCategory
@@ -529,6 +534,30 @@ export default function AdminResources() {
                 </button>
               ))}
             </div>
+          </>
+        ) : isGuideSubcategoryView ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                if (!guideTopCategory) return;
+                setSelectedSection("guias");
+                setFilterCat(guideTopCategory.id);
+                setFilterSub("");
+                setSearchQ("");
+                setShowEditor(false);
+                clearSelection();
+              }}
+              className="text-sm muted inline-flex items-center gap-1 mb-3"
+            >
+              <ArrowLeft className="h-4 w-4" /> Guías y recursos
+            </button>
+            <h1 className="heading-lg mb-1">
+              {selectedFilterCategory?.icon ?? ""} {selectedFilterCategory?.name ?? "Guía"}
+            </h1>
+            <p className="text-sm muted mb-4">
+              Gestiona únicamente las publicaciones de esta guía.
+            </p>
           </>
         ) : (
           <>
