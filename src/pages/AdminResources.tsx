@@ -9,6 +9,9 @@ import DraftBanner from "@/components/DraftBanner";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
+import imgAlimentacion from "@/assets/resource-alimentacion.png";
+import imgMentalidad from "@/assets/resource-mentalidad.png";
+import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
@@ -17,6 +20,35 @@ const ADMIN_RESOURCE_ENTRY_CARDS = [
   { key: "imprescindibles", title: "Imprescindibles", image: imgImprescindibles, subtitle: "Empieza por aquí." },
   { key: "videos", title: "Vídeos", image: imgVideos, subtitle: "Aprende en pocos minutos." },
   { key: "guias", title: "Guías y recursos", image: imgGuias, subtitle: "Herramientas para avanzar." },
+] as const;
+
+type AdminResourceSectionKey = (typeof ADMIN_RESOURCE_ENTRY_CARDS)[number]["key"];
+
+const GUIDE_RESOURCE_SUBCATEGORY_CARDS = [
+  {
+    slug: "guia-bienvenida",
+    title: "Guía de bienvenida",
+    image: imgGuias,
+    subtitle: "Descubre cómo aprovechar todas las funciones de Esencia de Bienestar.",
+  },
+  {
+    slug: "guia-cuidado-piel",
+    title: "Guía de cuidado de la piel",
+    image: imgAlimentacion,
+    subtitle: "Recursos para cuidar tu piel con hábitos sencillos.",
+  },
+  {
+    slug: "guia-menopausia",
+    title: "Guía de menopausia",
+    image: imgMentalidad,
+    subtitle: "Información práctica para acompañar esta etapa.",
+  },
+  {
+    slug: "ebook-alimentos-ricos-en-proteina",
+    title: "eBook: Alimentos ricos en proteína",
+    image: proteinGuideCover,
+    subtitle: "Más de 300 alimentos organizados por categorías.",
+  },
 ] as const;
 
 function getCategoryKey(category: Category) {
@@ -82,6 +114,8 @@ export default function AdminResources() {
   const [sortBy, setSortBy] = useState<"manual" | "newest" | "oldest" | "az" | "za">("manual");
   const [showFilters, setShowFilters] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<AdminResourceSectionKey | "">("");
+  const [guideSubcategoriesChecked, setGuideSubcategoriesChecked] = useState(false);
 
   const loadCats = () => supabase.from("resource_categories").select("*").order("sort_order").then(({ data }) => setCats((data ?? []) as Category[]));
   const load = () => supabase.from("resources")
@@ -117,6 +151,12 @@ export default function AdminResources() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
+  const guideSubcategoryMatchesCard = (category: Category, card: (typeof GUIDE_RESOURCE_SUBCATEGORY_CARDS)[number]) => {
+    const slug = normalizeSlug(category.slug);
+    const name = normalizeSlug(category.name);
+    return slug === card.slug || name === normalizeSlug(card.title);
+  };
+
   const itemCategory = (item: any) => {
     if (item.category_id) return catById.get(item.category_id) ?? null;
     const legacy = normalizeSlug(item.category);
@@ -132,6 +172,17 @@ export default function AdminResources() {
     return cats.some(c => ids.has(c.id) && (normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy));
   };
 
+  const itemSectionMatches = (item: any, section: AdminResourceSectionKey) => {
+    const cat = itemCategory(item);
+    if (cat && getCategoryKey(cat) === section) return true;
+    const legacy = normalizeSlug(item.category);
+    if (!legacy) return false;
+    if (section === "imprescindibles") return legacy.includes("imprescindible");
+    if (section === "videos") return legacy.includes("video");
+    if (section === "guias") return legacy.includes("guia");
+    return false;
+  };
+
   const itemCatLabel = (item: any) => {
     const c = itemCategory(item);
     if (!c) return "Sin categoría";
@@ -142,6 +193,60 @@ export default function AdminResources() {
   // tops + subs grouped for the picker
   const tops = cats.filter(c => !c.parent_id);
   const subsOf = (id: string) => cats.filter(c => c.parent_id === id);
+  const topCategoryForSection = (section: AdminResourceSectionKey | "") =>
+    section ? tops.find(c => getCategoryKey(c) === section) ?? null : null;
+  const guideTopCategory = topCategoryForSection("guias");
+  const isGuideTopOpen = Boolean(guideTopCategory && filterCat === guideTopCategory.id && !filterSub && !showEditor && !f.id);
+  const sectionIsOpen = Boolean(filterCat);
+  const selectedCategoryId = filterSub || filterCat || f.category_id;
+
+  const guideSubcategoryEntries = GUIDE_RESOURCE_SUBCATEGORY_CARDS.map(card => {
+    const category = guideTopCategory
+      ? subsOf(guideTopCategory.id).find(c => guideSubcategoryMatchesCard(c, card)) ?? null
+      : null;
+    const count = category ? items.filter(item => itemCategoryMatches(item, new Set([category.id]))).length : 0;
+    return { ...card, category, count };
+  });
+
+  useEffect(() => {
+    if (!selectedSection) return;
+    const category = topCategoryForSection(selectedSection);
+    if (!category) return;
+    setFilterCat(category.id);
+    setFilterSub("");
+    setF(current => current.id ? current : { ...current, category_id: category.id });
+  }, [selectedSection, cats]);
+
+  useEffect(() => {
+    if (guideSubcategoriesChecked || !guideTopCategory) return;
+    const existing = subsOf(guideTopCategory.id);
+    const missing = GUIDE_RESOURCE_SUBCATEGORY_CARDS.filter(card =>
+      !existing.some(category => guideSubcategoryMatchesCard(category, card))
+    );
+
+    if (missing.length === 0) {
+      setGuideSubcategoriesChecked(true);
+      return;
+    }
+
+    setGuideSubcategoriesChecked(true);
+    supabase
+      .from("resource_categories")
+      .insert(missing.map((card, index) => ({
+        name: card.title,
+        slug: card.slug,
+        icon: "📘",
+        parent_id: guideTopCategory.id,
+        sort_order: index + 1,
+      })))
+      .then(({ error }) => {
+        if (error) {
+          toast.error(`No se pudieron preparar las categorías de Guías: ${error.message}`);
+          return;
+        }
+        loadCats();
+      });
+  }, [guideSubcategoriesChecked, guideTopCategory, cats]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,6 +386,8 @@ export default function AdminResources() {
         const subs = subsOf(filterCat).map(s => s.id);
         const allowed = new Set<string>([filterCat, ...subs]);
         if (!itemCategoryMatches(i, allowed)) return false;
+      } else if (selectedSection) {
+        if (!itemSectionMatches(i, selectedSection)) return false;
       }
       if (filterSub && !itemCategoryMatches(i, new Set([filterSub]))) return false;
       if (filterPinned === "pinned" && !i.is_pinned) return false;
@@ -310,7 +417,7 @@ export default function AdminResources() {
       return cmp(a, b);
     });
     return list;
-  }, [items, searchQ, filterCat, filterSub, filterPinned, filterVisibility, dateField, dateFrom, dateTo, sortBy, catById, cats]);
+  }, [items, searchQ, filterCat, selectedSection, filterSub, filterPinned, filterVisibility, dateField, dateFrom, dateTo, sortBy, catById, cats]);
 
   const resetFilters = () => {
     setSearchQ(""); setFilterSub(""); setFilterPinned("all"); setFilterVisibility("all");
@@ -388,10 +495,12 @@ export default function AdminResources() {
                 key={card.key}
                 type="button"
                 onClick={() => {
-                  const category = tops.find(c => getCategoryKey(c) === card.key);
+                  const category = topCategoryForSection(card.key);
+                  setSelectedSection(card.key);
                   setFilterCat(category?.id ?? "");
                   setFilterSub("");
                   setShowEditor(false);
+                  clearSelection();
                   if (category) {
                     setF(current => current.id ? current : { ...current, category_id: category.id });
                   }
@@ -411,7 +520,39 @@ export default function AdminResources() {
         </div>
       </section>
 
-      {filterCat && (
+      {isGuideTopOpen && (
+        <section className="mb-5">
+          <div className="grid grid-cols-2 gap-5">
+            {guideSubcategoryEntries.map(card => (
+              <button
+                key={card.slug}
+                type="button"
+                disabled={!card.category}
+                onClick={() => {
+                  if (!card.category) return;
+                  setSelectedSection("");
+                  setFilterCat(card.category.id);
+                  setFilterSub("");
+                  setShowEditor(false);
+                  clearSelection();
+                  setF(current => current.id ? current : { ...current, category_id: card.category!.id });
+                }}
+                className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
+              >
+                <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                  <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                </div>
+                <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
+                  <div className="font-sans text-base font-bold leading-tight text-foreground">{card.title}</div>
+                  <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.count} publicación{card.count === 1 ? "" : "es"}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {sectionIsOpen && !isGuideTopOpen && (
         <>
           <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
             <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
@@ -427,7 +568,7 @@ export default function AdminResources() {
           type="button"
           className="btn-primary w-full mb-4"
           onClick={() => {
-            setF(current => ({ ...empty, category_id: filterCat || current.category_id }));
+            setF(current => ({ ...empty, category_id: selectedCategoryId || current.category_id }));
             setShowEditor(true);
           }}
         >
@@ -558,14 +699,14 @@ export default function AdminResources() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[11px] muted">Categoría</label>
-                <select className="field" value={filterCat} onChange={e => { setFilterCat(e.target.value); setFilterSub(""); }}>
+                <select className="field" value={filterCat} onChange={e => { setSelectedSection(""); setFilterCat(e.target.value); setFilterSub(""); }}>
                   <option value="">Todas</option>
                   {tops.map(c => <option key={c.id} value={c.id}>{c.icon ?? ""} {c.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-[11px] muted">Subcategoría</label>
-                <select className="field" value={filterSub} onChange={e => setFilterSub(e.target.value)} disabled={!filterCat || subsOf(filterCat).length === 0}>
+                <select className="field" value={filterSub} onChange={e => { setSelectedSection(""); setFilterSub(e.target.value); }} disabled={!filterCat || subsOf(filterCat).length === 0}>
                   <option value="">Todas</option>
                   {filterCat && subsOf(filterCat).map(s => <option key={s.id} value={s.id}>{s.icon ?? ""} {s.name}</option>)}
                 </select>
@@ -621,7 +762,7 @@ export default function AdminResources() {
               <button
                 key={c.id || "__all__"}
                 type="button"
-                onClick={() => setFilterCat(c.id)}
+                onClick={() => { setSelectedSection(""); setFilterCat(c.id); setFilterSub(""); }}
                 onDragOver={(e) => { if (!dragItemId || !c.id) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOver({ kind: "cat", id: c.id }); }}
                 onDragLeave={() => { if (isDrop) setDropOver(null); }}
                 onDrop={(e) => {
@@ -652,7 +793,7 @@ export default function AdminResources() {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setFilterCat(s.id)}
+                  onClick={() => { setSelectedSection(""); setFilterCat(s.id); setFilterSub(""); }}
                   onDragOver={(e) => { if (!dragItemId) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOver({ kind: "cat", id: s.id }); }}
                   onDragLeave={() => { if (isDrop) setDropOver(null); }}
                   onDrop={(e) => {
