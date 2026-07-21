@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Image as ImageIcon, Video, FileText, Type, ArrowUp, ArrowDown, Upload, Pencil, Pin, FolderTree, GripVertical, Eye, EyeOff, CheckSquare, Square, X, Search, SlidersHorizontal } from "lucide-react";
@@ -18,8 +18,8 @@ const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
 
 const ADMIN_RESOURCE_ENTRY_CARDS = [
   { key: "imprescindibles", title: "Imprescindibles", image: imgImprescindibles, subtitle: "Empieza por aquí." },
-  { key: "videos", title: "Vídeos", image: imgVideos, subtitle: "Aprende en pocos minutos." },
   { key: "guias", title: "Guías y recursos", image: imgGuias, subtitle: "Herramientas para avanzar." },
+  { key: "videos", title: "Vídeos", image: imgVideos, subtitle: "Aprende en pocos minutos." },
 ] as const;
 
 type AdminResourceSectionKey = (typeof ADMIN_RESOURCE_ENTRY_CARDS)[number]["key"];
@@ -70,6 +70,8 @@ type Category = {
   name: string;
   slug: string | null;
   icon: string | null;
+  subtitle: string | null;
+  cover_image: string | null;
   parent_id: string | null;
   sort_order: number;
 };
@@ -205,7 +207,14 @@ export default function AdminResources() {
       ? subsOf(guideTopCategory.id).find(c => guideSubcategoryMatchesCard(c, card)) ?? null
       : null;
     const count = category ? items.filter(item => itemCategoryMatches(item, new Set([category.id]))).length : 0;
-    return { ...card, category, count };
+    return {
+      ...card,
+      category,
+      count,
+      displayTitle: category?.name || card.title,
+      displaySubtitle: category?.subtitle || card.subtitle,
+      displayImage: category?.cover_image || card.image,
+    };
   });
 
   useEffect(() => {
@@ -490,67 +499,71 @@ export default function AdminResources() {
 
         <div className="grid grid-cols-2 gap-5">
           {ADMIN_RESOURCE_ENTRY_CARDS.map(card => {
+            const category = topCategoryForSection(card.key);
+            const displayTitle = category?.name || card.title;
+            const displaySubtitle = category?.subtitle || card.subtitle;
+            const displayImage = category?.cover_image || card.image;
             return (
-              <button
-                key={card.key}
-                type="button"
-                onClick={() => {
-                  const category = topCategoryForSection(card.key);
-                  setSelectedSection(card.key);
-                  setFilterCat(category?.id ?? "");
-                  setFilterSub("");
-                  setShowEditor(false);
-                  clearSelection();
-                  if (category) {
-                    setF(current => current.id ? current : { ...current, category_id: category.id });
-                  }
-                }}
-                className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                  <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                </div>
-                <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-                  <div className="font-sans text-base font-bold leading-tight text-foreground">{card.title}</div>
-                  <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
-                </div>
-              </button>
+              <Fragment key={card.key}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSection(card.key);
+                    setFilterCat(category?.id ?? "");
+                    setFilterSub("");
+                    setShowEditor(false);
+                    clearSelection();
+                    if (category) {
+                      setF(current => current.id ? current : { ...current, category_id: category.id });
+                    }
+                  }}
+                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                    <img src={displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                  </div>
+                  <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
+                    <div className="font-sans text-base font-bold leading-tight text-foreground">{displayTitle}</div>
+                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{displaySubtitle}</p>
+                  </div>
+                </button>
+
+                {card.key === "guias" && isGuideTopOpen && (
+                  <div className="col-span-2 overflow-hidden transition-all duration-300 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-5">
+                      {guideSubcategoryEntries.map(subcard => (
+                        <button
+                          key={subcard.slug}
+                          type="button"
+                          disabled={!subcard.category}
+                          onClick={() => {
+                            if (!subcard.category) return;
+                            setSelectedSection("");
+                            setFilterCat(subcard.category.id);
+                            setFilterSub("");
+                            setShowEditor(false);
+                            clearSelection();
+                            setF(current => current.id ? current : { ...current, category_id: subcard.category!.id });
+                          }}
+                          className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
+                        >
+                          <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                            <img src={subcard.displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                          </div>
+                          <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
+                            <div className="font-sans text-base font-bold leading-tight text-foreground">{subcard.displayTitle}</div>
+                            <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{subcard.count} publicación{subcard.count === 1 ? "" : "es"}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Fragment>
             );
           })}
         </div>
       </section>
-
-      {isGuideTopOpen && (
-        <section className="mb-5">
-          <div className="grid grid-cols-2 gap-5">
-            {guideSubcategoryEntries.map(card => (
-              <button
-                key={card.slug}
-                type="button"
-                disabled={!card.category}
-                onClick={() => {
-                  if (!card.category) return;
-                  setSelectedSection("");
-                  setFilterCat(card.category.id);
-                  setFilterSub("");
-                  setShowEditor(false);
-                  clearSelection();
-                  setF(current => current.id ? current : { ...current, category_id: card.category!.id });
-                }}
-                className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
-              >
-                <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                  <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                </div>
-                <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
-                  <div className="font-sans text-base font-bold leading-tight text-foreground">{card.title}</div>
-                  <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.count} publicación{card.count === 1 ? "" : "es"}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
 
       {sectionIsOpen && !isGuideTopOpen && (
         <>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, Trash2, Pencil, ChevronDown, ChevronRight, Save, X, GripVertical, CornerDownRight } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, ChevronDown, ChevronRight, Save, X, GripVertical, CornerDownRight, Upload } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 
@@ -10,9 +10,20 @@ type Category = {
   name: string;
   slug: string | null;
   icon: string | null;
+  subtitle: string | null;
+  cover_image: string | null;
   parent_id: string | null;
   sort_order: number;
 };
+
+type CategoryDraft = {
+  name: string;
+  icon: string;
+  subtitle: string;
+  cover_image: string;
+};
+
+const EMPTY_DRAFT: CategoryDraft = { name: "", icon: "", subtitle: "", cover_image: "" };
 
 const CONFIRM_DELETE = "¿Eliminar esta categoría? Si tiene subcategorías también se eliminarán. Los recursos quedarán sin categoría.";
 
@@ -26,9 +37,10 @@ export default function AdminResourceCategories() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ name: string; icon: string }>({ name: "", icon: "" });
+  const [draft, setDraft] = useState<CategoryDraft>(EMPTY_DRAFT);
   const [creatingFor, setCreatingFor] = useState<string | "root" | null>(null);
-  const [newCat, setNewCat] = useState<{ name: string; icon: string }>({ name: "", icon: "" });
+  const [newCat, setNewCat] = useState<CategoryDraft>(EMPTY_DRAFT);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<DropTarget | null>(null);
 
@@ -50,13 +62,47 @@ export default function AdminResourceCategories() {
   const toggle = (id: string) =>
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const startEdit = (c: Category) => { setEditing(c.id); setDraft({ name: c.name, icon: c.icon ?? "" }); };
+  const uploadCategoryCover = async (file: File) => {
+    const path = `category-covers/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const { error } = await supabase.storage.from("resource-media").upload(path, file);
+    if (error) throw error;
+    const { data } = supabase.storage.from("resource-media").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const applyCoverFile = async (file: File, target: "draft" | "new") => {
+    try {
+      setUploadingCover(true);
+      const publicUrl = await uploadCategoryCover(file);
+      if (target === "draft") setDraft(prev => ({ ...prev, cover_image: publicUrl }));
+      else setNewCat(prev => ({ ...prev, cover_image: publicUrl }));
+    } catch (e: any) {
+      toast.error(e.message ?? "No se pudo subir la imagen");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const startEdit = (c: Category) => {
+    setEditing(c.id);
+    setDraft({
+      name: c.name,
+      icon: c.icon ?? "",
+      subtitle: c.subtitle ?? "",
+      cover_image: c.cover_image ?? "",
+    });
+  };
 
   const saveEdit = async (id: string) => {
     if (!draft.name.trim()) return;
     const { error } = await supabase
       .from("resource_categories")
-      .update({ name: draft.name.trim(), icon: draft.icon.trim() || null })
+      .update({
+        name: draft.name.trim(),
+        icon: draft.icon.trim() || null,
+        subtitle: draft.subtitle.trim() || null,
+        cover_image: draft.cover_image.trim() || null,
+      })
       .eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Actualizado"); setEditing(null); load();
@@ -67,11 +113,14 @@ export default function AdminResourceCategories() {
     const siblings = cats.filter(c => c.parent_id === parentId);
     const nextOrder = siblings.length ? Math.max(...siblings.map(s => s.sort_order)) + 1 : 1;
     const { error } = await supabase.from("resource_categories").insert({
-      name: newCat.name.trim(), icon: newCat.icon.trim() || null,
+      name: newCat.name.trim(),
+      icon: newCat.icon.trim() || null,
+      subtitle: newCat.subtitle.trim() || null,
+      cover_image: newCat.cover_image.trim() || null,
       parent_id: parentId, sort_order: nextOrder,
     });
     if (error) return toast.error(error.message);
-    setNewCat({ name: "", icon: "" }); setCreatingFor(null);
+    setNewCat(EMPTY_DRAFT); setCreatingFor(null);
     if (parentId) setExpanded(prev => new Set(prev).add(parentId));
     load();
   };
@@ -234,14 +283,53 @@ export default function AdminResourceCategories() {
           <div className="text-xl">{c.icon ?? "📁"}</div>
           {isEditing ? (
             <>
-              <input className="field flex-1" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
-              <input className="field w-14 text-center" value={draft.icon} placeholder="📁" maxLength={4} onChange={e => setDraft({ ...draft, icon: e.target.value })} />
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="grid grid-cols-[1fr_56px] gap-2">
+                  <input className="field" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
+                  <input className="field text-center" value={draft.icon} placeholder="📁" maxLength={4} onChange={e => setDraft({ ...draft, icon: e.target.value })} />
+                </div>
+                <input
+                  className="field"
+                  value={draft.subtitle}
+                  placeholder="Subtítulo o descripción"
+                  onChange={e => setDraft({ ...draft, subtitle: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <input
+                    className="field flex-1"
+                    value={draft.cover_image}
+                    placeholder="URL de imagen de portada"
+                    onChange={e => setDraft({ ...draft, cover_image: e.target.value })}
+                  />
+                  <label className="btn-ghost shrink-0 cursor-pointer px-3">
+                    <Upload className="h-4 w-4" /> Imagen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingCover}
+                      onChange={e => e.target.files?.[0] && applyCoverFile(e.target.files[0], "draft")}
+                    />
+                  </label>
+                </div>
+                {draft.cover_image && (
+                  <div className="flex items-center gap-2 rounded-xl bg-primary/5 p-2">
+                    <img src={draft.cover_image} alt="" className="h-12 w-16 rounded-lg object-cover" />
+                    <button type="button" className="text-xs text-destructive" onClick={() => setDraft(prev => ({ ...prev, cover_image: "" }))}>
+                      Quitar imagen
+                    </button>
+                  </div>
+                )}
+              </div>
               <button onClick={() => saveEdit(c.id)} className="text-primary p-1" aria-label="Guardar"><Save className="h-4 w-4" /></button>
               <button onClick={() => setEditing(null)} className="muted p-1" aria-label="Cancelar"><X className="h-4 w-4" /></button>
             </>
           ) : (
             <>
-              <div className="flex-1 min-w-0 font-medium text-sm truncate">{c.name}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">{c.name}</div>
+                {c.subtitle && <div className="text-xs muted truncate">{c.subtitle}</div>}
+              </div>
               <button onClick={() => startEdit(c)} className="text-primary p-1" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
               <button onClick={() => del(c.id)} className="text-destructive p-1" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
             </>
@@ -280,7 +368,7 @@ export default function AdminResourceCategories() {
                 <input className="field w-14 text-center" value={newCat.icon} placeholder="📁" maxLength={4} onChange={e => setNewCat({ ...newCat, icon: e.target.value })} />
                 <input className="field flex-1" placeholder="Nombre de subcategoría" autoFocus value={newCat.name} onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
                 <button onClick={() => create(c.id)} className="btn-primary px-3 py-1.5 text-xs">Crear</button>
-                <button onClick={() => { setCreatingFor(null); setNewCat({ name: "", icon: "" }); }} className="muted p-1"><X className="h-4 w-4" /></button>
+                <button onClick={() => { setCreatingFor(null); setNewCat(EMPTY_DRAFT); }} className="muted p-1"><X className="h-4 w-4" /></button>
               </div>
             ) : (
               <button onClick={() => setCreatingFor(c.id)} className="btn-ghost text-xs ml-6">
@@ -328,7 +416,7 @@ export default function AdminResourceCategories() {
           <input className="field w-14 text-center" value={newCat.icon} placeholder="📁" maxLength={4} onChange={e => setNewCat({ ...newCat, icon: e.target.value })} />
           <input className="field flex-1" placeholder="Nombre de la categoría" autoFocus value={newCat.name} onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
           <button onClick={() => create(null)} className="btn-primary px-3 py-1.5 text-xs">Crear</button>
-          <button onClick={() => { setCreatingFor(null); setNewCat({ name: "", icon: "" }); }} className="muted p-1"><X className="h-4 w-4" /></button>
+          <button onClick={() => { setCreatingFor(null); setNewCat(EMPTY_DRAFT); }} className="muted p-1"><X className="h-4 w-4" /></button>
         </div>
       ) : (
         <button onClick={() => setCreatingFor("root")} className="btn-primary w-full">

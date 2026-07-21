@@ -12,6 +12,14 @@ type GuideCard = {
   badge?: string;
 };
 
+type GuideCategory = {
+  id: string;
+  name: string;
+  slug: string | null;
+  subtitle?: string | null;
+  cover_image?: string | null;
+};
+
 const normalizeText = (value: unknown) =>
   String(value ?? "")
     .toLowerCase()
@@ -58,16 +66,11 @@ export default function GuideCardsGrid({
   query = "",
   onOpenCategory,
 }: {
-  categories: { id: string; name: string; slug: string | null }[];
+  categories: GuideCategory[];
   query?: string;
   onOpenCategory: (categoryId: string) => void;
 }) {
   const term = normalizeText(query);
-  const visibleCards = cards.filter((card) => {
-    if (!term) return true;
-    return normalizeText(`${card.title} ${card.description}`).includes(term);
-  });
-
   const getCategoryForCard = (card: GuideCard) => {
     const cardSlug = normalizeText(card.slug);
     const cardTitle = normalizeText(card.title);
@@ -78,14 +81,26 @@ export default function GuideCardsGrid({
     }) ?? null;
   };
 
+  const visibleCards = cards
+    .map((card) => {
+      const category = getCategoryForCard(card);
+      const title = category?.name || card.title;
+      const description = category?.subtitle || card.description;
+      const image = category?.cover_image || card.image;
+      return { card, category, title, description, image };
+    })
+    .filter(({ title, description }) => {
+      if (!term) return true;
+      return normalizeText(`${title} ${description}`).includes(term);
+    });
+
   if (visibleCards.length === 0) {
     return <div className="card-soft p-6 text-center muted">No hay guías que coincidan.</div>;
   }
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-      {visibleCards.map((card) => {
-        const category = getCategoryForCard(card);
+      {visibleCards.map(({ card, category, title, description, image }) => {
         const disabled = !category;
         return (
           <button
@@ -99,7 +114,7 @@ export default function GuideCardsGrid({
           >
             <div className="relative h-32 w-full overflow-hidden bg-muted sm:h-36">
               <img
-                src={card.image}
+                src={image}
                 alt=""
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
@@ -111,8 +126,8 @@ export default function GuideCardsGrid({
             </div>
 
             <div className="flex min-h-[150px] flex-col p-3.5">
-              <h2 className="font-sans text-base font-bold leading-tight text-foreground">{card.title}</h2>
-              <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
+              <h2 className="font-sans text-base font-bold leading-tight text-foreground">{title}</h2>
+              <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
 
               <div className="mt-3 flex items-center justify-between gap-2">
                 {disabled ? (

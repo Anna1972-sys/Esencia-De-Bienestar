@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,8 @@ type Category = {
   icon: string | null;
   parent_id: string | null;
   sort_order: number;
+  subtitle?: string | null;
+  cover_image?: string | null;
 };
 
 const CATEGORY_CARDS = {
@@ -23,7 +25,10 @@ const CATEGORY_CARDS = {
   guias: { image: imgGuias, subtitle: "Herramientas para avanzar." },
 } as const;
 
-function getCategoryKey(category: Category) {
+type CategoryCardKey = keyof typeof CATEGORY_CARDS;
+const MAIN_CATEGORY_ORDER: CategoryCardKey[] = ["imprescindibles", "guias", "videos"];
+
+function getCategoryKey(category: Category): CategoryCardKey | null {
   const value = (category.slug || category.name)
     .toLowerCase()
     .normalize("NFD")
@@ -31,10 +36,21 @@ function getCategoryKey(category: Category) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-  if (value.includes("imprescindible")) return CATEGORY_CARDS.imprescindibles;
-  if (value.includes("video")) return CATEGORY_CARDS.videos;
-  if (value.includes("guia") || value.includes("recurso")) return CATEGORY_CARDS.guias;
+  if (value.includes("imprescindible")) return "imprescindibles";
+  if (value.includes("video")) return "videos";
+  if (value.includes("guia") || value.includes("recurso")) return "guias";
   return null;
+}
+
+function getCategoryCard(category: Category) {
+  const key = getCategoryKey(category);
+  if (!key) return null;
+  const fallback = CATEGORY_CARDS[key];
+  return {
+    key,
+    image: category.cover_image || fallback.image,
+    subtitle: category.subtitle || fallback.subtitle,
+  };
 }
 
 export default function Resources() {
@@ -42,6 +58,7 @@ export default function Resources() {
   const [cats, setCats] = useState<Category[]>([]);
   const [activeTop, setActiveTop] = useState<string | null>(null);
   const [activeSub, setActiveSub] = useState<string | null>(null);
+  const [expandedTop, setExpandedTop] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -56,7 +73,15 @@ export default function Resources() {
 
   const tops = cats.filter(c => !c.parent_id);
   const subsOf = (id: string) => cats.filter(c => c.parent_id === id);
-  const entryCategories = tops.filter(c => getCategoryKey(c));
+  const entryCategories = tops
+    .filter(c => getCategoryKey(c))
+    .sort((a, b) => {
+      const ak = getCategoryKey(a);
+      const bk = getCategoryKey(b);
+      const ai = ak ? MAIN_CATEGORY_ORDER.indexOf(ak) : 99;
+      const bi = bk ? MAIN_CATEGORY_ORDER.indexOf(bk) : 99;
+      return ai - bi;
+    });
 
   // Map descendant ids for a top-level cat (itself + its subs)
   const descIds = (id: string) => new Set<string>([id, ...subsOf(id).map(s => s.id)]);
@@ -205,22 +230,46 @@ export default function Resources() {
 
           <div className="grid grid-cols-2 gap-5">
             {entryCategories.map(c => {
-              const card = getCategoryKey(c);
+              const card = getCategoryCard(c);
               if (!card) return null;
               return (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveTop(c.id)}
-                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                    <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                  </div>
-                  <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-                    <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
-                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
-                  </div>
-                </button>
+                <Fragment key={c.id}>
+                  <button
+                    onClick={() => {
+                      if (card.key === "guias") {
+                        setExpandedTop(prev => prev === c.id ? null : c.id);
+                        setQuery("");
+                        return;
+                      }
+                      setActiveTop(c.id);
+                    }}
+                    aria-expanded={card.key === "guias" ? expandedTop === c.id : undefined}
+                    className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                  >
+                    <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                      <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                    </div>
+                    <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
+                      <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
+                      <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
+                    </div>
+                  </button>
+
+                  {card.key === "guias" && expandedTop === c.id && (
+                    <div className="col-span-2 overflow-hidden transition-all duration-300 animate-fade-in">
+                      <GuideCardsGrid
+                        categories={subsOf(c.id)}
+                        query={query}
+                        onOpenCategory={(categoryId) => {
+                          setActiveTop(c.id);
+                          setActiveSub(categoryId);
+                          setExpandedTop(null);
+                          setQuery("");
+                        }}
+                      />
+                    </div>
+                  )}
+                </Fragment>
               );
             })}
           </div>

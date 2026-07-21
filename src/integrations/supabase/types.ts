@@ -430,32 +430,38 @@ export type Database = {
       resource_categories: {
         Row: {
           created_at: string
+          cover_image: string | null
           icon: string | null
           id: string
           name: string
           parent_id: string | null
           slug: string | null
           sort_order: number
+          subtitle: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          cover_image?: string | null
           icon?: string | null
           id?: string
           name: string
           parent_id?: string | null
           slug?: string | null
           sort_order?: number
+          subtitle?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          cover_image?: string | null
           icon?: string | null
           id?: string
           name?: string
           parent_id?: string | null
           slug?: string | null
           sort_order?: number
+          subtitle?: string | null
           updated_at?: string
         }
         Relationships: [
