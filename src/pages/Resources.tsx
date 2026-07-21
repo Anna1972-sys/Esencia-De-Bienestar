@@ -4,10 +4,6 @@ import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
-import imgEducacion from "@/assets/resource-educacion.png";
-import imgAlimentacion from "@/assets/resource-alimentacion.png";
-import imgPerdidaPeso from "@/assets/resource-perdida-peso.png";
-import imgMentalidad from "@/assets/resource-mentalidad.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
 import GuideCardsGrid, { isGuidesCategory } from "@/components/resources/GuideCardsGrid";
@@ -23,15 +19,11 @@ type Category = {
 
 const CATEGORY_CARDS = {
   imprescindibles: { image: imgImprescindibles, subtitle: "Empieza por aquí." },
-  educacion: { image: imgEducacion, subtitle: "Aprende a elegir mejor." },
-  alimentacion: { image: imgAlimentacion, subtitle: "Ideas para cada día." },
-  "perdida-peso": { image: imgPerdidaPeso, subtitle: "Resultados sostenibles." },
-  mentalidad: { image: imgMentalidad, subtitle: "Pequeños cambios, grandes resultados." },
   videos: { image: imgVideos, subtitle: "Aprende en pocos minutos." },
   guias: { image: imgGuias, subtitle: "Herramientas para avanzar." },
 } as const;
 
-function getCategoryCard(category: Category) {
+function getCategoryKey(category: Category) {
   const value = (category.slug || category.name)
     .toLowerCase()
     .normalize("NFD")
@@ -40,12 +32,9 @@ function getCategoryCard(category: Category) {
     .replace(/^-|-$/g, "");
 
   if (value.includes("imprescindible")) return CATEGORY_CARDS.imprescindibles;
-  if (value.includes("educacion")) return CATEGORY_CARDS.educacion;
-  if (value.includes("alimentacion")) return CATEGORY_CARDS.alimentacion;
-  if (value.includes("perdida") || value.includes("peso")) return CATEGORY_CARDS["perdida-peso"];
-  if (value.includes("mentalidad") || value.includes("habito")) return CATEGORY_CARDS.mentalidad;
   if (value.includes("video")) return CATEGORY_CARDS.videos;
-  return CATEGORY_CARDS.guias;
+  if (value.includes("guia") || value.includes("recurso")) return CATEGORY_CARDS.guias;
+  return null;
 }
 
 export default function Resources() {
@@ -67,6 +56,7 @@ export default function Resources() {
 
   const tops = cats.filter(c => !c.parent_id);
   const subsOf = (id: string) => cats.filter(c => c.parent_id === id);
+  const entryCategories = tops.filter(c => getCategoryKey(c));
 
   // Map descendant ids for a top-level cat (itself + its subs)
   const descIds = (id: string) => new Set<string>([id, ...subsOf(id).map(s => s.id)]);
@@ -161,8 +151,15 @@ export default function Resources() {
             </div>
           )}
 
-          {currentTopIsGuides ? (
-            <GuideCardsGrid resources={items} query={query} />
+          {currentTopIsGuides && !activeSub ? (
+            <GuideCardsGrid
+              categories={subsOf(currentTop.id)}
+              query={query}
+              onOpenCategory={(categoryId) => {
+                setActiveSub(categoryId);
+                setQuery("");
+              }}
+            />
           ) : filteredItems.length === 0 ? (
             <div className="card-soft p-6 text-center muted">No hay publicaciones que coincidan.</div>
           ) : (
@@ -207,8 +204,9 @@ export default function Resources() {
           </div>
 
           <div className="grid grid-cols-2 gap-5">
-            {tops.map(c => {
-              const card = getCategoryCard(c);
+            {entryCategories.map(c => {
+              const card = getCategoryKey(c);
+              if (!card) return null;
               return (
                 <button
                   key={c.id}

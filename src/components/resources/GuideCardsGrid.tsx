@@ -1,19 +1,15 @@
-import { BookOpen, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
 import imgGuias from "@/assets/resource-guias.png";
-import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgMentalidad from "@/assets/resource-mentalidad.png";
-import imgEducacion from "@/assets/resource-educacion.png";
 import imgAlimentacion from "@/assets/resource-alimentacion.png";
 
 type GuideCard = {
-  key: string;
+  slug: string;
   title: string;
   description: string;
   image: string;
   badge?: string;
-  comingSoon?: boolean;
-  match?: (resource: any) => boolean;
 };
 
 const normalizeText = (value: unknown) =>
@@ -29,72 +25,42 @@ export const isGuidesCategory = (category?: { name?: string | null; slug?: strin
   return value.includes("guia") || value.includes("recurso");
 };
 
-const getPdfUrl = (resource: any) => {
-  const blocks = Array.isArray(resource?.blocks) ? resource.blocks : [];
-  const pdfBlock = blocks.find((block: any) => block?.type === "pdf" && block?.url);
-  if (pdfBlock?.url) return String(pdfBlock.url);
-
-  const url = String(resource?.url ?? "");
-  if (url.toLowerCase().includes(".pdf")) return url;
-
-  return "";
-};
-
 const cards: GuideCard[] = [
   {
-    key: "proteina",
-    title: "Alimentos ricos en proteína",
-    description: "Más de 300 alimentos organizados por categorías para ayudarte a elegir mejor cada día.",
-    image: proteinGuideCover,
-    badge: "NUEVA",
-    match: (resource) => {
-      const value = normalizeText(resource?.title);
-      return value.includes("proteina") || value.includes("alimentos ricos");
-    },
-  },
-  {
-    key: "bienvenida",
+    slug: "guia-bienvenida",
     title: "Guía de bienvenida",
     description: "Descubre cómo aprovechar todas las funciones de Esencia de Bienestar.",
     image: imgGuias,
-    match: (resource) => normalizeText(resource?.title).includes("bienvenida"),
   },
   {
-    key: "piel",
-    title: "Cuidado de la piel",
+    slug: "guia-cuidado-piel",
+    title: "Guía de cuidado de la piel",
     description: "Recursos para cuidar tu piel con una rutina sencilla y constante.",
-    image: imgImprescindibles,
-    comingSoon: true,
+    image: imgAlimentacion,
   },
   {
-    key: "menopausia",
-    title: "Menopausia",
+    slug: "guia-menopausia",
+    title: "Guía de menopausia",
     description: "Guías para acompañar esta etapa con bienestar y equilibrio.",
     image: imgMentalidad,
-    comingSoon: true,
   },
   {
-    key: "deportiva",
-    title: "Nutrición deportiva",
-    description: "Recursos para adaptar tu nutrición a tus entrenamientos.",
-    image: imgAlimentacion,
-    comingSoon: true,
-  },
-  {
-    key: "etiquetas",
-    title: "Lectura de etiquetas",
-    description: "Aprende a interpretar etiquetas para elegir con más claridad.",
-    image: imgEducacion,
-    comingSoon: true,
+    slug: "ebook-alimentos-ricos-en-proteina",
+    title: "eBook: Alimentos ricos en proteína",
+    description: "Más de 300 alimentos organizados por categorías para ayudarte a elegir mejor cada día.",
+    image: proteinGuideCover,
+    badge: "NUEVA",
   },
 ];
 
 export default function GuideCardsGrid({
-  resources,
+  categories,
   query = "",
+  onOpenCategory,
 }: {
-  resources: any[];
+  categories: { id: string; name: string; slug: string | null }[];
   query?: string;
+  onOpenCategory: (categoryId: string) => void;
 }) {
   const term = normalizeText(query);
   const visibleCards = cards.filter((card) => {
@@ -102,20 +68,14 @@ export default function GuideCardsGrid({
     return normalizeText(`${card.title} ${card.description}`).includes(term);
   });
 
-  const openGuide = (card: GuideCard) => {
-    if (card.comingSoon) return;
-
-    const resource = card.match ? resources.find(card.match) : null;
-    const pdfUrl = getPdfUrl(resource);
-
-    if (pdfUrl) {
-      window.open(pdfUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    if (resource?.id) {
-      window.location.href = `/app/recursos/${resource.id}`;
-    }
+  const getCategoryForCard = (card: GuideCard) => {
+    const cardSlug = normalizeText(card.slug);
+    const cardTitle = normalizeText(card.title);
+    return categories.find(category => {
+      const slug = normalizeText(category.slug);
+      const name = normalizeText(category.name);
+      return slug === cardSlug || name === cardTitle;
+    }) ?? null;
   };
 
   if (visibleCards.length === 0) {
@@ -125,12 +85,13 @@ export default function GuideCardsGrid({
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
       {visibleCards.map((card) => {
-        const disabled = card.comingSoon;
+        const category = getCategoryForCard(card);
+        const disabled = !category;
         return (
           <button
-            key={card.key}
+            key={card.slug}
             type="button"
-            onClick={() => openGuide(card)}
+            onClick={() => category && onOpenCategory(category.id)}
             disabled={disabled}
             className={`wellness-tile group relative overflow-hidden rounded-[24px] p-0 text-left transition-all duration-300 ${
               disabled ? "cursor-default" : "hover:-translate-y-1 hover:shadow-glow"
@@ -156,15 +117,15 @@ export default function GuideCardsGrid({
               <div className="mt-3 flex items-center justify-between gap-2">
                 {disabled ? (
                   <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                    Próximamente
+                    Sin publicaciones
                   </span>
                 ) : (
                   <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                    Guía completa
+                    Ver categoría
                   </span>
                 )}
                 <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
-                  {disabled ? <BookOpen className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                  <FileText className="h-4 w-4" />
                 </span>
               </div>
             </div>
