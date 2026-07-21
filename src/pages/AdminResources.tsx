@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Image as ImageIcon, Video, FileText, Type, ArrowUp, ArrowDown, Upload, Pencil, Pin, FolderTree, GripVertical, Eye, EyeOff, CheckSquare, Square, X, Search, SlidersHorizontal } from "lucide-react";
@@ -198,7 +198,7 @@ export default function AdminResources() {
   const topCategoryForSection = (section: AdminResourceSectionKey | "") =>
     section ? tops.find(c => getCategoryKey(c) === section) ?? null : null;
   const guideTopCategory = topCategoryForSection("guias");
-  const isGuideTopOpen = Boolean(guideTopCategory && filterCat === guideTopCategory.id && !filterSub && !showEditor && !f.id);
+  const isGuideSubcategoryOverview = Boolean(guideTopCategory && filterCat === guideTopCategory.id && !filterSub && !showEditor && !f.id);
   const sectionIsOpen = Boolean(filterCat);
   const selectedCategoryId = filterSub || filterCat || f.category_id;
 
@@ -484,88 +484,105 @@ export default function AdminResources() {
   return (
     <div className="admin-resources-page pb-28">
       <section className="mb-5">
-        <h1 className="heading-lg mb-1">Vídeos y guías</h1>
-        <p className="text-sm muted mb-4">Explora los recursos por categoría.</p>
+        {isGuideSubcategoryOverview ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSection("");
+                setFilterCat("");
+                setFilterSub("");
+                setSearchQ("");
+                clearSelection();
+              }}
+              className="text-sm muted inline-flex items-center gap-1 mb-3"
+            >
+              <ArrowLeft className="h-4 w-4" /> Categorías
+            </button>
+            <h1 className="heading-lg mb-1">Guías y recursos</h1>
+            <p className="text-sm muted mb-4">Elige una guía para gestionar sus publicaciones.</p>
 
-        <div className="relative mb-4">
-          <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            className="field pl-9"
-            placeholder="Buscar por nombre o categoría…"
-            value={searchQ}
-            onChange={e => setSearchQ(e.target.value)}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-5">
-          {ADMIN_RESOURCE_ENTRY_CARDS.map(card => {
-            const category = topCategoryForSection(card.key);
-            const displayTitle = category?.name || card.title;
-            const displaySubtitle = category?.subtitle || card.subtitle;
-            const displayImage = category?.cover_image || card.image;
-            return (
-              <Fragment key={card.key}>
+            <div className="grid grid-cols-2 gap-5">
+              {guideSubcategoryEntries.map(subcard => (
                 <button
+                  key={subcard.slug}
                   type="button"
+                  disabled={!subcard.category}
                   onClick={() => {
-                    setSelectedSection(card.key);
-                    setFilterCat(category?.id ?? "");
+                    if (!subcard.category) return;
+                    setSelectedSection("");
+                    setFilterCat(subcard.category.id);
                     setFilterSub("");
                     setShowEditor(false);
                     clearSelection();
-                    if (category) {
-                      setF(current => current.id ? current : { ...current, category_id: category.id });
-                    }
+                    setF(current => current.id ? current : { ...current, category_id: subcard.category!.id });
                   }}
-                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
                 >
                   <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                    <img src={displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                    <img src={subcard.displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
                   </div>
-                  <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-                    <div className="font-sans text-base font-bold leading-tight text-foreground">{displayTitle}</div>
-                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{displaySubtitle}</p>
+                  <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
+                    <div className="font-sans text-base font-bold leading-tight text-foreground">{subcard.displayTitle}</div>
+                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{subcard.count} publicación{subcard.count === 1 ? "" : "es"}</p>
                   </div>
                 </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 className="heading-lg mb-1">Vídeos y guías</h1>
+            <p className="text-sm muted mb-4">Explora los recursos por categoría.</p>
 
-                {card.key === "guias" && isGuideTopOpen && (
-                  <div className="col-span-2 overflow-hidden transition-all duration-300 animate-fade-in">
-                    <div className="grid grid-cols-2 gap-5">
-                      {guideSubcategoryEntries.map(subcard => (
-                        <button
-                          key={subcard.slug}
-                          type="button"
-                          disabled={!subcard.category}
-                          onClick={() => {
-                            if (!subcard.category) return;
-                            setSelectedSection("");
-                            setFilterCat(subcard.category.id);
-                            setFilterSub("");
-                            setShowEditor(false);
-                            clearSelection();
-                            setF(current => current.id ? current : { ...current, category_id: subcard.category!.id });
-                          }}
-                          className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
-                        >
-                          <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                            <img src={subcard.displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                          </div>
-                          <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
-                            <div className="font-sans text-base font-bold leading-tight text-foreground">{subcard.displayTitle}</div>
-                            <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{subcard.count} publicación{subcard.count === 1 ? "" : "es"}</p>
-                          </div>
-                        </button>
-                      ))}
+            <div className="relative mb-4">
+              <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                className="field pl-9"
+                placeholder="Buscar por nombre o categoría…"
+                value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-5">
+              {ADMIN_RESOURCE_ENTRY_CARDS.map(card => {
+                const category = topCategoryForSection(card.key);
+                const displayTitle = category?.name || card.title;
+                const displaySubtitle = category?.subtitle || card.subtitle;
+                const displayImage = category?.cover_image || card.image;
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSection(card.key);
+                      setFilterCat(category?.id ?? "");
+                      setFilterSub("");
+                      setShowEditor(false);
+                      clearSelection();
+                      if (category) {
+                        setF(current => current.id ? current : { ...current, category_id: category.id });
+                      }
+                    }}
+                    className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                  >
+                    <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                      <img src={displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
                     </div>
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
-        </div>
+                    <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
+                      <div className="font-sans text-base font-bold leading-tight text-foreground">{displayTitle}</div>
+                      <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{displaySubtitle}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </section>
 
-      {sectionIsOpen && !isGuideTopOpen && (
+      {sectionIsOpen && !isGuideSubcategoryOverview && (
         <>
           <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
             <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>

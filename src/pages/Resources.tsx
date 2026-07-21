@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,7 +58,6 @@ export default function Resources() {
   const [cats, setCats] = useState<Category[]>([]);
   const [activeTop, setActiveTop] = useState<string | null>(null);
   const [activeSub, setActiveSub] = useState<string | null>(null);
-  const [expandedTop, setExpandedTop] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -150,9 +149,13 @@ export default function Resources() {
               </>
             )}
           </h1>
-          <p className="text-sm muted mb-4">{filteredItems.length} publicación{filteredItems.length === 1 ? "" : "es"}</p>
+          <p className="text-sm muted mb-4">
+            {currentTopIsGuides && !activeSub
+              ? "Elige una guía para ver sus publicaciones."
+              : `${filteredItems.length} publicación${filteredItems.length === 1 ? "" : "es"}`}
+          </p>
 
-          {currentTopIsGuides && (
+          {currentTopIsGuides && activeSub && (
             <div className="relative mb-4">
               <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -233,43 +236,23 @@ export default function Resources() {
               const card = getCategoryCard(c);
               if (!card) return null;
               return (
-                <Fragment key={c.id}>
-                  <button
-                    onClick={() => {
-                      if (card.key === "guias") {
-                        setExpandedTop(prev => prev === c.id ? null : c.id);
-                        setQuery("");
-                        return;
-                      }
-                      setActiveTop(c.id);
-                    }}
-                    aria-expanded={card.key === "guias" ? expandedTop === c.id : undefined}
-                    className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
-                  >
-                    <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                      <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                    </div>
-                    <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-                      <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
-                      <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
-                    </div>
-                  </button>
-
-                  {card.key === "guias" && expandedTop === c.id && (
-                    <div className="col-span-2 overflow-hidden transition-all duration-300 animate-fade-in">
-                      <GuideCardsGrid
-                        categories={subsOf(c.id)}
-                        query={query}
-                        onOpenCategory={(categoryId) => {
-                          setActiveTop(c.id);
-                          setActiveSub(categoryId);
-                          setExpandedTop(null);
-                          setQuery("");
-                        }}
-                      />
-                    </div>
-                  )}
-                </Fragment>
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setActiveTop(c.id);
+                    setActiveSub(null);
+                    setQuery("");
+                  }}
+                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+                    <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
+                  </div>
+                  <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
+                    <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
+                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
+                  </div>
+                </button>
               );
             })}
           </div>
