@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Image as ImageIcon, Video, FileText, Type, ArrowUp, ArrowDown, Upload, Pencil, Pin, FolderTree, GripVertical, Eye, EyeOff, CheckSquare, Square, X, Search, SlidersHorizontal } from "lucide-react";
-import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
@@ -82,6 +81,7 @@ export default function AdminResources() {
   const [dateTo, setDateTo] = useState("");
   const [sortBy, setSortBy] = useState<"manual" | "newest" | "oldest" | "az" | "za">("manual");
   const [showFilters, setShowFilters] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
 
   const loadCats = () => supabase.from("resource_categories").select("*").order("sort_order").then(({ data }) => setCats((data ?? []) as Category[]));
   const load = () => supabase.from("resources")
@@ -93,7 +93,7 @@ export default function AdminResources() {
 
   useEffect(() => { loadCats(); load(); }, []);
 
-  const reset = () => { setF(empty); clearDraft(); };
+  const reset = () => { setF(empty); clearDraft(); setShowEditor(false); };
 
   const catById = useMemo(() => {
     const m = new Map<string, Category>();
@@ -104,6 +104,36 @@ export default function AdminResources() {
   const catLabel = (id: string | null) => {
     if (!id) return "Sin categoría";
     const c = catById.get(id);
+    if (!c) return "Sin categoría";
+    const parent = c.parent_id ? catById.get(c.parent_id) : null;
+    return parent ? `${parent.name} › ${c.name}` : c.name;
+  };
+
+  const normalizeSlug = (value?: string | null) =>
+    (value ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const itemCategory = (item: any) => {
+    if (item.category_id) return catById.get(item.category_id) ?? null;
+    const legacy = normalizeSlug(item.category);
+    if (!legacy) return null;
+    return cats.find(c => normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy) ?? null;
+  };
+
+  const itemCategoryMatches = (item: any, ids: Set<string>) => {
+    const cat = itemCategory(item);
+    if (cat?.id && ids.has(cat.id)) return true;
+    const legacy = normalizeSlug(item.category);
+    if (!legacy) return false;
+    return cats.some(c => ids.has(c.id) && (normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy));
+  };
+
+  const itemCatLabel = (item: any) => {
+    const c = itemCategory(item);
     if (!c) return "Sin categoría";
     const parent = c.parent_id ? catById.get(c.parent_id) : null;
     return parent ? `${parent.name} › ${c.name}` : c.name;
@@ -158,6 +188,7 @@ export default function AdminResources() {
       is_pinned: !!it.is_pinned,
       is_published: it.is_published !== false,
     });
+    setShowEditor(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -249,9 +280,9 @@ export default function AdminResources() {
       if (filterCat) {
         const subs = subsOf(filterCat).map(s => s.id);
         const allowed = new Set<string>([filterCat, ...subs]);
-        if (!allowed.has(i.category_id)) return false;
+        if (!itemCategoryMatches(i, allowed)) return false;
       }
-      if (filterSub && i.category_id !== filterSub) return false;
+      if (filterSub && !itemCategoryMatches(i, new Set([filterSub]))) return false;
       if (filterPinned === "pinned" && !i.is_pinned) return false;
       if (filterPinned === "unpinned" && i.is_pinned) return false;
       if (filterVisibility === "visible" && i.is_published === false) return false;
@@ -260,7 +291,7 @@ export default function AdminResources() {
       if (fromTs && dts < fromTs) return false;
       if (toTs && dts > toTs) return false;
       if (q) {
-        const cat = catById.get(i.category_id);
+        const cat = itemCategory(i);
         const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
         const hay = `${i.title ?? ""} ${cat?.name ?? ""} ${parent?.name ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -336,9 +367,6 @@ export default function AdminResources() {
 
   return (
     <div className="admin-resources-page pb-28">
-      <AdminPageHeader title="Vídeos y guías" subtitle="Contenido educativo y recursos" />
-
-
       <section className="mb-5">
         <h1 className="heading-lg mb-1">Vídeos y guías</h1>
         <p className="text-sm muted mb-4">Explora los recursos por categoría.</p>
@@ -363,6 +391,10 @@ export default function AdminResources() {
                   const category = tops.find(c => getCategoryKey(c) === card.key);
                   setFilterCat(category?.id ?? "");
                   setFilterSub("");
+                  setShowEditor(false);
+                  if (category) {
+                    setF(current => current.id ? current : { ...current, category_id: category.id });
+                  }
                 }}
                 className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
               >
@@ -379,7 +411,7 @@ export default function AdminResources() {
         </div>
       </section>
 
-      {false && filterCat && (
+      {filterCat && (
         <>
           <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
             <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
@@ -390,7 +422,20 @@ export default function AdminResources() {
           </Link>
 
       {!f.id && hasDraft && <DraftBanner onDiscard={() => { clearDraft(); setF(empty); }} />}
-      <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
+      {!showEditor && !f.id && (
+        <button
+          type="button"
+          className="btn-primary w-full mb-4"
+          onClick={() => {
+            setF(current => ({ ...empty, category_id: filterCat || current.category_id }));
+            setShowEditor(true);
+          }}
+        >
+          <Plus className="h-4 w-4" /> Añadir contenido
+        </button>
+      )}
+
+      {(showEditor || f.id || hasDraft) && <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
         <div className="font-medium">{f.id ? "Editar publicación" : "Nueva publicación"}</div>
 
         <div>
@@ -477,8 +522,9 @@ export default function AdminResources() {
         <div className="flex gap-2">
           <button className="btn-primary flex-1" disabled={busy}><Plus className="h-4 w-4" /> {f.id ? "Guardar cambios" : "Publicar"}</button>
           {f.id && <button type="button" className="btn-secondary" onClick={reset}>Cancelar</button>}
+          {!f.id && <button type="button" className="btn-secondary" onClick={reset}>Cancelar</button>}
         </div>
-      </form>
+      </form>}
 
       {/* Buscador, filtros y orden */}
       <div className="card-soft p-3 mb-3 space-y-2">
@@ -719,7 +765,7 @@ export default function AdminResources() {
                     {i.is_published === false && <EyeOff className="h-3 w-3 muted" />}
                     {i.title}
                   </div>
-                  <div className="text-xs muted truncate">{catLabel(i.category_id)}</div>
+                  <div className="text-xs muted truncate">{itemCatLabel(i)}</div>
                 </div>
                 <button onClick={() => moveItem(i, -1)} className="p-1" aria-label="Subir"><ArrowUp className="h-4 w-4" /></button>
                 <button onClick={() => moveItem(i, 1)} className="p-1" aria-label="Bajar"><ArrowDown className="h-4 w-4" /></button>
