@@ -45,11 +45,18 @@ const GUIDE_RESOURCE_SUBCATEGORY_CARDS = [
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
-    title: "eBook: Alimentos ricos en proteína",
+    title: "Ebook: Alimentos ricos en proteína",
     image: proteinGuideCover,
     subtitle: "Más de 300 alimentos organizados por categorías.",
   },
 ] as const;
+
+const cleanGuideTitle = (title: string, slug: string) => {
+  if (slug === "ebook-alimentos-ricos-en-proteina") {
+    return title.replace(/^eBook/i, "Ebook");
+  }
+  return title;
+};
 
 function getCategoryKey(category: Category) {
   const value = (category.slug || category.name)
@@ -216,7 +223,7 @@ export default function AdminResources() {
       ...card,
       category,
       count,
-      displayTitle: category?.name || card.title,
+      displayTitle: cleanGuideTitle(category?.name || card.title, card.slug),
       displaySubtitle: category?.subtitle || card.subtitle,
       displayImage: category?.cover_image || card.image,
     };
@@ -561,6 +568,22 @@ export default function AdminResources() {
           </>
         ) : (
           <>
+            {sectionIsOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSection("");
+                  setFilterCat("");
+                  setFilterSub("");
+                  setSearchQ("");
+                  setShowEditor(false);
+                  clearSelection();
+                }}
+                className="text-sm muted inline-flex items-center gap-1 mb-3"
+              >
+                <ArrowLeft className="h-4 w-4" /> Categorías
+              </button>
+            )}
             <h1 className="heading-lg mb-1">Vídeos y guías</h1>
             <p className="text-sm muted mb-4">Explora los recursos por categoría.</p>
 

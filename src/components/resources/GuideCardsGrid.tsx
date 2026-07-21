@@ -1,4 +1,3 @@
-import { FileText } from "lucide-react";
 import proteinGuideCover from "@/assets/resources/guia-proteina-cover.jpg";
 import imgGuias from "@/assets/resource-guias.png";
 import imgMentalidad from "@/assets/resource-mentalidad.png";
@@ -9,7 +8,6 @@ type GuideCard = {
   title: string;
   description: string;
   image: string;
-  badge?: string;
 };
 
 type GuideCategory = {
@@ -54,12 +52,18 @@ const cards: GuideCard[] = [
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
-    title: "eBook: Alimentos ricos en proteína",
+    title: "Ebook: Alimentos ricos en proteína",
     description: "Más de 300 alimentos organizados por categorías para ayudarte a elegir mejor cada día.",
     image: proteinGuideCover,
-    badge: "NUEVA",
   },
 ];
+
+const cleanGuideTitle = (title: string, slug: string) => {
+  if (slug === "ebook-alimentos-ricos-en-proteina") {
+    return title.replace(/^eBook/i, "Ebook");
+  }
+  return title;
+};
 
 export default function GuideCardsGrid({
   categories,
@@ -84,7 +88,7 @@ export default function GuideCardsGrid({
   const visibleCards = cards
     .map((card) => {
       const category = getCategoryForCard(card);
-      const title = category?.name || card.title;
+      const title = cleanGuideTitle(category?.name || card.title, card.slug);
       const description = category?.subtitle || card.description;
       const image = category?.cover_image || card.image;
       return { card, category, title, description, image };
@@ -99,7 +103,7 @@ export default function GuideCardsGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
       {visibleCards.map(({ card, category, title, description, image }) => {
         const disabled = !category;
         return (
@@ -108,41 +112,21 @@ export default function GuideCardsGrid({
             type="button"
             onClick={() => category && onOpenCategory(category.id)}
             disabled={disabled}
-            className={`wellness-tile group relative overflow-hidden rounded-[24px] p-0 text-left transition-all duration-300 ${
-              disabled ? "cursor-default" : "hover:-translate-y-1 hover:shadow-glow"
+            className={`wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 ${
+              disabled ? "cursor-default opacity-60" : "hover:-translate-y-1"
             }`}
           >
-            <div className="relative h-32 w-full overflow-hidden bg-muted sm:h-36">
+            <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
               <img
                 src={image}
                 alt=""
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105"
               />
-              {card.badge && (
-                <span className="absolute left-2 top-2 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                  {card.badge}
-                </span>
-              )}
             </div>
 
-            <div className="flex min-h-[150px] flex-col p-3.5">
+            <div className="flex min-h-[104px] flex-col items-center justify-center px-3 py-3.5">
               <h2 className="font-sans text-base font-bold leading-tight text-foreground">{title}</h2>
-              <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-
-              <div className="mt-3 flex items-center justify-between gap-2">
-                {disabled ? (
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                    Sin publicaciones
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                    Ver categoría
-                  </span>
-                )}
-                <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <FileText className="h-4 w-4" />
-                </span>
-              </div>
+              <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{description}</p>
             </div>
           </button>
         );
