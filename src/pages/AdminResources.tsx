@@ -198,19 +198,38 @@ export default function AdminResources() {
   const topCategoryForSection = (section: AdminResourceSectionKey | "") =>
     section ? tops.find(c => getCategoryKey(c) === section) ?? null : null;
   const guideTopCategory = topCategoryForSection("guias");
+  const guideSubcategoryCandidates = guideTopCategory
+    ? (() => {
+        const direct = subsOf(guideTopCategory.id);
+        const directIds = new Set(direct.map(c => c.id));
+        const matching = cats.filter(c =>
+          c.id !== guideTopCategory.id &&
+          !directIds.has(c.id) &&
+          GUIDE_RESOURCE_SUBCATEGORY_CARDS.some(card => guideSubcategoryMatchesCard(c, card))
+        );
+        const seen = new Set<string>();
+        return [...direct, ...matching].filter(category => {
+          if (seen.has(category.id)) return false;
+          seen.add(category.id);
+          return true;
+        });
+      })()
+    : [];
+  const isGuideLeafCategory = (category?: Category | null) =>
+    Boolean(
+      guideTopCategory &&
+      category &&
+      category.id !== guideTopCategory.id &&
+      guideSubcategoryCandidates.some(guideCategory => guideCategory.id === category.id)
+    );
   const isGuideSubcategoryOverview = Boolean(guideTopCategory && filterCat === guideTopCategory.id && !filterSub && !showEditor && !f.id);
   const sectionIsOpen = Boolean(filterCat);
   const selectedCategoryId = filterSub || filterCat || f.category_id;
   const selectedFilterCategory = filterCat ? catById.get(filterCat) ?? null : null;
-  const isGuideSubcategoryView = Boolean(
-    guideTopCategory &&
-    selectedFilterCategory?.parent_id === guideTopCategory.id
-  );
+  const isGuideSubcategoryView = isGuideLeafCategory(selectedFilterCategory);
 
   const guideSubcategoryEntries = GUIDE_RESOURCE_SUBCATEGORY_CARDS.map((card, fallbackOrder) => {
-    const category = guideTopCategory
-      ? subsOf(guideTopCategory.id).find(c => guideSubcategoryMatchesCard(c, card)) ?? null
-      : null;
+    const category = guideSubcategoryCandidates.find(c => guideSubcategoryMatchesCard(c, card)) ?? null;
     const count = category ? items.filter(item => itemCategoryMatches(item, new Set([category.id]))).length : 0;
     return {
       ...card,
@@ -238,7 +257,7 @@ export default function AdminResources() {
 
   useEffect(() => {
     if (guideSubcategoriesChecked || !guideTopCategory) return;
-    const existing = subsOf(guideTopCategory.id);
+    const existing = guideSubcategoryCandidates;
     const missing = GUIDE_RESOURCE_SUBCATEGORY_CARDS.filter(card =>
       !existing.some(category => guideSubcategoryMatchesCard(category, card))
     );

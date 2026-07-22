@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
-import GuideCardsGrid, { isGuidesCategory, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
+import GuideCardsGrid, { cards as GUIDE_RESOURCE_CARDS, guideCardMatchesCategory, isGuidesCategory, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
 
 type Category = {
   id: string;
@@ -72,6 +72,21 @@ export default function Resources() {
 
   const tops = cats.filter(c => !c.parent_id);
   const subsOf = (id: string) => cats.filter(c => c.parent_id === id);
+  const guideCategoriesFor = (topId: string) => {
+    const direct = subsOf(topId);
+    const directIds = new Set(direct.map(c => c.id));
+    const matching = cats.filter(c =>
+      c.id !== topId &&
+      !directIds.has(c.id) &&
+      GUIDE_RESOURCE_CARDS.some(card => guideCardMatchesCategory(c, card))
+    );
+    const seen = new Set<string>();
+    return [...direct, ...matching].filter(category => {
+      if (seen.has(category.id)) return false;
+      seen.add(category.id);
+      return true;
+    });
+  };
   const entryCategories = tops
     .filter(c => getCategoryKey(c))
     .sort((a, b) => {
@@ -181,7 +196,7 @@ export default function Resources() {
 
           {currentTopIsGuides && !activeSub ? (
             <GuideCardsGrid
-              categories={subsOf(currentTop.id)}
+              categories={guideCategoriesFor(currentTop.id)}
               query={query}
               onOpenCategory={(categoryId) => {
                 setActiveSub(categoryId);
