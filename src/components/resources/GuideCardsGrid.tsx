@@ -132,6 +132,45 @@ export const resolveGuideCardCoverImage = (
   return getStoredCategoryCover(category?.cover_image) ?? finalGuideCoverImages[slug] ?? fallbackImage;
 };
 
+type ResolvedGuideCard = {
+  card: GuideCard;
+  category: GuideCategory | null;
+  title: string;
+  description: string;
+  image: string;
+  fallbackOrder: number;
+};
+
+function GuideResourceCard({
+  item,
+  onOpenCategory,
+}: {
+  item: ResolvedGuideCard;
+  onOpenCategory: (categoryId: string) => void;
+}) {
+  const { card, category, title, description, image } = item;
+  const disabled = !category;
+
+  return (
+    <button
+      key={card.slug}
+      type="button"
+      onClick={() => category && onOpenCategory(category.id)}
+      disabled={disabled}
+      className={`resource-guide-card ${disabled ? "resource-guide-card--disabled" : ""}`}
+    >
+      <span className="resource-guide-card__image-wrap" aria-hidden="true">
+        <img src={image} alt="" className="resource-guide-card__image" />
+      </span>
+
+      <span className="resource-guide-card__body">
+        <span className="resource-guide-card__title">{title}</span>
+        <span className="resource-guide-card__description">{description}</span>
+      </span>
+    </button>
+  );
+}
+
 export default function GuideCardsGrid({
   categories,
   query = "",
@@ -169,34 +208,10 @@ export default function GuideCardsGrid({
   }
 
   return (
-    <div className="guide-resource-grid grid grid-cols-2 gap-5 md:grid-cols-3">
-      {visibleCards.map(({ card, category, title, description, image }) => {
-        const disabled = !category;
-        return (
-          <button
-            key={card.slug}
-            type="button"
-            onClick={() => category && onOpenCategory(category.id)}
-            disabled={disabled}
-            className={`wellness-tile app-category-card guide-resource-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 ${
-              disabled ? "cursor-default opacity-60" : "hover:-translate-y-1"
-            }`}
-          >
-            <div className="guide-resource-card-media w-full overflow-hidden">
-              <img
-                src={image}
-                alt=""
-                className="app-photo-cover-image guide-resource-card-image transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
-
-            <div className="guide-resource-card-copy flex flex-col items-center justify-center px-3 py-3.5">
-              <h2 className="guide-resource-card-title font-sans font-bold leading-tight text-foreground">{title}</h2>
-              <p className="guide-resource-card-subtitle mt-1.5 tracking-wide text-muted-foreground">{description}</p>
-            </div>
-          </button>
-        );
-      })}
+    <div className="resource-guide-card-grid">
+      {visibleCards.map(item => (
+        <GuideResourceCard key={item.card.slug} item={item} onOpenCategory={onOpenCategory} />
+      ))}
     </div>
   );
 }

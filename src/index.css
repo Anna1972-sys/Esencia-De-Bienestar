@@ -3441,105 +3441,142 @@
     min-height: 0 !important;
   }
 
-  .guide-resource-grid {
-    grid-auto-rows: 1fr;
+  .resource-guide-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
     align-items: stretch;
   }
 
-  .guide-resource-card {
-    display: flex !important;
+  @media (min-width: 768px) {
+    .resource-guide-card-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .resource-guide-card {
+    display: flex;
     flex-direction: column;
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-    gap: 0 !important;
-    height: 344px !important;
-    min-height: 344px !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    border-radius: 28px !important;
+    width: 100%;
+    height: 344px;
+    min-height: 344px;
+    padding: 0;
+    overflow: hidden;
+    border: 1.5px solid #FF2D95;
+    border-radius: 28px;
+    background: hsl(var(--card));
+    box-shadow: 0 22px 40px -32px rgb(255 45 149 / .52);
+    color: hsl(var(--foreground));
+    text-align: center;
+    cursor: pointer;
+    transition: transform .24s ease, box-shadow .24s ease;
+    appearance: none;
+  }
+
+  .resource-guide-card:not(.resource-guide-card--disabled):hover {
+    transform: translateY(-4px);
+    box-shadow: 0 28px 46px -32px rgb(255 45 149 / .65);
+  }
+
+  .resource-guide-card--disabled {
+    cursor: default;
+    opacity: .6;
+  }
+
+  .resource-guide-card__image-wrap {
+    display: block;
+    width: 100%;
+    height: 192px;
+    min-height: 192px;
+    flex: 0 0 192px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 26px 26px 0 0;
+    background: #fff;
+    line-height: 0;
+  }
+
+  .resource-guide-card__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    border-radius: 26px 26px 0 0;
+  }
+
+  .resource-guide-card__body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 152px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: .95rem .9rem 1rem;
+    box-sizing: border-box;
     background: hsl(var(--card));
   }
 
-  .guide-resource-card.wellness-tile,
-  .guide-resource-card.app-category-card {
-    padding: 0 !important;
-  }
-
-  .guide-resource-card-media {
-    display: block !important;
-    width: 100% !important;
-    height: 191px !important;
-    flex: 0 0 191px;
-    margin: 0 !important;
-    padding: 0 !important;
-    border-radius: 28px 28px 0 0 !important;
-    background: transparent !important;
-    align-self: stretch !important;
-    line-height: 0 !important;
-  }
-
-  .guide-resource-card-copy {
-    width: 100%;
-    box-sizing: border-box;
-    flex: 1 1 auto;
-    min-height: 132px;
-  }
-
-  .guide-resource-card .guide-resource-card-image {
-    display: block;
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    object-position: center center !important;
-    border-radius: 0 !important;
-  }
-
-  .guide-resource-card-title {
-    min-height: 2.55rem;
-    font-size: 1rem;
-    line-height: 1.22;
+  .resource-guide-card__title {
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    min-height: 2.55rem;
     overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.22;
+    color: hsl(var(--foreground));
   }
 
-  .guide-resource-card-subtitle {
+  .resource-guide-card__description {
+    display: -webkit-box;
     min-height: 3.15rem;
+    margin-top: .45rem;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
     font-size: .66rem;
     line-height: 1.42;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .guide-resource-card-image--ebook-clean {
-    height: 132% !important;
-    object-fit: cover !important;
-    object-position: center bottom !important;
+    color: hsl(var(--muted-foreground));
+    letter-spacing: .01em;
   }
 
   @media (max-width: 420px) {
-    .guide-resource-card {
-      height: 316px !important;
-      min-height: 316px !important;
+    .resource-guide-card-grid {
+      gap: 1.05rem;
     }
 
-    .guide-resource-card-media {
-      height: 157px !important;
-      flex-basis: 157px;
+    .resource-guide-card {
+      height: 316px;
+      min-height: 316px;
+      border-radius: 26px;
     }
 
-    .guide-resource-card-copy {
-      min-height: 144px;
+    .resource-guide-card__image-wrap {
+      height: 158px;
+      min-height: 158px;
+      flex-basis: 158px;
+      border-radius: 24px 24px 0 0;
     }
 
-    .guide-resource-card-title {
+    .resource-guide-card__image {
+      border-radius: 24px 24px 0 0;
+    }
+
+    .resource-guide-card__body {
+      min-height: 158px;
+      padding: .85rem .75rem .95rem;
+    }
+
+    .resource-guide-card__title {
       font-size: .93rem;
     }
 
-    .guide-resource-card-subtitle {
+    .resource-guide-card__description {
       font-size: .62rem;
     }
   }
@@ -3930,44 +3967,4 @@
     border-color: #FF2D95 !important;
   }
 
-  .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card {
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-    gap: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    background: hsl(var(--card)) !important;
-  }
-
-  .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card > .guide-resource-card-media {
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: 191px !important;
-    flex: 0 0 191px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    align-self: stretch !important;
-    overflow: hidden !important;
-    border-radius: 28px 28px 0 0 !important;
-    background: transparent !important;
-    line-height: 0 !important;
-  }
-
-  .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card > .guide-resource-card-media > img {
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    object-position: center center !important;
-    border-radius: 0 !important;
-  }
-
-  @media (max-width: 420px) {
-    .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card > .guide-resource-card-media {
-      height: 157px !important;
-      flex-basis: 157px !important;
-    }
-  }
 }
