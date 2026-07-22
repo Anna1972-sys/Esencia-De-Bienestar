@@ -1,7 +1,7 @@
-import imgGuias from "@/assets/resource-guias.png";
-import imgSkincare from "@/assets/home-nutricion.png";
-import imgMenopause from "@/assets/home-nutrition-premium-light.png";
-import imgProteinGuide from "@/assets/resource-alimentacion.png";
+import imgGuias from "@/assets/resources/guide-welcome-final.svg";
+import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
+import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
+import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
 
 type GuideCard = {
   slug: string;
@@ -78,6 +78,17 @@ export const cleanGuideTitle = (title: string, slug: string) => {
   return title;
 };
 
+const finalGuideCoverImages: Record<string, string> = {
+  "guia-bienvenida": imgGuias,
+  "guia-cuidado-piel": imgSkincare,
+  "guia-menopausia": imgMenopause,
+  "ebook-alimentos-ricos-en-proteina": imgProteinGuide,
+};
+
+export const resolveGuideCardCoverImage = (slug: string, fallbackImage: string) => {
+  return finalGuideCoverImages[slug] ?? fallbackImage;
+};
+
 export default function GuideCardsGrid({
   categories,
   query = "",
@@ -103,7 +114,7 @@ export default function GuideCardsGrid({
       const category = getCategoryForCard(card);
       const title = cleanGuideTitle(category?.name || card.title, card.slug);
       const description = category?.subtitle || card.description;
-      const image = resolveCategoryCoverImage(category, card.image);
+      const image = resolveGuideCardCoverImage(card.slug, card.image);
       return { card, category, title, description, image, fallbackOrder };
     })
     .filter(({ title, description }) => {

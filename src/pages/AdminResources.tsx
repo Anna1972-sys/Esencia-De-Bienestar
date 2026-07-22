@@ -9,10 +9,11 @@ import DraftBanner from "@/components/DraftBanner";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
-import imgSkincare from "@/assets/home-nutricion.png";
-import imgMenopause from "@/assets/home-nutrition-premium-light.png";
-import imgProteinGuide from "@/assets/resource-alimentacion.png";
-import { cleanGuideTitle, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
+import imgGuideWelcome from "@/assets/resources/guide-welcome-final.svg";
+import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
+import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
+import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
+import { cleanGuideTitle, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
@@ -29,7 +30,7 @@ const GUIDE_RESOURCE_SUBCATEGORY_CARDS = [
   {
     slug: "guia-bienvenida",
     title: "Guía de bienvenida",
-    image: imgGuias,
+    image: imgGuideWelcome,
     subtitle: "Descubre cómo aprovechar todas las funciones de Esencia de Bienestar.",
   },
   {
@@ -219,7 +220,7 @@ export default function AdminResources() {
       count,
       displayTitle: cleanGuideTitle(category?.name || card.title, card.slug),
       displaySubtitle: category?.subtitle || card.subtitle,
-      displayImage: resolveCategoryCoverImage(category, card.image),
+      displayImage: resolveGuideCardCoverImage(card.slug, card.image),
       fallbackOrder,
     };
   }).sort((a, b) => {

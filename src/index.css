@@ -3448,7 +3448,7 @@
   .guide-resource-card {
     display: flex !important;
     flex-direction: column;
-    height: 100% !important;
+    height: 344px !important;
     min-height: 344px !important;
   }
 
@@ -3490,6 +3490,7 @@
 
   @media (max-width: 420px) {
     .guide-resource-card {
+      height: 316px !important;
       min-height: 316px !important;
     }
 
