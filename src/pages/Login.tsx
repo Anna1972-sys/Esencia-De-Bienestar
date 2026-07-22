@@ -6,6 +6,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import BackButton from "@/components/BackButton";
 
+const PASSWORD_RESET_REDIRECT_URL = "https://esencia-de-bienestar-49ii.vercel.app/reset-password";
+
+const getPasswordResetErrorMessage = (message: string) => {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("redirect") || normalized.includes("not allowed")) {
+    return "No se ha podido enviar el correo porque la URL de recuperación no está autorizada en Supabase.";
+  }
+  if (normalized.includes("rate") || normalized.includes("too many")) {
+    return "Se han solicitado demasiados correos seguidos. Espera un momento y vuelve a intentarlo.";
+  }
+  return "No se ha podido enviar el correo de recuperación. Revisa que el correo sea correcto y vuelve a intentarlo.";
+};
+
 export default function Login() {
   const nav = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -48,8 +61,11 @@ export default function Login() {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo: `${window.location.origin}/reset-password` });
-      if (error) return toast.error(error.message);
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo: PASSWORD_RESET_REDIRECT_URL });
+      if (error) {
+        console.error("[Login] resetPasswordForEmail failed", { message: error.message });
+        return toast.error(getPasswordResetErrorMessage(error.message));
+      }
       toast.success("Te enviamos un correo para restablecer la contraseña.");
       setMode("login");
     } catch (error) {
