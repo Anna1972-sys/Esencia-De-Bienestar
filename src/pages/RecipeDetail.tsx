@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { classifyShoppingItem } from "@/lib/shoppingCategories";
 import { getCategoryLabel } from "@/lib/libraryCategories";
 import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
+import { readLibraryReturnContext } from "@/lib/libraryNavigation";
 
 import { videoEmbedUrl, videoThumbnail } from "@/components/VideoField";
 
@@ -34,10 +35,13 @@ export default function RecipeDetail() {
   const routeState = location.state as { recipeBackTo?: string; libraryContext?: unknown } | null;
   const recipeBackTo = routeState?.recipeBackTo || "/app/biblioteca";
   const goBackToRecipes = () => {
+    const libraryContext = routeState?.libraryContext ?? (
+      recipeBackTo === "/app/biblioteca" ? readLibraryReturnContext() : null
+    );
     navigate(recipeBackTo, {
       replace: true,
-      state: recipeBackTo === "/app/biblioteca" && routeState?.libraryContext
-        ? { libraryContext: routeState.libraryContext }
+      state: recipeBackTo === "/app/biblioteca" && libraryContext
+        ? { libraryContext }
         : undefined,
     });
   };

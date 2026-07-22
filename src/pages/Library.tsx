@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
+import { type LibraryContext, resolveLibraryReturnContext, saveLibraryReturnContext } from "@/lib/libraryNavigation";
 import BackButton from "@/components/BackButton";
 
 type Recipe = {
@@ -22,16 +23,11 @@ type Recipe = {
   sort_order?: number | null;
 };
 
-type LibraryContext = {
-  selectedCat: string | null;
-  query: string;
-  scrollY: number;
-};
-
 export default function Library() {
   const navigate = useNavigate();
   const location = useLocation();
-  const returnContext = (location.state as { libraryContext?: LibraryContext } | null)?.libraryContext;
+  const routeContext = (location.state as { libraryContext?: LibraryContext } | null)?.libraryContext;
+  const returnContext = resolveLibraryReturnContext(routeContext);
   const [items, setItems] = useState<Recipe[]>([]);
   const [selectedCat, setSelectedCat] = useState<string | null>(() => returnContext?.selectedCat ?? null);
   const [q, setQ] = useState(() => returnContext?.query ?? "");
@@ -125,14 +121,17 @@ export default function Library() {
   }, [items.length, returnContext?.scrollY]);
 
   const openRecipe = (id: string) => {
+    const libraryContext = {
+      selectedCat,
+      query: q,
+      scrollY: window.scrollY,
+    } satisfies LibraryContext;
+    saveLibraryReturnContext(libraryContext);
+
     navigate(`/app/biblioteca/${id}`, {
       state: {
         recipeBackTo: "/app/biblioteca",
-        libraryContext: {
-          selectedCat,
-          query: q,
-          scrollY: window.scrollY,
-        } satisfies LibraryContext,
+        libraryContext,
       },
     });
   };

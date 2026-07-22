@@ -150,6 +150,7 @@ function GuideResourceCard({
 }) {
   const { card, category, title, description, image } = item;
   const disabled = !category;
+  const isEbook = card.slug === "ebook-alimentos-ricos-en-proteina";
 
   return (
     <button
@@ -164,6 +165,7 @@ function GuideResourceCard({
       </span>
 
       <span className="resource-guide-card__body">
+        {isEbook && <span className="resource-guide-card__badge">PDF</span>}
         <span className="resource-guide-card__title">{title}</span>
         <span className="resource-guide-card__description">{description}</span>
       </span>
