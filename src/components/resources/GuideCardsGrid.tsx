@@ -32,16 +32,16 @@ export const isGuidesCategory = (category?: { name?: string | null; slug?: strin
   return value.includes("guia") || value.includes("recurso");
 };
 
-const isEditableCategoryCover = (coverImage?: string | null) => {
-  const value = String(coverImage ?? "");
-  return value.includes("category-covers/");
+const getStoredCategoryCover = (coverImage?: string | null) => {
+  const value = String(coverImage ?? "").trim();
+  return value.length > 0 ? value : null;
 };
 
 export const resolveCategoryCoverImage = (
   category: { cover_image?: string | null } | null | undefined,
   fallbackImage: string
 ) => {
-  return isEditableCategoryCover(category?.cover_image) ? String(category?.cover_image) : fallbackImage;
+  return getStoredCategoryCover(category?.cover_image) ?? fallbackImage;
 };
 
 export const cards: GuideCard[] = [
@@ -124,8 +124,12 @@ const finalGuideCoverImages: Record<string, string> = {
   "ebook-alimentos-ricos-en-proteina": imgProteinGuide,
 };
 
-export const resolveGuideCardCoverImage = (slug: string, fallbackImage: string) => {
-  return finalGuideCoverImages[slug] ?? fallbackImage;
+export const resolveGuideCardCoverImage = (
+  slug: string,
+  fallbackImage: string,
+  category?: { cover_image?: string | null } | null
+) => {
+  return getStoredCategoryCover(category?.cover_image) ?? finalGuideCoverImages[slug] ?? fallbackImage;
 };
 
 export default function GuideCardsGrid({
@@ -147,7 +151,7 @@ export default function GuideCardsGrid({
       const category = getCategoryForCard(card);
       const title = cleanGuideTitle(category?.name || card.title, card.slug);
       const description = category?.subtitle || card.description;
-      const image = resolveGuideCardCoverImage(card.slug, card.image);
+      const image = resolveGuideCardCoverImage(card.slug, card.image, category);
       return { card, category, title, description, image, fallbackOrder };
     })
     .filter(({ title, description }) => {
@@ -178,7 +182,7 @@ export default function GuideCardsGrid({
               disabled ? "cursor-default opacity-60" : "hover:-translate-y-1"
             }`}
           >
-            <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
+            <div className="guide-resource-card-media w-full overflow-hidden">
               <img
                 src={image}
                 alt=""

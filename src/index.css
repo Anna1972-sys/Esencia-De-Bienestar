@@ -3443,23 +3443,55 @@
 
   .guide-resource-grid {
     grid-auto-rows: 1fr;
+    align-items: stretch;
   }
 
   .guide-resource-card {
     display: flex !important;
     flex-direction: column;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
     height: 344px !important;
     min-height: 344px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    border-radius: 28px !important;
+    background: hsl(var(--card));
   }
 
-  .guide-resource-card .app-photo-cover-frame {
-    height: 190px !important;
-    flex: 0 0 190px;
+  .guide-resource-card.wellness-tile,
+  .guide-resource-card.app-category-card {
+    padding: 0 !important;
+  }
+
+  .guide-resource-card-media {
+    display: block !important;
+    width: 100% !important;
+    height: 191px !important;
+    flex: 0 0 191px;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 28px 28px 0 0 !important;
+    background: transparent !important;
+    align-self: stretch !important;
+    line-height: 0 !important;
   }
 
   .guide-resource-card-copy {
+    width: 100%;
+    box-sizing: border-box;
     flex: 1 1 auto;
     min-height: 132px;
+  }
+
+  .guide-resource-card .guide-resource-card-image {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    border-radius: 0 !important;
   }
 
   .guide-resource-card-title {
@@ -3494,9 +3526,9 @@
       min-height: 316px !important;
     }
 
-    .guide-resource-card .app-photo-cover-frame {
-      height: 156px !important;
-      flex-basis: 156px;
+    .guide-resource-card-media {
+      height: 157px !important;
+      flex-basis: 157px;
     }
 
     .guide-resource-card-copy {
@@ -3896,5 +3928,46 @@
   .admin-nutrition-page .admin-nutrition-new-category-form {
     background: #FFF7FA !important;
     border-color: #FF2D95 !important;
+  }
+
+  .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card {
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: hsl(var(--card)) !important;
+  }
+
+  .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card > .guide-resource-card-media {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 191px !important;
+    flex: 0 0 191px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: stretch !important;
+    overflow: hidden !important;
+    border-radius: 28px 28px 0 0 !important;
+    background: transparent !important;
+    line-height: 0 !important;
+  }
+
+  .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card > .guide-resource-card-media > img {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    border-radius: 0 !important;
+  }
+
+  @media (max-width: 420px) {
+    .guide-resource-grid .guide-resource-card.wellness-tile.app-category-card > .guide-resource-card-media {
+      height: 157px !important;
+      flex-basis: 157px !important;
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Image as ImageIcon, Video, FileText, Type, ArrowUp, ArrowDown, Upload, Pencil, Pin, FolderTree, GripVertical, Eye, EyeOff, CheckSquare, Square, X, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Image as ImageIcon, Video, FileText, Type, ArrowUp, ArrowDown, Upload, Pencil, Pin, FolderTree, GripVertical, Eye, EyeOff, CheckSquare, Square, X, Search, SlidersHorizontal, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
@@ -13,7 +13,7 @@ import imgGuideWelcome from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
-import { cleanGuideTitle, guideCardMatchesCategory, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
+import GuideCardsGrid, { cleanGuideTitle, guideCardMatchesCategory, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
@@ -222,8 +222,15 @@ export default function AdminResources() {
       category.id !== guideTopCategory.id &&
       guideSubcategoryCandidates.some(guideCategory => guideCategory.id === category.id)
     );
-  const isGuideSubcategoryOverview = Boolean(guideTopCategory && filterCat === guideTopCategory.id && !filterSub && !showEditor && !f.id);
-  const sectionIsOpen = Boolean(filterCat);
+  const isGuideSectionSelected = selectedSection === "guias";
+  const isGuideSubcategoryOverview = Boolean(
+    guideTopCategory &&
+    (filterCat === guideTopCategory.id || (isGuideSectionSelected && !filterCat)) &&
+    !filterSub &&
+    !showEditor &&
+    !f.id
+  );
+  const sectionIsOpen = Boolean(filterCat || selectedSection);
   const selectedCategoryId = filterSub || filterCat || f.category_id;
   const selectedFilterCategory = filterCat ? catById.get(filterCat) ?? null : null;
   const isGuideSubcategoryView = isGuideLeafCategory(selectedFilterCategory);
@@ -237,7 +244,7 @@ export default function AdminResources() {
       count,
       displayTitle: cleanGuideTitle(category?.name || card.title, card.slug),
       displaySubtitle: category?.subtitle || card.subtitle,
-      displayImage: resolveGuideCardCoverImage(card.slug, card.image),
+      displayImage: resolveGuideCardCoverImage(card.slug, card.image, category),
       fallbackOrder,
     };
   }).sort((a, b) => {
@@ -245,6 +252,18 @@ export default function AdminResources() {
     const orderB = b.category?.sort_order ?? Number.MAX_SAFE_INTEGER;
     return orderA - orderB || a.fallbackOrder - b.fallbackOrder;
   });
+  const activeGuideEntry = isGuideSubcategoryView
+    ? guideSubcategoryEntries.find(entry => entry.category?.id === selectedFilterCategory?.id) ?? null
+    : null;
+  const guideContentTools = [
+    { label: "Vídeos", icon: Video },
+    { label: "PDFs", icon: FileText },
+    { label: "Imágenes", icon: ImageIcon },
+    { label: "Galería", icon: ImageIcon },
+    { label: "Documentos", icon: FileText },
+    { label: "Enlaces", icon: LinkIcon },
+    { label: "Orden manual", icon: GripVertical },
+  ] as const;
 
   useEffect(() => {
     if (!selectedSection) return;
@@ -252,7 +271,7 @@ export default function AdminResources() {
     if (!category) return;
     setFilterCat(category.id);
     setFilterSub("");
-    setF(current => current.id ? current : { ...current, category_id: category.id });
+    setF({ ...empty, category_id: category.id });
   }, [selectedSection, cats]);
 
   useEffect(() => {
@@ -290,15 +309,18 @@ export default function AdminResources() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.title.trim()) return;
-    if (!f.category_id) { toast.error("Selecciona una categoría"); return; }
+    const effectiveCategoryId = isGuideSubcategoryView && selectedFilterCategory
+      ? selectedFilterCategory.id
+      : f.category_id;
+    if (!effectiveCategoryId) { toast.error("Selecciona una categoría"); return; }
     setBusy(true);
-    const cat = catById.get(f.category_id);
+    const cat = catById.get(effectiveCategoryId);
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     const slug = cat?.slug ?? parent?.slug ?? null;
     const payload: any = {
       title: f.title,
       category: slug, // legacy text field kept in sync
-      category_id: f.category_id,
+      category_id: effectiveCategoryId,
       is_pinned: f.is_pinned,
       is_published: f.is_published !== false,
       cover_image: f.cover_image || null,
@@ -343,6 +365,10 @@ export default function AdminResources() {
 
   const moveToCategory = async (it: any, newCategoryId: string) => {
     if (!newCategoryId || newCategoryId === it.category_id) return;
+    if (isGuideSubcategoryView && selectedFilterCategory && newCategoryId !== selectedFilterCategory.id) {
+      toast.error("Esta guía es independiente. Para mover contenido a otra guía, entra en esa guía.");
+      return;
+    }
     const cat = catById.get(newCategoryId);
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     const slug = cat?.slug ?? parent?.slug ?? null;
@@ -422,7 +448,8 @@ export default function AdminResources() {
     const toTs = dateTo ? new Date(dateTo).getTime() + 86399999 : null;
     let list = items.filter(i => {
       if (filterCat) {
-        const subs = subsOf(filterCat).map(s => s.id);
+        const selectedFilter = catById.get(filterCat);
+        const subs = isGuideLeafCategory(selectedFilter) ? [] : subsOf(filterCat).map(s => s.id);
         const allowed = new Set<string>([filterCat, ...subs]);
         if (!itemCategoryMatches(i, allowed)) return false;
       } else if (selectedSection) {
@@ -476,6 +503,10 @@ export default function AdminResources() {
 
   const bulkMove = async (newCategoryId: string) => {
     const ids = bulkIds(); if (!ids.length || !newCategoryId) return;
+    if (isGuideSubcategoryView && selectedFilterCategory && newCategoryId !== selectedFilterCategory.id) {
+      toast.error("Esta guía es independiente. Para mover contenido a otra guía, entra en esa guía.");
+      return;
+    }
     const cat = catById.get(newCategoryId);
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     const slug = cat?.slug ?? parent?.slug ?? null;
@@ -540,38 +571,17 @@ export default function AdminResources() {
               </div>
             </Link>
 
-            <div className="guide-resource-grid grid grid-cols-2 gap-5">
-              {guideSubcategoryEntries.map(subcard => {
-                return (
-                <button
-                  key={subcard.slug}
-                  type="button"
-                  disabled={!subcard.category}
-                  onClick={() => {
-                    if (!subcard.category) return;
-                    setSelectedSection("");
-                    setFilterCat(subcard.category.id);
-                    setFilterSub("");
-                    setShowEditor(false);
-                    clearSelection();
-                    setF(current => current.id ? current : { ...current, category_id: subcard.category!.id });
-                  }}
-                  className="wellness-tile app-category-card guide-resource-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 disabled:opacity-60"
-                >
-                  <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                    <img
-                      src={subcard.displayImage}
-                      alt=""
-                      className="app-photo-cover-image guide-resource-card-image transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="guide-resource-card-copy flex flex-col items-center justify-center px-3 py-3.5">
-                    <div className="guide-resource-card-title font-sans font-bold leading-tight text-foreground">{subcard.displayTitle}</div>
-                    <p className="guide-resource-card-subtitle mt-1.5 tracking-wide text-muted-foreground">{subcard.count} publicación{subcard.count === 1 ? "" : "es"}</p>
-                  </div>
-                </button>
-              )})}
-            </div>
+            <GuideCardsGrid
+              categories={guideSubcategoryCandidates}
+              onOpenCategory={(categoryId) => {
+                setSelectedSection("");
+                setFilterCat(categoryId);
+                setFilterSub("");
+                setShowEditor(false);
+                clearSelection();
+                setF({ ...empty, category_id: categoryId });
+              }}
+            />
           </>
         ) : isGuideSubcategoryView ? (
           <>
@@ -596,6 +606,34 @@ export default function AdminResources() {
             <p className="text-sm muted mb-4">
               Gestiona únicamente las publicaciones de esta guía.
             </p>
+            {activeGuideEntry && (
+              <div className="card-soft p-3 mb-4 space-y-3">
+                <div className="flex gap-3">
+                  <img
+                    src={activeGuideEntry.displayImage}
+                    alt=""
+                    className="h-20 w-24 shrink-0 rounded-2xl object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold">Biblioteca independiente</div>
+                    <p className="text-xs muted">
+                      Todo lo que añadas aquí queda asociado solo a {activeGuideEntry.displayTitle}.
+                    </p>
+                    <Link to="/app/admin/recursos/categorias" className="text-xs text-primary underline">
+                      Editar portada, título, subtítulo y orden
+                    </Link>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {guideContentTools.map(({ label, icon: Icon }) => (
+                    <div key={label} className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-2 py-2 text-xs">
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -644,9 +682,7 @@ export default function AdminResources() {
                       setFilterSub("");
                       setShowEditor(false);
                       clearSelection();
-                      if (category) {
-                        setF(current => current.id ? current : { ...current, category_id: category.id });
-                      }
+                      setF({ ...empty, category_id: category?.id ?? "" });
                     }}
                     className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
                   >
@@ -667,13 +703,15 @@ export default function AdminResources() {
 
       {sectionIsOpen && !isGuideSubcategoryOverview && (
         <>
-          <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
-            <div className="flex-1 text-sm">
-              <div className="font-medium">Gestionar categorías y subcategorías</div>
-              <div className="text-xs muted">Crear, renombrar, reordenar y eliminar</div>
-            </div>
-          </Link>
+          {!isGuideSubcategoryView && (
+            <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
+              <div className="flex-1 text-sm">
+                <div className="font-medium">Gestionar categorías y subcategorías</div>
+                <div className="text-xs muted">Crear, renombrar, reordenar y eliminar</div>
+              </div>
+            </Link>
+          )}
 
       {!f.id && hasDraft && <DraftBanner onDiscard={() => { clearDraft(); setF(empty); }} />}
       {!showEditor && !f.id && (
@@ -703,17 +741,24 @@ export default function AdminResources() {
 
         <input className="field" placeholder="Título" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} required />
 
-        <select className="field" value={f.category_id} onChange={e => setF({ ...f, category_id: e.target.value })} required>
-          <option value="">— Selecciona categoría —</option>
-          {tops.map(c => (
-            <optgroup key={c.id} label={`${c.icon ?? ""} ${c.name}`}>
-              <option value={c.id}>{c.icon ?? ""} {c.name}</option>
-              {subsOf(c.id).map(s => (
-                <option key={s.id} value={s.id}>&nbsp;&nbsp;↳ {s.icon ?? ""} {s.name}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        {isGuideSubcategoryView && selectedFilterCategory ? (
+          <div className="field flex items-center justify-between gap-2">
+            <span className="truncate">{selectedFilterCategory.icon ?? ""} {selectedFilterCategory.name}</span>
+            <span className="text-xs muted shrink-0">Asignado a esta guía</span>
+          </div>
+        ) : (
+          <select className="field" value={f.category_id} onChange={e => setF({ ...f, category_id: e.target.value })} required>
+            <option value="">— Selecciona categoría —</option>
+            {tops.map(c => (
+              <optgroup key={c.id} label={`${c.icon ?? ""} ${c.name}`}>
+                <option value={c.id}>{c.icon ?? ""} {c.name}</option>
+                {subsOf(c.id).map(s => (
+                  <option key={s.id} value={s.id}>&nbsp;&nbsp;↳ {s.icon ?? ""} {s.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        )}
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={f.is_pinned} onChange={e => setF({ ...f, is_pinned: e.target.checked })} />
@@ -864,71 +909,75 @@ export default function AdminResources() {
       </div>
 
 
-      {/* Carpetas (filtro + dianas de drag&drop). Arrastra una tarjeta a una carpeta para moverla. */}
-      <div className="mb-3">
-        <div className="text-xs muted mb-1.5">Carpetas <span className="text-[10px]">— pulsa para filtrar, arrastra aquí para mover</span></div>
-        <div className="flex flex-wrap gap-1.5">
-          {[{ id: "", name: "Todas", icon: "📂" } as any, ...tops].map((c: any) => {
-            const isFilter = filterCat === c.id;
-            const isDrop = dropOver?.kind === "cat" && dropOver.id === c.id;
-            return (
-              <button
-                key={c.id || "__all__"}
-                type="button"
-                onClick={() => { setSelectedSection(""); setFilterCat(c.id); setFilterSub(""); }}
-                onDragOver={(e) => { if (!dragItemId || !c.id) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOver({ kind: "cat", id: c.id }); }}
-                onDragLeave={() => { if (isDrop) setDropOver(null); }}
-                onDrop={(e) => {
-                  if (!dragItemId || !c.id) return;
-                  e.preventDefault();
-                  const it = items.find(x => x.id === dragItemId);
-                  if (it) moveToCategory(it, c.id);
-                  setDragItemId(null); setDropOver(null);
-                }}
-                className={`admin-resource-category-chip text-xs px-3 py-1.5 rounded-full transition border ${
-                  isDrop ? "border-primary bg-primary/15 text-primary scale-105"
-                  : isFilter ? "border-primary bg-primary text-white"
-                  : "border-border bg-muted"
-                }`}
-              >
-                {c.icon ?? "📁"} {c.name}
-              </button>
-            );
-          })}
-        </div>
-        {/* Subcategorías de la categoría filtrada */}
-        {filterCat && subsOf(filterCat).length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2 ml-3">
-            {subsOf(filterCat).map(s => {
-              const isFilter = filterCat === s.id;
-              const isDrop = dropOver?.kind === "cat" && dropOver.id === s.id;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => { setSelectedSection(""); setFilterCat(s.id); setFilterSub(""); }}
-                  onDragOver={(e) => { if (!dragItemId) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOver({ kind: "cat", id: s.id }); }}
-                  onDragLeave={() => { if (isDrop) setDropOver(null); }}
-                  onDrop={(e) => {
-                    if (!dragItemId) return;
-                    e.preventDefault();
-                    const it = items.find(x => x.id === dragItemId);
-                    if (it) moveToCategory(it, s.id);
-                    setDragItemId(null); setDropOver(null);
-                  }}
-                  className={`admin-resource-category-chip text-[11px] px-2.5 py-1 rounded-full transition border ${
-                    isDrop ? "border-primary bg-primary/15 text-primary scale-105"
-                    : isFilter ? "border-primary bg-primary text-white"
-                    : "border-border bg-background"
-                  }`}
-                >
-                  ↳ {s.icon ?? ""} {s.name}
-                </button>
-              );
-            })}
+      {!isGuideSubcategoryView && (
+        <>
+          {/* Carpetas (filtro + dianas de drag&drop). Arrastra una tarjeta a una carpeta para moverla. */}
+          <div className="mb-3">
+            <div className="text-xs muted mb-1.5">Carpetas <span className="text-[10px]">— pulsa para filtrar, arrastra aquí para mover</span></div>
+            <div className="flex flex-wrap gap-1.5">
+              {[{ id: "", name: "Todas", icon: "📂" } as any, ...tops].map((c: any) => {
+                const isFilter = filterCat === c.id;
+                const isDrop = dropOver?.kind === "cat" && dropOver.id === c.id;
+                return (
+                  <button
+                    key={c.id || "__all__"}
+                    type="button"
+                    onClick={() => { setSelectedSection(""); setFilterCat(c.id); setFilterSub(""); }}
+                    onDragOver={(e) => { if (!dragItemId || !c.id) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOver({ kind: "cat", id: c.id }); }}
+                    onDragLeave={() => { if (isDrop) setDropOver(null); }}
+                    onDrop={(e) => {
+                      if (!dragItemId || !c.id) return;
+                      e.preventDefault();
+                      const it = items.find(x => x.id === dragItemId);
+                      if (it) moveToCategory(it, c.id);
+                      setDragItemId(null); setDropOver(null);
+                    }}
+                    className={`admin-resource-category-chip text-xs px-3 py-1.5 rounded-full transition border ${
+                      isDrop ? "border-primary bg-primary/15 text-primary scale-105"
+                      : isFilter ? "border-primary bg-primary text-white"
+                      : "border-border bg-muted"
+                    }`}
+                  >
+                    {c.icon ?? "📁"} {c.name}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Subcategorías de la categoría filtrada */}
+            {filterCat && subsOf(filterCat).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2 ml-3">
+                {subsOf(filterCat).map(s => {
+                  const isFilter = filterCat === s.id;
+                  const isDrop = dropOver?.kind === "cat" && dropOver.id === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => { setSelectedSection(""); setFilterCat(s.id); setFilterSub(""); }}
+                      onDragOver={(e) => { if (!dragItemId) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOver({ kind: "cat", id: s.id }); }}
+                      onDragLeave={() => { if (isDrop) setDropOver(null); }}
+                      onDrop={(e) => {
+                        if (!dragItemId) return;
+                        e.preventDefault();
+                        const it = items.find(x => x.id === dragItemId);
+                        if (it) moveToCategory(it, s.id);
+                        setDragItemId(null); setDropOver(null);
+                      }}
+                      className={`admin-resource-category-chip text-[11px] px-2.5 py-1 rounded-full transition border ${
+                        isDrop ? "border-primary bg-primary/15 text-primary scale-105"
+                        : isFilter ? "border-primary bg-primary text-white"
+                        : "border-border bg-background"
+                      }`}
+                    >
+                      ↳ {s.icon ?? ""} {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Selección masiva toolbar */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -945,24 +994,28 @@ export default function AdminResources() {
             <div className="text-sm font-medium">{selected.size} recurso(s) seleccionado(s)</div>
             <button onClick={clearSelection} className="p-1 muted" aria-label="Cerrar"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs muted shrink-0">Mover a:</span>
-            <select
-              className="text-xs bg-muted/60 rounded-md px-2 py-1 flex-1 min-w-0"
-              defaultValue=""
-              onChange={e => { if (e.target.value) { bulkMove(e.target.value); e.target.value = ""; } }}
-            >
-              <option value="">— Selecciona categoría —</option>
-              {tops.map(c => (
-                <optgroup key={c.id} label={`${c.icon ?? ""} ${c.name}`}>
-                  <option value={c.id}>{c.icon ?? ""} {c.name}</option>
-                  {subsOf(c.id).map(s => (
-                    <option key={s.id} value={s.id}>&nbsp;&nbsp;↳ {s.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
+          {isGuideSubcategoryView ? (
+            <div className="text-xs muted">La selección pertenece solo a esta guía.</div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs muted shrink-0">Mover a:</span>
+              <select
+                className="text-xs bg-muted/60 rounded-md px-2 py-1 flex-1 min-w-0"
+                defaultValue=""
+                onChange={e => { if (e.target.value) { bulkMove(e.target.value); e.target.value = ""; } }}
+              >
+                <option value="">— Selecciona categoría —</option>
+                {tops.map(c => (
+                  <optgroup key={c.id} label={`${c.icon ?? ""} ${c.name}`}>
+                    <option value={c.id}>{c.icon ?? ""} {c.name}</option>
+                    {subsOf(c.id).map(s => (
+                      <option key={s.id} value={s.id}>&nbsp;&nbsp;↳ {s.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => bulkSetPinned(true)} className="text-xs px-2 py-1 rounded-md bg-muted inline-flex items-center gap-1"><Pin className="h-3.5 w-3.5" /> Destacar</button>
             <button onClick={() => bulkSetPinned(false)} className="text-xs px-2 py-1 rounded-md bg-muted inline-flex items-center gap-1"><Pin className="h-3.5 w-3.5" /> Quitar destacado</button>
@@ -1028,24 +1081,26 @@ export default function AdminResources() {
                 <button onClick={() => edit(i)} className="text-primary shrink-0 p-1" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
                 <button onClick={() => del(i.id)} className="text-destructive shrink-0 p-1" aria-label="Eliminar"><Trash2 className="h-4 w-4" /></button>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] muted shrink-0">Mover a:</span>
-                <select
-                  className="text-xs bg-muted/60 rounded-md px-2 py-1 flex-1 min-w-0"
-                  value={i.category_id ?? ""}
-                  onChange={e => moveToCategory(i, e.target.value)}
-                >
-                  <option value="">— Sin categoría —</option>
-                  {tops.map(c => (
-                    <optgroup key={c.id} label={`${c.icon ?? ""} ${c.name}`}>
-                      <option value={c.id}>{c.icon ?? ""} {c.name}</option>
-                      {subsOf(c.id).map(s => (
-                        <option key={s.id} value={s.id}>&nbsp;&nbsp;↳ {s.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
+              {!isGuideSubcategoryView && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] muted shrink-0">Mover a:</span>
+                  <select
+                    className="text-xs bg-muted/60 rounded-md px-2 py-1 flex-1 min-w-0"
+                    value={i.category_id ?? ""}
+                    onChange={e => moveToCategory(i, e.target.value)}
+                  >
+                    <option value="">— Sin categoría —</option>
+                    {tops.map(c => (
+                      <optgroup key={c.id} label={`${c.icon ?? ""} ${c.name}`}>
+                        <option value={c.id}>{c.icon ?? ""} {c.name}</option>
+                        {subsOf(c.id).map(s => (
+                          <option key={s.id} value={s.id}>&nbsp;&nbsp;↳ {s.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             {showAfter && <div className="h-1 my-1 rounded bg-primary" />}
           </div>
