@@ -3492,8 +3492,8 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    border-radius: 24px 24px 0 0;
-    background: #fff;
+    border-radius: 26px 26px 0 0;
+    background: transparent;
     line-height: 0;
   }
 
@@ -3503,7 +3503,7 @@
     height: 100%;
     object-fit: cover;
     object-position: center center;
-    border-radius: 24px 24px 0 0;
+    border-radius: 26px 26px 0 0;
   }
 
   .resource-guide-card__body {
@@ -3578,11 +3578,11 @@
       height: 126px;
       min-height: 126px;
       flex-basis: 126px;
-      border-radius: 22px 22px 0 0;
+      border-radius: 24px 24px 0 0;
     }
 
     .resource-guide-card__image {
-      border-radius: 22px 22px 0 0;
+      border-radius: 24px 24px 0 0;
     }
 
     .resource-guide-card__body {
