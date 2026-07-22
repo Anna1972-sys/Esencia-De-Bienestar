@@ -78,6 +78,45 @@ export const cleanGuideTitle = (title: string, slug: string) => {
   return title;
 };
 
+export const guideCardMatchesCategory = (
+  category: { name?: string | null; slug?: string | null },
+  card: Pick<GuideCard, "slug" | "title">
+) => {
+  const categorySlug = normalizeText(category.slug);
+  const categoryName = normalizeText(category.name);
+  const cardSlug = normalizeText(card.slug);
+  const cardTitle = normalizeText(card.title);
+  const value = `${categorySlug} ${categoryName}`;
+
+  if (categorySlug === cardSlug || categoryName === cardTitle) return true;
+
+  if (card.slug === "guia-bienvenida") {
+    return value.includes("bienvenida");
+  }
+
+  if (card.slug === "guia-cuidado-piel") {
+    return value.includes("piel") && (
+      value.includes("cuidado") ||
+      value.includes("facial") ||
+      value.includes("skincare")
+    );
+  }
+
+  if (card.slug === "guia-menopausia") {
+    return value.includes("menopausia");
+  }
+
+  if (card.slug === "ebook-alimentos-ricos-en-proteina") {
+    return value.includes("proteina") && (
+      value.includes("ebook") ||
+      value.includes("alimento") ||
+      value.includes("ricos")
+    );
+  }
+
+  return false;
+};
+
 const finalGuideCoverImages: Record<string, string> = {
   "guia-bienvenida": imgGuias,
   "guia-cuidado-piel": imgSkincare,
@@ -100,13 +139,7 @@ export default function GuideCardsGrid({
 }) {
   const term = normalizeText(query);
   const getCategoryForCard = (card: GuideCard) => {
-    const cardSlug = normalizeText(card.slug);
-    const cardTitle = normalizeText(card.title);
-    return categories.find(category => {
-      const slug = normalizeText(category.slug);
-      const name = normalizeText(category.name);
-      return slug === cardSlug || name === cardTitle;
-    }) ?? null;
+    return categories.find(category => guideCardMatchesCategory(category, card)) ?? null;
   };
 
   const visibleCards = cards

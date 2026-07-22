@@ -13,7 +13,7 @@ import imgGuideWelcome from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
-import { cleanGuideTitle, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
+import { cleanGuideTitle, guideCardMatchesCategory, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days; resign on read for longer access
@@ -156,9 +156,7 @@ export default function AdminResources() {
       .replace(/^-|-$/g, "");
 
   const guideSubcategoryMatchesCard = (category: Category, card: (typeof GUIDE_RESOURCE_SUBCATEGORY_CARDS)[number]) => {
-    const slug = normalizeSlug(category.slug);
-    const name = normalizeSlug(category.name);
-    return slug === card.slug || name === normalizeSlug(card.title);
+    return guideCardMatchesCategory(category, card);
   };
 
   const itemCategory = (item: any) => {
