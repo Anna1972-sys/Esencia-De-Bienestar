@@ -325,7 +325,7 @@ function sourceIngredientForGuard(value: unknown): { name: string; quantity: str
   const parsed = parseSourceIngredientForSync(value);
   if (parsed) return parsed;
   const raw = String(value ?? "").trim();
-  if (!raw || isNoMacroSyncIngredient(raw)) return null;
+  if (!raw) return null;
   return { name: raw, quantity: "", grams: 0, raw };
 }
 
