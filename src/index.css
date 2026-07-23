@@ -249,6 +249,14 @@
     border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
   }
+  .home-card-image-wrap {
+    position: relative;
+    width: 100%;
+    height: 156px;
+    flex: 0 0 156px;
+    overflow: hidden;
+    border-radius: 26px 26px 0 0;
+  }
   .home-card-image-frame {
     height: 100%;
     width: 100%;
@@ -276,14 +284,18 @@
     box-shadow: none !important;
   }
   .home-card-text {
-    min-height: 110px;
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: .35rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: .9rem 1rem 1rem;
+    padding: .85rem .9rem .95rem;
   }
   .home-card-title {
     display: -webkit-box;
+    font-size: 1.02rem;
+    line-height: 1.12;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -3487,23 +3499,6 @@
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-  }
-
-  .resource-card-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: .35rem;
-    padding: .28rem .52rem;
-    border: 1px solid rgb(255 45 149 / .22);
-    border-radius: 999px;
-    background: rgb(255 45 149 / .08);
-    color: #FF2D95;
-    font-size: .62rem;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: .08em;
-    text-transform: uppercase;
   }
 
   .library-recipe-thumb {

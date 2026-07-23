@@ -6,7 +6,6 @@ type WellnessCategoryTileProps = {
   subtitle?: string | null;
   scale?: string;
   variant?: "default" | "dark";
-  badge?: string | null;
   to?: string;
   disabled?: boolean;
   onClick?: () => void;
@@ -18,7 +17,6 @@ export default function WellnessCategoryTile({
   subtitle,
   scale = "scale-100",
   variant = "default",
-  badge,
   to,
   disabled = false,
   onClick,
@@ -29,7 +27,7 @@ export default function WellnessCategoryTile({
 
   const content = (
     <>
-      <div className="relative h-[176px] w-full overflow-hidden">
+      <div className="home-card-image-wrap">
         <div className={`home-card-image-frame ${variant === "dark" ? "home-card-image-frame-dark" : ""}`}>
           <img
             src={image}
@@ -40,8 +38,7 @@ export default function WellnessCategoryTile({
         </div>
       </div>
       <div className="home-card-text relative w-full">
-        {badge ? <span className="resource-card-badge">{badge}</span> : null}
-        <div className={`home-card-title font-sans text-lg font-bold leading-tight ${variant === "dark" ? "text-[#FF2D95]" : "text-foreground"}`}>
+        <div className={`home-card-title font-sans font-bold ${variant === "dark" ? "text-[#FF2D95]" : "text-foreground"}`}>
           {title}
         </div>
         {subtitle ? <p className="home-card-subtitle line-clamp-2">{subtitle}</p> : null}

@@ -186,7 +186,6 @@ export default function GuideCardsGrid({
           image={image}
           title={title}
           subtitle={description}
-          badge={card.slug === "ebook-alimentos-ricos-en-proteina" ? "PDF" : undefined}
           disabled={!category}
           onClick={() => category && onOpenCategory(category.id)}
         />
