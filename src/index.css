@@ -3441,42 +3441,8 @@
     min-height: 0 !important;
   }
 
-  .resource-guide-card-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .78rem;
-    align-items: stretch;
-  }
-
-  @media (min-width: 768px) {
-    .resource-guide-card-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1rem;
-    }
-  }
-
   .resource-guide-card {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 262px;
-    min-height: 262px;
-    padding: 0;
-    overflow: hidden;
-    border: 1.25px solid rgb(255 45 149 / .86);
-    border-radius: 28px;
-    background: hsl(var(--card));
-    box-shadow: 0 22px 40px -32px rgb(255 45 149 / .52);
-    color: hsl(var(--foreground));
-    text-align: center;
-    cursor: pointer;
-    transition: transform .24s ease, box-shadow .24s ease;
     appearance: none;
-  }
-
-  .resource-guide-card:not(.resource-guide-card--disabled):hover {
-    transform: translateY(-4px);
-    box-shadow: 0 28px 46px -32px rgb(255 45 149 / .65);
   }
 
   .resource-guide-card--disabled {
@@ -3484,48 +3450,14 @@
     opacity: .6;
   }
 
-  .resource-guide-card__image-wrap {
-    display: block;
-    width: 100%;
-    height: 172px;
-    min-height: 172px;
-    flex: 0 0 172px;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border-radius: 28px 28px 0 0;
-    background: transparent;
-    line-height: 0;
-  }
-
-  .resource-guide-card__image {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center center;
-    border-radius: 28px 28px 0 0;
-  }
-
-  .resource-guide-card__body {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 90px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: .48rem .75rem .62rem;
-    box-sizing: border-box;
-    background: hsl(var(--card));
-  }
-
   .resource-guide-card__badge {
     display: inline-flex;
+    position: absolute;
+    top: .42rem;
+    right: .68rem;
     align-items: center;
     justify-content: center;
     min-height: 1.08rem;
-    margin-bottom: .2rem;
     padding: .1rem .44rem;
     border: 1px solid rgb(255 45 149 / .28);
     border-radius: 999px;
@@ -3540,68 +3472,16 @@
 
   .resource-guide-card__title {
     display: -webkit-box;
-    min-height: 2.22rem;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-    font-family: inherit;
-    font-size: .95rem;
-    font-weight: 700;
-    line-height: 1.16;
-    color: hsl(var(--foreground));
   }
 
   .resource-guide-card__description {
     display: -webkit-box;
-    min-height: 1.72rem;
-    margin-top: .28rem;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-    font-size: .62rem;
-    line-height: 1.32;
-    color: hsl(var(--muted-foreground));
-    letter-spacing: .01em;
-  }
-
-  @media (max-width: 420px) {
-    .resource-guide-card-grid {
-      gap: .74rem;
-    }
-
-    .resource-guide-card {
-      height: 252px;
-      min-height: 252px;
-      border-radius: 26px;
-    }
-
-    .resource-guide-card__image-wrap {
-      height: 160px;
-      min-height: 160px;
-      flex-basis: 160px;
-      border-radius: 26px 26px 0 0;
-    }
-
-    .resource-guide-card__image {
-      border-radius: 26px 26px 0 0;
-    }
-
-    .resource-guide-card__body {
-      min-height: 92px;
-      padding: .44rem .62rem .58rem;
-    }
-
-    .resource-guide-card__title {
-      min-height: 2rem;
-      font-size: .88rem;
-      line-height: 1.14;
-    }
-
-    .resource-guide-card__description {
-      min-height: 1.58rem;
-      font-size: .58rem;
-      line-height: 1.3;
-    }
   }
 
   .library-recipe-thumb {

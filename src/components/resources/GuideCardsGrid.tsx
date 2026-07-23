@@ -158,17 +158,25 @@ function GuideResourceCard({
       type="button"
       onClick={() => category && onOpenCategory(category.id)}
       disabled={disabled}
-      className={`resource-guide-card ${disabled ? "resource-guide-card--disabled" : ""}`}
+      className={`wellness-tile app-category-card resource-guide-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 ${disabled ? "resource-guide-card--disabled" : ""}`}
     >
-      <span className="resource-guide-card__image-wrap" aria-hidden="true">
-        <img src={image} alt="" className="resource-guide-card__image" />
-      </span>
+      <div className="app-photo-cover-frame w-full overflow-hidden bg-black" aria-hidden="true">
+        <img
+          src={image}
+          alt=""
+          className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105"
+        />
+      </div>
 
-      <span className="resource-guide-card__body">
+      <div className="relative flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
         {isEbook && <span className="resource-guide-card__badge">PDF</span>}
-        <span className="resource-guide-card__title">{title}</span>
-        <span className="resource-guide-card__description">{description}</span>
-      </span>
+        <div className="resource-guide-card__title font-sans text-base font-bold leading-tight text-foreground">
+          {title}
+        </div>
+        <p className="resource-guide-card__description mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">
+          {description}
+        </p>
+      </div>
     </button>
   );
 }
@@ -210,7 +218,7 @@ export default function GuideCardsGrid({
   }
 
   return (
-    <div className="resource-guide-card-grid">
+    <div className="grid grid-cols-2 gap-5">
       {visibleCards.map(item => (
         <GuideResourceCard key={item.card.slug} item={item} onOpenCategory={onOpenCategory} />
       ))}
