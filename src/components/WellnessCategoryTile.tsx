@@ -23,13 +23,13 @@ export default function WellnessCategoryTile({
   disabled = false,
   onClick,
 }: WellnessCategoryTileProps) {
-  const className = `${variant === "dark" ? "wellness-nutrition-tile" : "wellness-tile"} relative w-full rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center p-3 ${
+  const className = `${variant === "dark" ? "wellness-nutrition-tile" : "wellness-tile"} relative w-full appearance-none rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center font-sans ${
     disabled ? "opacity-60 cursor-not-allowed hover:translate-y-0" : ""
   }`;
 
   const content = (
     <>
-      <div className="relative grid h-[170px] w-full place-items-center">
+      <div className="relative h-[176px] w-full overflow-hidden">
         <div className={`home-card-image-frame ${variant === "dark" ? "home-card-image-frame-dark" : ""}`}>
           <img
             src={image}
@@ -39,9 +39,9 @@ export default function WellnessCategoryTile({
           />
         </div>
       </div>
-      <div className="home-card-text relative mt-3 w-full">
+      <div className="home-card-text relative w-full">
         {badge ? <span className="resource-card-badge">{badge}</span> : null}
-        <div className={`font-sans text-lg font-bold leading-tight ${variant === "dark" ? "text-[#FF2D95]" : "text-foreground"}`}>
+        <div className={`home-card-title font-sans text-lg font-bold leading-tight ${variant === "dark" ? "text-[#FF2D95]" : "text-foreground"}`}>
           {title}
         </div>
         {subtitle ? <p className="home-card-subtitle line-clamp-2">{subtitle}</p> : null}

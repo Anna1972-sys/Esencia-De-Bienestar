@@ -13,7 +13,7 @@ import imgGuideWelcome from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
-import ResourceCategoryTile from "@/components/resources/ResourceCategoryTile";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import GuideCardsGrid, { cleanGuideTitle, guideCardMatchesCategory, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
@@ -674,7 +674,7 @@ export default function AdminResources() {
                 const displaySubtitle = category?.subtitle || card.subtitle;
                 const displayImage = resolveCategoryCoverImage(category, card.image);
                 return (
-                  <ResourceCategoryTile
+                  <WellnessCategoryTile
                     key={card.key}
                     image={displayImage}
                     title={displayTitle}

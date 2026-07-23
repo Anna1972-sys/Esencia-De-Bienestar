@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
-import ResourceCategoryTile from "@/components/resources/ResourceCategoryTile";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import GuideCardsGrid, { cards as GUIDE_RESOURCE_CARDS, guideCardMatchesCategory, isGuidesCategory, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
 
 type Category = {
@@ -252,7 +252,7 @@ export default function Resources() {
               const card = getCategoryCard(c);
               if (!card) return null;
               return (
-                <ResourceCategoryTile
+                <WellnessCategoryTile
                   key={c.id}
                   image={card.image}
                   title={c.name}

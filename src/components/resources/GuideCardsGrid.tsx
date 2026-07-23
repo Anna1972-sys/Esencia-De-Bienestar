@@ -2,7 +2,7 @@ import imgGuias from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
-import ResourceCategoryTile from "@/components/resources/ResourceCategoryTile";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 
 type GuideCard = {
   slug: string;
@@ -181,7 +181,7 @@ export default function GuideCardsGrid({
   return (
     <div className="grid grid-cols-2 gap-5">
       {visibleCards.map(({ card, category, title, description, image }) => (
-        <ResourceCategoryTile
+        <WellnessCategoryTile
           key={card.slug}
           image={image}
           title={title}
