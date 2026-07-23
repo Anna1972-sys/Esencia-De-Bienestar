@@ -284,6 +284,7 @@
     box-shadow: none !important;
   }
   .home-card-text {
+    width: 100%;
     min-height: 0;
     flex: 1 1 auto;
     gap: .35rem;
@@ -291,6 +292,9 @@
     flex-direction: column;
     justify-content: center;
     padding: .85rem .9rem .95rem;
+    background: hsl(var(--card));
+    border-radius: 0 0 26px 26px;
+    overflow: hidden;
   }
   .home-card-title {
     display: -webkit-box;

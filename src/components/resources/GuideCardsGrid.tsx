@@ -179,7 +179,7 @@ export default function GuideCardsGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-5">
+    <div className="grid grid-cols-2 gap-5 pb-32">
       {visibleCards.map(({ card, category, title, description, image }) => (
         <WellnessCategoryTile
           key={card.slug}
