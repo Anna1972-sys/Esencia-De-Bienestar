@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadCardOrder, orderCards } from "@/lib/cardOrderSettings";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 
 import imgRecetas from "@/assets/home-recetas.png";
 import imgRecetario from "@/assets/home-recetario.png";
@@ -124,25 +125,14 @@ function Tile({
   scale?: string;
   variant?: "default" | "dark";
 }) {
-  const className = `${variant === "dark" ? "wellness-nutrition-tile" : "wellness-tile"} relative rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center p-3`;
-  const content = (
-    <>
-      <div className="relative grid place-items-center h-[170px] w-full">
-        <div className={`home-card-image-frame ${variant === "dark" ? "home-card-image-frame-dark" : ""}`}>
-          <img
-            src={image}
-            alt={title}
-            loading="lazy"
-            className={`${variant === "dark" ? "h-full w-full object-cover" : "home-card-image"} ${scale} group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-500`}
-          />
-        </div>
-      </div>
-      <div className="home-card-text relative mt-3 w-full">
-        <div className={`font-sans font-bold text-lg leading-tight ${variant === "dark" ? "text-[#FF2D95]" : "text-foreground"}`}>{title}</div>
-        {subtitle && <p className="home-card-subtitle">{subtitle}</p>}
-      </div>
-    </>
+  return (
+    <WellnessCategoryTile
+      to={to}
+      image={image}
+      title={title}
+      subtitle={subtitle}
+      scale={scale}
+      variant={variant}
+    />
   );
-
-  return <Link to={to} className={className}>{content}</Link>;
 }

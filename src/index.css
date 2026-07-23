@@ -3480,6 +3480,23 @@
     -webkit-line-clamp: 2;
   }
 
+  .resource-card-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .35rem;
+    padding: .28rem .52rem;
+    border: 1px solid rgb(255 45 149 / .22);
+    border-radius: 999px;
+    background: rgb(255 45 149 / .08);
+    color: #FF2D95;
+    font-size: .62rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
   .library-recipe-thumb {
     width: 8.5rem;
     height: 8.5rem;
