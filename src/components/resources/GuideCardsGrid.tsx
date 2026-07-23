@@ -2,7 +2,6 @@ import imgGuias from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
-import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 
 type GuideCard = {
   slug: string;
@@ -142,6 +141,51 @@ type ResolvedGuideCard = {
   fallbackOrder: number;
 };
 
+function GuideLibraryCard({
+  image,
+  title,
+  description,
+  disabled,
+  onClick,
+}: {
+  image: string;
+  title: string;
+  description: string;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`card-soft overflow-hidden text-left hover:shadow-md transition flex flex-col ${
+        disabled ? "opacity-60 cursor-not-allowed" : ""
+      }`}
+    >
+      <div className="app-photo-cover-frame w-full overflow-hidden bg-muted">
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            loading="lazy"
+            className="app-photo-cover-image"
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="w-full h-full grid place-items-center text-3xl">📚</div>
+        )}
+      </div>
+      <div className="p-3">
+        <div className="font-medium text-sm leading-tight">{title}</div>
+        {description ? <div className="text-xs muted mt-1 line-clamp-2">{description}</div> : null}
+      </div>
+    </button>
+  );
+}
+
 export default function GuideCardsGrid({
   categories,
   query = "",
@@ -179,13 +223,13 @@ export default function GuideCardsGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-5 pb-32">
+    <div className="grid grid-cols-2 gap-3 pb-28">
       {visibleCards.map(({ card, category, title, description, image }) => (
-        <WellnessCategoryTile
+        <GuideLibraryCard
           key={card.slug}
           image={image}
           title={title}
-          subtitle={description}
+          description={description}
           disabled={!category}
           onClick={() => category && onOpenCategory(category.id)}
         />
