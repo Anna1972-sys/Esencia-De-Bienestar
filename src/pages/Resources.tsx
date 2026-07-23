@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight, Pin, Search } from "lucide-react";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
+import ResourceCategoryTile from "@/components/resources/ResourceCategoryTile";
 import GuideCardsGrid, { cards as GUIDE_RESOURCE_CARDS, guideCardMatchesCategory, isGuidesCategory, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
 
 type Category = {
@@ -251,23 +252,17 @@ export default function Resources() {
               const card = getCategoryCard(c);
               if (!card) return null;
               return (
-                <button
+                <ResourceCategoryTile
                   key={c.id}
+                  image={card.image}
+                  title={c.name}
+                  subtitle={card.subtitle}
                   onClick={() => {
                     setActiveTop(c.id);
                     setActiveSub(null);
                     setQuery("");
                   }}
-                  className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                    <img src={card.image} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                  </div>
-                  <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-                    <div className="font-sans text-base font-bold leading-tight text-foreground">{c.name}</div>
-                    <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{card.subtitle}</p>
-                  </div>
-                </button>
+                />
               );
             })}
           </div>

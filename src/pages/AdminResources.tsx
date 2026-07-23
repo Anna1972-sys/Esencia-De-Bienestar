@@ -13,6 +13,7 @@ import imgGuideWelcome from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
+import ResourceCategoryTile from "@/components/resources/ResourceCategoryTile";
 import GuideCardsGrid, { cleanGuideTitle, guideCardMatchesCategory, resolveCategoryCoverImage, resolveGuideCardCoverImage } from "@/components/resources/GuideCardsGrid";
 
 const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar este elemento? Esta acción no se puede deshacer.";
@@ -673,9 +674,11 @@ export default function AdminResources() {
                 const displaySubtitle = category?.subtitle || card.subtitle;
                 const displayImage = resolveCategoryCoverImage(category, card.image);
                 return (
-                  <button
+                  <ResourceCategoryTile
                     key={card.key}
-                    type="button"
+                    image={displayImage}
+                    title={displayTitle}
+                    subtitle={displaySubtitle}
                     onClick={() => {
                       setSelectedSection(card.key);
                       setFilterCat(category?.id ?? "");
@@ -684,16 +687,7 @@ export default function AdminResources() {
                       clearSelection();
                       setF({ ...empty, category_id: category?.id ?? "" });
                     }}
-                    className="wellness-tile app-category-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1"
-                  >
-                    <div className="app-photo-cover-frame w-full overflow-hidden bg-black">
-                      <img src={displayImage} alt="" className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105" />
-                    </div>
-                    <div className="flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-                      <div className="font-sans text-base font-bold leading-tight text-foreground">{displayTitle}</div>
-                      <p className="mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">{displaySubtitle}</p>
-                    </div>
-                  </button>
+                  />
                 );
               })}
             </div>

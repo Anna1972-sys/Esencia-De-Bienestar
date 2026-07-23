@@ -3441,16 +3441,12 @@
     min-height: 0 !important;
   }
 
-  .resource-guide-card {
-    appearance: none;
-  }
-
-  .resource-guide-card--disabled {
+  .app-category-card--disabled {
     cursor: default;
     opacity: .6;
   }
 
-  .resource-guide-card__badge {
+  .app-category-card__badge {
     display: inline-flex;
     position: absolute;
     top: .42rem;
@@ -3470,14 +3466,14 @@
     text-transform: uppercase;
   }
 
-  .resource-guide-card__title {
+  .app-category-card__title {
     display: -webkit-box;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
 
-  .resource-guide-card__description {
+  .app-category-card__subtitle {
     display: -webkit-box;
     overflow: hidden;
     -webkit-box-orient: vertical;

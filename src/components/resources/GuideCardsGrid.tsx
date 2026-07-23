@@ -2,6 +2,7 @@ import imgGuias from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
+import ResourceCategoryTile from "@/components/resources/ResourceCategoryTile";
 
 type GuideCard = {
   slug: string;
@@ -141,46 +142,6 @@ type ResolvedGuideCard = {
   fallbackOrder: number;
 };
 
-function GuideResourceCard({
-  item,
-  onOpenCategory,
-}: {
-  item: ResolvedGuideCard;
-  onOpenCategory: (categoryId: string) => void;
-}) {
-  const { card, category, title, description, image } = item;
-  const disabled = !category;
-  const isEbook = card.slug === "ebook-alimentos-ricos-en-proteina";
-
-  return (
-    <button
-      key={card.slug}
-      type="button"
-      onClick={() => category && onOpenCategory(category.id)}
-      disabled={disabled}
-      className={`wellness-tile app-category-card resource-guide-card group overflow-hidden rounded-[28px] p-0 text-center transition-all duration-300 hover:-translate-y-1 ${disabled ? "resource-guide-card--disabled" : ""}`}
-    >
-      <div className="app-photo-cover-frame w-full overflow-hidden bg-black" aria-hidden="true">
-        <img
-          src={image}
-          alt=""
-          className="app-photo-cover-image transition-transform duration-500 group-hover:scale-105"
-        />
-      </div>
-
-      <div className="relative flex min-h-[92px] flex-col items-center justify-center px-3 py-3.5">
-        {isEbook && <span className="resource-guide-card__badge">PDF</span>}
-        <div className="resource-guide-card__title font-sans text-base font-bold leading-tight text-foreground">
-          {title}
-        </div>
-        <p className="resource-guide-card__description mt-1.5 text-[10.5px] tracking-wide text-muted-foreground">
-          {description}
-        </p>
-      </div>
-    </button>
-  );
-}
-
 export default function GuideCardsGrid({
   categories,
   query = "",
@@ -219,8 +180,16 @@ export default function GuideCardsGrid({
 
   return (
     <div className="grid grid-cols-2 gap-5">
-      {visibleCards.map(item => (
-        <GuideResourceCard key={item.card.slug} item={item} onOpenCategory={onOpenCategory} />
+      {visibleCards.map(({ card, category, title, description, image }) => (
+        <ResourceCategoryTile
+          key={card.slug}
+          image={image}
+          title={title}
+          subtitle={description}
+          badge={card.slug === "ebook-alimentos-ricos-en-proteina" ? "PDF" : undefined}
+          disabled={!category}
+          onClick={() => category && onOpenCategory(category.id)}
+        />
       ))}
     </div>
   );
