@@ -1617,7 +1617,11 @@ export default function AdminProducts() {
 
           return (
             <Fragment key={section.id}>
-            <article className={`card-soft admin-products-access-card ${isOpen ? "is-open" : ""}`}>
+            <article
+              className={`card-soft admin-products-access-card ${isOpen ? "is-open" : ""} ${
+                section.id === "nutricion-externa" && !openAccessSection ? "is-centered-default" : ""
+              }`}
+            >
               <button
                 type="button"
                 className="admin-products-access-trigger"

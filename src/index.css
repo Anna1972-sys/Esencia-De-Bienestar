@@ -3152,6 +3152,12 @@
     justify-self: center;
   }
 
+  .admin-products .admin-products-access-list > .admin-products-access-card.is-centered-default {
+    grid-column: 1 / -1;
+    width: calc(50% - .625rem);
+    justify-self: center;
+  }
+
   .admin-products .admin-products-access-list > .admin-products-access-card .admin-products-access-trigger {
     width: 100%;
     min-height: 292px;

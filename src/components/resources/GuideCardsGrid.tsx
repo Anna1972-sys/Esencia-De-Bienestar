@@ -2,7 +2,6 @@ import imgGuias from "@/assets/resources/guide-welcome-card.png";
 import imgSkincare from "@/assets/resources/guide-skincare-card.png";
 import imgMenopause from "@/assets/resources/guide-menopause-card.png";
 import imgProteinGuide from "@/assets/resources/guide-protein-card.png";
-import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import styles from "./GuideCardsGrid.module.css";
 
 type GuideCard = {
@@ -157,15 +156,34 @@ function GuideLibraryCard({
   onClick?: () => void;
 }) {
   return (
-    <div className="home-card-unified">
-      <WellnessCategoryTile
-        image={image}
-        title={title}
-        subtitle={description}
-        disabled={disabled}
-        onClick={onClick}
-      />
-    </div>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`${styles.card} ${disabled ? styles.disabled : ""}`}
+    >
+      <div className={styles.imageFrame}>
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            loading="lazy"
+            className={styles.image}
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+      ) : (
+        <div className={styles.placeholder}>📚</div>
+      )}
+      </div>
+      <div className={styles.body}>
+        <div className={styles.titleRow}>
+          <div className={styles.title}>{title}</div>
+        </div>
+        {description ? <div className={styles.description}>{description}</div> : null}
+      </div>
+    </button>
   );
 }
 
