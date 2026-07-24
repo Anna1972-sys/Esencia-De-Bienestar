@@ -954,7 +954,7 @@
   .admin-products .admin-products-access-card {
     overflow: hidden;
     border: 1px solid #FF2D95;
-    background: #FFF7FA;
+    background: #FFFFFF;
     padding: 0 !important;
   }
 
@@ -986,7 +986,7 @@
     display: grid !important;
     place-items: center;
     border-radius: 0;
-    background: #FFF7FA;
+    background: #FFFFFF;
     box-shadow: none;
     color: hsl(0 0% 8%);
     font-size: .78rem;
@@ -2279,8 +2279,8 @@
   }
 
   .admin-dashboard .admin-card {
-    min-height: 286px;
-    height: 286px;
+    min-height: 292px;
+    height: 292px;
     background: #FFF7FA;
     border: 1px solid #FF2D95;
     box-shadow: var(--shadow-soft);
@@ -2289,13 +2289,26 @@
     overflow: hidden;
   }
 
+  .admin-dashboard .admin-card-image-wrap {
+    position: relative;
+    width: 100%;
+    flex: 0 0 auto;
+    padding: .75rem .75rem 0;
+  }
+
+  .admin-dashboard .admin-card-image-frame {
+    width: 100%;
+    height: 210px;
+    overflow: hidden;
+    border-radius: 1.5rem;
+  }
+
   .admin-dashboard .admin-card-image {
-    height: 176px;
+    height: 100%;
     width: 100%;
     object-fit: cover;
-    object-position: center top;
+    object-position: center center;
     display: block;
-    flex-shrink: 0;
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
@@ -2305,8 +2318,9 @@
   }
 
   .admin-dashboard .admin-card-body {
-    min-height: 92px;
+    min-height: 70px;
     flex: 1;
+    padding: .45rem .65rem .55rem;
     background: #FFF7FA;
   }
 
@@ -2355,8 +2369,8 @@
 
   .wellness-tile,
   .admin-dashboard .admin-card {
-    min-height: 286px;
-    height: 286px;
+    min-height: 292px;
+    height: 292px;
   }
 
   .admin-dashboard .admin-card {
@@ -3109,8 +3123,8 @@
 
   .admin-products .admin-products-access-list {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .45rem !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem !important;
     margin-bottom: 1rem !important;
   }
 
@@ -3119,14 +3133,61 @@
   }
 
   .admin-products .admin-products-access-card {
-    background: #FFF7FA !important;
+    background: #FFFFFF !important;
     border-color: #FF2D95 !important;
     box-shadow: 0 18px 34px -28px rgb(90 50 65 / .24) !important;
     align-self: start;
   }
 
-  .admin-products .admin-products-access-card.is-open {
-    grid-column: auto;
+  .admin-products .admin-products-access-list > .admin-products-access-card {
+    width: 100%;
+    min-height: 292px;
+    height: 292px;
+    border-radius: 28px !important;
+  }
+
+  .admin-products .admin-products-access-list > .admin-products-access-card.is-open {
+    grid-column: 1 / -1;
+    width: calc(50% - .625rem);
+    justify-self: center;
+  }
+
+  .admin-products .admin-products-access-list > .admin-products-access-card .admin-products-access-trigger {
+    width: 100%;
+    min-height: 292px;
+    height: 292px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: .75rem .75rem 0;
+  }
+
+  .admin-products .admin-products-access-list > .admin-products-access-card .admin-products-access-image-wrap {
+    width: 100%;
+    min-height: 210px;
+    height: 210px;
+    flex: 0 0 210px;
+    border-radius: 1.5rem;
+  }
+
+  .admin-products .admin-products-access-list > .admin-products-access-card .admin-products-access-title {
+    width: 100%;
+    min-height: 70px;
+    flex: 1 1 auto;
+    padding: .45rem 1.25rem .55rem .65rem;
+  }
+
+  .admin-products .admin-products-access-list > .admin-products-access-card .admin-products-access-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    transition: transform 500ms ease;
+  }
+
+  .admin-products .admin-products-access-list > .admin-products-access-card:hover .admin-products-access-image-wrap img {
+    transform: scale(1.05) rotate(-2deg);
   }
 
   .admin-products .admin-products-selected-workspace {
@@ -3139,23 +3200,59 @@
 
   .admin-products .admin-products-internal-subcategories {
     order: 0;
-    background: #FFF7FA !important;
+    width: 100%;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   .admin-products .admin-products-internal-subcategory-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .55rem;
+    gap: 1.25rem;
   }
 
   .admin-products .admin-products-internal-subcategory-card {
     position: relative;
-    display: grid;
-    grid-template-rows: minmax(7.4rem, 1fr) auto;
-    min-height: 11rem;
-    border-radius: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 320px;
+    height: 320px;
+    padding: .75rem .75rem 0 !important;
+    border-radius: 28px;
     text-align: center;
     cursor: pointer;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card .admin-products-access-image-wrap {
+    width: 100%;
+    min-height: 230px;
+    height: 230px;
+    flex: 0 0 230px;
+    border-radius: 1.5rem;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card .admin-products-access-title {
+    width: 100%;
+    min-height: 78px;
+    flex: 1 1 auto;
+    padding: .45rem 1.25rem .55rem .65rem;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card .admin-products-access-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    transition: transform 500ms ease;
+  }
+
+  .admin-products .admin-products-internal-subcategory-card:hover .admin-products-access-image-wrap img {
+    transform: scale(1.05) rotate(-2deg);
   }
 
   .admin-products .admin-products-internal-subcategory-card .admin-products-access-title {
@@ -3391,7 +3488,8 @@
 
   .admin-products .admin-products-access-card.is-open .admin-products-access-trigger {
     width: 100%;
-    min-height: 8.1rem;
+    min-height: 292px;
+    height: 292px;
     margin: 0;
     border: 0;
     border-radius: 0;
@@ -3399,7 +3497,7 @@
 
   @media (min-width: 720px) {
     .admin-products .admin-products-access-list {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       align-items: start;
     }
 

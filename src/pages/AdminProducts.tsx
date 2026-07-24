@@ -641,6 +641,12 @@ export default function AdminProducts() {
     if (!activeAccessSection) return null;
     return categories.find(category => category.slug === activeAccessSection.id || slugify(category.name) === activeAccessSection.id) ?? null;
   }, [activeAccessSection, categories]);
+  const orderedAdminAccessSections = openAccessSection && openAccessSection !== INTERNAL_NUTRITION_SECTION_ID
+    ? [
+        ...PRODUCT_ADMIN_ACCESS_SECTIONS.filter(section => section.id === openAccessSection),
+        ...PRODUCT_ADMIN_ACCESS_SECTIONS.filter(section => section.id !== openAccessSection),
+      ]
+    : PRODUCT_ADMIN_ACCESS_SECTIONS;
   const isInternalNutritionCategoryId = (categoryId?: string | null) => {
     const category = categoryId ? categoryById.get(categoryId) : null;
     if (!category) return false;
@@ -1606,7 +1612,7 @@ export default function AdminProducts() {
       />
 
       <section className="admin-products-access-list admin-products-access-list-static mb-5" aria-label="Áreas de productos Herbalife">
-        {PRODUCT_ADMIN_ACCESS_SECTIONS.map(section => {
+        {orderedAdminAccessSections.map(section => {
           const isOpen = openAccessSection === section.id;
 
           return (
@@ -1629,8 +1635,7 @@ export default function AdminProducts() {
             {isOpen && (
         <div ref={selectedWorkspaceRef} className="admin-products-access-body admin-products-selected-workspace space-y-5">
           {section.id === INTERNAL_NUTRITION_SECTION_ID && (
-            <section className="card-soft admin-products-panel admin-products-internal-subcategories p-4 sm:p-5 space-y-3">
-              <h2 className="font-serif text-2xl">Subcategorías</h2>
+            <section className="admin-products-internal-subcategories">
               <div className="admin-products-internal-subcategory-grid" aria-label="Subcategorías de Nutrición interna">
                 {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => {
                   const isActive = activeInternalSubcategory === subcategory.id;

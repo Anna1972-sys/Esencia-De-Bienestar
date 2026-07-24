@@ -220,11 +220,19 @@ export default function Admin() {
 }
 
 function AdminCard({ item, ordering, orderControls }: { item: Item; ordering: boolean; orderControls?: ReactNode }) {
-  const className = `challenge-premium admin-card group relative overflow-hidden rounded-[28px] transition-all duration-200 ${ordering ? "cursor-default ring-2 ring-primary/20" : "hover:-translate-y-0.5"} ${item.to === "/app/admin/nutricion" ? "admin-card-sport-nutrition" : ""}`;
+  const className = `challenge-premium admin-card group relative overflow-hidden rounded-[28px] transition-all duration-300 ${ordering ? "cursor-default ring-2 ring-primary/20" : "hover:-translate-y-1"} ${item.to === "/app/admin/nutricion" ? "admin-card-sport-nutrition" : ""}`;
   const content = (
     <>
       {orderControls}
-      <img src={item.image} alt="" className={`admin-card-image transition-transform duration-500 group-hover:scale-105 ${item.imageClass ?? ""}`} />
+      <div className="admin-card-image-wrap">
+        <div className="admin-card-image-frame">
+          <img
+            src={item.image}
+            alt=""
+            className={`admin-card-image transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-2 ${item.imageClass ?? ""}`}
+          />
+        </div>
+      </div>
       <div className="admin-card-body flex items-center gap-3 px-4 py-3.5">
         <div className="min-w-0 flex-1">
           <div className="font-medium text-[15px] leading-tight text-foreground">{item.label}</div>
