@@ -6,7 +6,7 @@ import type { FocusEvent } from "react";
 const items = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
   { to: "/app/generar", icon: Sparkles, label: "Crear" },
-  { to: "/app/mis-recetas", icon: BookHeart, label: "Recetas" },
+  { to: "/app/mis-recetas", icon: BookHeart, label: "Mis recetas" },
   { to: "/app/productos", icon: Package, label: "Productos" },
   { to: "/app/lista-compra", icon: ShoppingBag, label: "Compra" },
   { to: "/app/perfil", icon: User, label: "Yo" },

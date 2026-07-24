@@ -337,9 +337,11 @@ export default function Nutrition() {
                 )}
                 <div className="font-medium text-sm">{category.label}</div>
                 {category.subtitle && <div className="text-xs mt-1 nutrition-category-subtitle">{category.subtitle}</div>}
-                <div className="text-xs muted mt-1 inline-flex items-center gap-1">
-                  <BookOpen className="h-3 w-3" /> {counts[category.key] ?? 0}
-                </div>
+                {(counts[category.key] ?? 0) > 0 && (
+                  <div className="text-xs muted mt-1 inline-flex items-center gap-1">
+                    <BookOpen className="h-3 w-3" /> {counts[category.key]}
+                  </div>
+                )}
               </button>
             ))}
           </div>

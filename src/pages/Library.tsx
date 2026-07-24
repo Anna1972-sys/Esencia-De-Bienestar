@@ -166,7 +166,7 @@ export default function Library() {
                 <WellnessCategoryTile
                   image={image ?? ""}
                   title={label}
-                  subtitle={`${count} ${count === 1 ? "receta" : "recetas"}`}
+                  subtitle={count > 0 ? `${count} ${count === 1 ? "receta" : "recetas"}` : undefined}
                   onClick={() => setSelectedCat(id)}
                 />
               </div>

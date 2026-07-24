@@ -266,9 +266,11 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                   )}
                   <div className="font-medium text-sm">{c.label}</div>
                   {c.subtitle && <div className="text-xs mt-1 nutrition-category-subtitle">{c.subtitle}</div>}
-                  <div className="text-xs muted mt-1 inline-flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" /> {counts[c.key] ?? 0}
-                  </div>
+                  {(counts[c.key] ?? 0) > 0 && (
+                    <div className="text-xs muted mt-1 inline-flex items-center gap-1">
+                      <BookOpen className="h-3 w-3" /> {counts[c.key]}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
