@@ -244,11 +244,22 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                 <button
                   key={c.key}
                   onClick={() => setCat(c.key)}
-                  className={variant === "nutrition" ? "nutrition-category-card text-left hover:shadow-glow transition" : "card-soft p-4 text-left hover:shadow-glow transition"}
+                  className={
+                    variant === "nutrition"
+                      ? "nutrition-category-card text-left hover:shadow-glow transition"
+                      : `card-soft p-4 text-left hover:shadow-glow transition ${
+                          variant === "movement" ? "movement-card-unified" : ""
+                        }`
+                  }
                 >
                   {(variant === "nutrition" || variant === "movement") && c.image ? (
                     <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
-                      <img src={mediaUrl(c.image)} alt="" loading="lazy" className="h-28 w-full object-cover" />
+                      <img
+                        src={mediaUrl(c.image)}
+                        alt=""
+                        loading="lazy"
+                        className={variant === "movement" ? "w-full object-cover" : "h-28 w-full object-cover"}
+                      />
                     </div>
                   ) : (
                     <div className="text-2xl mb-1">{c.emoji}</div>

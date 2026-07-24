@@ -352,6 +352,44 @@
   .product-card-tall-prototype > button > div:last-child {
     min-height: 78px;
   }
+  /* Categorías de Movimiento y ejercicio. */
+  .movement-card-unified {
+    min-height: 292px;
+    height: 292px;
+    padding: .75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+  .movement-card-unified .nutrition-category-image {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    height: 190px;
+    min-height: 190px;
+    max-height: 190px;
+    flex: 0 0 190px;
+    margin-bottom: .55rem;
+    background: #FFF7FA;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  .movement-card-unified .nutrition-category-image img {
+    width: 100%;
+    height: 190px !important;
+    min-height: 190px;
+    max-height: none;
+    object-fit: cover;
+    display: block;
+    border-radius: 1.5rem;
+    transition: transform 500ms ease;
+  }
+  .movement-card-unified:hover .nutrition-category-image img {
+    transform: scale(1.05) rotate(-2deg);
+  }
   .wellness-nutrition-tile .home-card-subtitle {
     color: hsl(0 0% 88% / .88);
   }
