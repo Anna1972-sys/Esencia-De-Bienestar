@@ -1,7 +1,8 @@
-import imgGuias from "@/assets/resources/guide-welcome-final.svg";
-import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
-import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
-import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
+import imgGuias from "@/assets/resources/guide-welcome-card.png";
+import imgSkincare from "@/assets/resources/guide-skincare-card.png";
+import imgMenopause from "@/assets/resources/guide-menopause-card.png";
+import imgProteinGuide from "@/assets/resources/guide-protein-card.png";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import styles from "./GuideCardsGrid.module.css";
 
 type GuideCard = {
@@ -49,25 +50,25 @@ export const cards: GuideCard[] = [
   {
     slug: "guia-bienvenida",
     title: "Guía de bienvenida",
-    description: "Descubre cómo aprovechar todas las funciones de Esencia de Bienestar.",
+    description: "Empieza por aquí",
     image: imgGuias,
   },
   {
     slug: "guia-cuidado-piel",
     title: "Guía de cuidado de la piel",
-    description: "Recursos para cuidar tu piel con una rutina sencilla y constante.",
+    description: "Rutina sencilla",
     image: imgSkincare,
   },
   {
     slug: "guia-menopausia",
     title: "Guía de menopausia",
-    description: "Guías para acompañar esta etapa con bienestar y equilibrio.",
+    description: "Bienestar y equilibrio",
     image: imgMenopause,
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
-    title: "Ebook: Alimentos ricos en proteína",
-    description: "Más de 300 alimentos organizados por categorías para ayudarte a elegir mejor cada día.",
+    title: "Alimentos con proteína",
+    description: "Más de 300 alimentos",
     image: imgProteinGuide,
   },
 ];
@@ -156,34 +157,15 @@ function GuideLibraryCard({
   onClick?: () => void;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`${styles.card} ${disabled ? styles.disabled : ""}`}
-    >
-      <div className={styles.imageFrame}>
-        {image ? (
-          <img
-            src={image}
-            alt={title}
-            loading="lazy"
-            className={styles.image}
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-          />
-      ) : (
-        <div className={styles.placeholder}>📚</div>
-      )}
-      </div>
-      <div className={styles.body}>
-        <div className={styles.titleRow}>
-          <div className={styles.title}>{title}</div>
-        </div>
-        {description ? <div className={styles.description}>{description}</div> : null}
-      </div>
-    </button>
+    <div className="home-card-unified">
+      <WellnessCategoryTile
+        image={image}
+        title={title}
+        subtitle={description}
+        disabled={disabled}
+        onClick={onClick}
+      />
+    </div>
   );
 }
 
@@ -204,8 +186,8 @@ export default function GuideCardsGrid({
   const visibleCards = cards
     .map((card, fallbackOrder) => {
       const category = getCategoryForCard(card);
-      const title = cleanGuideTitle(category?.name || card.title, card.slug);
-      const description = category?.subtitle || card.description;
+      const title = card.title;
+      const description = card.description;
       const image = resolveGuideCardCoverImage(card.slug, card.image, category);
       return { card, category, title, description, image, fallbackOrder };
     })

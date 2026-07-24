@@ -320,6 +320,38 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
+  /* Tarjetas de categorías de la pantalla principal. */
+  .home-card-unified > :is(a, button) {
+    min-height: 292px !important;
+    height: 292px !important;
+  }
+  .home-card-unified > :is(a, button) > div:first-child {
+    padding: .75rem .75rem 0;
+  }
+  .home-card-unified > :is(a, button) > div:first-child > div {
+    height: 210px !important;
+    border-radius: 1.5rem !important;
+  }
+  .home-card-unified > :is(a, button) > div:last-child {
+    min-height: 70px;
+    gap: .2rem;
+    padding: .45rem .65rem .55rem;
+  }
+  .home-card-unified > :is(a, button) > div:last-child p {
+    min-height: 0;
+    margin-top: 0;
+  }
+  /* Subcategorías de Nutrición interna. */
+  .product-card-tall-prototype > button {
+    min-height: 320px !important;
+    height: 320px !important;
+  }
+  .product-card-tall-prototype > button > div:first-child > div {
+    height: 230px !important;
+  }
+  .product-card-tall-prototype > button > div:last-child {
+    min-height: 78px;
+  }
   .wellness-nutrition-tile .home-card-subtitle {
     color: hsl(0 0% 88% / .88);
   }

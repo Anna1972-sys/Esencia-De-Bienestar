@@ -252,17 +252,18 @@ export default function Resources() {
               const card = getCategoryCard(c);
               if (!card) return null;
               return (
-                <WellnessCategoryTile
-                  key={c.id}
-                  image={card.image}
-                  title={c.name}
-                  subtitle={card.subtitle}
-                  onClick={() => {
-                    setActiveTop(c.id);
-                    setActiveSub(null);
-                    setQuery("");
-                  }}
-                />
+                <div key={c.id} className="home-card-unified">
+                  <WellnessCategoryTile
+                    image={card.image}
+                    title={c.name}
+                    subtitle={card.subtitle}
+                    onClick={() => {
+                      setActiveTop(c.id);
+                      setActiveSub(null);
+                      setQuery("");
+                    }}
+                  />
+                </div>
               );
             })}
           </div>

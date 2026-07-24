@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import styles from "./WellnessCategoryTile.module.css";
 
 type WellnessCategoryTileProps = {
   image: string;
@@ -21,27 +22,37 @@ export default function WellnessCategoryTile({
   disabled = false,
   onClick,
 }: WellnessCategoryTileProps) {
-  const className = `${variant === "dark" ? "wellness-nutrition-tile" : "wellness-tile"} relative w-full appearance-none rounded-[26px] transition-all duration-300 hover:-translate-y-1 group overflow-hidden flex flex-col items-center text-center font-sans ${
-    disabled ? "opacity-60 cursor-not-allowed hover:translate-y-0" : ""
-  }`;
+  const className = [
+    styles.tile,
+    variant === "dark" ? styles.dark : styles.default,
+    "group",
+    disabled ? styles.disabled : "",
+  ].join(" ");
 
   const content = (
     <>
-      <div className="home-card-image-wrap">
-        <div className={`home-card-image-frame ${variant === "dark" ? "home-card-image-frame-dark" : ""}`}>
+      <div className={styles.imageWrap}>
+        <div className={styles.imageFrame}>
           <img
             src={image}
             alt={title}
             loading="lazy"
-            className={`${variant === "dark" ? "h-full w-full object-cover" : "home-card-image"} ${scale} transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-2`}
+            className={[
+              styles.image,
+              variant === "dark" ? styles.darkImage : "",
+              scale,
+              "group-hover:scale-105 group-hover:-rotate-2",
+            ].join(" ")}
           />
         </div>
       </div>
-      <div className="home-card-text relative w-full">
-        <div className={`home-card-title font-sans font-bold ${variant === "dark" ? "text-[#FF2D95]" : "text-foreground"}`}>
+      <div className={styles.text}>
+        <div className={`${styles.title} ${variant === "dark" ? styles.darkTitle : ""}`}>
           {title}
         </div>
-        {subtitle ? <p className="home-card-subtitle line-clamp-2">{subtitle}</p> : null}
+        {subtitle ? (
+          <p className={`${styles.subtitle} ${variant === "dark" ? styles.darkSubtitle : ""}`}>{subtitle}</p>
+        ) : null}
       </div>
     </>
   );

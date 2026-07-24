@@ -103,7 +103,11 @@ export default function Home() {
         <div className="divider-soft mb-5" />
 
         <div className="grid grid-cols-2 gap-5">
-          {orderedTiles.map(tile => <Tile key={tile.key} {...tile} />)}
+          {orderedTiles.map(tile => (
+            <div key={tile.key} className="home-card-unified">
+              <Tile {...tile} />
+            </div>
+          ))}
         </div>
       </section>
     </div>

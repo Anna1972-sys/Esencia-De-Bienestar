@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDown, ArrowLeft, ChevronRight, Image as ImageIcon, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Image as ImageIcon, Search } from "lucide-react";
 import productsHeroImage from "@/assets/home-productos-te-jardin.png";
 import imgNutritionInternal from "@/assets/product-admin/nutricion-interna.jpg";
 import imgNutritionObjective from "@/assets/product-admin/nutricion-objetiva-soft.jpg";
@@ -167,28 +168,30 @@ export default function Products() {
         </div>
       </section>
 
-      <section className="products-client-access-list mb-5" aria-label="Secciones de productos">
+      <section className="grid grid-cols-2 gap-5 mb-5" aria-label="Secciones de productos">
         {PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => {
           const isActive = activeProductSection === section.id;
           return (
-            <button
+            <div
               key={section.id}
-              type="button"
-              className={`products-client-access-card ${isActive ? "is-active" : ""}`}
-              onClick={() => {
-                setActiveProductSection(isActive ? "" : section.id);
-                setActiveCategory("");
-                setActiveInternalSubcategory("");
-                setQuery("");
-              }}
-              aria-expanded={isActive}
+              className={`home-card-unified ${
+                section.id === "nutricion-externa"
+                  ? "col-span-2 w-[calc(50%_-_0.625rem)] justify-self-center"
+                  : ""
+              }`}
             >
-              <span className="products-client-access-image-wrap">
-                <img src={section.image} alt={section.title} />
-              </span>
-              <span className="products-client-access-title">{section.title}</span>
-              <ArrowDown className={`products-client-access-arrow ${isActive ? "rotate-180" : ""}`} />
-            </button>
+              <WellnessCategoryTile
+                image={section.image}
+                title={section.title}
+                subtitle="Explorar productos"
+                onClick={() => {
+                  setActiveProductSection(isActive ? "" : section.id);
+                  setActiveCategory("");
+                  setActiveInternalSubcategory("");
+                  setQuery("");
+                }}
+              />
+            </div>
           );
         })}
       </section>
@@ -218,23 +221,22 @@ export default function Products() {
             )}
 
           {showingInternalSubcategories ? (
-            <div className="products-client-access-list products-client-subcategory-list" aria-label="Opciones de Nutrición interna">
+            <div className="grid grid-cols-2 gap-5" aria-label="Opciones de Nutrición interna">
               {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
-                <button
+                <div
                   key={subcategory.id}
-                  type="button"
-                  className="products-client-access-card"
-                  onClick={() => {
-                    setActiveInternalSubcategory(subcategory.id);
-                    setQuery("");
-                  }}
+                  className="home-card-unified product-card-tall-prototype"
                 >
-                  <span className="products-client-access-image-wrap">
-                    <img src={subcategory.image} alt={subcategory.title} />
-                  </span>
-                  <span className="products-client-access-title">{subcategory.title}</span>
-                  <ArrowDown className="products-client-access-arrow" />
-                </button>
+                  <WellnessCategoryTile
+                    image={subcategory.image}
+                    title={subcategory.title}
+                    subtitle="Explorar productos"
+                    onClick={() => {
+                      setActiveInternalSubcategory(subcategory.id);
+                      setQuery("");
+                    }}
+                  />
+                </div>
               ))}
             </div>
           ) : (

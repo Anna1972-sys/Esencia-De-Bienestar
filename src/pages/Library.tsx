@@ -6,6 +6,7 @@ import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
 import { type LibraryContext, resolveLibraryReturnContext, saveLibraryReturnContext } from "@/lib/libraryNavigation";
 import BackButton from "@/components/BackButton";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 
 type Recipe = {
   id: string;
@@ -157,35 +158,18 @@ export default function Library() {
       </div>
 
       {!selectedCat && !q && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-5">
           {LIBRARY_CATEGORIES.map(({ id, label, image }) => {
             const count = counts[id] ?? 0;
             return (
-              <button
-                key={id}
-                onClick={() => setSelectedCat(id)}
-                className="card-soft overflow-hidden text-left hover:shadow-md transition flex flex-col"
-              >
-                <div className="app-photo-cover-frame w-full overflow-hidden bg-muted">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt={label}
-                      loading="lazy"
-                      className="app-photo-cover-image"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : (
-                    <div className="w-full h-full grid place-items-center text-3xl">🍽️</div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <div className="font-medium text-sm leading-tight">{label}</div>
-                  <div className="text-xs muted mt-1">
-                    {count} {count === 1 ? "receta" : "recetas"}
-                  </div>
-                </div>
-              </button>
+              <div key={id} className="home-card-unified">
+                <WellnessCategoryTile
+                  image={image ?? ""}
+                  title={label}
+                  subtitle={`${count} ${count === 1 ? "receta" : "recetas"}`}
+                  onClick={() => setSelectedCat(id)}
+                />
+              </div>
             );
           })}
         </div>

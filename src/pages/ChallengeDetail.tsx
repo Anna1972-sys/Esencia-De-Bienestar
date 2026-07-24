@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import BackButton from "@/components/BackButton";
+import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import { DEFAULT_CHALLENGE, DEFAULT_CHALLENGE_ID, EXTRAS } from "@/lib/challengeExtras";
 import menuImage from "@/assets/challenge-menu.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
@@ -122,20 +123,18 @@ export default function ChallengeDetail() {
 
       <div className="pt-2">
         <div className="text-xs muted uppercase tracking-wider px-1">Contenido del reto</div>
-        <div className="grid grid-cols-2 gap-4 mt-3">
+        <div className="grid grid-cols-2 gap-5 mt-3">
         {EXTRAS.map(e => {
           const detail = EXTRA_DETAILS[e.key];
           return (
-            <Link key={e.key} to={`/app/retos/${id}/extra/${e.key}`}
-              className="challenge-premium overflow-hidden block rounded-[24px] bg-white/90 transition hover:-translate-y-1">
-              <div className="app-photo-cover-frame">
-                <img src={detail.image} alt={e.label} className="app-photo-cover-image" />
-              </div>
-              <div className="p-3.5">
-                <div className="font-sans font-bold text-sm leading-tight text-foreground">{e.label}</div>
-                <p className="text-[10.5px] mt-1 text-muted-foreground">{detail.subtitle}</p>
-              </div>
-            </Link>
+            <div key={e.key} className="home-card-unified">
+              <WellnessCategoryTile
+                to={`/app/retos/${id}/extra/${e.key}`}
+                image={detail.image}
+                title={e.label}
+                subtitle={detail.subtitle}
+              />
+            </div>
           );
         })}
         </div>
