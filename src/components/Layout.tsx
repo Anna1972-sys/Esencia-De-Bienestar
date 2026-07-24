@@ -3,6 +3,8 @@ import { Home, Sparkles, BookHeart, Package, ShoppingBag, User } from "lucide-re
 import { selectInitialZero } from "@/lib/adminNumberInput";
 import { useEffect, useState } from "react";
 import type { FocusEvent, ReactNode } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useActivityTracking } from "@/hooks/useActivityTracking";
 
 const items = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
@@ -47,7 +49,9 @@ function SectionLoadingFrame({ children }: { children: ReactNode }) {
 
 export default function Layout() {
   const location = useLocation();
+  const { user, isAdmin, roleLoading } = useAuth();
   const isAdminArea = location.pathname.startsWith("/app/admin");
+  useActivityTracking(location.pathname, Boolean(user && !roleLoading && !isAdmin));
   const handleAdminNumberFocus = (event: FocusEvent<HTMLElement>) => {
     if (!isAdminArea) return;
     const target = event.target;
