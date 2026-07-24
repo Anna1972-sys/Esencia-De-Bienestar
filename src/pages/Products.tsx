@@ -148,6 +148,88 @@ export default function Products() {
     }, 80);
   }, [activeProductSection]);
 
+  const orderedAccessSections = activeProductSection && activeProductSection !== INTERNAL_NUTRITION_SECTION_ID
+    ? [
+        ...PRODUCT_CLIENT_ACCESS_SECTIONS.filter(section => section.id === activeProductSection),
+        ...PRODUCT_CLIENT_ACCESS_SECTIONS.filter(section => section.id !== activeProductSection),
+      ]
+    : PRODUCT_CLIENT_ACCESS_SECTIONS;
+
+  const renderProductPanel = () => (
+    <>
+      <div className="products-client-search-card">
+        <div className="relative">
+          <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            className="field pl-9"
+            placeholder="Buscar producto o categoría…"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <section ref={openedSectionRef} className="products-client-access-panel" aria-label={`Productos de ${activeSection?.title ?? "la sección seleccionada"}`}>
+        <div className="products-client-access-panel-header">
+          <p>Salud y Bienestar</p>
+          <h2>{activeSubcategory?.title ?? activeSection?.title}</h2>
+        </div>
+
+        {activeProductSection === INTERNAL_NUTRITION_SECTION_ID && (
+          <button type="button" className="text-sm muted inline-flex items-center gap-1 mb-3" onClick={() => setActiveInternalSubcategory("")}>
+            <ArrowLeft className="h-4 w-4" /> Volver a Nutrición interna
+          </button>
+        )}
+        {activeProductSection && activeProductSection !== INTERNAL_NUTRITION_SECTION_ID && (
+          <button
+            type="button"
+            className="text-sm muted inline-flex items-center gap-1 mb-3"
+            onClick={() => {
+              setActiveProductSection("");
+              setActiveCategory("");
+              setQuery("");
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" /> Volver a categorías
+          </button>
+        )}
+        {filtered.length === 0 ? (
+          <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
+        ) : (
+          <div className="products-client-grid">
+            {filtered.map(product => (
+              <Link
+                key={product.id}
+                to={`/app/productos/${product.id}`}
+                className="product-client-list-card group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
+              >
+                <div className="product-client-list-image">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
+                      <ImageIcon className="h-8 w-8 text-primary/70" />
+                    </div>
+                  )}
+                </div>
+                <div className="product-client-list-info">
+                  <div className="min-w-0">
+                    <h2 className="product-client-list-title">{product.name}</h2>
+                  </div>
+                </div>
+                <div className="product-client-list-footer">
+                  <span className="product-client-list-button">
+                    Ver producto <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  );
+
   return (
     <div className="pb-8">
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
@@ -169,124 +251,61 @@ export default function Products() {
       </section>
 
       <section className="grid grid-cols-2 gap-5 mb-5" aria-label="Secciones de productos">
-        {PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => {
+        {orderedAccessSections.map(section => {
           const isActive = activeProductSection === section.id;
           return (
-            <div
-              key={section.id}
-              className={`home-card-unified ${
-                section.id === "nutricion-externa"
-                  ? "col-span-2 w-[calc(50%_-_0.625rem)] justify-self-center"
-                  : ""
-              }`}
-            >
-              <WellnessCategoryTile
-                image={section.image}
-                title={section.title}
-                subtitle="Explorar productos"
-                onClick={() => {
-                  setActiveProductSection(isActive ? "" : section.id);
-                  setActiveCategory("");
-                  setActiveInternalSubcategory("");
-                  setQuery("");
-                }}
-              />
+            <div key={section.id} className="contents">
+              <div
+                className={`home-card-unified ${
+                  (isActive && section.id !== INTERNAL_NUTRITION_SECTION_ID) ||
+                  (section.id === "nutricion-externa" && !activeProductSection) ||
+                  (section.id === INTERNAL_NUTRITION_SECTION_ID && showingInternalSubcategories)
+                    ? "col-span-2 w-[calc(50%_-_0.625rem)] justify-self-center"
+                    : ""
+                }`}
+              >
+                <WellnessCategoryTile
+                  image={section.image}
+                  title={section.title}
+                  subtitle={isActive ? "Cerrar categoría" : "Abrir categoría"}
+                  onClick={() => {
+                    setActiveProductSection(isActive ? "" : section.id);
+                    setActiveCategory("");
+                    setActiveInternalSubcategory("");
+                    setQuery("");
+                  }}
+                />
+              </div>
+
+              {section.id === INTERNAL_NUTRITION_SECTION_ID && showingInternalSubcategories && (
+                <div className="col-span-2 grid grid-cols-2 gap-5" aria-label="Opciones de Nutrición interna">
+                  {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
+                    <div key={subcategory.id} className="home-card-unified product-card-tall-prototype">
+                      <WellnessCategoryTile
+                        image={subcategory.image}
+                        title={subcategory.title}
+                        subtitle="Abrir categoría"
+                        onClick={() => {
+                          setActiveInternalSubcategory(subcategory.id);
+                          setQuery("");
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {isActive && section.id !== INTERNAL_NUTRITION_SECTION_ID && (
+                <div className="col-span-2">
+                  {renderProductPanel()}
+                </div>
+              )}
             </div>
           );
         })}
       </section>
 
-      {activeProductSection && (
-        <>
-          {!showingInternalSubcategories && (
-            <div className="products-client-search-card">
-              <div className="relative">
-                <Search className="h-4 w-4 muted absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  className="field pl-9"
-                  placeholder="Buscar producto o categoría…"
-                  value={query}
-                  onChange={event => setQuery(event.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          <section ref={openedSectionRef} className="products-client-access-panel" aria-label={`Productos de ${activeSection?.title ?? "la sección seleccionada"}`}>
-            {!showingInternalSubcategories && (
-              <div className="products-client-access-panel-header">
-                <p>Salud y Bienestar</p>
-                <h2>{activeSubcategory?.title ?? activeSection?.title}</h2>
-              </div>
-            )}
-
-          {showingInternalSubcategories ? (
-            <div className="grid grid-cols-2 gap-5" aria-label="Opciones de Nutrición interna">
-              {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
-                <div
-                  key={subcategory.id}
-                  className="home-card-unified product-card-tall-prototype"
-                >
-                  <WellnessCategoryTile
-                    image={subcategory.image}
-                    title={subcategory.title}
-                    subtitle="Explorar productos"
-                    onClick={() => {
-                      setActiveInternalSubcategory(subcategory.id);
-                      setQuery("");
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-          <>
-          {activeProductSection === INTERNAL_NUTRITION_SECTION_ID && (
-            <button type="button" className="text-sm muted inline-flex items-center gap-1 mb-3" onClick={() => setActiveInternalSubcategory("")}>
-              <ArrowLeft className="h-4 w-4" /> Volver a Nutrición interna
-            </button>
-          )}
-          {filtered.length === 0 ? (
-            <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
-          ) : (
-            <div className="products-client-grid">
-              {filtered.map(product => {
-                const category = product.category_id ? categoryById.get(product.category_id) : null;
-                return (
-                  <Link
-                    key={product.id}
-                    to={`/app/productos/${product.id}`}
-                    className="product-client-list-card group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
-                  >
-                    <div className="product-client-list-image">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="transition-transform duration-500 group-hover:scale-[1.03]" />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-primary/20 via-white to-fuchsia-100 grid place-items-center">
-                          <ImageIcon className="h-8 w-8 text-primary/70" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="product-client-list-info">
-                      <div className="min-w-0">
-                        <h2 className="product-client-list-title">{product.name}</h2>
-                      </div>
-                    </div>
-                    <div className="product-client-list-footer">
-                      <span className="product-client-list-button">
-                        Ver producto <ChevronRight className="h-3.5 w-3.5" />
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-          </>
-          )}
-          </section>
-        </>
-      )}
+      {activeProductSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory && renderProductPanel()}
     </div>
   );
 }
