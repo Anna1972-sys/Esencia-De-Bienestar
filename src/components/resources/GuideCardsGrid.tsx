@@ -2,6 +2,7 @@ import imgGuias from "@/assets/resources/guide-welcome-final.svg";
 import imgSkincare from "@/assets/resources/guide-skincare-final.svg";
 import imgMenopause from "@/assets/resources/guide-menopause-final.svg";
 import imgProteinGuide from "@/assets/resources/guide-protein-final.svg";
+import styles from "./GuideCardsGrid.module.css";
 
 type GuideCard = {
   slug: string;
@@ -159,28 +160,28 @@ function GuideLibraryCard({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`card-soft overflow-hidden text-left hover:shadow-md transition flex flex-col ${
-        disabled ? "opacity-60 cursor-not-allowed" : ""
-      }`}
+      className={`${styles.card} ${disabled ? styles.disabled : ""}`}
     >
-      <div className="app-photo-cover-frame w-full overflow-hidden bg-muted">
+      <div className={styles.imageFrame}>
         {image ? (
           <img
             src={image}
             alt={title}
             loading="lazy"
-            className="app-photo-cover-image"
+            className={styles.image}
             onError={(event) => {
               event.currentTarget.style.display = "none";
             }}
           />
-        ) : (
-          <div className="w-full h-full grid place-items-center text-3xl">📚</div>
-        )}
+      ) : (
+        <div className={styles.placeholder}>📚</div>
+      )}
       </div>
-      <div className="p-3">
-        <div className="font-medium text-sm leading-tight">{title}</div>
-        {description ? <div className="text-xs muted mt-1 line-clamp-2">{description}</div> : null}
+      <div className={styles.body}>
+        <div className={styles.titleRow}>
+          <div className={styles.title}>{title}</div>
+        </div>
+        {description ? <div className={styles.description}>{description}</div> : null}
       </div>
     </button>
   );
@@ -219,11 +220,11 @@ export default function GuideCardsGrid({
     });
 
   if (visibleCards.length === 0) {
-    return <div className="card-soft p-6 text-center muted">No hay guías que coincidan.</div>;
+    return <div className={styles.empty}>No hay guías que coincidan.</div>;
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 pb-28">
+    <div className={styles.grid}>
       {visibleCards.map(({ card, category, title, description, image }) => (
         <GuideLibraryCard
           key={card.slug}
