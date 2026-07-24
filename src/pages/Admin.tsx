@@ -15,7 +15,7 @@ import macroSpecialistImage from "@/assets/admin-macro-specialist-clean.jpg";
 import internalFoodsImage from "@/assets/resource-alimentacion.png";
 import productsImage from "@/assets/home-productos-te-jardin.png";
 import usersAdminImage from "@/assets/home-admin.png";
-import invitationsAdminImage from "@/assets/home-recipe-generator.png";
+import invitationsAdminImage from "@/assets/admin-invitations-card.jpg";
 import challengesImage from "@/assets/home-retos.png";
 import shoppingImage from "@/assets/challenge-shopping.png";
 import diaryImage from "@/assets/diary/diary-hero.png";

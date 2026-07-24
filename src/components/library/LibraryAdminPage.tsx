@@ -176,13 +176,18 @@ export default function LibraryAdminPage({
     const next = [...s.blocks]; [next[i], next[j]] = [next[j], next[i]]; return { ...s, blocks: next };
   });
 
-  const uploadBlock = async (kind: "image" | "video" | "pdf", file: File) => {
+  const uploadBlocks = async (kind: "image" | "video" | "pdf", files: FileList | null) => {
+    const selectedFiles = Array.from(files ?? []);
+    if (!selectedFiles.length) return;
     try {
       setBusy(true);
-      const url = await uploadFile(file, kind, storageFolder);
-      if (kind === "image") addBlock({ type: "image", url });
-      else if (kind === "video") addBlock({ type: "video", url });
-      else addBlock({ type: "pdf", url, name: file.name });
+      for (const file of selectedFiles) {
+        const url = await uploadFile(file, kind, storageFolder);
+        if (kind === "image") addBlock({ type: "image", url });
+        else if (kind === "video") addBlock({ type: "video", url });
+        else addBlock({ type: "pdf", url, name: file.name });
+      }
+      toast.success(`${selectedFiles.length} ${selectedFiles.length === 1 ? "archivo añadido" : "archivos añadidos"}`);
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
@@ -335,17 +340,17 @@ export default function LibraryAdminPage({
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "subtitle", value: "" })}><Heading2 className="h-4 w-4" /> Subtítulo</button>
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "text", value: "" })}><Type className="h-4 w-4" /> Texto</button>
             <label className="btn-secondary cursor-pointer">
-              <ImageIcon className="h-4 w-4" /> Imagen
-              <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadBlock("image", e.target.files[0])} />
+              <ImageIcon className="h-4 w-4" /> Imágenes
+              <input type="file" accept="image/*" multiple className="hidden" onChange={e => void uploadBlocks("image", e.target.files)} />
             </label>
             <label className="btn-secondary cursor-pointer">
-              <Video className="h-4 w-4" /> Vídeo (archivo)
-              <input type="file" accept="video/*" className="hidden" onChange={e => e.target.files?.[0] && uploadBlock("video", e.target.files[0])} />
+              <Video className="h-4 w-4" /> Vídeos (archivo)
+              <input type="file" accept="video/*" multiple className="hidden" onChange={e => void uploadBlocks("video", e.target.files)} />
             </label>
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "video", url: "" })}><Video className="h-4 w-4" /> Vídeo (URL)</button>
             <label className="btn-secondary cursor-pointer">
-              <FileText className="h-4 w-4" /> Archivo / PDF
-              <input type="file" className="hidden" onChange={e => e.target.files?.[0] && uploadBlock("pdf", e.target.files[0])} />
+              <FileText className="h-4 w-4" /> Archivos / PDF
+              <input type="file" accept="application/pdf" multiple className="hidden" onChange={e => void uploadBlocks("pdf", e.target.files)} />
             </label>
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "link", label: "", url: "" })}><LinkIcon className="h-4 w-4" /> Enlace</button>
             <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "button", label: "", url: "" })}><MousePointerClick className="h-4 w-4" /> Botón</button>

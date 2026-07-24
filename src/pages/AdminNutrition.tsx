@@ -14,7 +14,7 @@ import suplementacionCardImage from "@/assets/nutrition/sport-cards/suplementaci
 import recetasCardImage from "@/assets/nutrition/sport-cards/recetas-deportivas.jpg";
 import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
 import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
-import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Trash2, Upload, Video, X } from "lucide-react";
+import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 
 const SIGNED_TTL = 60 * 60 * 24 * 7;
@@ -58,6 +58,8 @@ type ContentForm = {
   observations: string;
   free_text: string;
   gallery: string[];
+  video_urls: string[];
+  pdf_urls: string[];
   video_url: string;
   pdf_url: string;
   external_url: string;
@@ -83,6 +85,8 @@ const emptyContent: ContentForm = {
   observations: "",
   free_text: "",
   gallery: [],
+  video_urls: [],
+  pdf_urls: [],
   video_url: "",
   pdf_url: "",
   external_url: "",
@@ -169,6 +173,8 @@ function buildBlocks(form: ContentForm) {
   addSection("Observaciones", form.observations);
   addSection("Texto libre", form.free_text);
   form.gallery.forEach((url) => url && blocks.push({ type: "image", url }));
+  form.video_urls.forEach((url) => url && blocks.push({ type: "video", url }));
+  form.pdf_urls.forEach((url) => url && blocks.push({ type: "pdf", url, name: "Documento" }));
   if (form.video_url.trim()) blocks.push({ type: "video", url: form.video_url.trim() });
   if (form.pdf_url.trim()) blocks.push({ type: "pdf", url: form.pdf_url.trim(), name: "Documento" });
   if (form.external_url.trim()) blocks.push({ type: "link", label: "Enlace externo", url: form.external_url.trim() });
@@ -218,8 +224,8 @@ function formFromItem(item: any): ContentForm {
       else if (title.includes("texto")) next.free_text = following.value ?? "";
     }
     if (block?.type === "image" && block.url) next.gallery.push(block.url);
-    if (block?.type === "video" && block.url) next.video_url = block.url;
-    if (block?.type === "pdf" && block.url) next.pdf_url = block.url;
+    if (block?.type === "video" && block.url) next.video_urls.push(block.url);
+    if (block?.type === "pdf" && block.url) next.pdf_urls.push(block.url);
     if (block?.type === "link" && block.url) next.external_url = block.url;
     if (block?.type === "section") {
       next.sections.push({
@@ -471,6 +477,22 @@ export default function AdminNutrition() {
     }
   };
 
+  const onUploadMany = async (files: FileList | null, folder: string, setter: (urls: string[]) => void) => {
+    const selectedFiles = Array.from(files ?? []);
+    if (!selectedFiles.length) return;
+    try {
+      setBusy(true);
+      const urls: string[] = [];
+      for (const file of selectedFiles) urls.push(await uploadFile(file, folder));
+      setter(urls);
+      toast.success(`${selectedFiles.length} ${selectedFiles.length === 1 ? "archivo añadido" : "archivos añadidos"}`);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const rows: Category[][] = [];
   for (let i = 0; i < categories.length; i += 3) rows.push(categories.slice(i, i + 3));
 
@@ -534,6 +556,16 @@ export default function AdminNutrition() {
                       <p className="text-xs muted">Gestiona esta categoría y su contenido.</p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        className="admin-nutrition-category-action"
+                        onClick={() => {
+                          setActiveCategory(null);
+                          setContentForm(emptyContent);
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" /> Cerrar categoría
+                      </button>
                       <button type="button" className="admin-nutrition-category-action" onClick={() => editCategory(activeCategoryData)}>
                         <Pencil className="h-3.5 w-3.5" /> Editar
                       </button>
@@ -829,8 +861,8 @@ export default function AdminNutrition() {
                       )}
                       <div className="flex flex-wrap gap-2">
                         <label className="btn-secondary cursor-pointer">
-                          <ImageIcon className="h-4 w-4" /> Añadir imagen
-                          <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "gallery", (url) => setContentForm((current) => ({ ...current, gallery: [...current.gallery, url] })))} />
+                          <ImageIcon className="h-4 w-4" /> Añadir imágenes
+                          <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => void onUploadMany(event.target.files, "gallery", (urls) => setContentForm((current) => ({ ...current, gallery: [...current.gallery, ...urls] })))} />
                         </label>
                         <button
                           type="button"
@@ -845,42 +877,86 @@ export default function AdminNutrition() {
 
                     <div className="grid gap-2">
                       <label className="block">
-                        <span className="text-xs muted">Vídeo</span>
-                        <input className="field mt-1" placeholder="Vídeo o URL de vídeo" value={contentForm.video_url} onChange={(event) => setContentForm({ ...contentForm, video_url: event.target.value })} />
+                        <span className="text-xs muted">Añadir vídeo mediante URL</span>
+                        <div className="flex gap-2 mt-1">
+                          <input className="field" placeholder="URL del vídeo" value={contentForm.video_url} onChange={(event) => setContentForm({ ...contentForm, video_url: event.target.value })} />
+                          <button
+                            type="button"
+                            className="btn-secondary shrink-0"
+                            disabled={!contentForm.video_url.trim()}
+                            onClick={() => setContentForm((current) => ({
+                              ...current,
+                              video_urls: [...current.video_urls, current.video_url.trim()],
+                              video_url: "",
+                            }))}
+                          >
+                            <Plus className="h-4 w-4" /> Añadir
+                          </button>
+                        </div>
                       </label>
+                      {contentForm.video_urls.map((url, index) => (
+                        <div key={`${url}-${index}`} className="rounded-xl border border-primary/30 bg-white p-2 flex items-center gap-2 text-xs">
+                          <span className="truncate flex-1">{url}</span>
+                          <button type="button" className="admin-nutrition-delete-icon" aria-label="Borrar vídeo" onClick={() => setContentForm((current) => ({ ...current, video_urls: current.video_urls.filter((_, itemIndex) => itemIndex !== index) }))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
                       <div className="flex flex-wrap gap-2">
                         <label className="btn-secondary cursor-pointer">
-                          <Video className="h-4 w-4" /> Subir vídeo
-                          <input type="file" accept="video/*" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "videos", (url) => setContentForm((current) => ({ ...current, video_url: url })))} />
+                          <Video className="h-4 w-4" /> Subir vídeos
+                          <input type="file" accept="video/*" multiple className="hidden" onChange={(event) => void onUploadMany(event.target.files, "videos", (urls) => setContentForm((current) => ({ ...current, video_urls: [...current.video_urls, ...urls] })))} />
                         </label>
                         <button
                           type="button"
                           className="admin-nutrition-delete-button"
-                          disabled={!contentForm.video_url}
-                          onClick={() => setContentForm((current) => ({ ...current, video_url: "" }))}
+                          disabled={contentForm.video_urls.length === 0}
+                          onClick={() => setContentForm((current) => ({ ...current, video_urls: [], video_url: "" }))}
                         >
-                          <Trash2 className="h-3.5 w-3.5" /> Borrar vídeo
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar vídeos
                         </button>
                       </div>
                     </div>
 
                     <div className="grid gap-2">
                       <label className="block">
-                        <span className="text-xs muted">PDF</span>
-                        <input className="field mt-1" placeholder="PDF o URL de PDF" value={contentForm.pdf_url} onChange={(event) => setContentForm({ ...contentForm, pdf_url: event.target.value })} />
+                        <span className="text-xs muted">Añadir PDF mediante URL</span>
+                        <div className="flex gap-2 mt-1">
+                          <input className="field" placeholder="URL del PDF" value={contentForm.pdf_url} onChange={(event) => setContentForm({ ...contentForm, pdf_url: event.target.value })} />
+                          <button
+                            type="button"
+                            className="btn-secondary shrink-0"
+                            disabled={!contentForm.pdf_url.trim()}
+                            onClick={() => setContentForm((current) => ({
+                              ...current,
+                              pdf_urls: [...current.pdf_urls, current.pdf_url.trim()],
+                              pdf_url: "",
+                            }))}
+                          >
+                            <Plus className="h-4 w-4" /> Añadir
+                          </button>
+                        </div>
                       </label>
+                      {contentForm.pdf_urls.map((url, index) => (
+                        <div key={`${url}-${index}`} className="rounded-xl border border-primary/30 bg-white p-2 flex items-center gap-2 text-xs">
+                          <span className="truncate flex-1">{url}</span>
+                          <button type="button" className="admin-nutrition-delete-icon" aria-label="Borrar PDF" onClick={() => setContentForm((current) => ({ ...current, pdf_urls: current.pdf_urls.filter((_, itemIndex) => itemIndex !== index) }))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
                       <div className="flex flex-wrap gap-2">
                         <label className="btn-secondary cursor-pointer">
-                          <FileText className="h-4 w-4" /> Subir PDF
-                          <input type="file" accept="application/pdf" className="hidden" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "pdfs", (url) => setContentForm((current) => ({ ...current, pdf_url: url })))} />
+                          <FileText className="h-4 w-4" /> Subir PDFs
+                          <input type="file" accept="application/pdf" multiple className="hidden" onChange={(event) => void onUploadMany(event.target.files, "pdfs", (urls) => setContentForm((current) => ({ ...current, pdf_urls: [...current.pdf_urls, ...urls] })))} />
                         </label>
                         <button
                           type="button"
                           className="admin-nutrition-delete-button"
-                          disabled={!contentForm.pdf_url}
-                          onClick={() => setContentForm((current) => ({ ...current, pdf_url: "" }))}
+                          disabled={contentForm.pdf_urls.length === 0}
+                          onClick={() => setContentForm((current) => ({ ...current, pdf_urls: [], pdf_url: "" }))}
                         >
-                          <Trash2 className="h-3.5 w-3.5" /> Borrar PDF
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar PDFs
                         </button>
                       </div>
                     </div>

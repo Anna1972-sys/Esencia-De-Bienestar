@@ -1165,6 +1165,32 @@ export default function AdminProducts() {
     }
   };
 
+  const uploadManyInto = async (files: File[], kind: "gallery" | "video" | "pdf") => {
+    if (!files.length) return;
+    try {
+      setSaving(true);
+      const uploadedUrls: string[] = [];
+      for (const file of files) uploadedUrls.push(await uploadProductFile(file, kind));
+
+      const key = kind === "gallery" ? "gallery_urls" : kind === "video" ? "video_urls" : "pdf_urls";
+      const nextUrls = [...form[key], ...uploadedUrls];
+      setForm(prev => ({ ...prev, [key]: [...prev[key], ...uploadedUrls] }));
+
+      if (form.id) {
+        const { error } = await (supabase as any)
+          .from("products")
+          .update({ [key]: nextUrls, updated_at: new Date().toISOString() })
+          .eq("id", form.id);
+        if (error) throw error;
+      }
+      toast.success(`${files.length} ${files.length === 1 ? "archivo añadido" : "archivos añadidos"}`);
+    } catch (e: any) {
+      toast.error(e.message || "No se pudieron subir los archivos");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const addUrl = (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", value: string) => {
     const clean = value.trim();
     if (!clean) return;
@@ -1638,6 +1664,15 @@ export default function AdminProducts() {
             </article>
             {isOpen && (
         <div ref={selectedWorkspaceRef} className="admin-products-access-body admin-products-selected-workspace space-y-5">
+          <div className="flex justify-start">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => toggleAccessSection(section.id)}
+            >
+              <ArrowUp className="h-4 w-4" /> Cerrar categoría
+            </button>
+          </div>
           {section.id === INTERNAL_NUTRITION_SECTION_ID && (
             <section className="admin-products-internal-subcategories">
               <div className="admin-products-internal-subcategory-grid" aria-label="Subcategorías de Nutrición interna">
@@ -2016,13 +2051,13 @@ export default function AdminProducts() {
           </ProductAccordion>
 
           <ProductAccordion title="Galería" {...editorAccordionProps("Galería")}>
-            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onUpdate={(index, url) => updateUrl("gallery_urls", index, url)} onRemove={index => removeUrl("gallery_urls", index)} uploadLabel="Subir imagen" accept={IMAGE_FILE_ACCEPT} onUpload={file => uploadInto(file, "gallery")} />
+            <MultiUrlEditor title="Galería de imágenes" icon={<ImageIcon className="h-4 w-4" />} urls={form.gallery_urls} onAdd={url => addUrl("gallery_urls", url)} onUpdate={(index, url) => updateUrl("gallery_urls", index, url)} onRemove={index => removeUrl("gallery_urls", index)} uploadLabel="Subir imágenes" accept={IMAGE_FILE_ACCEPT} onUpload={files => uploadManyInto(files, "gallery")} />
           </ProductAccordion>
           <ProductAccordion title="Vídeos" {...editorAccordionProps("Vídeos")}>
-            <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onUpdate={(index, url) => updateUrl("video_urls", index, url)} onRemove={index => removeUrl("video_urls", index)} uploadLabel="Subir vídeo" accept="video/*" onUpload={file => uploadInto(file, "video")} />
+            <MultiUrlEditor title="Vídeos" icon={<Video className="h-4 w-4" />} urls={form.video_urls} onAdd={url => addUrl("video_urls", url)} onUpdate={(index, url) => updateUrl("video_urls", index, url)} onRemove={index => removeUrl("video_urls", index)} uploadLabel="Subir vídeos" accept="video/*" onUpload={files => uploadManyInto(files, "video")} />
           </ProductAccordion>
           <ProductAccordion title="PDFs" {...editorAccordionProps("PDFs")}>
-            <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onUpdate={(index, url) => updateUrl("pdf_urls", index, url)} onRemove={index => removeUrl("pdf_urls", index)} uploadLabel="Subir PDF" accept="application/pdf" onUpload={file => uploadInto(file, "pdf")} />
+            <MultiUrlEditor title="PDFs" icon={<FileText className="h-4 w-4" />} urls={form.pdf_urls} onAdd={url => addUrl("pdf_urls", url)} onUpdate={(index, url) => updateUrl("pdf_urls", index, url)} onRemove={index => removeUrl("pdf_urls", index)} uploadLabel="Subir PDFs" accept="application/pdf" onUpload={files => uploadManyInto(files, "pdf")} />
           </ProductAccordion>
           <ProductAccordion title="URLs" {...editorAccordionProps("URLs")}>
             <MultiUrlEditor title="URLs externas" icon={<LinkIcon className="h-4 w-4" />} urls={form.external_urls} onAdd={url => addUrl("external_urls", url)} onUpdate={(index, url) => updateUrl("external_urls", index, url)} onRemove={index => removeUrl("external_urls", index)} />
@@ -2676,7 +2711,7 @@ function MultiUrlEditor({
   onAdd: (url: string) => void;
   onUpdate?: (index: number, value: string) => void;
   onRemove: (index: number) => void;
-  onUpload?: (file: File) => void;
+  onUpload?: (files: File[]) => void;
 }) {
   const [draft, setDraft] = useState("");
   const showImagePreview = accept?.startsWith("image");
@@ -2714,7 +2749,7 @@ function MultiUrlEditor({
         {onUpload && (
           <label className="btn-primary cursor-pointer justify-center">
             <Upload className="h-4 w-4" /> {uploadLabel}
-            <input type="file" className="hidden" accept={accept} onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
+            <input type="file" className="hidden" accept={accept} multiple onChange={e => onUpload(Array.from(e.target.files ?? []))} />
           </label>
         )}
         <input className="field flex-1" placeholder="Pegar URL" value={draft} onChange={e => setDraft(e.target.value)} />

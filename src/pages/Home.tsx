@@ -51,6 +51,8 @@ export default function Home() {
   const { user, isAdmin } = useAuth();
   const [name, setName] = useState("");
   const [cardOrder, setCardOrder] = useState<string[]>(DEFAULT_HOME_CARD_ORDER);
+  const [welcomeTitle, setWelcomeTitle] = useState("");
+  const [welcomeMessage, setWelcomeMessage] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -61,16 +63,30 @@ export default function Home() {
     loadCardOrder("home_card_order", DEFAULT_HOME_CARD_ORDER, supabase as any).then(setCardOrder);
   }, []);
 
+  useEffect(() => {
+    (supabase as any)
+      .from("app_settings")
+      .select("welcome_title,welcome_message")
+      .eq("id", true)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        setWelcomeTitle(data?.welcome_title?.trim() ?? "");
+        setWelcomeMessage(data?.welcome_message?.trim() ?? "");
+      });
+  }, []);
+
   const visibleTiles = HOME_TILES.filter(tile => !tile.adminOnly || isAdmin);
   const orderedTiles = orderCards(visibleTiles, cardOrder);
+  const displayedWelcomeTitle = welcomeTitle || `Hola, ${name || "ANNA MARI"}`;
+  const displayedWelcomeMessage = welcomeMessage || HOME_SUBTITLE;
 
   return (
     <div className="space-y-8">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary mb-1">Bienestar</p>
-          <h1 className="heading-lg">Hola, {name || "ANNA MARI"}</h1>
-          <p className="muted text-sm mt-2 leading-relaxed pr-2">{HOME_SUBTITLE}</p>
+          <h1 className="heading-lg">{displayedWelcomeTitle}</h1>
+          <p className="muted text-sm mt-2 leading-relaxed pr-2">{displayedWelcomeMessage}</p>
         </div>
         <Link
           to="/app/perfil"
