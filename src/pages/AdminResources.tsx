@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { ResourceBlock } from "@/lib/resourceCategories";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import DraftBanner from "@/components/DraftBanner";
+import BackButton from "@/components/BackButton";
 import imgImprescindibles from "@/assets/resource-imprescindibles.png";
 import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
@@ -638,6 +639,14 @@ export default function AdminResources() {
           </>
         ) : (
           <>
+            {!sectionIsOpen && (
+              <BackButton
+                fallbackTo="/app/admin"
+                className="text-sm muted inline-flex items-center gap-1 mb-3 hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Volver
+              </BackButton>
+            )}
             {sectionIsOpen && (
               <button
                 type="button"
@@ -674,20 +683,21 @@ export default function AdminResources() {
                 const displaySubtitle = category?.subtitle || card.subtitle;
                 const displayImage = resolveCategoryCoverImage(category, card.image);
                 return (
-                  <WellnessCategoryTile
-                    key={card.key}
-                    image={displayImage}
-                    title={displayTitle}
-                    subtitle={displaySubtitle}
-                    onClick={() => {
-                      setSelectedSection(card.key);
-                      setFilterCat(category?.id ?? "");
-                      setFilterSub("");
-                      setShowEditor(false);
-                      clearSelection();
-                      setF({ ...empty, category_id: category?.id ?? "" });
-                    }}
-                  />
+                  <div key={card.key} className="home-card-unified">
+                    <WellnessCategoryTile
+                      image={displayImage}
+                      title={displayTitle}
+                      subtitle={displaySubtitle}
+                      onClick={() => {
+                        setSelectedSection(card.key);
+                        setFilterCat(category?.id ?? "");
+                        setFilterSub("");
+                        setShowEditor(false);
+                        clearSelection();
+                        setF({ ...empty, category_id: category?.id ?? "" });
+                      }}
+                    />
+                  </div>
                 );
               })}
             </div>
