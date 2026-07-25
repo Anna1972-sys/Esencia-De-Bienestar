@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X, BellRing, UserCheck, UserX, AlertTriangle } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdvancedUserAlerts from "@/components/admin/AdvancedUserAlerts";
 import { toast } from "sonner";
 
 type Row = {
@@ -334,6 +335,14 @@ export default function AdminUsers() {
           </div>
         )}
       </section>
+
+      <AdvancedUserAlerts
+        clients={rows.filter(row => !isAdmin(row) && !row.is_banned).map(row => ({
+          id: row.id,
+          display_name: row.display_name,
+          email: row.email,
+        }))}
+      />
 
       {loadError && (
         <div className="card-soft p-4 mb-3 border-destructive/40 bg-destructive/5 text-sm">
