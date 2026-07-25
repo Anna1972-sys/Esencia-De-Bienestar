@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { ArrowDown, ArrowUp, RotateCcw, Save } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, type MouseEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const HOME_SCROLL_POSITION_KEY = "esencia:home-dashboard-scroll";
-import { loadCardOrder, orderCards } from "@/lib/cardOrderSettings";
+import { loadCardOrder, moveCardKey, orderCards, saveCardOrder } from "@/lib/cardOrderSettings";
 import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 
 import imgRecetas from "@/assets/home-recetas.png";
@@ -56,6 +58,8 @@ export default function Home() {
   const [cardOrder, setCardOrder] = useState<string[]>(DEFAULT_HOME_CARD_ORDER);
   const [welcomeTitle, setWelcomeTitle] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [orderingCards, setOrderingCards] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -108,8 +112,27 @@ export default function Home() {
 
   const visibleTiles = HOME_TILES.filter(tile => !tile.adminOnly || isAdmin);
   const orderedTiles = orderCards(visibleTiles, cardOrder);
+  const orderedKeys = orderedTiles.map(tile => tile.key);
   const displayedWelcomeTitle = welcomeTitle || `Hola, ${name || "ANNA MARI"}`;
   const displayedWelcomeMessage = welcomeMessage || HOME_SUBTITLE;
+
+  const moveHomeTile = (key: string, direction: -1 | 1) => {
+    setCardOrder(moveCardKey(orderedKeys, key, direction));
+  };
+
+  const saveHomeOrder = async () => {
+    setSavingOrder(true);
+    const result = await saveCardOrder("home_card_order", orderedKeys, supabase as any);
+    setCardOrder(result.order);
+    setSavingOrder(false);
+    if (result.savedRemotely) toast.success("Orden del panel principal guardado");
+    else toast.warning("El orden se ha guardado solamente en este navegador.");
+  };
+
+  const resetHomeOrder = () => {
+    setCardOrder(DEFAULT_HOME_CARD_ORDER);
+    toast.info("Orden restaurado. Pulsa Guardar orden para conservarlo.");
+  };
 
   return (
     <div className="space-y-8" onClickCapture={rememberHomePosition}>
@@ -142,13 +165,40 @@ export default function Home() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-sans font-bold text-xl">Tu espacio</h3>
+          {isAdmin && (
+            <button type="button" className="btn-secondary compact" onClick={() => setOrderingCards(value => !value)}>
+              {orderingCards ? "Terminar" : "Ordenar"}
+            </button>
+          )}
         </div>
         <div className="divider-soft mb-5" />
 
+        {isAdmin && orderingCards && (
+          <div className="card-soft p-3 mb-4 flex flex-wrap items-center gap-2 text-xs">
+            <span className="muted flex-1 min-w-[180px]">Usa las flechas de cada tarjeta y guarda el orden.</span>
+            <button type="button" className="btn-secondary compact" onClick={resetHomeOrder}>
+              <RotateCcw className="h-3.5 w-3.5" /> Restaurar
+            </button>
+            <button type="button" className="btn-primary compact" onClick={saveHomeOrder} disabled={savingOrder}>
+              <Save className="h-3.5 w-3.5" /> {savingOrder ? "Guardando…" : "Guardar orden"}
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-5">
-          {orderedTiles.map(tile => (
-            <div key={tile.key} className="home-card-unified">
-              <Tile {...tile} />
+          {orderedTiles.map((tile, index) => (
+            <div key={tile.key} className="home-card-unified relative">
+              {orderingCards && (
+                <div className="absolute right-2 top-2 z-20 flex gap-1">
+                  <button type="button" className="h-8 w-8 rounded-full bg-white/95 border border-primary/30 text-primary grid place-items-center disabled:opacity-35" disabled={index === 0} onClick={() => moveHomeTile(tile.key, -1)} aria-label={`Subir ${tile.title}`}>
+                    <ArrowUp className="h-4 w-4" />
+                  </button>
+                  <button type="button" className="h-8 w-8 rounded-full bg-white/95 border border-primary/30 text-primary grid place-items-center disabled:opacity-35" disabled={index === orderedTiles.length - 1} onClick={() => moveHomeTile(tile.key, 1)} aria-label={`Bajar ${tile.title}`}>
+                    <ArrowDown className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <Tile {...tile} disabled={orderingCards} />
             </div>
           ))}
         </div>
@@ -164,6 +214,7 @@ function Tile({
   subtitle,
   scale = "scale-100",
   variant = "default",
+  disabled = false,
 }: {
   to: string;
   image: string;
@@ -171,6 +222,7 @@ function Tile({
   subtitle?: string;
   scale?: string;
   variant?: "default" | "dark";
+  disabled?: boolean;
 }) {
   return (
     <WellnessCategoryTile
@@ -180,6 +232,7 @@ function Tile({
       subtitle={subtitle}
       scale={scale}
       variant={variant}
+      disabled={disabled}
     />
   );
 }
