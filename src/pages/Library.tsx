@@ -28,7 +28,7 @@ export default function Library() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeContext = (location.state as { libraryContext?: LibraryContext } | null)?.libraryContext;
-  const returnContext = resolveLibraryReturnContext(routeContext);
+  const returnContext = routeContext ? resolveLibraryReturnContext(routeContext) : null;
   const [items, setItems] = useState<Recipe[]>([]);
   const [selectedCat, setSelectedCat] = useState<string | null>(() => returnContext?.selectedCat ?? null);
   const [q, setQ] = useState(() => returnContext?.query ?? "");
@@ -162,7 +162,17 @@ export default function Library() {
 
   return (
     <div className="library-recipes-page pb-28">
-      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton
+        fallbackTo="/app"
+        className="text-sm muted inline-flex items-center gap-1 mb-3"
+        onClick={(event) => {
+          if (!selectedCat && !q) return;
+          event.preventDefault();
+          setSelectedCat(null);
+          setQ("");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      >
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
       <h1 className="heading-lg mb-1">Biblioteca de recetas</h1>
