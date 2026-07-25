@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, Target, Trophy, Eye, TrendingDown, TrendingUp, Droplets, Moon, Footprints, Activity, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Search, Target, Trophy, Eye, TrendingDown, TrendingUp, Droplets, Moon, Footprints, Activity, User as UserIcon, BellRing, Clock, Flame, HeartPulse, Utensils, ShieldCheck } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 
@@ -20,6 +20,21 @@ type Entry = {
   updated_at?: string;
 };
 type ClientRow = { id: string; email: string | null; display_name: string | null; last_activity: string | null };
+type ProfileDetail = {
+  display_name: string | null;
+  preferences: {
+    allergies?: string;
+    target_calories?: string | number;
+    objective?: string;
+  } | null;
+};
+type ActivityRow = {
+  id: string;
+  category: string;
+  label: string | null;
+  last_seen_at: string;
+  active_seconds: number;
+};
 
 const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string }[] = [
   { key: "weight", label: "Peso", unit: "kg", color: "hsl(325 70% 65%)" },
@@ -32,6 +47,25 @@ const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string
 const MOODS = ["🌧️ Muy mal", "☁️ Regular", "🌸 Bien", "🌷 Muy bien", "💮 Excelente"];
 
 const fmt = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString() : "—";
+const formatDuration = (seconds: number) => {
+  const minutes = Math.round(Math.max(0, seconds) / 60);
+  if (minutes < 1) return "< 1 min";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+};
+const relativeTime = (value: string | null) => {
+  if (!value) return "Sin actividad";
+  const days = Math.floor((Date.now() - +new Date(value)) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return "Hoy";
+  if (days === 1) return "Ayer";
+  return `Hace ${days} días`;
+};
+const activityAction = (row: ActivityRow) => {
+  if (row.label && row.label !== "Esencia de Bienestar") return `Abrió ${row.label}`;
+  return `Visitó ${row.category}`;
+};
 
 function periodCutoff(period: "week" | "month" | "all") {
   if (period === "all") return null;
@@ -55,6 +89,8 @@ export default function AdminUserTracking() {
   const [photos, setPhotos] = useState<PhotoRow[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [profile, setProfile] = useState<ProfileDetail | null>(null);
+  const [activityRows, setActivityRows] = useState<ActivityRow[]>([]);
 
   // Load list of clients
   useEffect(() => {
@@ -97,19 +133,35 @@ export default function AdminUserTracking() {
 
   // Load detail when selected changes
   useEffect(() => {
-    if (!selected) { setEntries([]); setMeasurements([]); setGoals([]); setPhotos([]); return; }
+    if (!selected) {
+      setEntries([]);
+      setMeasurements([]);
+      setGoals([]);
+      setPhotos([]);
+      setProfile(null);
+      setActivityRows([]);
+      return;
+    }
     (async () => {
       setLoadingDetail(true);
-      const [es, ms, gs, ps] = await Promise.all([
+      const [es, ms, gs, ps, profileResult, activityResult] = await Promise.all([
         supabase.from("wellness_entries").select("*").eq("user_id", selected.id).order("entry_date", { ascending: false }),
         supabase.from("wellness_measurements" as any).select("*").eq("user_id", selected.id).order("measured_at", { ascending: true }),
         supabase.from("wellness_goals").select("*").eq("user_id", selected.id).order("created_at", { ascending: false }),
         supabase.from("wellness_progress_photos" as any).select("*").eq("user_id", selected.id),
+        supabase.from("profiles").select("display_name,preferences").eq("id", selected.id).maybeSingle(),
+        (supabase as any).from("user_activity_sessions")
+          .select("id,category,label,last_seen_at,active_seconds")
+          .eq("user_id", selected.id)
+          .order("last_seen_at", { ascending: false })
+          .limit(1000),
       ]);
       setEntries((es.data as any) ?? []);
       setMeasurements((ms.data as any) ?? []);
       setGoals((gs.data as any) ?? []);
       setPhotos((ps.data as any) ?? []);
+      setProfile((profileResult.data as ProfileDetail | null) ?? null);
+      setActivityRows((activityResult.data as ActivityRow[] | null) ?? []);
       setLoadingDetail(false);
     })();
   }, [selected]);
@@ -145,6 +197,23 @@ export default function AdminUserTracking() {
   };
 
   const entriesFiltered = useMemo(() => entries.filter(inPeriod), [entries, period]);
+  const totalActivitySeconds = activityRows.reduce((sum, row) => sum + Number(row.active_seconds || 0), 0);
+  const lastSeen = activityRows[0]?.last_seen_at ?? selected?.last_activity ?? null;
+  const daysSinceLastSeen = lastSeen
+    ? Math.floor((Date.now() - +new Date(lastSeen)) / (24 * 60 * 60 * 1000))
+    : Number.POSITIVE_INFINITY;
+  const activeDaysThisWeek = new Set(activityRows
+    .filter(row => +new Date(row.last_seen_at) >= Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .map(row => new Date(row.last_seen_at).toLocaleDateString("en-CA"))).size;
+  const alert = !lastSeen || daysSinceLastSeen >= 14
+    ? { label: "Necesita atención", detail: !lastSeen ? "Todavía no ha utilizado la aplicación" : `No entra desde hace ${daysSinceLastSeen} días`, tone: "bg-rose-50 text-rose-700" }
+    : daysSinceLastSeen >= 7
+      ? { label: "Revisar pronto", detail: `Lleva ${daysSinceLastSeen} días sin entrar`, tone: "bg-amber-50 text-amber-700" }
+      : activeDaysThisWeek >= 5
+        ? { label: "Muy activa", detail: `${activeDaysThisWeek} días activa esta semana`, tone: "bg-emerald-50 text-emerald-700" }
+        : { label: "Seguimiento al día", detail: relativeTime(lastSeen), tone: "bg-sky-50 text-sky-700" };
+  const preferences = profile?.preferences ?? {};
+  const latestEntry = entries[0] ?? null;
 
   return (
     <div className="pb-28">
@@ -200,6 +269,61 @@ export default function AdminUserTracking() {
               <span className="text-[10px] px-2 py-1 rounded-full bg-muted shrink-0">Solo lectura</span>
             </div>
           </header>
+
+          {!loadingDetail && (
+            <section className="card-elegant p-4 mb-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <h2 className="font-serif text-base" style={{ color: "hsl(var(--plum))" }}>Ficha integral</h2>
+                  </div>
+                  <p className="text-[11px] muted mt-1">Información privada para tu acompañamiento.</p>
+                </div>
+                <span className={`text-[10px] font-semibold rounded-full px-2 py-1 ${alert.tone}`}>{alert.label}</span>
+              </div>
+
+              <div className={`rounded-xl p-3 mb-3 flex items-start gap-2 ${alert.tone}`}>
+                <BellRing className="h-4 w-4 mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-xs font-semibold">{alert.label}</div>
+                  <div className="text-[11px] opacity-80">{alert.detail}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <IntegralMetric icon={Clock} label="Último acceso" value={relativeTime(lastSeen)} />
+                <IntegralMetric icon={Flame} label="Actividad semanal" value={`${activeDaysThisWeek} días`} />
+                <IntegralMetric icon={Activity} label="Tiempo total" value={formatDuration(totalActivitySeconds)} />
+                <IntegralMetric icon={HeartPulse} label="Último registro" value={latestEntry ? fmt(latestEntry.entry_date) : "Sin registros"} />
+              </div>
+
+              <div className="rounded-2xl border border-border/60 divide-y divide-border/50">
+                <IntegralDetail
+                  icon={Target}
+                  label="Objetivo"
+                  value={preferences.objective || (goals.length ? `${goals.length} objetivo${goals.length === 1 ? "" : "s"} registrado${goals.length === 1 ? "" : "s"}` : "No indicado")}
+                />
+                <IntegralDetail icon={Utensils} label="Alergias o alimentos a evitar" value={preferences.allergies || "No indicado"} />
+                <IntegralDetail icon={Activity} label="Calorías objetivo" value={preferences.target_calories ? `${preferences.target_calories} kcal` : "No indicado"} />
+              </div>
+
+              {activityRows.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-xs font-semibold mb-2">Últimas acciones</h3>
+                  <div className="space-y-1.5">
+                    {activityRows.slice(0, 5).map(row => (
+                      <div key={row.id} className="rounded-xl bg-secondary/45 px-3 py-2 flex items-start gap-2 text-xs">
+                        <span className="text-primary">•</span>
+                        <span className="min-w-0 flex-1">{activityAction(row)}</span>
+                        <span className="muted shrink-0">{relativeTime(row.last_seen_at)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="flex gap-1 bg-muted rounded-full p-1 mb-3 w-fit">
             {(["week","month","all"] as const).map(p => (
@@ -360,6 +484,44 @@ function Cell({ icon: Icon, label, value }: { icon?: any; label: string; value: 
       {Icon && <Icon className="h-3 w-3 text-primary" />}
       <span className="muted">{label}:</span>
       <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function IntegralMetric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Activity;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl bg-secondary/55 p-2.5">
+      <Icon className="h-3.5 w-3.5 text-primary mb-1" />
+      <div className="text-[10px] muted">{label}</div>
+      <div className="text-xs font-semibold mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function IntegralDetail({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Activity;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 p-3">
+      <Icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <div className="text-[10px] muted">{label}</div>
+        <div className="text-xs font-medium mt-0.5">{value}</div>
+      </div>
     </div>
   );
 }

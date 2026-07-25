@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X } from "lucide-react";
+import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X, BellRing, UserCheck, UserX, AlertTriangle } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ type Row = {
 
 type ActivityRow = {
   id: string;
+  user_id?: string;
   path: string;
   category: string;
   label: string | null;
@@ -88,6 +89,7 @@ export default function AdminUsers() {
   const [activityRows, setActivityRows] = useState<ActivityRow[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState("");
+  const [allActivityRows, setAllActivityRows] = useState<ActivityRow[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -107,6 +109,17 @@ export default function AdminUsers() {
       return;
     }
     setRows(data.users ?? []);
+    const { data: activityData, error: activitySummaryError } = await (supabase as any)
+      .from("user_activity_sessions")
+      .select("id,user_id,path,category,label,started_at,last_seen_at,active_seconds")
+      .order("last_seen_at", { ascending: false })
+      .limit(5000);
+    if (activitySummaryError) {
+      console.error("[user-activity-summary]", activitySummaryError);
+      setAllActivityRows([]);
+    } else {
+      setAllActivityRows((activityData ?? []) as ActivityRow[]);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -209,9 +222,101 @@ export default function AdminUsers() {
     return [...list].sort(cmp);
   }, [rows, q, filterRole, filterStatus, sortBy]);
 
+  const activityByUser = useMemo(() => {
+    const map = new Map<string, ActivityRow[]>();
+    allActivityRows.forEach(row => {
+      if (!row.user_id) return;
+      const list = map.get(row.user_id) ?? [];
+      list.push(row);
+      map.set(row.user_id, list);
+    });
+    return map;
+  }, [allActivityRows]);
+
+  const clientAlerts = useMemo(() => rows
+    .filter(row => !isAdmin(row) && !row.is_banned)
+    .map(row => {
+      const activity = activityByUser.get(row.id) ?? [];
+      const latestActivity = activity[0]?.last_seen_at ?? row.last_sign_in_at;
+      const daysInactive = latestActivity
+        ? Math.floor((Date.now() - +new Date(latestActivity)) / (24 * 60 * 60 * 1000))
+        : Number.POSITIVE_INFINITY;
+      const activeDaysThisWeek = new Set(activity
+        .filter(item => +new Date(item.last_seen_at) >= Date.now() - 7 * 24 * 60 * 60 * 1000)
+        .map(item => dayKey(item.last_seen_at))).size;
+      const level = !row.email_confirmed_at || !latestActivity || daysInactive >= 14
+        ? "urgent"
+        : daysInactive >= 7
+          ? "attention"
+          : activeDaysThisWeek >= 5
+            ? "positive"
+            : "normal";
+      const message = !row.email_confirmed_at
+        ? "Acceso pendiente de confirmar"
+        : !latestActivity
+          ? "Todavía no ha entrado"
+          : daysInactive >= 14
+            ? `Sin entrar desde hace ${daysInactive} días`
+            : daysInactive >= 7
+              ? `Lleva ${daysInactive} días sin entrar`
+              : activeDaysThisWeek >= 5
+                ? "Muy activa esta semana"
+                : "Seguimiento al día";
+      return { row, level, message, daysInactive };
+    })
+    .sort((a, b) => {
+      const priority = { urgent: 0, attention: 1, positive: 2, normal: 3 };
+      return priority[a.level as keyof typeof priority] - priority[b.level as keyof typeof priority]
+        || b.daysInactive - a.daysInactive;
+    }), [rows, activityByUser]);
+
+  const urgentAlerts = clientAlerts.filter(alert => alert.level === "urgent").length;
+  const attentionAlerts = clientAlerts.filter(alert => alert.level === "attention").length;
+  const activeClients = clientAlerts.filter(alert => alert.level === "positive").length;
+
   return (
     <div className="pb-28">
       <AdminPageHeader title="Usuarias" subtitle={`${rows.length} usuario${rows.length === 1 ? "" : "s"} registrados.`} />
+
+      <section className="card-elegant p-4 mb-4" aria-label="Alertas de seguimiento">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <BellRing className="h-4 w-4 text-primary" />
+              <h2 className="font-serif text-base" style={{ color: "hsl(var(--plum))" }}>Alertas de seguimiento</h2>
+            </div>
+            <p className="text-[11px] muted mt-1">Privadas y visibles solo para administración.</p>
+          </div>
+          <span className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-1">{clientAlerts.length} clientas</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <AlertMetric icon={UserX} label="Necesitan atención" value={urgentAlerts} tone="rose" />
+          <AlertMetric icon={AlertTriangle} label="Revisar pronto" value={attentionAlerts} tone="amber" />
+          <AlertMetric icon={UserCheck} label="Muy activas" value={activeClients} tone="emerald" />
+        </div>
+        {clientAlerts.filter(alert => alert.level !== "normal").length === 0 ? (
+          <div className="rounded-xl bg-emerald-50 text-emerald-700 p-3 text-xs">No hay avisos pendientes en este momento.</div>
+        ) : (
+          <div className="space-y-1.5">
+            {clientAlerts.filter(alert => alert.level !== "normal").slice(0, 5).map(alert => (
+              <Link
+                key={alert.row.id}
+                to={`/app/admin/seguimiento/${alert.row.id}`}
+                className={`rounded-xl px-3 py-2 flex items-center gap-2 text-xs ${
+                  alert.level === "urgent"
+                    ? "bg-rose-50 text-rose-700"
+                    : alert.level === "attention"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                <span className="font-semibold truncate flex-1">{alert.row.display_name || alert.row.email || "Clienta"}</span>
+                <span className="shrink-0">{alert.message}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       {loadError && (
         <div className="card-soft p-4 mb-3 border-destructive/40 bg-destructive/5 text-sm">
@@ -255,6 +360,7 @@ export default function AdminUsers() {
           {visible.map((r) => {
             const admin = isAdmin(r);
             const isSelf = r.id === user?.id;
+            const alert = clientAlerts.find(item => item.row.id === r.id);
             return (
               <div key={r.id} className={`card-soft p-3 ${r.is_banned ? "opacity-60" : ""}`}>
                 <div className="flex items-center gap-3">
@@ -268,6 +374,19 @@ export default function AdminUsers() {
                     </div>
                     <div className="text-xs muted truncate">{r.email ?? "—"}</div>
                     <div className="text-[11px] muted">Alta: {fmt(r.created_at)} · Última actividad: {fmt(r.last_sign_in_at)}</div>
+                    {!admin && alert && (
+                      <div className={`text-[10px] mt-1 font-medium ${
+                        alert.level === "urgent"
+                          ? "text-rose-600"
+                          : alert.level === "attention"
+                            ? "text-amber-600"
+                            : alert.level === "positive"
+                              ? "text-emerald-600"
+                              : "muted"
+                      }`}>
+                        {alert.message}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -452,6 +571,31 @@ function ActivityMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl bg-secondary/55 p-2.5">
       <div className="text-[10px] muted">{label}</div>
       <div className="font-semibold text-sm mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function AlertMetric({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof BellRing;
+  label: string;
+  value: number;
+  tone: "rose" | "amber" | "emerald";
+}) {
+  const styles = {
+    rose: "bg-rose-50 text-rose-700",
+    amber: "bg-amber-50 text-amber-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+  }[tone];
+  return (
+    <div className={`rounded-xl p-2.5 ${styles}`}>
+      <Icon className="h-4 w-4 mb-1" />
+      <div className="font-serif text-xl leading-none">{value}</div>
+      <div className="text-[9px] leading-tight mt-1">{label}</div>
     </div>
   );
 }
