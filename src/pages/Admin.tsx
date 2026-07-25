@@ -67,6 +67,7 @@ const groups: { title: string; items: Item[] }[] = [
 ];
 
 const DEFAULT_ADMIN_CARD_ORDER = groups.flatMap(group => group.items.map(item => item.key));
+const ADMIN_SCROLL_POSITION_KEY = "esencia:admin-dashboard-scroll";
 
 type Stats = {
   recipes: number | null;
@@ -102,6 +103,19 @@ export default function Admin() {
     loadCardOrder("admin_card_order", DEFAULT_ADMIN_CARD_ORDER, supabase as any).then(setCardOrder);
   }, []);
 
+  useEffect(() => {
+    const savedPosition = Number(window.sessionStorage.getItem(ADMIN_SCROLL_POSITION_KEY) ?? 0);
+    const restore = () => {
+      if (savedPosition > 0) window.scrollTo({ top: savedPosition });
+    };
+    const frame = requestAnimationFrame(restore);
+    const timer = window.setTimeout(restore, 250);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
   const orderedItemsForGroup = (items: Item[]) => orderCards(items, cardOrder);
 
   const currentAdminOrder = () => groups.flatMap(group => orderedItemsForGroup(group.items).map(item => item.key));
@@ -131,7 +145,7 @@ export default function Admin() {
 
   return (
     <div className="admin-dashboard pb-28 max-w-3xl mx-auto">
-      <BackButton fallbackTo="/app/perfil" className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
+      <BackButton fallbackTo="/app" forceFallback className="text-sm muted inline-flex items-center gap-1 mb-2 hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
 
@@ -244,5 +258,13 @@ function AdminCard({ item, ordering, orderControls }: { item: Item; ordering: bo
   );
 
   if (ordering) return <div className={className}>{content}</div>;
-  return <Link to={item.to} className={className}>{content}</Link>;
+  return (
+    <Link
+      to={item.to}
+      className={className}
+      onClick={() => window.sessionStorage.setItem(ADMIN_SCROLL_POSITION_KEY, String(window.scrollY))}
+    >
+      {content}
+    </Link>
+  );
 }

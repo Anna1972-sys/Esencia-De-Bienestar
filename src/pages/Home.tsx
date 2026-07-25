@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+const HOME_SCROLL_POSITION_KEY = "esencia:home-dashboard-scroll";
 import { loadCardOrder, orderCards } from "@/lib/cardOrderSettings";
 import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 
@@ -64,6 +66,34 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const savedPosition = sessionStorage.getItem(HOME_SCROLL_POSITION_KEY);
+    if (!savedPosition) return;
+
+    const scrollPosition = Number(savedPosition);
+    if (!Number.isFinite(scrollPosition)) return;
+
+    let delayedRestore: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollPosition, behavior: "auto" });
+      delayedRestore = window.setTimeout(() => {
+        window.scrollTo({ top: scrollPosition, behavior: "auto" });
+      }, 250);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (delayedRestore !== undefined) window.clearTimeout(delayedRestore);
+    };
+  }, []);
+
+  const rememberHomePosition = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("a[href^='/app/']")) {
+      sessionStorage.setItem(HOME_SCROLL_POSITION_KEY, String(window.scrollY));
+    }
+  };
+
+  useEffect(() => {
     (supabase as any)
       .from("app_settings")
       .select("welcome_title,welcome_message")
@@ -81,7 +111,7 @@ export default function Home() {
   const displayedWelcomeMessage = welcomeMessage || HOME_SUBTITLE;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" onClickCapture={rememberHomePosition}>
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary mb-1">Bienestar</p>

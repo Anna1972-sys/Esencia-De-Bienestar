@@ -57,6 +57,7 @@ export default function AdminPageHeader({
     <div className="mb-6">
       <BackButton
         fallbackTo={backTo}
+        forceFallback
         className="text-sm muted inline-flex items-center gap-1 mb-3 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" strokeWidth={1.75} /> {backLabel}

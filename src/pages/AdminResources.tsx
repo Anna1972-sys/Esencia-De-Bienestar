@@ -647,6 +647,7 @@ export default function AdminResources() {
             {!sectionIsOpen && (
               <BackButton
                 fallbackTo="/app/admin"
+                forceFallback
                 className="text-sm muted inline-flex items-center gap-1 mb-3 hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" /> Volver

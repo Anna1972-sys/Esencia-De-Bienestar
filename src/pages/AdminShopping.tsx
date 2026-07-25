@@ -439,7 +439,7 @@ export default function AdminShopping() {
 
   return (
     <div className="admin-shopping-page pb-28 max-w-5xl mx-auto">
-      <BackButton fallbackTo="/app/admin" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton fallbackTo="/app/admin" forceFallback className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
 

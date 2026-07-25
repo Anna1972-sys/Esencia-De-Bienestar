@@ -386,7 +386,7 @@ export default function AdminResourceCategories() {
 
   return (
     <div className="pb-28 space-y-3">
-      <AdminPageHeader title="Categorías de biblioteca" />
+      <AdminPageHeader title="Categorías de biblioteca" backTo="/app/admin/recursos" />
       <p className="text-sm muted">Arrastra <GripVertical className="inline h-3 w-3 align-middle" /> para reordenar o mover entre carpetas. También puedes soltar sobre una categoría para convertir un elemento en subcategoría.</p>
 
 

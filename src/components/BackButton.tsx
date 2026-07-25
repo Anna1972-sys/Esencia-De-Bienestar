@@ -4,11 +4,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
   fallbackTo?: string;
+  forceFallback?: boolean;
 };
 
 export default function BackButton({
   children,
   fallbackTo = "/app",
+  forceFallback = false,
   type = "button",
   onClick,
   className,
@@ -20,6 +22,11 @@ export default function BackButton({
   const goBack = (event: MouseEvent<HTMLButtonElement>) => {
     onClick?.(event);
     if (event.defaultPrevented) return;
+
+    if (forceFallback) {
+      navigate(fallbackTo);
+      return;
+    }
 
     const historyIndex = window.history.state?.idx;
     const hasPreviousRoute =
