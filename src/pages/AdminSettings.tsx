@@ -155,7 +155,7 @@ export default function AdminSettings() {
       <AdminPageHeader title="Ajustes generales" subtitle="Personaliza la apariencia y los textos principales." />
 
       <form onSubmit={save} className="space-y-3">
-        <SettingsSection title="Apariencia" description="Nombre, logo y colores de la aplicación." icon={<Palette className="h-4 w-4" />} open>
+        <SettingsSection title="Apariencia" description="Nombre, logo y colores de la aplicación." icon={<Palette className="h-4 w-4" />}>
           <div className="space-y-4">
             <div>
               <label className="text-xs muted">Nombre de la aplicación</label>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, Sparkles, Clock } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, Clock, Info } from "lucide-react";
 import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
 import { type LibraryContext, resolveLibraryReturnContext, saveLibraryReturnContext } from "@/lib/libraryNavigation";
@@ -69,6 +69,17 @@ export default function Library() {
       if (Boolean(a.is_featured) !== Boolean(b.is_featured)) return Number(Boolean(b.is_featured)) - Number(Boolean(a.is_featured));
       return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
     });
+  };
+
+  const isCalorieGuidance = (recipe: Recipe) => {
+    const text = `${recipe.title ?? ""} ${recipe.description ?? ""}`
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    return (
+      (text.includes("orientacion") && text.includes("caloria")) ||
+      (text.includes("repetir") && text.includes("almuerzo") && text.includes("merienda"))
+    );
   };
 
   const load = () =>
@@ -202,6 +213,57 @@ export default function Library() {
               {filtered.map(r => {
                 const category = normalizeCategory(r.category);
                 const cover = normalizeRecipeImageUrl(r.image_url);
+                if (isCalorieGuidance(r)) {
+                  const guidanceCalories = r.macros?.calories ?? 200;
+                  const lunchImage = LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image;
+                  const snackImage = LIBRARY_CATEGORIES.find(item => item.id === "meriendas")?.image;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => openRecipe(r.id)}
+                      className="w-full overflow-hidden rounded-[24px] border border-primary/25 bg-gradient-to-br from-white via-primary/[0.045] to-secondary/70 p-4 text-left shadow-[0_16px_32px_-24px_hsl(var(--primary)/0.55)] transition hover:-translate-y-0.5"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary">
+                          <Info className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                            Orientación de calorías
+                          </div>
+                          <div className="mt-0.5 text-lg font-semibold leading-tight">
+                            Alterna tus snacks y meriendas
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/75 text-center">
+                          {lunchImage && (
+                            <img src={lunchImage} alt="" className="h-20 w-full object-cover" />
+                          )}
+                          <div className="p-2.5">
+                            <div className="text-xs font-medium">Almuerzo</div>
+                            <div className="mt-0.5 text-sm font-semibold text-primary">Hasta {guidanceCalories} kcal</div>
+                          </div>
+                        </div>
+                        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/75 text-center">
+                          {snackImage && (
+                            <img src={snackImage} alt="" className="h-20 w-full object-cover" />
+                          )}
+                          <div className="p-2.5">
+                            <div className="text-xs font-medium">Merienda</div>
+                            <div className="mt-0.5 text-sm font-semibold text-primary">Hasta {guidanceCalories} kcal</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
+                        Varía las opciones durante la semana para mantener una alimentación equilibrada.
+                      </p>
+                    </button>
+                  );
+                }
                 return (
                   <button
                     key={r.id}
