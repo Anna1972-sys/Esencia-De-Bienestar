@@ -106,9 +106,7 @@ async function generateImageWithGemini(apiKey: string, prompt: string, signal: A
       input: [{ type: "text", text: prompt }],
       response_format: {
         type: "image",
-        mime_type: "image/png",
         aspect_ratio: "4:5",
-        image_size: "1K",
       },
     }),
   });
