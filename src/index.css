@@ -3802,6 +3802,11 @@
     overflow: hidden;
   }
 
+  .formula-guidance-thumb {
+    height: auto;
+    min-height: 8.5rem;
+  }
+
   .admin-movement-page .btn-secondary,
   .admin-movement-page .btn-ghost {
     background: #FFD6EA !important;
@@ -4078,6 +4083,10 @@
   .recipe-detail-page .card-soft {
     background: #FFF7FA !important;
     border-color: #FF2D95 !important;
+  }
+
+  .library-recipes-page .recipe-premium.formula-guidance-card {
+    background: #FFFFFF !important;
   }
 
   .recipe-detail-page .recipe-add-button {

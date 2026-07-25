@@ -82,6 +82,13 @@ export default function Library() {
     );
   };
 
+  const isFormulaGuidance = (recipe: Recipe) =>
+    String(recipe.title ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .includes("formula");
+
   const load = () =>
     supabase
       .from("recipes")
@@ -123,7 +130,11 @@ export default function Library() {
         });
       });
     }
-    return applyManualRecipeOrder(list);
+    const ordered = applyManualRecipeOrder(list);
+    if (selectedCat === "desayunos_sin_herbalife") {
+      return [...ordered].sort((a, b) => Number(isFormulaGuidance(b)) - Number(isFormulaGuidance(a)));
+    }
+    return ordered;
   }, [items, selectedCat, q]);
 
   useEffect(() => {
@@ -162,11 +173,14 @@ export default function Library() {
         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 muted" />
         <input
           className="field pl-9"
-          placeholder="Buscar por nombre o ingrediente…"
+          placeholder="¿Qué ingrediente te apetece?"
           value={q}
           onChange={e => setQ(e.target.value)}
         />
       </div>
+      <p className="-mt-3 mb-5 px-1 text-xs muted">
+        Prueba: plátano, chocolate, fresa, café…
+      </p>
 
       {!selectedCat && !q && (
         <div className="grid grid-cols-2 gap-5">
@@ -213,6 +227,40 @@ export default function Library() {
               {filtered.map(r => {
                 const category = normalizeCategory(r.category);
                 const cover = normalizeRecipeImageUrl(r.image_url);
+                if (isFormulaGuidance(r)) {
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => openRecipe(r.id)}
+                      className="recipe-premium formula-guidance-card rounded-[22px] w-full text-left transition overflow-hidden flex"
+                    >
+                      {cover && (
+                        <div className="library-recipe-thumb formula-guidance-thumb shrink-0 self-stretch bg-muted">
+                          <img
+                            src={cover}
+                            alt={r.title}
+                            loading="lazy"
+                            className="app-photo-cover-image transition-transform duration-500 hover:scale-105"
+                          />
+                        </div>
+                      )}
+                      <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
+                        <div className="font-medium leading-tight">{r.title}</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                            Menos de 250 kcal
+                          </span>
+                          <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold">
+                            25–30 g de proteína
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-snug muted">
+                          Combina una fuente de proteína con un complemento saludable.
+                        </p>
+                      </div>
+                    </button>
+                  );
+                }
                 if (isCalorieGuidance(r)) {
                   const guidanceCalories = r.macros?.calories ?? 200;
                   const lunchImage = LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image;
