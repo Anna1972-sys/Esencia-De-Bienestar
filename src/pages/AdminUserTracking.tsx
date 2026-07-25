@@ -35,6 +35,15 @@ type ActivityRow = {
   last_seen_at: string;
   active_seconds: number;
 };
+type ClientFavorite = {
+  id: string;
+  content_type: "recipe" | "video" | "guide" | "exercise";
+  content_id: string;
+  created_at: string;
+  last_opened_at: string | null;
+  open_count: number;
+  title: string;
+};
 
 const METRICS: { key: MetricKey; label: string; unit: "kg" | "cm"; color: string }[] = [
   { key: "weight", label: "Peso", unit: "kg", color: "hsl(325 70% 65%)" },
@@ -91,6 +100,7 @@ export default function AdminUserTracking() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
   const [activityRows, setActivityRows] = useState<ActivityRow[]>([]);
+  const [clientFavorites, setClientFavorites] = useState<ClientFavorite[]>([]);
 
   // Load list of clients
   useEffect(() => {
@@ -140,11 +150,12 @@ export default function AdminUserTracking() {
       setPhotos([]);
       setProfile(null);
       setActivityRows([]);
+      setClientFavorites([]);
       return;
     }
     (async () => {
       setLoadingDetail(true);
-      const [es, ms, gs, ps, profileResult, activityResult] = await Promise.all([
+      const [es, ms, gs, ps, profileResult, activityResult, favoritesResult] = await Promise.all([
         supabase.from("wellness_entries").select("*").eq("user_id", selected.id).order("entry_date", { ascending: false }),
         supabase.from("wellness_measurements" as any).select("*").eq("user_id", selected.id).order("measured_at", { ascending: true }),
         supabase.from("wellness_goals").select("*").eq("user_id", selected.id).order("created_at", { ascending: false }),
@@ -155,6 +166,10 @@ export default function AdminUserTracking() {
           .eq("user_id", selected.id)
           .order("last_seen_at", { ascending: false })
           .limit(1000),
+        (supabase as any).from("user_favorites")
+          .select("id,content_type,content_id,created_at,last_opened_at,open_count")
+          .eq("user_id", selected.id)
+          .order("created_at", { ascending: false }),
       ]);
       setEntries((es.data as any) ?? []);
       setMeasurements((ms.data as any) ?? []);
@@ -162,6 +177,19 @@ export default function AdminUserTracking() {
       setPhotos((ps.data as any) ?? []);
       setProfile((profileResult.data as ProfileDetail | null) ?? null);
       setActivityRows((activityResult.data as ActivityRow[] | null) ?? []);
+      const favoriteRows = (favoritesResult.data ?? []) as Omit<ClientFavorite, "title">[];
+      const recipeIds = favoriteRows.filter(row => row.content_type === "recipe").map(row => row.content_id);
+      const resourceIds = favoriteRows.filter(row => row.content_type === "video" || row.content_type === "guide").map(row => row.content_id);
+      const exerciseIds = favoriteRows.filter(row => row.content_type === "exercise").map(row => row.content_id);
+      const [favoriteRecipes, favoriteResources, favoriteExercises] = await Promise.all([
+        recipeIds.length ? supabase.from("recipes").select("id,title").in("id", recipeIds) : Promise.resolve({ data: [] }),
+        resourceIds.length ? supabase.from("resources").select("id,title").in("id", resourceIds) : Promise.resolve({ data: [] }),
+        exerciseIds.length ? (supabase as any).from("movement_items").select("id,title").in("id", exerciseIds) : Promise.resolve({ data: [] }),
+      ]);
+      const titles = new Map<string, string>();
+      [...(favoriteRecipes.data ?? []), ...(favoriteResources.data ?? []), ...(favoriteExercises.data ?? [])]
+        .forEach((row: any) => titles.set(row.id, row.title));
+      setClientFavorites(favoriteRows.map(row => ({ ...row, title: titles.get(row.content_id) ?? "Contenido eliminado" })));
       setLoadingDetail(false);
     })();
   }, [selected]);
@@ -322,6 +350,37 @@ export default function AdminUserTracking() {
                   </div>
                 </div>
               )}
+
+              <div className="mt-4">
+                <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                  <HeartPulse className="h-3.5 w-3.5 text-primary" /> Favoritos
+                </h3>
+                {clientFavorites.length === 0 ? (
+                  <p className="rounded-xl bg-secondary/45 p-3 text-xs muted text-center">Esta clienta todavía no ha guardado favoritos.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {clientFavorites.map(favorite => (
+                      <div key={favorite.id} className="rounded-xl border border-border/60 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium text-xs truncate">{favorite.title} ❤️</div>
+                            <div className="text-[10px] muted mt-0.5">
+                              {favorite.content_type === "recipe" ? "Receta" : favorite.content_type === "video" ? "Vídeo" : favorite.content_type === "guide" ? "Guía" : "Ejercicio"}
+                              {" · "}Guardado {fmt(favorite.created_at)}
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-primary shrink-0">
+                            {favorite.open_count} {favorite.open_count === 1 ? "apertura" : "aperturas"}
+                          </span>
+                        </div>
+                        <div className="text-[10px] muted mt-1">
+                          {favorite.last_opened_at ? `Último uso: ${relativeTime(favorite.last_opened_at)}` : "Todavía no consultado desde Favoritos"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
           )}
 

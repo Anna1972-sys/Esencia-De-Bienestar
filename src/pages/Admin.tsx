@@ -22,6 +22,7 @@ import diaryImage from "@/assets/diary/diary-hero.png";
 import progressImage from "@/assets/home-progreso.png";
 import welcomeImage from "@/assets/home-admin.png";
 import settingsDeskImage from "@/assets/challenge-downloads.png";
+import favoritesImage from "@/assets/admin-favorites.jpg";
 
 type Item = {
   key: string;
@@ -54,6 +55,7 @@ const groups: { title: string; items: Item[] }[] = [
       { key: "lista-compra", to: "/app/admin/lista-compra",       label: "Lista de compra",         desc: "Productos y categorías", image: shoppingImage },
       { key: "diario", to: "/app/admin/diario",             label: "Diario",                  desc: "Preguntas del diario", image: diaryImage },
       { key: "progreso", to: "/app/admin/progreso",           label: "Progreso",                desc: "Métricas y objetivos", image: progressImage },
+      { key: "favoritos", to: "/app/admin/favoritos",         label: "Favoritos",               desc: "Contenido más guardado y utilizado", image: favoritesImage },
     ],
   },
   {

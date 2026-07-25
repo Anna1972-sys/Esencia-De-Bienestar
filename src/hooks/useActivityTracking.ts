@@ -9,6 +9,7 @@ const categoryForPath = (path: string) => {
   if (path === "/app") return "Inicio";
   if (path.startsWith("/app/generar")) return "Generador de recetas";
   if (path.startsWith("/app/mis-recetas")) return "Mis recetas creadas";
+  if (path.startsWith("/app/favoritos")) return "Mis favoritos";
   if (path.startsWith("/app/biblioteca")) return "Biblioteca de recetas";
   if (path.startsWith("/app/productos")) return "Salud y Bienestar";
   if (path.startsWith("/app/lista-compra")) return "Lista de compra";

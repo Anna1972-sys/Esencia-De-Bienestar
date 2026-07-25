@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, BookOpen, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { mediaUrl } from "@/lib/mediaStorage";
+import FavoriteButton from "@/components/favorites/FavoriteButton";
 
 export type LibraryCategory = {
   id?: string;
@@ -157,37 +158,42 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
     const cardDescription = shortText(it.subtitle || it.description || firstTextFromBlocks(it.blocks) || "Abre la publicación para ver todo el contenido.");
     const date = it.created_at ? new Date(it.created_at).toLocaleDateString("es-ES") : "";
     return (
-      <Link
-        to={`${basePath}/${it.id}`}
-        className="card-soft overflow-hidden block hover:shadow-glow transition"
-      >
-        {cover ? (
-          <img src={mediaUrl(cover)} alt="" className="w-full h-40 object-cover" />
-        ) : (
-          <div className="w-full h-40 bg-gradient-to-br from-[#FFF7FA] to-[#F7D8EA] grid place-items-center text-primary text-sm font-medium">
-            Sin imagen
-          </div>
+      <div className="relative">
+        {variant === "movement" && (
+          <FavoriteButton contentType="exercise" contentId={it.id} className="absolute right-2 top-2 z-10" />
         )}
-        <div className="p-4 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-medium leading-tight">{cardTitle}</div>
-            <div className="text-xs muted mt-1">{label ?? visibleCategories.find((c) => categoryMatches(it, c))?.label}</div>
-            {cardDescription && <p className="text-sm muted mt-2 line-clamp-2">{cardDescription}</p>}
-            {date && <div className="text-[11px] muted mt-2">{date}</div>}
-            {Array.isArray(it.tags) && it.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {it.tags.slice(0, 4).map((t: string) => (
-                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-            <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Abrir publicación</span>
+        <Link
+          to={`${basePath}/${it.id}`}
+          className="card-soft overflow-hidden block hover:shadow-glow transition"
+        >
+          {cover ? (
+            <img src={mediaUrl(cover)} alt="" className="w-full h-40 object-cover" />
+          ) : (
+            <div className="w-full h-40 bg-gradient-to-br from-[#FFF7FA] to-[#F7D8EA] grid place-items-center text-primary text-sm font-medium">
+              Sin imagen
+            </div>
+          )}
+          <div className={`p-4 flex items-start justify-between gap-3 ${variant === "movement" ? "pr-12" : ""}`}>
+            <div className="min-w-0">
+              <div className="font-medium leading-tight">{cardTitle}</div>
+              <div className="text-xs muted mt-1">{label ?? visibleCategories.find((c) => categoryMatches(it, c))?.label}</div>
+              {cardDescription && <p className="text-sm muted mt-2 line-clamp-2">{cardDescription}</p>}
+              {date && <div className="text-[11px] muted mt-2">{date}</div>}
+              {Array.isArray(it.tags) && it.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {it.tags.slice(0, 4).map((t: string) => (
+                    <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Abrir publicación</span>
+            </div>
+            <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />
           </div>
-          <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />
-        </div>
-      </Link>
+        </Link>
+      </div>
     );
   };
 

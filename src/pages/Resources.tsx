@@ -8,6 +8,8 @@ import imgVideos from "@/assets/resource-videos.png";
 import imgGuias from "@/assets/resource-guias.png";
 import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import GuideCardsGrid, { cards as GUIDE_RESOURCE_CARDS, guideCardMatchesCategory, isGuidesCategory, resolveCategoryCoverImage } from "@/components/resources/GuideCardsGrid";
+import FavoriteButton from "@/components/favorites/FavoriteButton";
+import type { FavoriteContentType } from "@/contexts/FavoritesContext";
 
 type Category = {
   id: string;
@@ -124,6 +126,15 @@ export default function Resources() {
     return cats.some(c => ids.has(c.id) && (normalizeSlug(c.slug) === legacy || normalizeSlug(c.name) === legacy));
   };
 
+  const favoriteTypeForItem = (item: any): FavoriteContentType => {
+    const category = itemCategory(item);
+    const parent = category?.parent_id ? cats.find(c => c.id === category.parent_id) : null;
+    const text = normalizeSlug(`${category?.name ?? ""} ${category?.slug ?? ""} ${parent?.name ?? ""} ${parent?.slug ?? ""}`);
+    const blocks = Array.isArray(item.blocks) ? item.blocks : [];
+    const hasVideo = blocks.some((block: any) => block?.type === "video") || Boolean(item.url);
+    return hasVideo || text.includes("video") ? "video" : "guide";
+  };
+
   const q = String(query ?? "").trim().toLowerCase();
   const searching = q.length > 0;
 
@@ -211,19 +222,22 @@ export default function Resources() {
               {filteredItems.map(it => {
                 const cat = itemCategory(it);
                 return (
-                  <Link key={it.id} to={`/app/recursos/${it.id}`} className="card-soft overflow-hidden block hover:shadow-glow transition">
-                    {it.cover_image && <img src={it.cover_image} alt="" className="app-content-cover-image" />}
-                    <div className="p-4 flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-medium truncate flex items-center gap-1.5">
-                          {it.is_pinned && <Pin className="h-3 w-3 text-primary fill-primary shrink-0" />}
-                          {it.title}
+                  <div key={it.id} className="relative">
+                    <FavoriteButton contentType={favoriteTypeForItem(it)} contentId={it.id} className="absolute right-2 top-2 z-10" />
+                    <Link to={`/app/recursos/${it.id}`} className="card-soft overflow-hidden block hover:shadow-glow transition">
+                      {it.cover_image && <img src={it.cover_image} alt="" className="app-content-cover-image" />}
+                      <div className="p-4 pr-12 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate flex items-center gap-1.5">
+                            {it.is_pinned && <Pin className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                            {it.title}
+                          </div>
+                          <div className="text-xs muted truncate">{cat?.icon} {cat?.name ?? "Sin categoría"}</div>
                         </div>
-                        <div className="text-xs muted truncate">{cat?.icon} {cat?.name ?? "Sin categoría"}</div>
+                        <ChevronRight className="h-4 w-4 muted shrink-0" />
                       </div>
-                      <ChevronRight className="h-4 w-4 muted shrink-0" />
-                    </div>
-                  </Link>
+                    </Link>
+                  </div>
                 );
               })}
             </div>

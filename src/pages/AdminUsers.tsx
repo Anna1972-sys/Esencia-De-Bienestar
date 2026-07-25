@@ -28,6 +28,12 @@ type ActivityRow = {
   last_seen_at: string;
   active_seconds: number;
 };
+type FavoriteEvent = {
+  id: string;
+  content_type: "recipe" | "video" | "guide" | "exercise";
+  action: "added" | "removed" | "opened";
+  created_at: string;
+};
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString() : "—";
 const formatDuration = (seconds: number) => {
@@ -89,6 +95,7 @@ export default function AdminUsers() {
   const [activityRows, setActivityRows] = useState<ActivityRow[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState("");
+  const [favoriteEvents, setFavoriteEvents] = useState<FavoriteEvent[]>([]);
   const [allActivityRows, setAllActivityRows] = useState<ActivityRow[]>([]);
 
   const load = async () => {
@@ -177,6 +184,7 @@ export default function AdminUsers() {
     if (activityUser?.id === r.id) {
       setActivityUser(null);
       setActivityRows([]);
+      setFavoriteEvents([]);
       setActivityError("");
       return;
     }
@@ -184,19 +192,28 @@ export default function AdminUsers() {
     setActivityRows([]);
     setActivityError("");
     setActivityLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("user_activity_sessions")
-      .select("id,path,category,label,started_at,last_seen_at,active_seconds")
-      .eq("user_id", r.id)
-      .order("started_at", { ascending: false })
-      .limit(1000);
+    const [activityResult, favoriteResult] = await Promise.all([
+      (supabase as any)
+        .from("user_activity_sessions")
+        .select("id,path,category,label,started_at,last_seen_at,active_seconds")
+        .eq("user_id", r.id)
+        .order("started_at", { ascending: false })
+        .limit(1000),
+      (supabase as any)
+        .from("favorite_activity_events")
+        .select("id,content_type,action,created_at")
+        .eq("user_id", r.id)
+        .order("created_at", { ascending: false })
+        .limit(30),
+    ]);
     setActivityLoading(false);
-    if (error) {
-      console.error("[user-activity]", error);
+    if (activityResult.error) {
+      console.error("[user-activity]", activityResult.error);
       setActivityError("No se pudo cargar la actividad. Comprueba que la actualización de Supabase esté aplicada.");
       return;
     }
-    setActivityRows((data ?? []) as ActivityRow[]);
+    setActivityRows((activityResult.data ?? []) as ActivityRow[]);
+    setFavoriteEvents((favoriteResult.data ?? []) as FavoriteEvent[]);
   };
 
   const visible = useMemo(() => {
@@ -437,11 +454,13 @@ export default function AdminUsers() {
                 {activityUser?.id === r.id && (
                   <UserActivityPanel
                     rows={activityRows}
+                    favoriteEvents={favoriteEvents}
                     loading={activityLoading}
                     error={activityError}
                     onClose={() => {
                       setActivityUser(null);
                       setActivityRows([]);
+                      setFavoriteEvents([]);
                       setActivityError("");
                     }}
                   />
@@ -458,11 +477,13 @@ export default function AdminUsers() {
 
 function UserActivityPanel({
   rows,
+  favoriteEvents,
   loading,
   error,
   onClose,
 }: {
   rows: ActivityRow[];
+  favoriteEvents: FavoriteEvent[];
   loading: boolean;
   error: string;
   onClose: () => void;
@@ -493,6 +514,15 @@ function UserActivityPanel({
   const recentActions = [...rows]
     .sort((a, b) => +new Date(b.last_seen_at) - +new Date(a.last_seen_at))
     .slice(0, 8);
+  const favoriteActionText = (event: FavoriteEvent) => {
+    const type = event.content_type === "recipe" ? "una receta"
+      : event.content_type === "video" ? "un vídeo"
+        : event.content_type === "guide" ? "una guía"
+          : "un ejercicio";
+    if (event.action === "removed") return `Eliminó ${type} de Favoritos`;
+    if (event.action === "opened") return `Abrió ${type} desde Favoritos`;
+    return `Guardó ${type} en Favoritos`;
+  };
 
   return (
     <section className="mt-3 rounded-2xl border border-primary/30 bg-white/80 p-3 space-y-3">
@@ -551,6 +581,13 @@ function UserActivityPanel({
           <div>
             <div className="text-xs font-semibold mb-2">Últimas acciones</div>
             <div className="space-y-1.5">
+              {favoriteEvents.slice(0, 6).map(event => (
+                <div key={event.id} className="rounded-xl bg-primary/5 px-3 py-2 flex items-start gap-2 text-xs">
+                  <span className="text-primary shrink-0">❤️</span>
+                  <span className="min-w-0 flex-1">{favoriteActionText(event)}</span>
+                  <span className="muted shrink-0">{relativeTime(event.created_at)}</span>
+                </div>
+              ))}
               {recentActions.map(row => (
                 <div key={row.id} className="rounded-xl bg-secondary/45 px-3 py-2 flex items-start gap-2 text-xs">
                   <span className="text-primary shrink-0">•</span>

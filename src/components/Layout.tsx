@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { FocusEvent, ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActivityTracking } from "@/hooks/useActivityTracking";
+import { FavoritesProvider } from "@/contexts/FavoritesContext";
 
 const items = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
@@ -61,26 +62,28 @@ export default function Layout() {
   };
 
   return (
-    <div className="app-shell relative">
-      <main className={`px-5 pt-6 animate-fade-in ${isAdminArea ? "admin-area" : ""}`} onFocusCapture={handleAdminNumberFocus}>
-        <SectionLoadingFrame key={location.pathname}>
-          <Outlet />
-        </SectionLoadingFrame>
-      </main>
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md px-4 pb-5 pt-2 z-40">
-        <div className="wellness-bottom-nav backdrop-blur-2xl rounded-full flex items-center justify-around py-2.5 px-2">
-          {items.map(({ to, icon: Icon, label, end }) => (
-            <NavLink key={to} to={to} end={end as any}
-              className={({ isActive }) =>
-                `wellness-nav-link ${isActive ? "wellness-nav-link-active scale-105" : ""}`
-              }
-            >
-              <Icon className="h-5 w-5" strokeWidth={2.2} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </div>
-      </nav>
-    </div>
+    <FavoritesProvider>
+      <div className="app-shell relative">
+        <main className={`px-5 pt-6 animate-fade-in ${isAdminArea ? "admin-area" : ""}`} onFocusCapture={handleAdminNumberFocus}>
+          <SectionLoadingFrame key={location.pathname}>
+            <Outlet />
+          </SectionLoadingFrame>
+        </main>
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md px-4 pb-5 pt-2 z-40">
+          <div className="wellness-bottom-nav backdrop-blur-2xl rounded-full flex items-center justify-around py-2.5 px-2">
+            {items.map(({ to, icon: Icon, label, end }) => (
+              <NavLink key={to} to={to} end={end as any}
+                className={({ isActive }) =>
+                  `wellness-nav-link ${isActive ? "wellness-nav-link-active scale-105" : ""}`
+                }
+              >
+                <Icon className="h-5 w-5" strokeWidth={2.2} />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      </div>
+    </FavoritesProvider>
   );
 }

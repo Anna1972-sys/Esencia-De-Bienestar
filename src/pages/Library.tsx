@@ -7,6 +7,7 @@ import { normalizeRecipeImageUrl } from "@/lib/recipeImages";
 import { type LibraryContext, resolveLibraryReturnContext, saveLibraryReturnContext } from "@/lib/libraryNavigation";
 import BackButton from "@/components/BackButton";
 import WellnessCategoryTile from "@/components/WellnessCategoryTile";
+import FavoriteButton from "@/components/favorites/FavoriteButton";
 
 type Recipe = {
   id: string;
@@ -323,43 +324,44 @@ export default function Library() {
                   );
                 }
                 return (
-                  <button
-                    key={r.id}
-                    onClick={() => openRecipe(r.id)}
-                    className="recipe-premium rounded-[22px] bg-white/90 w-full text-left transition overflow-hidden flex"
-                  >
-                    {cover && (
-                      <div className="library-recipe-thumb shrink-0 bg-muted">
-                        <img
-                          src={cover}
-                          alt={r.title}
-                          loading="lazy"
-                          className="app-photo-cover-image transition-transform duration-500 hover:scale-105"
-                          onError={(e) => {
-                            const image = e.currentTarget as HTMLImageElement;
-                            image.style.display = "none";
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="p-3 flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        {r.is_featured && <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        <div className="font-medium truncate">{r.title}</div>
-                      </div>
-                      <div className="mt-1.5 grid grid-cols-5 gap-1 text-[10px] text-center">
-                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
-                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
-                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
-                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
-                        <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fiber ?? 0}g</div><div className="muted">Fibra</div></div>
-                      </div>
-                      {(category || r.category) && !selectedCat && (
-                        <div className="text-[10px] muted mt-1 truncate">{category ? getCategoryLabel(category) : r.category}</div>
+                  <div key={r.id} className="relative">
+                    <FavoriteButton contentType="recipe" contentId={r.id} className="absolute right-2 top-2 z-10" />
+                    <button
+                      onClick={() => openRecipe(r.id)}
+                      className="recipe-premium rounded-[22px] bg-white/90 w-full text-left transition overflow-hidden flex"
+                    >
+                      {cover && (
+                        <div className="library-recipe-thumb shrink-0 bg-muted">
+                          <img
+                            src={cover}
+                            alt={r.title}
+                            loading="lazy"
+                            className="app-photo-cover-image transition-transform duration-500 hover:scale-105"
+                            onError={(e) => {
+                              const image = e.currentTarget as HTMLImageElement;
+                              image.style.display = "none";
+                            }}
+                          />
+                        </div>
                       )}
-                    </div>
-
-                  </button>
+                      <div className="p-3 pr-11 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {r.is_featured && <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />}
+                          <div className="font-medium truncate">{r.title}</div>
+                        </div>
+                        <div className="mt-1.5 grid grid-cols-5 gap-1 text-[10px] text-center">
+                          <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
+                          <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
+                          <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
+                          <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fat ?? 0}g</div><div className="muted">Grasa</div></div>
+                          <div className="nutrition-stat"><div className="font-semibold">{r.macros?.fiber ?? 0}g</div><div className="muted">Fibra</div></div>
+                        </div>
+                        {(category || r.category) && !selectedCat && (
+                          <div className="text-[10px] muted mt-1 truncate">{category ? getCategoryLabel(category) : r.category}</div>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
             </div>

@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+.favorite-heart-button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border: 1px solid rgb(255 45 149 / 28%);
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 92%);
+  color: hsl(var(--primary));
+  box-shadow: 0 8px 18px -12px rgb(70 20 50 / 45%);
+  transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.favorite-heart-button:hover {
+  transform: scale(1.06);
+}
+
+.favorite-heart-button:disabled {
+  opacity: 0.55;
+}
+
+.favorite-heart-button-saved {
+  background: hsl(var(--primary));
+  color: white;
+}
+
 @layer base {
   :root {
     /* Premium Wellness — blanco, negro, fucsia, rosa y lila */
