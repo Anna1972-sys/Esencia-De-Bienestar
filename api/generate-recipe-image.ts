@@ -93,42 +93,53 @@ function geminiImageFromResponse(payload: any): PreparedGeneratedImage | null {
 }
 
 async function generateImageWithGemini(apiKey: string, prompt: string, signal: AbortSignal): Promise<PreparedGeneratedImage> {
-  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      model,
-      input: [{ type: "text", text: prompt }],
-      response_format: {
-        type: "image",
-        aspect_ratio: "4:5",
+  const primaryModel = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
+  const models = primaryModel === "gemini-3.1-flash-lite-image"
+    ? [primaryModel]
+    : [primaryModel, "gemini-3.1-flash-lite-image"];
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
       },
-    }),
-  });
+      body: JSON.stringify({
+        model,
+        input: [{ type: "text", text: prompt }],
+        response_format: {
+          type: "image",
+          aspect_ratio: "4:5",
+        },
+      }),
+    });
 
-  const text = await response.text();
-  let payload: any = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    payload = null;
+    const text = await response.text();
+    let payload: any = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      const message = payload?.error?.message || text || "Gemini no pudo generar la imagen";
+      lastError = new Error(`Gemini ${response.status}: ${String(message).slice(0, 500)}`);
+      if (response.status === 429 && model !== models[models.length - 1]) continue;
+      throw lastError;
+    }
+
+    const image = geminiImageFromResponse(payload);
+    if (!image) {
+      throw new Error("Gemini no devolvió una imagen válida.");
+    }
+    return image;
   }
 
-  if (!response.ok) {
-    const message = payload?.error?.message || text || "Gemini no pudo generar la imagen";
-    throw new Error(`Gemini ${response.status}: ${String(message).slice(0, 500)}`);
-  }
-
-  const image = geminiImageFromResponse(payload);
-  if (!image) {
-    throw new Error("Gemini no devolvió una imagen válida.");
-  }
-  return image;
+  throw lastError ?? new Error("Gemini no pudo generar la imagen.");
 }
 
 function friendlyGeminiImageError(err: any) {
