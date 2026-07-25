@@ -46,7 +46,7 @@ const HOME_TILES: HomeTileItem[] = [
   { key: "progreso", to: "/app/progreso", image: imgProgreso, title: "Mi progreso", subtitle: "Tu evolución" },
   { key: "nutricion", to: "/app/nutricion", image: imgNutritionPremium, title: "Nutrición deportiva", subtitle: "Rendimiento y energía", variant: "dark" },
   { key: "movimiento", to: "/app/movimiento", image: imgMovimiento, title: "Movimiento y ejercicio", subtitle: "Actívate cada día", variant: "dark" },
-  { key: "favoritos", to: "/app/favoritos", image: imgRecetario, title: "Mis favoritos", subtitle: "Lo que más utilizas" },
+  { key: "favoritos", to: "/app/favoritos", image: imgRecetario, title: "Mis favoritos", subtitle: "Todo lo que te encanta" },
   { key: "admin", to: "/app/admin", image: imgAdmin, title: "Administración", subtitle: "Gestiona tu app", adminOnly: true },
 ];
 

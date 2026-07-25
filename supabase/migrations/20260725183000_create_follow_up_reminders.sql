@@ -1,3 +1,5 @@
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS public.follow_up_reminders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -31,3 +33,5 @@ CREATE POLICY "challenge_progress_admin_read"
 
 REVOKE ALL ON public.follow_up_reminders FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.follow_up_reminders TO authenticated;
+
+COMMIT;
