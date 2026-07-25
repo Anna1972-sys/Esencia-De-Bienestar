@@ -23,6 +23,28 @@ type Recipe = {
   video_url: string | null;
 };
 
+type ShoppingTemplate = {
+  name: string;
+  category: string | null;
+};
+
+const normalizeShoppingName = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const categoryFromAdminTemplates = (name: string, templates: ShoppingTemplate[]) => {
+  const ingredient = ` ${normalizeShoppingName(name)} `;
+  return [...templates]
+    .filter(template => template.category && normalizeShoppingName(template.name))
+    .sort((a, b) => normalizeShoppingName(b.name).length - normalizeShoppingName(a.name).length)
+    .find(template => ingredient.includes(` ${normalizeShoppingName(template.name)} `))
+    ?.category ?? null;
+};
+
 export default function RecipeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -49,13 +71,30 @@ export default function RecipeDetail() {
   const addAllToShopping = async () => {
     if (!r || !user) return;
     const ing = Array.isArray(r.ingredients) ? r.ingredients : [];
+    setAdding(true);
+    const { data: adminTemplates, error: templatesError } = await (supabase as any)
+      .from("shopping_templates")
+      .select("name,category");
+    if (templatesError) {
+      console.error("[shopping_templates recipe]", templatesError);
+    }
     const rows = ing.map((i: any) => {
       const name = typeof i === "string" ? i : i?.name ?? String(i);
       const quantity = typeof i === "string" ? null : i?.quantity ?? null;
-      return { user_id: user.id, name, quantity, category: classifyShoppingItem(name), recipe_id: r.id };
+      const adminCategory = categoryFromAdminTemplates(name, (adminTemplates ?? []) as ShoppingTemplate[]);
+      return {
+        user_id: user.id,
+        name,
+        quantity,
+        category: adminCategory ?? classifyShoppingItem(name),
+        recipe_id: r.id,
+      };
     }).filter(r => r.name?.trim());
-    if (!rows.length) { toast.error("Sin ingredientes"); return; }
-    setAdding(true);
+    if (!rows.length) {
+      setAdding(false);
+      toast.error("Sin ingredientes");
+      return;
+    }
     const { error } = await supabase.from("shopping_list_items").insert(rows);
     setAdding(false);
     if (error) toast.error(error.message); else toast.success("Añadido a la lista de compra");

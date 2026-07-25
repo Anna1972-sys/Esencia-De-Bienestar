@@ -39,6 +39,15 @@ const normalizeCategoryName = (value: unknown) =>
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
 
+const normalizeIngredientName = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
 export default function ShoppingList() {
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
@@ -107,6 +116,18 @@ export default function ShoppingList() {
     const key = normalizeCategoryName(category);
     return key ? categoryByKey.get(key) ?? null : null;
   };
+
+  const resolveTemplateCategory = (name: string) => {
+    const ingredient = ` ${normalizeIngredientName(name)} `;
+    const match = [...templates]
+      .filter(template => resolveCategory(template.category) && normalizeIngredientName(template.name))
+      .sort((a, b) => normalizeIngredientName(b.name).length - normalizeIngredientName(a.name).length)
+      .find(template => ingredient.includes(` ${normalizeIngredientName(template.name)} `));
+    return match ? resolveCategory(match.category) : null;
+  };
+
+  const resolveRowCategory = (row: Pick<Row, "name" | "category">) =>
+    resolveCategory(row.category) ?? resolveTemplateCategory(row.name);
 
   const shoppingRowKey = (name: unknown, category?: string | null) =>
     `${String(name ?? "").trim().toLowerCase()}|${normalizeCategoryName(resolveCategory(category) ?? category)}`;
@@ -183,8 +204,8 @@ export default function ShoppingList() {
   const filtered = useMemo(() => {
     const byCategory =
       filter === "all" ? allRows
-      : filter === UNCATEGORIZED ? allRows.filter(r => !resolveCategory(r.category))
-      : allRows.filter(r => resolveCategory(r.category) === filter);
+      : filter === UNCATEGORIZED ? allRows.filter(r => !resolveRowCategory(r))
+      : allRows.filter(r => resolveRowCategory(r) === filter);
     const q = String(query ?? "").trim().toLowerCase();
     if (!q) return byCategory;
     return byCategory.filter(r => String(r.name ?? "").toLowerCase().includes(q));
@@ -195,14 +216,14 @@ export default function ShoppingList() {
     for (const c of cats) m.set(c.name, []);
     m.set(UNCATEGORIZED, []);
     for (const r of filtered) {
-      const key = resolveCategory(r.category) ?? UNCATEGORIZED;
+      const key = resolveRowCategory(r) ?? UNCATEGORIZED;
       if (!m.has(key)) m.set(key, []);
       m.get(key)!.push(r);
     }
     return m;
   }, [filtered, cats, categoryByKey]);
 
-  const hasUncategorized = allRows.some((row) => !resolveCategory(row.category));
+  const hasUncategorized = allRows.some((row) => !resolveRowCategory(row));
 
   const total = filtered.length;
   const done = filtered.filter(r => r.checked).length;

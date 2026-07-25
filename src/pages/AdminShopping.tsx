@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Package, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Package, ShoppingBag, ArrowLeft } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
 import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
@@ -458,6 +458,12 @@ export default function AdminShopping() {
           className={`text-sm px-3 py-2 rounded-full border transition flex items-center gap-2 ${tab === "templates" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
         >
           <Package className="h-4 w-4" /> Ingredientes ({items.length})
+        </button>
+        <button
+          onClick={() => setTab("clients")}
+          className={`text-sm px-3 py-2 rounded-full border transition flex items-center gap-2 ${tab === "clients" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
+        >
+          <ShoppingBag className="h-4 w-4" /> Listas de clientas ({clientItems.length})
         </button>
       </div>
 
