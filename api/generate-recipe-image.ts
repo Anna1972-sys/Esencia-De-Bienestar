@@ -341,6 +341,14 @@ async function verifySupabaseSession(authHeader: string | undefined) {
     return { ok: false, status: 401, error: "Sesión no válida. Vuelve a iniciar sesión." };
   }
 
+  const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
+    _user_id: data.user.id,
+    _role: "admin",
+  });
+  if (roleError || !isAdmin) {
+    return { ok: false, status: 403, error: "Solo la administradora puede generar imágenes." };
+  }
+
   return { ok: true, status: 200, error: "", userId: data.user.id, supabaseUrl };
 }
 
