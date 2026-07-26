@@ -92,6 +92,10 @@ const macroNumber = (value: string) => {
   const n = Number(String(value).replace(",", "."));
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
 };
+const positiveNumberText = (value: unknown, fallback: number) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? numberText(number) : numberText(fallback);
+};
 
 const isCalorieGuidanceRecipe = (recipe: Pick<RecipeRow, "title" | "description">) => {
   const text = `${recipe.title ?? ""} ${recipe.description ?? ""}`
@@ -329,7 +333,7 @@ export default function AdminRecipes() {
   const [changingCategoryId, setChangingCategoryId] = useState<string | null>(null);
   const [changingQualityId, setChangingQualityId] = useState<string | null>(null);
   const [savingGuidance, setSavingGuidance] = useState(false);
-  const [uploadingGuidance, setUploadingGuidance] = useState<"lunch" | "snack" | null>(null);
+  const [uploadingGuidance, setUploadingGuidance] = useState<"lunch" | "snack" | "meal" | "dinner" | "breakfast" | null>(null);
 
   const editingRecipe = useMemo(() => items.find(item => item.id === editingId) ?? null, [items, editingId]);
   const guidanceRecipe = useMemo(() => items.find(isCalorieGuidanceRecipe) ?? null, [items]);
@@ -340,6 +344,18 @@ export default function AdminRecipes() {
     caloriesMax: "170",
     proteinMin: "10",
     proteinMax: "20",
+    mealImage: "",
+    mealCaloriesMax: "500",
+    mealProteinMin: "20",
+    mealProteinMax: "35",
+    dinnerImage: "",
+    dinnerCaloriesMax: "300",
+    dinnerProteinMin: "20",
+    dinnerProteinMax: "30",
+    breakfastImage: "",
+    breakfastCaloriesMax: "250",
+    breakfastProteinMin: "25",
+    breakfastProteinMax: "30",
   });
 
   useEffect(() => {
@@ -353,15 +369,37 @@ export default function AdminRecipes() {
         normalizeRecipeImageUrl(guidanceRecipe.macros?.guidance_image_secondary) ||
         LIBRARY_CATEGORIES.find(category => category.id === "meriendas")?.image ||
         "",
-      caloriesMin: numberText(guidanceRecipe.macros?.guidance_calories_min ?? 150),
-      caloriesMax: numberText(guidanceRecipe.macros?.guidance_calories_max ?? 170),
-      proteinMin: numberText(guidanceRecipe.macros?.guidance_protein_min ?? 10),
-      proteinMax: numberText(guidanceRecipe.macros?.guidance_protein_max ?? 20),
+      caloriesMin: positiveNumberText(guidanceRecipe.macros?.guidance_calories_min, 150),
+      caloriesMax: positiveNumberText(guidanceRecipe.macros?.guidance_calories_max, 170),
+      proteinMin: positiveNumberText(guidanceRecipe.macros?.guidance_protein_min, 10),
+      proteinMax: positiveNumberText(guidanceRecipe.macros?.guidance_protein_max, 20),
+      mealImage:
+        normalizeRecipeImageUrl(guidanceRecipe.macros?.guidance_meal_image) ||
+        LIBRARY_CATEGORIES.find(category => category.id === "comidas")?.image ||
+        "",
+      mealCaloriesMax: positiveNumberText(guidanceRecipe.macros?.guidance_meal_calories_max, 500),
+      mealProteinMin: positiveNumberText(guidanceRecipe.macros?.guidance_meal_protein_min, 20),
+      mealProteinMax: positiveNumberText(guidanceRecipe.macros?.guidance_meal_protein_max, 35),
+      dinnerImage:
+        normalizeRecipeImageUrl(guidanceRecipe.macros?.guidance_dinner_image) ||
+        LIBRARY_CATEGORIES.find(category => category.id === "cenas_sin_herbalife")?.image ||
+        "",
+      dinnerCaloriesMax: positiveNumberText(guidanceRecipe.macros?.guidance_dinner_calories_max, 300),
+      dinnerProteinMin: positiveNumberText(guidanceRecipe.macros?.guidance_dinner_protein_min, 20),
+      dinnerProteinMax: positiveNumberText(guidanceRecipe.macros?.guidance_dinner_protein_max, 30),
+      breakfastImage:
+        normalizeRecipeImageUrl(guidanceRecipe.macros?.guidance_breakfast_image) ||
+        normalizeRecipeImageUrl(items.find(recipe => String(recipe.title ?? "").toLowerCase().includes("formula"))?.image_url) ||
+        LIBRARY_CATEGORIES.find(category => category.id === "desayunos_sin_herbalife")?.image ||
+        "",
+      breakfastCaloriesMax: positiveNumberText(guidanceRecipe.macros?.guidance_breakfast_calories_max, 250),
+      breakfastProteinMin: positiveNumberText(guidanceRecipe.macros?.guidance_breakfast_protein_min, 25),
+      breakfastProteinMax: positiveNumberText(guidanceRecipe.macros?.guidance_breakfast_protein_max, 30),
     });
-  }, [guidanceRecipe]);
+  }, [guidanceRecipe, items]);
 
   const uploadGuidanceImage = async (
-    side: "lunch" | "snack",
+    side: "lunch" | "snack" | "meal" | "dinner" | "breakfast",
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
@@ -375,9 +413,16 @@ export default function AdminRecipes() {
         .upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
       const url = recipeImagePublicUrl(path);
+      const imageField = {
+        lunch: "lunchImage",
+        snack: "snackImage",
+        meal: "mealImage",
+        dinner: "dinnerImage",
+        breakfast: "breakfastImage",
+      }[side] as "lunchImage" | "snackImage" | "mealImage" | "dinnerImage" | "breakfastImage";
       setGuidanceForm(current => ({
         ...current,
-        [side === "lunch" ? "lunchImage" : "snackImage"]: url,
+        [imageField]: url,
       }));
       toast.success("Imagen preparada. Pulsa Guardar orientación.");
     } catch (error: any) {
@@ -402,6 +447,18 @@ export default function AdminRecipes() {
         guidance_calories_max: macroNumber(guidanceForm.caloriesMax),
         guidance_protein_min: macroNumber(guidanceForm.proteinMin),
         guidance_protein_max: macroNumber(guidanceForm.proteinMax),
+        guidance_meal_image: guidanceForm.mealImage || null,
+        guidance_meal_calories_max: macroNumber(guidanceForm.mealCaloriesMax),
+        guidance_meal_protein_min: macroNumber(guidanceForm.mealProteinMin),
+        guidance_meal_protein_max: macroNumber(guidanceForm.mealProteinMax),
+        guidance_dinner_image: guidanceForm.dinnerImage || null,
+        guidance_dinner_calories_max: macroNumber(guidanceForm.dinnerCaloriesMax),
+        guidance_dinner_protein_min: macroNumber(guidanceForm.dinnerProteinMin),
+        guidance_dinner_protein_max: macroNumber(guidanceForm.dinnerProteinMax),
+        guidance_breakfast_image: guidanceForm.breakfastImage || null,
+        guidance_breakfast_calories_max: macroNumber(guidanceForm.breakfastCaloriesMax),
+        guidance_breakfast_protein_min: macroNumber(guidanceForm.breakfastProteinMin),
+        guidance_breakfast_protein_max: macroNumber(guidanceForm.breakfastProteinMax),
       };
       const { error } = await supabase
         .from("recipes")
@@ -942,6 +999,76 @@ export default function AdminRecipes() {
           <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
             <Save className="h-4 w-4" />
             {savingGuidance ? "Guardando…" : "Guardar orientación"}
+          </button>
+
+          <div className="border-t border-border/70 pt-4">
+            <div className="font-medium">Orientación de Comidas</div>
+            <p className="text-xs muted mt-1">Esta tarjeta aparecerá la primera en Comidas.</p>
+          </div>
+          <div className="space-y-2">
+            <div className="aspect-video overflow-hidden rounded-2xl bg-muted">
+              {guidanceForm.mealImage && <img src={guidanceForm.mealImage} alt="" className="h-full w-full object-cover" />}
+            </div>
+            <label className="btn-ghost w-full cursor-pointer text-xs">
+              <Upload className="h-4 w-4" />
+              {uploadingGuidance === "meal" ? "Subiendo…" : "Cambiar imagen de Comidas"}
+              <input type="file" accept="image/*" className="hidden" disabled={Boolean(uploadingGuidance)} onChange={event => uploadGuidanceImage("meal", event)} />
+            </label>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <input className="field" aria-label="Calorías máximas de Comidas" placeholder="Kcal máximas" value={guidanceForm.mealCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, mealCaloriesMax: event.target.value }))} />
+            <input className="field" aria-label="Proteínas mínimas de Comidas" placeholder="Proteína mínima" value={guidanceForm.mealProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, mealProteinMin: event.target.value }))} />
+            <input className="field" aria-label="Proteínas máximas de Comidas" placeholder="Proteína máxima" value={guidanceForm.mealProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, mealProteinMax: event.target.value }))} />
+          </div>
+
+          <div className="border-t border-border/70 pt-4">
+            <div className="font-medium">Orientación de Cenas sin Herbalife</div>
+            <p className="text-xs muted mt-1">Esta tarjeta aparecerá la primera en Cenas sin Herbalife.</p>
+          </div>
+          <div className="space-y-2">
+            <div className="aspect-video overflow-hidden rounded-2xl bg-muted">
+              {guidanceForm.dinnerImage && <img src={guidanceForm.dinnerImage} alt="" className="h-full w-full object-cover" />}
+            </div>
+            <label className="btn-ghost w-full cursor-pointer text-xs">
+              <Upload className="h-4 w-4" />
+              {uploadingGuidance === "dinner" ? "Subiendo…" : "Cambiar imagen de Cenas"}
+              <input type="file" accept="image/*" className="hidden" disabled={Boolean(uploadingGuidance)} onChange={event => uploadGuidanceImage("dinner", event)} />
+            </label>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <input className="field" aria-label="Calorías máximas de Cenas" placeholder="Kcal máximas" value={guidanceForm.dinnerCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, dinnerCaloriesMax: event.target.value }))} />
+            <input className="field" aria-label="Proteínas mínimas de Cenas" placeholder="Proteína mínima" value={guidanceForm.dinnerProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, dinnerProteinMin: event.target.value }))} />
+            <input className="field" aria-label="Proteínas máximas de Cenas" placeholder="Proteína máxima" value={guidanceForm.dinnerProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, dinnerProteinMax: event.target.value }))} />
+          </div>
+
+          <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
+            <Save className="h-4 w-4" />
+            {savingGuidance ? "Guardando…" : "Guardar todas las orientaciones"}
+          </button>
+
+          <div className="border-t border-border/70 pt-4">
+            <div className="font-medium">Orientación de Desayunos sin Herbalife</div>
+            <p className="text-xs muted mt-1">Cambia la imagen y los valores de la tarjeta especial de desayunos.</p>
+          </div>
+          <div className="space-y-2">
+            <div className="aspect-video overflow-hidden rounded-2xl bg-muted">
+              {guidanceForm.breakfastImage && <img src={guidanceForm.breakfastImage} alt="" className="h-full w-full object-cover" />}
+            </div>
+            <label className="btn-ghost w-full cursor-pointer text-xs">
+              <Upload className="h-4 w-4" />
+              {uploadingGuidance === "breakfast" ? "Subiendo…" : "Cambiar imagen de Desayunos"}
+              <input type="file" accept="image/*" className="hidden" disabled={Boolean(uploadingGuidance)} onChange={event => uploadGuidanceImage("breakfast", event)} />
+            </label>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <input className="field" aria-label="Calorías máximas de Desayunos" placeholder="Kcal máximas" value={guidanceForm.breakfastCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, breakfastCaloriesMax: event.target.value }))} />
+            <input className="field" aria-label="Proteínas mínimas de Desayunos" placeholder="Proteína mínima" value={guidanceForm.breakfastProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, breakfastProteinMin: event.target.value }))} />
+            <input className="field" aria-label="Proteínas máximas de Desayunos" placeholder="Proteína máxima" value={guidanceForm.breakfastProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, breakfastProteinMax: event.target.value }))} />
+          </div>
+
+          <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
+            <Save className="h-4 w-4" />
+            {savingGuidance ? "Guardando…" : "Guardar orientación de Desayunos"}
           </button>
         </section>
       )}

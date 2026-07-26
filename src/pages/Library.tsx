@@ -154,17 +154,37 @@ export default function Library() {
     () => items.find(recipe => isCalorieGuidance(recipe)),
     [items],
   );
+  const positiveGuidanceValue = (value: unknown, fallback: number) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : fallback;
+  };
   const guidanceSettings = {
-    caloriesMin: Number(calorieGuidance?.macros?.guidance_calories_min ?? 150),
-    caloriesMax: Number(calorieGuidance?.macros?.guidance_calories_max ?? 170),
-    proteinMin: Number(calorieGuidance?.macros?.guidance_protein_min ?? 10),
-    proteinMax: Number(calorieGuidance?.macros?.guidance_protein_max ?? 20),
+    caloriesMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_calories_min, 150),
+    caloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_calories_max, 170),
+    proteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_protein_min, 10),
+    proteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_protein_max, 20),
     lunchImage:
       normalizeRecipeImageUrl(calorieGuidance?.image_url) ||
       LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image,
     snackImage:
       normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_image_secondary) ||
       LIBRARY_CATEGORIES.find(item => item.id === "meriendas")?.image,
+    mealImage:
+      normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_meal_image) ||
+      LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image,
+    mealCaloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_meal_calories_max, 500),
+    mealProteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_meal_protein_min, 20),
+    mealProteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_meal_protein_max, 35),
+    dinnerImage:
+      normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_dinner_image) ||
+      LIBRARY_CATEGORIES.find(item => item.id === "cenas_sin_herbalife")?.image,
+    dinnerCaloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_dinner_calories_max, 300),
+    dinnerProteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_dinner_protein_min, 20),
+    dinnerProteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_dinner_protein_max, 30),
+    breakfastImage: normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_breakfast_image),
+    breakfastCaloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_breakfast_calories_max, 250),
+    breakfastProteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_breakfast_protein_min, 25),
+    breakfastProteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_breakfast_protein_max, 30),
   };
 
   useEffect(() => {
@@ -264,6 +284,38 @@ export default function Library() {
             </div>
           ) : (
             <div className="space-y-3">
+              {(selectedCat === "comidas" || selectedCat === "cenas_sin_herbalife") && !q.trim() && (() => {
+                const isDinner = selectedCat === "cenas_sin_herbalife";
+                const image = isDinner ? guidanceSettings.dinnerImage : guidanceSettings.mealImage;
+                const caloriesMax = isDinner ? guidanceSettings.dinnerCaloriesMax : guidanceSettings.mealCaloriesMax;
+                const proteinMin = isDinner ? guidanceSettings.dinnerProteinMin : guidanceSettings.mealProteinMin;
+                const proteinMax = isDinner ? guidanceSettings.dinnerProteinMax : guidanceSettings.mealProteinMax;
+                return (
+                  <div className="recipe-premium flex min-h-[10rem] w-full overflow-hidden rounded-[22px] bg-white/90 text-left transition">
+                    {image && (
+                      <div className="library-recipe-thumb h-auto min-h-[10rem] shrink-0 self-stretch bg-muted">
+                        <img src={image} alt="" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" />
+                      </div>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
+                      <div className="font-medium leading-tight">
+                        {isDinner ? "Cómo preparar una cena equilibrada" : "Cómo preparar una comida completa"}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                          Menos de {caloriesMax} kcal
+                        </span>
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold">
+                          {proteinMin}–{proteinMax} g de proteína
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                        Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
               {(selectedCat === "snacks" || selectedCat === "meriendas") && !q.trim() && (() => {
                 return (
                   <div className="w-full overflow-hidden rounded-[24px] border border-primary/25 bg-gradient-to-br from-white via-primary/[0.045] to-secondary/70 p-4 text-left shadow-[0_16px_32px_-24px_hsl(var(--primary)/0.55)]">
@@ -303,6 +355,9 @@ export default function Library() {
                     <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
                       Varía las opciones durante la semana para mantener una alimentación equilibrada.
                     </p>
+                    <p className="mt-1.5 text-center text-[11px] leading-relaxed text-muted-foreground">
+                      Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
+                    </p>
                   </div>
                 );
               })()}
@@ -310,16 +365,17 @@ export default function Library() {
                 const category = normalizeCategory(r.category);
                 const cover = normalizeRecipeImageUrl(r.image_url);
                 if (isFormulaGuidance(r)) {
+                  const formulaCover = guidanceSettings.breakfastImage || cover;
                   return (
                     <button
                       key={r.id}
                       onClick={() => openRecipe(r.id)}
                       className="recipe-premium formula-guidance-card rounded-[22px] w-full text-left transition overflow-hidden flex"
                     >
-                      {cover && (
+                      {formulaCover && (
                         <div className="library-recipe-thumb formula-guidance-thumb shrink-0 self-stretch bg-muted">
                           <img
-                            src={cover}
+                            src={formulaCover}
                             alt={r.title}
                             loading="lazy"
                             className="app-photo-cover-image transition-transform duration-500 hover:scale-105"
@@ -327,17 +383,17 @@ export default function Library() {
                         </div>
                       )}
                       <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
-                        <div className="font-medium leading-tight">{r.title}</div>
+                        <div className="font-medium leading-tight">Cómo preparar un desayuno completo</div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                            Menos de 250 kcal
+                            Menos de {guidanceSettings.breakfastCaloriesMax} kcal
                           </span>
                           <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold">
-                            25–30 g de proteína
+                            {guidanceSettings.breakfastProteinMin}–{guidanceSettings.breakfastProteinMax} g de proteína
                           </span>
                         </div>
-                        <p className="mt-2 text-[11px] leading-snug muted">
-                          Combina una fuente de proteína con un complemento saludable.
+                        <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                          Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
                         </p>
                       </div>
                     </button>
