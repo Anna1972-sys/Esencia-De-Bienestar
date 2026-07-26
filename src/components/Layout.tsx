@@ -6,6 +6,7 @@ import type { FocusEvent, ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActivityTracking } from "@/hooks/useActivityTracking";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { recordAppError } from "@/lib/appErrorLogger";
 
 const items = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
@@ -53,6 +54,32 @@ export default function Layout() {
   const { user, isAdmin, roleLoading } = useAuth();
   const isAdminArea = location.pathname.startsWith("/app/admin");
   useActivityTracking(location.pathname, Boolean(user && !roleLoading && !isAdmin));
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      recordAppError({
+        area: "aplicacion",
+        action: "Error inesperado en pantalla",
+        error: event.error ?? event.message,
+        path: location.pathname,
+        userMessage: "Una pantalla encontró un problema inesperado.",
+      });
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      recordAppError({
+        area: "aplicacion",
+        action: "Operación interrumpida",
+        error: event.reason,
+        path: location.pathname,
+        userMessage: "Una operación de la aplicación no pudo completarse.",
+      });
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, [location.pathname]);
   const handleAdminNumberFocus = (event: FocusEvent<HTMLElement>) => {
     if (!isAdminArea) return;
     const target = event.target;

@@ -12,6 +12,7 @@ import {
   type RecipeGeneratorCategory,
 } from "@/lib/recipeGeneratorCategories";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
+import { recordAppError } from "@/lib/appErrorLogger";
 
 type RecipeCategory = string;
 
@@ -437,6 +438,12 @@ export default function RecipeGenerator() {
       }
       setResult(enrichedRecipe);
     } catch (err: any) {
+      recordAppError({
+        area: "recetas",
+        action: "Generar una receta con IA",
+        error: err,
+        userMessage: "El generador no pudo crear una receta.",
+      });
       toast.error(err?.message || "Error generando receta");
     } finally {
       setLoading(false);

@@ -50,6 +50,7 @@ import AdminProgress from "@/pages/AdminProgress";
 import NotFound from "@/pages/NotFound";
 import Favorites from "@/pages/Favorites";
 import AdminFavorites from "@/pages/AdminFavorites";
+import AdminErrors from "@/pages/AdminErrors";
 
 const qc = new QueryClient();
 
@@ -167,6 +168,7 @@ export default function App() {
               <Route path="admin/diario" element={<AdminOnly><AdminDiary /></AdminOnly>} />
               <Route path="admin/progreso" element={<AdminOnly><AdminProgress /></AdminOnly>} />
               <Route path="admin/favoritos" element={<AdminOnly><AdminFavorites /></AdminOnly>} />
+              <Route path="admin/errores" element={<AdminOnly><AdminErrors /></AdminOnly>} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

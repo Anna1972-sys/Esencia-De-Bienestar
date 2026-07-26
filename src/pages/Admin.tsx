@@ -64,6 +64,7 @@ const groups: { title: string; items: Item[] }[] = [
       { key: "usuarios", to: "/app/admin/usuarios",           label: "Usuarios",                desc: "Ver usuarias y permisos", image: usersAdminImage },
       { key: "invitaciones", to: "/app/admin/invitaciones",       label: "Invitaciones",            desc: "Crear y revocar invitaciones", image: invitationsAdminImage },
       { key: "configuracion", to: "/app/admin/configuracion",      label: "Ajustes generales",       desc: "Configuración y mantenimiento", image: settingsDeskImage },
+      { key: "errores", to: "/app/admin/errores",                 label: "Control de errores",       desc: "Avisos recientes de la aplicación", image: settingsDeskImage },
     ],
   },
 ];

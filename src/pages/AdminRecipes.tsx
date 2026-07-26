@@ -8,6 +8,7 @@ import { LIBRARY_CATEGORIES, getCategoryLabel } from "@/lib/libraryCategories";
 import VideoField from "@/components/VideoField";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
 import { normalizeRecipeImageUrl, recipeImagePublicUrl } from "@/lib/recipeImages";
+import { recordAppError } from "@/lib/appErrorLogger";
 
 const QTY_RE = /\d/;
 const ADMIN_RECIPE_DRAFT_KEY = "admin-recipes-editor-draft-v1";
@@ -305,6 +306,12 @@ export default function AdminRecipes() {
       .or("is_library.eq.true,and(is_library.eq.false,user_id.is.null,source_user_id.is.null)")
       .order("created_at", { ascending: false });
     if (error) {
+      recordAppError({
+        area: "supabase",
+        action: "Cargar recetas oficiales en Administración",
+        error,
+        userMessage: "No se pudo cargar la lista de recetas oficiales.",
+      });
       toast.error(error.message || "No se pudieron cargar las recetas oficiales");
       return [];
     }

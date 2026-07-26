@@ -8,6 +8,7 @@ import { type LibraryContext, resolveLibraryReturnContext, saveLibraryReturnCont
 import BackButton from "@/components/BackButton";
 import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import FavoriteButton from "@/components/favorites/FavoriteButton";
+import { recordAppError } from "@/lib/appErrorLogger";
 
 type Recipe = {
   id: string;
@@ -96,7 +97,18 @@ export default function Library() {
       .select("*")
       .order("is_featured", { ascending: false })
       .order("title")
-      .then(({ data }) => setItems(((data as any) ?? []).filter(isVisibleLibraryRecipe)));
+      .then(({ data, error }) => {
+        if (error) {
+          recordAppError({
+            area: "supabase",
+            action: "Cargar Biblioteca de recetas",
+            error,
+            userMessage: "La Biblioteca de recetas no pudo cargar su contenido.",
+          });
+          return;
+        }
+        setItems(((data as any) ?? []).filter(isVisibleLibraryRecipe));
+      });
 
   useEffect(() => {
     load();
