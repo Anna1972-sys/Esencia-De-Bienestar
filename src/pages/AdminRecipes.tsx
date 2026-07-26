@@ -1002,7 +1002,7 @@ export default function AdminRecipes() {
               )}
               {ignoredQualityIssues.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span>Desactivados:</span>
+                  <span>Revisados:</span>
                   {ignoredQualityIssues.map(issue => (
                     <button
                       key={issue}
@@ -1010,9 +1010,9 @@ export default function AdminRecipes() {
                       onClick={() => toggleQualityIssue(recipe, issue)}
                       disabled={changingQualityId === `${recipe.id}:${issue}`}
                       title="Pulsar para reactivar este aviso"
-                      className="rounded-full border border-border bg-white/70 px-2 py-1 line-through transition hover:border-primary hover:text-primary disabled:opacity-50"
+                      className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-700 transition hover:border-primary hover:text-primary disabled:opacity-50"
                     >
-                      {issue}
+                      ✓ Revisado: {issue}
                     </button>
                   ))}
                 </div>
