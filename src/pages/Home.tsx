@@ -117,10 +117,12 @@ export default function Home() {
   const displayedWelcomeMessage = welcomeMessage || HOME_SUBTITLE;
 
   const moveHomeTile = (key: string, direction: -1 | 1) => {
+    if (!isAdmin) return;
     setCardOrder(moveCardKey(orderedKeys, key, direction));
   };
 
   const saveHomeOrder = async () => {
+    if (!isAdmin) return;
     setSavingOrder(true);
     const result = await saveCardOrder("home_card_order", orderedKeys, supabase as any);
     setCardOrder(result.order);
@@ -130,6 +132,7 @@ export default function Home() {
   };
 
   const resetHomeOrder = () => {
+    if (!isAdmin) return;
     setCardOrder(DEFAULT_HOME_CARD_ORDER);
     toast.info("Orden restaurado. Pulsa Guardar orden para conservarlo.");
   };
@@ -188,7 +191,7 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-5">
           {orderedTiles.map((tile, index) => (
             <div key={tile.key} className="home-card-unified relative">
-              {orderingCards && (
+              {isAdmin && orderingCards && (
                 <div className="absolute right-2 top-2 z-20 flex gap-1">
                   <button type="button" className="h-8 w-8 rounded-full bg-white/95 border border-primary/30 text-primary grid place-items-center disabled:opacity-35" disabled={index === 0} onClick={() => moveHomeTile(tile.key, -1)} aria-label={`Subir ${tile.title}`}>
                     <ArrowUp className="h-4 w-4" />
@@ -198,7 +201,7 @@ export default function Home() {
                   </button>
                 </div>
               )}
-              <Tile {...tile} disabled={orderingCards} />
+              <Tile {...tile} disabled={isAdmin && orderingCards} />
             </div>
           ))}
         </div>
