@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X, BellRing, BellPlus, UserCheck, UserX, AlertTriangle } from "lucide-react";
+import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X, BellRing, BellPlus, MessageCircle, UserCheck, UserX, AlertTriangle } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdvancedUserAlerts from "@/components/admin/AdvancedUserAlerts";
 import { toast } from "sonner";
@@ -34,6 +34,12 @@ type FavoriteEvent = {
   content_type: "recipe" | "video" | "guide" | "exercise";
   action: "added" | "removed" | "opened";
   created_at: string;
+};
+type ContactLog = {
+  id: string;
+  user_id: string;
+  note: string;
+  completed_at: string;
 };
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString() : "—";
@@ -98,16 +104,33 @@ export default function AdminUsers() {
   const [activityError, setActivityError] = useState("");
   const [favoriteEvents, setFavoriteEvents] = useState<FavoriteEvent[]>([]);
   const [allActivityRows, setAllActivityRows] = useState<ActivityRow[]>([]);
+  const [contactLogs, setContactLogs] = useState<ContactLog[]>([]);
   const [reminderBusy, setReminderBusy] = useState<string | null>(null);
+  const [reminderDraft, setReminderDraft] = useState<{
+    client: Row;
+    note: string;
+    date: string;
+  } | null>(null);
+  const [contactDraft, setContactDraft] = useState<{ client: Row; note: string } | null>(null);
+  const [contactBusy, setContactBusy] = useState(false);
 
-  const createInactiveReminder = async (client: Row, message: string) => {
-    setReminderBusy(client.id);
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 1);
-    dueDate.setHours(9, 0, 0, 0);
-    const { error } = await (supabase as any).from("follow_up_reminders").insert({
-      user_id: client.id,
+  const openInactiveReminder = (client: Row, message: string) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setReminderDraft({
+      client,
       note: `Contactar por inactividad: ${message}`,
+      date: tomorrow.toLocaleDateString("en-CA"),
+    });
+  };
+
+  const createInactiveReminder = async () => {
+    if (!reminderDraft?.note.trim() || !reminderDraft.date) return;
+    setReminderBusy(reminderDraft.client.id);
+    const dueDate = new Date(`${reminderDraft.date}T09:00:00`);
+    const { error } = await (supabase as any).from("follow_up_reminders").insert({
+      user_id: reminderDraft.client.id,
+      note: reminderDraft.note.trim(),
       due_at: dueDate.toISOString(),
     });
     setReminderBusy(null);
@@ -115,7 +138,28 @@ export default function AdminUsers() {
       toast.error("No se pudo crear el recordatorio.");
       return;
     }
-    toast.success(`Recordatorio creado para ${client.display_name || client.email || "la clienta"}`);
+    toast.success(`Recordatorio creado para ${reminderDraft.client.display_name || reminderDraft.client.email || "la clienta"}`);
+    setReminderDraft(null);
+  };
+
+  const saveContact = async () => {
+    if (!contactDraft?.note.trim()) return;
+    setContactBusy(true);
+    const contactedAt = new Date().toISOString();
+    const { data, error } = await (supabase as any).from("follow_up_reminders").insert({
+      user_id: contactDraft.client.id,
+      note: `Contacto: ${contactDraft.note.trim()}`,
+      due_at: contactedAt,
+      completed_at: contactedAt,
+    }).select("id,user_id,note,completed_at").single();
+    setContactBusy(false);
+    if (error) {
+      toast.error("No se pudo guardar el contacto.");
+      return;
+    }
+    setContactLogs(current => [data as ContactLog, ...current]);
+    toast.success("Contacto guardado");
+    setContactDraft(null);
   };
 
   const load = async () => {
@@ -146,6 +190,19 @@ export default function AdminUsers() {
       setAllActivityRows([]);
     } else {
       setAllActivityRows((activityData ?? []) as ActivityRow[]);
+    }
+    const { data: contactData, error: contactError } = await (supabase as any)
+      .from("follow_up_reminders")
+      .select("id,user_id,note,completed_at")
+      .not("completed_at", "is", null)
+      .like("note", "Contacto:%")
+      .order("completed_at", { ascending: false })
+      .limit(500);
+    if (contactError) {
+      console.error("[client-contact-logs]", contactError);
+      setContactLogs([]);
+    } else {
+      setContactLogs((contactData ?? []) as ContactLog[]);
     }
   };
 
@@ -350,6 +407,11 @@ export default function AdminUsers() {
                   <span className="font-semibold truncate flex-1">{alert.row.display_name || alert.row.email || "Clienta"}</span>
                   <span className="shrink-0">{alert.message}</span>
                 </div>
+                {contactLogs.find(contact => contact.user_id === alert.row.id) && (
+                  <div className="mt-1 text-[10px] opacity-75">
+                    Último contacto: {new Date(contactLogs.find(contact => contact.user_id === alert.row.id)!.completed_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}
+                  </div>
+                )}
                 {(alert.level === "urgent" || alert.level === "attention") && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     <Link
@@ -361,11 +423,18 @@ export default function AdminUsers() {
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2 py-1 font-medium disabled:opacity-50"
-                      onClick={() => createInactiveReminder(alert.row, alert.message)}
+                      onClick={() => openInactiveReminder(alert.row, alert.message)}
                       disabled={reminderBusy === alert.row.id}
                     >
                       <BellPlus className="h-3.5 w-3.5" />
                       {reminderBusy === alert.row.id ? "Creando…" : "Crear recordatorio"}
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2 py-1 font-medium"
+                      onClick={() => setContactDraft({ client: alert.row, note: "" })}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" /> Marcar contactada
                     </button>
                   </div>
                 )}
@@ -517,6 +586,79 @@ export default function AdminUsers() {
             );
           })}
           {visible.length === 0 && <div className="card-soft p-6 text-center muted">No hay usuarios que coincidan.</div>}
+        </div>
+      )}
+
+      {reminderDraft && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4">
+          <div className="card-soft w-full max-w-sm p-5 shadow-xl">
+            <div className="font-semibold text-lg">Crear recordatorio</div>
+            <p className="text-sm muted mt-1 mb-4">
+              Para {reminderDraft.client.display_name || reminderDraft.client.email || "la clienta"}
+            </p>
+            <label className="text-xs font-medium block mb-1" htmlFor="inactive-reminder-note">Nota</label>
+            <textarea
+              id="inactive-reminder-note"
+              className="field min-h-24 resize-y"
+              value={reminderDraft.note}
+              onChange={event => setReminderDraft(current => current ? { ...current, note: event.target.value } : current)}
+            />
+            <label className="text-xs font-medium block mt-3 mb-1" htmlFor="inactive-reminder-date">Fecha</label>
+            <input
+              id="inactive-reminder-date"
+              type="date"
+              className="field"
+              min={new Date().toLocaleDateString("en-CA")}
+              value={reminderDraft.date}
+              onChange={event => setReminderDraft(current => current ? { ...current, date: event.target.value } : current)}
+            />
+            <p className="text-[11px] muted mt-1">El aviso aparecerá a las 09:00.</p>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setReminderDraft(null)}
+                disabled={reminderBusy === reminderDraft.client.id}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={createInactiveReminder}
+                disabled={!reminderDraft.note.trim() || !reminderDraft.date || reminderBusy === reminderDraft.client.id}
+              >
+                {reminderBusy === reminderDraft.client.id ? "Guardando…" : "Guardar recordatorio"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {contactDraft && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4">
+          <div className="card-soft w-full max-w-sm p-5 shadow-xl">
+            <div className="font-semibold text-lg">Marcar como contactada</div>
+            <p className="text-sm muted mt-1 mb-4">
+              {contactDraft.client.display_name || contactDraft.client.email || "Clienta"} · se guardarán la fecha y la hora actuales.
+            </p>
+            <label className="text-xs font-medium block mb-1" htmlFor="contact-note">Nota breve</label>
+            <textarea
+              id="contact-note"
+              className="field min-h-24 resize-y"
+              placeholder="Ej.: Hablamos por WhatsApp. Se encuentra bien."
+              value={contactDraft.note}
+              onChange={event => setContactDraft(current => current ? { ...current, note: event.target.value } : current)}
+            />
+            <div className="flex justify-end gap-2 mt-5">
+              <button type="button" className="btn-ghost" onClick={() => setContactDraft(null)} disabled={contactBusy}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-primary" onClick={saveContact} disabled={!contactDraft.note.trim() || contactBusy}>
+                {contactBusy ? "Guardando…" : "Guardar contacto"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
