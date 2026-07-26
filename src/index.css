@@ -119,6 +119,9 @@
     border-radius: var(--wellness-radius);
     box-shadow: var(--wellness-shadow);
   }
+  .card-soft.favorites-empty-card {
+    background: #fff8fb !important;
+  }
   .card-elegant {
     background: var(--wellness-card-bg);
     border: var(--wellness-border-width) solid var(--wellness-border);

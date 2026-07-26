@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Heart } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, Dumbbell, Heart, PlayCircle } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import FavoriteButton from "@/components/favorites/FavoriteButton";
 import { useFavorites, type FavoriteContentType, type FavoriteRow } from "@/contexts/FavoritesContext";
@@ -117,10 +117,24 @@ export default function Favorites() {
       {loading || contentLoading ? (
         <div className="card-soft p-6 text-center muted">Cargando favoritos…</div>
       ) : visible.length === 0 ? (
-        <div className="card-soft p-7 text-center">
-          <Heart className="h-8 w-8 text-primary/50 mx-auto mb-2" />
+        <div className="card-soft favorites-empty-card p-7 text-center">
+          <Heart className="h-8 w-8 text-primary fill-primary mx-auto mb-2" />
           <div className="font-medium">Todavía no hay favoritos</div>
           <p className="text-sm muted mt-1">Pulsa el corazón de una receta, guía, vídeo o ejercicio para guardarlo aquí.</p>
+          <div className="grid gap-2 mt-5 text-left">
+            <Link to="/app/biblioteca" className="btn-ghost justify-start px-4 py-3">
+              <BookOpen className="h-4 w-4 text-primary" />
+              Explorar recetas
+            </Link>
+            <Link to="/app/recursos" className="btn-ghost justify-start px-4 py-3">
+              <PlayCircle className="h-4 w-4 text-primary" />
+              Explorar vídeos y guías
+            </Link>
+            <Link to="/app/movimiento" className="btn-ghost justify-start px-4 py-3">
+              <Dumbbell className="h-4 w-4 text-primary" />
+              Explorar ejercicios
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
