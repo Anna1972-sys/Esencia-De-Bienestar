@@ -9,9 +9,9 @@ import VideoField from "@/components/VideoField";
 import { calculateWithMacroSpecialist, macrosFromSpecialist } from "@/lib/macroSpecialistClient";
 import { normalizeRecipeImageUrl, recipeImagePublicUrl } from "@/lib/recipeImages";
 
-const CONFIRM_DELETE = "¿Estás segura de que deseas eliminar esta receta oficial? Esta acción no se puede deshacer.";
 const QTY_RE = /\d/;
 const ADMIN_RECIPE_DRAFT_KEY = "admin-recipes-editor-draft-v1";
+const RECIPES_PAGE_SIZE = 8;
 
 type OfficialStatus = "visible" | "hidden" | "featured";
 
@@ -250,8 +250,11 @@ export default function AdminRecipes() {
   const [items, setItems] = useState<RecipeRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<LibForm>(emptyForm);
-  const [filterCat, setFilterCat] = useState("");
+  const [filterCat, setFilterCat] = useState(LIBRARY_CATEGORIES[0].id);
   const [query, setQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(RECIPES_PAGE_SIZE);
+  const [recipeToDelete, setRecipeToDelete] = useState<RecipeRow | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -557,12 +560,17 @@ export default function AdminRecipes() {
   };
 
   const deleteRecipe = async (recipe: RecipeRow) => {
-    if (!confirm(CONFIRM_DELETE)) return;
-    const { error } = await supabase.from("recipes").delete().eq("id", recipe.id);
-    if (error) { toast.error(error.message); return; }
-    if (editingId === recipe.id) resetForm();
-    await load();
-    toast.success("Receta eliminada");
+    setDeletingId(recipe.id);
+    try {
+      const { error } = await supabase.from("recipes").delete().eq("id", recipe.id);
+      if (error) { toast.error(error.message); return; }
+      if (editingId === recipe.id) resetForm();
+      setRecipeToDelete(null);
+      await load();
+      toast.success("Receta eliminada");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const recalculateRecipe = async (recipe: RecipeRow) => {
@@ -684,6 +692,11 @@ export default function AdminRecipes() {
       return matchesCategory && matchesSearch;
     }).sort(compareRecipesByManualOrder);
   }, [items, filterCat, query]);
+  const displayedRecipes = visible.slice(0, visibleLimit);
+
+  useEffect(() => {
+    setVisibleLimit(RECIPES_PAGE_SIZE);
+  }, [filterCat, query]);
 
   return (
     <div className="admin-recipes-page pb-28">
@@ -853,10 +866,18 @@ export default function AdminRecipes() {
           <option value="">Todas las categorías</option>
           {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
+        <div className="flex items-center justify-between gap-3 px-1 text-xs">
+          <span className="font-medium text-foreground">
+            {visible.length} {visible.length === 1 ? "receta encontrada" : "recetas encontradas"}
+          </span>
+          {visible.length > displayedRecipes.length && (
+            <span className="muted">Mostrando {displayedRecipes.length}</span>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
-        {visible.map(recipe => {
+        {displayedRecipes.map(recipe => {
           const status = recipeStatus(recipe);
           const imageUrl = normalizeRecipeImageUrl(recipe.image_url);
           const categoryGroup = orderedRecipesInCategory(recipe.category);
@@ -887,7 +908,7 @@ export default function AdminRecipes() {
                 <button type="button" onClick={() => startEdit(recipe)} className="btn-ghost px-2 py-2"><Sparkles className="h-3.5 w-3.5" /> Editar</button>
                 <button type="button" onClick={() => duplicateRecipe(recipe)} className="btn-ghost px-2 py-2"><Copy className="h-3.5 w-3.5" /> Duplicar</button>
                 <button type="button" onClick={() => recalculateRecipe(recipe)} disabled={calculating} className="btn-ghost px-2 py-2"><Calculator className="h-3.5 w-3.5" /> Macros</button>
-                <button type="button" onClick={() => deleteRecipe(recipe)} className="btn-ghost px-2 py-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Eliminar</button>
+                <button type="button" onClick={() => setRecipeToDelete(recipe)} className="btn-ghost px-2 py-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Eliminar</button>
               </div>
               <div className="rounded-2xl border border-border/70 bg-white/70 p-2">
                 <div className="flex items-center justify-between gap-2">
@@ -930,7 +951,44 @@ export default function AdminRecipes() {
           );
         })}
         {visible.length === 0 && <div className="card-soft p-6 text-center muted">No hay recetas oficiales con este filtro.</div>}
+        {displayedRecipes.length < visible.length && (
+          <button
+            type="button"
+            className="btn-ghost w-full py-3"
+            onClick={() => setVisibleLimit(limit => limit + RECIPES_PAGE_SIZE)}
+          >
+            Cargar más ({visible.length - displayedRecipes.length} restantes)
+          </button>
+        )}
       </div>
+
+      {recipeToDelete && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4">
+          <div className="card-soft w-full max-w-sm p-5 shadow-xl">
+            <div className="font-semibold text-lg mb-2">Eliminar receta oficial</div>
+            <p className="text-sm text-foreground mb-1">{recipeToDelete.title}</p>
+            <p className="text-sm muted mb-4">Esta acción no se puede deshacer.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setRecipeToDelete(null)}
+                disabled={deletingId === recipeToDelete.id}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => deleteRecipe(recipeToDelete)}
+                disabled={deletingId === recipeToDelete.id}
+              >
+                {deletingId === recipeToDelete.id ? "Eliminando…" : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
