@@ -12,6 +12,7 @@ import { recordAppError } from "@/lib/appErrorLogger";
 
 const QTY_RE = /\d/;
 const ADMIN_RECIPE_DRAFT_KEY = "admin-recipes-editor-draft-v1";
+const ADMIN_RECIPE_CATEGORY_KEY = "admin-recipes-active-category-v1";
 const RECIPES_PAGE_SIZE = 8;
 
 type OfficialStatus = "visible" | "hidden" | "featured";
@@ -90,6 +91,14 @@ const numberOrNull = (value: string) => {
 const macroNumber = (value: string) => {
   const n = Number(String(value).replace(",", "."));
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
+};
+
+const rememberedRecipeCategory = () => {
+  if (typeof window === "undefined") return LIBRARY_CATEGORIES[0].id;
+  const saved = window.localStorage.getItem(ADMIN_RECIPE_CATEGORY_KEY);
+  return LIBRARY_CATEGORIES.some(category => category.id === saved)
+    ? saved as string
+    : LIBRARY_CATEGORIES[0].id;
 };
 
 const ingredientToText = (item: any) => {
@@ -278,8 +287,8 @@ const completeRecipeQuantities = async (payload: {
 export default function AdminRecipes() {
   const [items, setItems] = useState<RecipeRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<LibForm>(emptyForm);
-  const [filterCat, setFilterCat] = useState(LIBRARY_CATEGORIES[0].id);
+  const [form, setForm] = useState<LibForm>(() => ({ ...emptyForm, category: rememberedRecipeCategory() }));
+  const [filterCat, setFilterCat] = useState(rememberedRecipeCategory);
   const [query, setQuery] = useState("");
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
   const [visibleLimit, setVisibleLimit] = useState(RECIPES_PAGE_SIZE);
@@ -359,9 +368,13 @@ export default function AdminRecipes() {
     }
     setAvailableDraft(null);
   };
-  const resetForm = () => {
+  const rememberCategory = (category: string) => {
+    if (category) window.localStorage.setItem(ADMIN_RECIPE_CATEGORY_KEY, category);
+  };
+  const resetForm = (category = form.category || filterCat || LIBRARY_CATEGORIES[0].id) => {
     clearLocalDraft();
-    setForm(emptyForm);
+    rememberCategory(category);
+    setForm({ ...emptyForm, category });
     setEditingId(null);
     setMacroDebug([]);
     setLastMacroWarning("");
@@ -580,7 +593,9 @@ export default function AdminRecipes() {
         : await supabase.from("recipes").insert({ ...payload, user_id: null, source_user_id: null } as any).select("*").single();
       if (result.error) throw result.error;
       if (editingId && !result.data) throw new Error("No se encontró la receta para actualizar");
-      resetForm();
+      const activeCategory = form.category;
+      resetForm(activeCategory);
+      setFilterCat(activeCategory);
       await load();
       toast.success(editingId ? "Receta oficial actualizada" : "Receta oficial creada");
     } catch (err: any) {
@@ -803,7 +818,10 @@ export default function AdminRecipes() {
         )}
 
         <input className="field" placeholder="Nombre de la receta *" value={form.title} onChange={e => updateForm({ title: e.target.value })} required />
-        <select className="field" value={form.category} onChange={e => updateForm({ category: e.target.value })} required>
+        <select className="field" value={form.category} onChange={e => {
+          rememberCategory(e.target.value);
+          updateForm({ category: e.target.value });
+        }} required>
           {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
         {editingRecipe && (() => {
@@ -931,7 +949,10 @@ export default function AdminRecipes() {
 
       <div className="card-soft p-3 mb-3 space-y-2">
         <input className="field" placeholder="Buscar receta oficial…" value={query} onChange={e => setQuery(e.target.value)} />
-        <select className="field" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+        <select className="field" value={filterCat} onChange={e => {
+          setFilterCat(e.target.value);
+          if (e.target.value) rememberCategory(e.target.value);
+        }}>
           <option value="">Todas las categorías</option>
           {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
