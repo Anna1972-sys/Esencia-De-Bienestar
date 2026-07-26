@@ -122,7 +122,7 @@ export default function Library() {
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
-    items.forEach(r => {
+    items.filter(recipe => !isCalorieGuidance(recipe)).forEach(r => {
       const category = normalizeCategory(r.category);
       if (category) m[category] = (m[category] ?? 0) + 1;
     });
@@ -131,7 +131,7 @@ export default function Library() {
 
   const filtered = useMemo(() => {
     const query = String(q ?? "").trim().toLowerCase();
-    let list = items;
+    let list = items.filter(recipe => !isCalorieGuidance(recipe));
     if (selectedCat) list = list.filter(r => normalizeCategory(r.category) === selectedCat);
     if (query) {
       list = list.filter(r => {
@@ -149,6 +149,23 @@ export default function Library() {
     }
     return ordered;
   }, [items, selectedCat, q]);
+
+  const calorieGuidance = useMemo(
+    () => items.find(recipe => isCalorieGuidance(recipe)),
+    [items],
+  );
+  const guidanceSettings = {
+    caloriesMin: Number(calorieGuidance?.macros?.guidance_calories_min ?? 150),
+    caloriesMax: Number(calorieGuidance?.macros?.guidance_calories_max ?? 170),
+    proteinMin: Number(calorieGuidance?.macros?.guidance_protein_min ?? 10),
+    proteinMax: Number(calorieGuidance?.macros?.guidance_protein_max ?? 20),
+    lunchImage:
+      normalizeRecipeImageUrl(calorieGuidance?.image_url) ||
+      LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image,
+    snackImage:
+      normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_image_secondary) ||
+      LIBRARY_CATEGORIES.find(item => item.id === "meriendas")?.image,
+  };
 
   useEffect(() => {
     if (returnContext?.scrollY == null || items.length === 0) return;
@@ -247,6 +264,48 @@ export default function Library() {
             </div>
           ) : (
             <div className="space-y-3">
+              {(selectedCat === "snacks" || selectedCat === "meriendas") && !q.trim() && (() => {
+                return (
+                  <div className="w-full overflow-hidden rounded-[24px] border border-primary/25 bg-gradient-to-br from-white via-primary/[0.045] to-secondary/70 p-4 text-left shadow-[0_16px_32px_-24px_hsl(var(--primary)/0.55)]">
+                    <div className="flex items-start gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary">
+                        <Info className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                          Orientación nutricional
+                        </div>
+                        <div className="mt-0.5 text-lg font-semibold leading-tight">
+                          Alterna tus snacks y meriendas
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/75 text-center">
+                        {guidanceSettings.lunchImage && <img src={guidanceSettings.lunchImage} alt="" className="h-20 w-full object-cover" />}
+                        <div className="p-2.5">
+                          <div className="text-xs font-medium">Almuerzo</div>
+                          <div className="mt-0.5 text-sm font-semibold text-primary">Entre {guidanceSettings.caloriesMin} y {guidanceSettings.caloriesMax} kcal</div>
+                          <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">Entre {guidanceSettings.proteinMin} y {guidanceSettings.proteinMax} g de proteína</div>
+                        </div>
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/75 text-center">
+                        {guidanceSettings.snackImage && <img src={guidanceSettings.snackImage} alt="" className="h-20 w-full object-cover" />}
+                        <div className="p-2.5">
+                          <div className="text-xs font-medium">Merienda</div>
+                          <div className="mt-0.5 text-sm font-semibold text-primary">Entre {guidanceSettings.caloriesMin} y {guidanceSettings.caloriesMax} kcal</div>
+                          <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">Entre {guidanceSettings.proteinMin} y {guidanceSettings.proteinMax} g de proteína</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
+                      Varía las opciones durante la semana para mantener una alimentación equilibrada.
+                    </p>
+                  </div>
+                );
+              })()}
               {filtered.map(r => {
                 const category = normalizeCategory(r.category);
                 const cover = normalizeRecipeImageUrl(r.image_url);

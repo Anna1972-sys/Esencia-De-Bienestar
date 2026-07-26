@@ -93,6 +93,17 @@ const macroNumber = (value: string) => {
   return Number.isFinite(n) ? Math.max(0, Math.round(n * 10) / 10) : 0;
 };
 
+const isCalorieGuidanceRecipe = (recipe: Pick<RecipeRow, "title" | "description">) => {
+  const text = `${recipe.title ?? ""} ${recipe.description ?? ""}`
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return (
+    (text.includes("orientacion") && text.includes("caloria")) ||
+    (text.includes("repetir") && text.includes("almuerzo") && text.includes("merienda"))
+  );
+};
+
 const rememberedRecipeCategory = () => {
   if (typeof window === "undefined") return LIBRARY_CATEGORIES[0].id;
   const saved = window.localStorage.getItem(ADMIN_RECIPE_CATEGORY_KEY);
@@ -317,8 +328,97 @@ export default function AdminRecipes() {
   const [availableDraft, setAvailableDraft] = useState<RecipeEditorDraft | null>(null);
   const [changingCategoryId, setChangingCategoryId] = useState<string | null>(null);
   const [changingQualityId, setChangingQualityId] = useState<string | null>(null);
+  const [savingGuidance, setSavingGuidance] = useState(false);
+  const [uploadingGuidance, setUploadingGuidance] = useState<"lunch" | "snack" | null>(null);
 
   const editingRecipe = useMemo(() => items.find(item => item.id === editingId) ?? null, [items, editingId]);
+  const guidanceRecipe = useMemo(() => items.find(isCalorieGuidanceRecipe) ?? null, [items]);
+  const [guidanceForm, setGuidanceForm] = useState({
+    lunchImage: "",
+    snackImage: "",
+    caloriesMin: "150",
+    caloriesMax: "170",
+    proteinMin: "10",
+    proteinMax: "20",
+  });
+
+  useEffect(() => {
+    if (!guidanceRecipe) return;
+    setGuidanceForm({
+      lunchImage:
+        normalizeRecipeImageUrl(guidanceRecipe.image_url) ||
+        LIBRARY_CATEGORIES.find(category => category.id === "comidas")?.image ||
+        "",
+      snackImage:
+        normalizeRecipeImageUrl(guidanceRecipe.macros?.guidance_image_secondary) ||
+        LIBRARY_CATEGORIES.find(category => category.id === "meriendas")?.image ||
+        "",
+      caloriesMin: numberText(guidanceRecipe.macros?.guidance_calories_min ?? 150),
+      caloriesMax: numberText(guidanceRecipe.macros?.guidance_calories_max ?? 170),
+      proteinMin: numberText(guidanceRecipe.macros?.guidance_protein_min ?? 10),
+      proteinMax: numberText(guidanceRecipe.macros?.guidance_protein_max ?? 20),
+    });
+  }, [guidanceRecipe]);
+
+  const uploadGuidanceImage = async (
+    side: "lunch" | "snack",
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingGuidance(side);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) throw error;
+      const url = recipeImagePublicUrl(path);
+      setGuidanceForm(current => ({
+        ...current,
+        [side === "lunch" ? "lunchImage" : "snackImage"]: url,
+      }));
+      toast.success("Imagen preparada. Pulsa Guardar orientación.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo subir la imagen");
+    } finally {
+      setUploadingGuidance(null);
+      event.target.value = "";
+    }
+  };
+
+  const saveGuidance = async () => {
+    if (!guidanceRecipe) {
+      toast.error("No se encontró la tarjeta de orientación");
+      return;
+    }
+    setSavingGuidance(true);
+    try {
+      const macros = {
+        ...(guidanceRecipe.macros ?? {}),
+        guidance_image_secondary: guidanceForm.snackImage || null,
+        guidance_calories_min: macroNumber(guidanceForm.caloriesMin),
+        guidance_calories_max: macroNumber(guidanceForm.caloriesMax),
+        guidance_protein_min: macroNumber(guidanceForm.proteinMin),
+        guidance_protein_max: macroNumber(guidanceForm.proteinMax),
+      };
+      const { error } = await supabase
+        .from("recipes")
+        .update({
+          image_url: guidanceForm.lunchImage || guidanceRecipe.image_url,
+          macros,
+        })
+        .eq("id", guidanceRecipe.id);
+      if (error) throw error;
+      await load();
+      toast.success("Orientación actualizada en Snacks y Meriendas");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo guardar la orientación");
+    } finally {
+      setSavingGuidance(false);
+    }
+  };
 
   const load = async () => {
     const { data, error } = await supabase
@@ -797,6 +897,54 @@ export default function AdminRecipes() {
   return (
     <div className="admin-recipes-page pb-28">
       <AdminPageHeader title="Recetas oficiales" subtitle="Edita, duplica, recalcula y revisa las recetas visibles en la Biblioteca oficial." />
+
+      {guidanceRecipe && (
+        <section className="card-soft p-4 space-y-4 mb-5">
+          <div>
+            <div className="font-medium">Orientación de Snacks y Meriendas</div>
+            <p className="text-xs muted mt-1">
+              Cambia aquí las dos imágenes, las calorías y las proteínas de la tarjeta que aparece en primera posición.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              ["lunch", "Imagen de almuerzo", guidanceForm.lunchImage],
+              ["snack", "Imagen de merienda", guidanceForm.snackImage],
+            ] as const).map(([side, label, image]) => (
+              <div key={side} className="space-y-2">
+                <div className="text-xs font-medium">{label}</div>
+                <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
+                  {image && <img src={image} alt="" className="h-full w-full object-cover" />}
+                </div>
+                <label className="btn-ghost w-full cursor-pointer text-xs">
+                  <Upload className="h-4 w-4" />
+                  {uploadingGuidance === side ? "Subiendo…" : "Cambiar"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={Boolean(uploadingGuidance)}
+                    onChange={event => uploadGuidanceImage(side, event)}
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <input className="field" aria-label="Calorías mínimas" placeholder="Kcal mínimas" value={guidanceForm.caloriesMin} onChange={event => setGuidanceForm(current => ({ ...current, caloriesMin: event.target.value }))} />
+            <input className="field" aria-label="Calorías máximas" placeholder="Kcal máximas" value={guidanceForm.caloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, caloriesMax: event.target.value }))} />
+            <input className="field" aria-label="Proteínas mínimas" placeholder="Proteína mínima" value={guidanceForm.proteinMin} onChange={event => setGuidanceForm(current => ({ ...current, proteinMin: event.target.value }))} />
+            <input className="field" aria-label="Proteínas máximas" placeholder="Proteína máxima" value={guidanceForm.proteinMax} onChange={event => setGuidanceForm(current => ({ ...current, proteinMax: event.target.value }))} />
+          </div>
+
+          <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
+            <Save className="h-4 w-4" />
+            {savingGuidance ? "Guardando…" : "Guardar orientación"}
+          </button>
+        </section>
+      )}
 
       <form onSubmit={submit} className="card-soft p-4 space-y-3 mb-5">
         <div className="flex items-center justify-between gap-3">
