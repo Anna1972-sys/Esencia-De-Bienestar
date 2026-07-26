@@ -734,6 +734,11 @@ function RecipeCard({
           className="mt-4 h-56 w-full rounded-3xl object-cover"
         />
       )}
+      {!recipeImageUrl && (
+        <p className="mt-4 rounded-2xl border border-primary/20 bg-white/80 px-4 py-3 text-sm muted">
+          Receta creada. La administradora podrá añadir una fotografía desde Mis recetas.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
       </div>
