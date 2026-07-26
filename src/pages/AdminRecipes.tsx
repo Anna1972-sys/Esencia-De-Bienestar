@@ -960,14 +960,14 @@ export default function AdminRecipes() {
           <div>
             <div className="font-medium">Orientación de Snacks y Meriendas</div>
             <p className="text-xs muted mt-1">
-              Cambia aquí las dos imágenes, las calorías y las proteínas de la tarjeta que aparece en primera posición.
+              Cambia aquí la imagen de cada categoría y los valores que aparecen en sus tarjetas de primera posición.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {([
-              ["lunch", "Imagen de almuerzo", guidanceForm.lunchImage],
-              ["snack", "Imagen de merienda", guidanceForm.snackImage],
+              ["lunch", "Imagen de Snacks", guidanceForm.lunchImage],
+              ["snack", "Imagen de Meriendas", guidanceForm.snackImage],
             ] as const).map(([side, label, image]) => (
               <div key={side} className="space-y-2">
                 <div className="text-xs font-medium">{label}</div>

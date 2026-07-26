@@ -291,7 +291,7 @@ export default function Library() {
                 const proteinMin = isDinner ? guidanceSettings.dinnerProteinMin : guidanceSettings.mealProteinMin;
                 const proteinMax = isDinner ? guidanceSettings.dinnerProteinMax : guidanceSettings.mealProteinMax;
                 return (
-                  <div className="recipe-premium flex min-h-[10rem] w-full overflow-hidden rounded-[22px] bg-white/90 text-left transition">
+                  <div className="recipe-premium nutrition-guidance-card flex min-h-[10rem] w-full overflow-hidden rounded-[22px] bg-white text-left transition">
                     {image && (
                       <div className="library-recipe-thumb h-auto min-h-[10rem] shrink-0 self-stretch bg-muted">
                         <img src={image} alt="" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" />
@@ -309,7 +309,7 @@ export default function Library() {
                           {proteinMin}–{proteinMax} g de proteína
                         </span>
                       </div>
-                      <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                      <p className="mt-2 text-[10px] leading-snug text-foreground/85">
                         Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
                       </p>
                     </div>
@@ -317,47 +317,36 @@ export default function Library() {
                 );
               })()}
               {(selectedCat === "snacks" || selectedCat === "meriendas") && !q.trim() && (() => {
+                const isSnack = selectedCat === "snacks";
+                const image = isSnack ? guidanceSettings.lunchImage : guidanceSettings.snackImage;
                 return (
-                  <div className="w-full overflow-hidden rounded-[24px] border border-primary/25 bg-gradient-to-br from-white via-primary/[0.045] to-secondary/70 p-4 text-left shadow-[0_16px_32px_-24px_hsl(var(--primary)/0.55)]">
-                    <div className="flex items-start gap-3">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary">
-                        <Info className="h-5 w-5" />
+                  <div className="recipe-premium nutrition-guidance-card flex min-h-[10rem] w-full overflow-hidden rounded-[22px] bg-white text-left transition">
+                    {image && (
+                      <div className="library-recipe-thumb h-auto min-h-[10rem] shrink-0 self-stretch bg-muted">
+                        <img src={image} alt="" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" />
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
-                          Orientación nutricional
-                        </div>
-                        <div className="mt-0.5 text-lg font-semibold leading-tight">
-                          Alterna tus snacks y meriendas
-                        </div>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
+                      <div className="font-medium leading-tight">
+                        {isSnack ? "Tu snack saludable" : "Tu merienda ideal"}
                       </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                          {guidanceSettings.caloriesMin}–{guidanceSettings.caloriesMax} kcal
+                        </span>
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold">
+                          {guidanceSettings.proteinMin}–{guidanceSettings.proteinMax} g de proteína
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[10px] font-semibold leading-snug text-primary">
+                        {isSnack
+                          ? "Alterna las opciones: no repitas después en la merienda lo que has tomado en el almuerzo."
+                          : "Alterna las opciones: no repitas en la merienda lo mismo que has tomado en el almuerzo."}
+                      </p>
+                      <p className="mt-2 text-[10px] leading-snug text-foreground/85">
+                        Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
+                      </p>
                     </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/75 text-center">
-                        {guidanceSettings.lunchImage && <img src={guidanceSettings.lunchImage} alt="" className="h-20 w-full object-cover" />}
-                        <div className="p-2.5">
-                          <div className="text-xs font-medium">Almuerzo</div>
-                          <div className="mt-0.5 text-sm font-semibold text-primary">Entre {guidanceSettings.caloriesMin} y {guidanceSettings.caloriesMax} kcal</div>
-                          <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">Entre {guidanceSettings.proteinMin} y {guidanceSettings.proteinMax} g de proteína</div>
-                        </div>
-                      </div>
-                      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/75 text-center">
-                        {guidanceSettings.snackImage && <img src={guidanceSettings.snackImage} alt="" className="h-20 w-full object-cover" />}
-                        <div className="p-2.5">
-                          <div className="text-xs font-medium">Merienda</div>
-                          <div className="mt-0.5 text-sm font-semibold text-primary">Entre {guidanceSettings.caloriesMin} y {guidanceSettings.caloriesMax} kcal</div>
-                          <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">Entre {guidanceSettings.proteinMin} y {guidanceSettings.proteinMax} g de proteína</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-                      Varía las opciones durante la semana para mantener una alimentación equilibrada.
-                    </p>
-                    <p className="mt-1.5 text-center text-[11px] leading-relaxed text-muted-foreground">
-                      Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
-                    </p>
                   </div>
                 );
               })()}
@@ -392,7 +381,7 @@ export default function Library() {
                             {guidanceSettings.breakfastProteinMin}–{guidanceSettings.breakfastProteinMax} g de proteína
                           </span>
                         </div>
-                        <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                        <p className="mt-2 text-[10px] leading-snug text-foreground/85">
                           Esta orientación es general. Consulta con tu asesora para adaptarla a tu objetivo personal.
                         </p>
                       </div>

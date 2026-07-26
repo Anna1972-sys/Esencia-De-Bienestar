@@ -4119,6 +4119,10 @@
     background: #FFFFFF !important;
   }
 
+  .library-recipes-page .recipe-premium.nutrition-guidance-card {
+    background: #FFFFFF !important;
+  }
+
   .recipe-detail-page .recipe-add-button {
     background: #FF2D95 !important;
     border-color: #FF2D95 !important;
