@@ -460,12 +460,12 @@ export default function Library() {
                           />
                         </div>
                       )}
-                      <div className="p-3 pr-11 flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
+                      <div className={selectedCat === "snacks" ? "min-w-0 flex-1 p-3" : "p-3 pr-11 flex-1 min-w-0"}>
+                        <div className={`flex items-center gap-1.5 ${selectedCat === "snacks" ? "pr-8" : ""}`}>
                           {r.is_featured && <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />}
                           <div className="font-medium truncate">{r.title}</div>
                         </div>
-                        <div className="mt-1.5 grid grid-cols-5 gap-1 text-[10px] text-center">
+                        <div className={`${selectedCat === "snacks" ? "mt-6" : "mt-1.5"} grid grid-cols-5 gap-1 text-[10px] text-center`}>
                           <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
                           <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
                           <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>
