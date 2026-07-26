@@ -189,7 +189,19 @@ const ignoredRecipeQualityIssues = (recipe: RecipeRow) =>
     ? recipe.macros.quality_ignored.map(String)
     : [];
 
+const canReviewQualityIssues = (recipe: RecipeRow) => {
+  const category = String(recipe.category ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+
+  return category === "snacks" || category === "almuerzos" || category === "meriendas";
+};
+
 const recipeQualityIssues = (recipe: RecipeRow) => {
+  if (!canReviewQualityIssues(recipe)) return detectedRecipeQualityIssues(recipe);
   const ignored = new Set(ignoredRecipeQualityIssues(recipe));
   return detectedRecipeQualityIssues(recipe).filter(issue => !ignored.has(issue));
 };
@@ -981,10 +993,11 @@ export default function AdminRecipes() {
           const status = recipeStatus(recipe);
           const imageUrl = normalizeRecipeImageUrl(recipe.image_url);
           const detectedQualityIssues = detectedRecipeQualityIssues(recipe);
-          const qualityIssues = recipeQualityIssues(recipe);
-          const ignoredQualityIssues = detectedQualityIssues.filter(issue =>
-            ignoredRecipeQualityIssues(recipe).includes(issue)
-          );
+          const allowsQualityReview = canReviewQualityIssues(recipe);
+          const qualityIssues = allowsQualityReview ? recipeQualityIssues(recipe) : detectedQualityIssues;
+          const ignoredQualityIssues = allowsQualityReview
+            ? detectedQualityIssues.filter(issue => ignoredRecipeQualityIssues(recipe).includes(issue))
+            : [];
           const categoryGroup = orderedRecipesInCategory(recipe.category);
           const categoryIndex = categoryGroup.findIndex(item => item.id === recipe.id);
           return (
@@ -1004,16 +1017,25 @@ export default function AdminRecipes() {
               {qualityIssues.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {qualityIssues.map(issue => (
-                    <button
-                      key={issue}
-                      type="button"
-                      onClick={() => toggleQualityIssue(recipe, issue)}
-                      disabled={changingQualityId === `${recipe.id}:${issue}`}
-                      title="Pulsar para marcar como no aplicable"
-                      className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
-                    >
-                      {issue} · No aplica
-                    </button>
+                    allowsQualityReview ? (
+                      <button
+                        key={issue}
+                        type="button"
+                        onClick={() => toggleQualityIssue(recipe, issue)}
+                        disabled={changingQualityId === `${recipe.id}:${issue}`}
+                        title="Pulsar para marcar como revisado"
+                        className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        {issue} · Revisar
+                      </button>
+                    ) : (
+                      <span
+                        key={issue}
+                        className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700"
+                      >
+                        {issue}
+                      </span>
+                    )
                   ))}
                 </div>
               ) : (
