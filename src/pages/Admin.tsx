@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, RotateCcw, Save } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BellRing, ChevronRight, Heart, RotateCcw, Save, UserX, Utensils } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadCardOrder, moveCardKey, orderCards, saveCardOrder } from "@/lib/cardOrderSettings";
@@ -77,26 +77,64 @@ type Stats = {
   pendingInvites: number | null;
   activeChallenges: number | null;
 };
+type AdminSummary = {
+  clientsNeedingAttention: number | null;
+  pendingReminders: number | null;
+  mostSaved: { title: string; count: number } | null;
+  latestRecipes: Array<{ id: string; title: string }>;
+};
 
 export default function Admin() {
   const [stats, setStats] = useState<Stats>({ recipes: null, users: null, pendingInvites: null, activeChallenges: null });
+  const [summary, setSummary] = useState<AdminSummary>({
+    clientsNeedingAttention: null,
+    pendingReminders: null,
+    mostSaved: null,
+    latestRecipes: [],
+  });
   const [cardOrder, setCardOrder] = useState<string[]>(DEFAULT_ADMIN_CARD_ORDER);
   const [orderingCards, setOrderingCards] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [r, u, i, c] = await Promise.all([
+      const [r, u, i, c, profilesResult, rolesResult, activityResult, remindersResult, favoritesResult, latestRecipesResult] = await Promise.all([
         (supabase as any).from("recipes").select("id", { count: "exact", head: true }),
         (supabase as any).from("profiles").select("id", { count: "exact", head: true }),
         (supabase as any).from("invitations").select("id", { count: "exact", head: true }).eq("status", "pending"),
         (supabase as any).from("challenges").select("id", { count: "exact", head: true }),
+        (supabase as any).from("profiles").select("id"),
+        (supabase as any).from("user_roles").select("user_id,role"),
+        (supabase as any).from("user_activity_sessions").select("user_id,last_seen_at").order("last_seen_at", { ascending: false }).limit(5000),
+        (supabase as any).from("follow_up_reminders").select("id", { count: "exact", head: true }).is("completed_at", null),
+        (supabase as any).rpc("get_favorite_content_stats"),
+        (supabase as any).from("recipes").select("id,title").order("created_at", { ascending: false }).limit(3),
       ]);
       setStats({
         recipes: r.count ?? 0,
         users: u.count ?? 0,
         pendingInvites: i.count ?? 0,
         activeChallenges: c.count ?? 0,
+      });
+      const adminIds = new Set((rolesResult.data ?? []).filter((role: any) => role.role === "admin").map((role: any) => role.user_id));
+      const latestActivity = new Map<string, string>();
+      (activityResult.data ?? []).forEach((row: any) => {
+        if (row.user_id && !latestActivity.has(row.user_id)) latestActivity.set(row.user_id, row.last_seen_at);
+      });
+      const now = Date.now();
+      const attentionCount = (profilesResult.data ?? []).filter((client: any) => {
+        if (adminIds.has(client.id)) return false;
+        const lastSeen = latestActivity.get(client.id);
+        return !lastSeen || now - +new Date(lastSeen) >= 7 * 24 * 60 * 60 * 1000;
+      }).length;
+      const favoriteRows = [...(favoritesResult.data ?? [])].sort((a: any, b: any) => Number(b.saved_count) - Number(a.saved_count));
+      setSummary({
+        clientsNeedingAttention: profilesResult.error || rolesResult.error ? null : attentionCount,
+        pendingReminders: remindersResult.error ? null : remindersResult.count ?? 0,
+        mostSaved: favoriteRows[0]
+          ? { title: favoriteRows[0].title || "Contenido", count: Number(favoriteRows[0].saved_count || 0) }
+          : null,
+        latestRecipes: (latestRecipesResult.data ?? []).map((recipe: any) => ({ id: recipe.id, title: recipe.title || "Receta sin título" })),
       });
     })();
   }, []);
@@ -187,6 +225,42 @@ export default function Admin() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="card-soft p-4 mb-7" aria-label="Resumen de hoy">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h2 className="font-serif text-base" style={{ color: "hsl(var(--plum))" }}>Resumen de hoy</h2>
+            <p className="text-[11px] muted mt-0.5">Lo más importante de un vistazo.</p>
+          </div>
+          <span className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-1">Solo administración</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Link to="/app/admin/usuarios#alertas-seguimiento" className="rounded-2xl bg-rose-50 p-3 text-rose-700">
+            <UserX className="h-4 w-4 mb-2" />
+            <div className="font-serif text-xl leading-none">{summary.clientsNeedingAttention ?? "—"}</div>
+            <div className="text-[10px] mt-1">Clientas que necesitan atención</div>
+          </Link>
+          <Link to="/app/admin/usuarios#alertas-avanzadas" className="rounded-2xl bg-amber-50 p-3 text-amber-700">
+            <BellRing className="h-4 w-4 mb-2" />
+            <div className="font-serif text-xl leading-none">{summary.pendingReminders ?? "—"}</div>
+            <div className="text-[10px] mt-1">Recordatorios pendientes</div>
+          </Link>
+          <Link to="/app/admin/favoritos" className="rounded-2xl bg-pink-50 p-3 text-pink-700">
+            <Heart className="h-4 w-4 mb-2 fill-current" />
+            <div className="font-medium text-xs leading-tight line-clamp-2">{summary.mostSaved?.title ?? "Sin favoritos todavía"}</div>
+            <div className="text-[10px] mt-1">{summary.mostSaved ? `${summary.mostSaved.count} guardados` : "Contenido más guardado"}</div>
+          </Link>
+          <Link to="/app/admin/recetas" className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
+            <Utensils className="h-4 w-4 mb-2" />
+            <div className="space-y-1">
+              {summary.latestRecipes.length ? summary.latestRecipes.map(recipe => (
+                <div key={recipe.id} className="text-[10px] truncate">{recipe.title}</div>
+              )) : <div className="text-xs">Sin recetas recientes</div>}
+            </div>
+            <div className="text-[10px] mt-1 opacity-75">Últimas recetas creadas</div>
+          </Link>
         </div>
       </section>
 
