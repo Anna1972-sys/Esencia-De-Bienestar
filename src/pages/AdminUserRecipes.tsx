@@ -140,6 +140,7 @@ export default function AdminUserRecipes() {
   const [busy, setBusy] = useState(false);
   const [bulkCompleting, setBulkCompleting] = useState(false);
   const [bulkSummary, setBulkSummary] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(8);
 
   const load = async () => {
     const { data: recs } = await supabase.from("recipes").select("*").eq("is_library", false).order("created_at", { ascending: false });
@@ -162,6 +163,11 @@ export default function AdminUserRecipes() {
       (!search || String(r.title ?? "").toLowerCase().includes(String(search ?? "").toLowerCase()))
     );
   }, [recipes, filterUser, search]);
+  const displayedRecipes = visible.slice(0, visibleLimit);
+
+  useEffect(() => {
+    setVisibleLimit(8);
+  }, [filterUser, search]);
 
   const userOptions = useMemo(() => Object.entries(profiles), [profiles]);
 
@@ -332,10 +338,11 @@ export default function AdminUserRecipes() {
           {bulkCompleting ? "Completando recetas antiguas…" : "Completar cantidades de recetas antiguas"}
         </button>
         {bulkSummary && <div className="rounded-2xl bg-secondary/70 p-3 text-xs">{bulkSummary}</div>}
+        <div className="text-xs muted">{visible.length} resultado{visible.length === 1 ? "" : "s"}</div>
       </div>
 
       <div className="space-y-2">
-        {visible.map(r => {
+        {displayedRecipes.map(r => {
           const imageUrl = normalizeRecipeImageUrl(r.image_url);
           return (
           <div key={r.id} className="card-soft p-3">
@@ -371,6 +378,11 @@ export default function AdminUserRecipes() {
           </div>
         )})}
         {visible.length === 0 && <div className="card-soft p-6 text-center muted">No hay recetas.</div>}
+        {displayedRecipes.length < visible.length && (
+          <button type="button" className="btn-ghost w-full py-3" onClick={() => setVisibleLimit(limit => limit + 8)}>
+            Cargar más ({visible.length - displayedRecipes.length} restantes)
+          </button>
+        )}
       </div>
 
       {editing && (

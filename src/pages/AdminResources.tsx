@@ -91,6 +91,7 @@ type Form = {
 };
 
 const empty: Form = { title: "", category_id: "", cover_image: "", blocks: [], is_pinned: false };
+const ADMIN_RESOURCE_PAGE_SIZE = 8;
 
 async function uploadFile(file: File, folder: string) {
   const path = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
@@ -122,6 +123,7 @@ export default function AdminResources() {
   const [showEditor, setShowEditor] = useState(false);
   const [selectedSection, setSelectedSection] = useState<AdminResourceSectionKey | "">("");
   const [guideSubcategoriesChecked, setGuideSubcategoriesChecked] = useState(false);
+  const [visibleLimit, setVisibleLimit] = useState(ADMIN_RESOURCE_PAGE_SIZE);
 
   const loadCats = () => supabase.from("resource_categories").select("*").order("sort_order").then(({ data }) => setCats((data ?? []) as Category[]));
   const load = () => supabase.from("resources")
@@ -491,6 +493,11 @@ export default function AdminResources() {
     });
     return list;
   }, [items, searchQ, filterCat, selectedSection, filterSub, filterPinned, filterVisibility, dateField, dateFrom, dateTo, sortBy, catById, cats]);
+  const displayedResources = visible.slice(0, visibleLimit);
+
+  useEffect(() => {
+    setVisibleLimit(ADMIN_RESOURCE_PAGE_SIZE);
+  }, [searchQ, filterCat, selectedSection, filterSub, filterPinned, filterVisibility, dateField, dateFrom, dateTo, sortBy]);
 
   const resetFilters = () => {
     setSearchQ(""); setFilterSub(""); setFilterPinned("all"); setFilterVisibility("all");
@@ -1036,7 +1043,7 @@ export default function AdminResources() {
         </div>
       )}
 
-      <div className="space-y-2">{visible.map(i => {
+      <div className="space-y-2">{displayedResources.map(i => {
         const isDragging = dragItemId === i.id;
         const showBefore = dropOver?.kind === "item" && dropOver.id === i.id && dropOver.pos === "before";
         const showAfter = dropOver?.kind === "item" && dropOver.id === i.id && dropOver.pos === "after";
@@ -1115,7 +1122,13 @@ export default function AdminResources() {
             {showAfter && <div className="h-1 my-1 rounded bg-primary" />}
           </div>
         );
-      })}</div>
+      })}
+        {displayedResources.length < visible.length && (
+          <button type="button" className="btn-ghost w-full py-3" onClick={() => setVisibleLimit(limit => limit + ADMIN_RESOURCE_PAGE_SIZE)}>
+            Cargar más ({visible.length - displayedResources.length} restantes)
+          </button>
+        )}
+      </div>
         </>
       )}
     </div>

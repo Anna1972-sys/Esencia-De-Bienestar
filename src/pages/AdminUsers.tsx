@@ -41,6 +41,7 @@ type ContactLog = {
   note: string;
   completed_at: string;
 };
+const ADMIN_LIST_PAGE_SIZE = 8;
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString() : "—";
 const formatDuration = (seconds: number) => {
@@ -97,6 +98,7 @@ export default function AdminUsers() {
   const [filterRole, setFilterRole] = useState<"all" | "admin" | "client">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "suspended" | "unconfirmed">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "lastSeen" | "az">("newest");
+  const [visibleLimit, setVisibleLimit] = useState(ADMIN_LIST_PAGE_SIZE);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activityUser, setActivityUser] = useState<Row | null>(null);
   const [activityRows, setActivityRows] = useState<ActivityRow[]>([]);
@@ -315,6 +317,11 @@ export default function AdminUsers() {
     }[sortBy];
     return [...list].sort(cmp);
   }, [rows, q, filterRole, filterStatus, sortBy]);
+  const displayedUsers = visible.slice(0, visibleLimit);
+
+  useEffect(() => {
+    setVisibleLimit(ADMIN_LIST_PAGE_SIZE);
+  }, [q, filterRole, filterStatus, sortBy]);
 
   const activityByUser = useMemo(() => {
     const map = new Map<string, ActivityRow[]>();
@@ -491,7 +498,7 @@ export default function AdminUsers() {
         <div className="card-soft p-6 text-center muted">Cargando…</div>
       ) : (
         <div className="space-y-2">
-          {visible.map((r) => {
+          {displayedUsers.map((r) => {
             const admin = isAdmin(r);
             const isSelf = r.id === user?.id;
             const alert = clientAlerts.find(item => item.row.id === r.id);
@@ -586,6 +593,11 @@ export default function AdminUsers() {
             );
           })}
           {visible.length === 0 && <div className="card-soft p-6 text-center muted">No hay usuarios que coincidan.</div>}
+          {displayedUsers.length < visible.length && (
+            <button type="button" className="btn-ghost w-full py-3" onClick={() => setVisibleLimit(limit => limit + ADMIN_LIST_PAGE_SIZE)}>
+              Cargar más ({visible.length - displayedUsers.length} restantes)
+            </button>
+          )}
         </div>
       )}
 
