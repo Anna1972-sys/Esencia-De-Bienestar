@@ -9,7 +9,6 @@ function localApiPlugin() {
       const localHandlers: Record<string, string> = {
         "/api/macro-specialist": "/api/macro-specialist.ts",
         "/api/manual-food-items": "/api/manual-food-items.ts",
-        "/api/generate-recipe-image": "/api/generate-recipe-image.ts",
         "/api/read-nutrition-label": "/api/read-nutrition-label.ts",
         "/api/read-product-pdf-description": "/api/read-product-pdf-description.ts",
         "/api/read-product-ingredients-label": "/api/read-product-ingredients-label.ts",

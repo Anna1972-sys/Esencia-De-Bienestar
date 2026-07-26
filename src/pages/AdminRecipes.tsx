@@ -253,7 +253,6 @@ export default function AdminRecipes() {
   const [filterCat, setFilterCat] = useState("");
   const [query, setQuery] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [macroDebug, setMacroDebug] = useState<any[]>([]);
@@ -360,48 +359,6 @@ export default function AdminRecipes() {
     } finally {
       setUploading(false);
       e.target.value = "";
-    }
-  };
-
-  const generateImageWithGemini = async () => {
-    const title = form.title.trim();
-    const ingredients = parseLines(form.ingredients);
-    if (!title && !ingredients.length) {
-      toast.error("Añade el nombre o los ingredientes de la receta antes de generar la imagen.");
-      return;
-    }
-    if (generatingImage) return;
-    setGeneratingImage(true);
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (sessionError || !token) throw new Error("Vuelve a iniciar sesión para generar la imagen.");
-
-      const response = await fetch("/api/generate-recipe-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title,
-          ingredients,
-          preparation: parseLines(form.steps),
-        }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.error || "No se pudo generar la imagen con Gemini.");
-
-      const imageUrl = normalizeRecipeImageUrl(payload?.image_url);
-      if (!imageUrl) {
-        throw new Error(payload?.storage_warning || "Gemini creó la imagen, pero no pudo guardarse de forma permanente.");
-      }
-      updateForm({ image_url: imageUrl });
-      toast.success("Imagen generada con Gemini. Pulsa Guardar para aplicarla a la receta.");
-    } catch (err: any) {
-      toast.error(err?.message || "No se pudo generar la imagen con Gemini.");
-    } finally {
-      setGeneratingImage(false);
     }
   };
 
@@ -815,15 +772,6 @@ export default function AdminRecipes() {
             {uploading ? "Subiendo…" : (form.image_url ? "Cambiar imagen" : "Subir imagen")}
             <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
           </label>
-          <button
-            type="button"
-            className="btn-primary w-full"
-            onClick={generateImageWithGemini}
-            disabled={generatingImage || uploading || saving || (!form.title.trim() && !parseLines(form.ingredients).length)}
-          >
-            <Sparkles className="h-4 w-4" />
-            {generatingImage ? "Generando imagen…" : "Generar imagen con Gemini"}
-          </button>
         </div>
 
         <VideoField value={form.video_url} onChange={url => updateForm({ video_url: url })} label="Vídeo (opcional)" />
@@ -849,7 +797,7 @@ export default function AdminRecipes() {
           <button
             type="button"
             onClick={completeQuantitiesForForm}
-            disabled={completingQuantities || calculating || uploading || generatingImage || saving}
+            disabled={completingQuantities || calculating || uploading || saving}
             className="btn-primary w-full"
           >
             <Sparkles className="h-4 w-4" />
@@ -868,7 +816,7 @@ export default function AdminRecipes() {
           <input className="field text-center" aria-label="Fibra" placeholder="Fibra" value={form.fiber} onChange={e => updateForm({ fiber: e.target.value })} />
         </div>
 
-        <button type="button" onClick={recalculateForForm} disabled={calculating || uploading || generatingImage || saving || !parseLines(form.ingredients).length} className="btn-ghost w-full">
+        <button type="button" onClick={recalculateForForm} disabled={calculating || uploading || saving || !parseLines(form.ingredients).length} className="btn-ghost w-full">
           <Calculator className="h-4 w-4" /> {calculating ? "Recalculando…" : "Recalcular macros"}
         </button>
         {lastMacroWarning && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 p-3 text-xs">{lastMacroWarning}</div>}
@@ -894,7 +842,7 @@ export default function AdminRecipes() {
           </details>
         )}
 
-        <button className="btn-primary w-full" disabled={uploading || generatingImage || calculating || saving}>
+        <button className="btn-primary w-full" disabled={uploading || calculating || saving}>
           <Save className="h-4 w-4" /> {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear receta oficial"}
         </button>
       </form>

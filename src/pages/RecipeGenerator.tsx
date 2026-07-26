@@ -42,11 +42,6 @@ const ingredientSignature = (ingredients: any[] = []) =>
 const firstUrl = (...values: any[]) =>
   values.find(value => typeof value === "string" && value.trim())?.trim() ?? null;
 
-const isTemporaryImageUrl = (value: unknown) => {
-  const url = String(value ?? "").trim();
-  return !url || url.startsWith("data:image/") || url.includes("oaidalleapiprodscus.blob.core.windows.net");
-};
-
 const noMacroIngredientWords = [
   "agua",
   "sal",
@@ -331,7 +326,7 @@ const withSpecialistMacros = async (recipe: any, fallbackCategory: RecipeCategor
 };
 
 export default function RecipeGenerator() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [categories, setCategories] = useState<RecipeGeneratorCategory[]>(DEFAULT_RECIPE_GENERATOR_CATEGORIES);
   const [category, setCategory] = useState<RecipeCategory>(DEFAULT_RECIPE_GENERATOR_CATEGORIES[0].id);
@@ -345,7 +340,6 @@ export default function RecipeGenerator() {
   const [result, setResult] = useState<any>(null);
   const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
   const [savingRecipe, setSavingRecipe] = useState(false);
-  const [generatingResultImage, setGeneratingResultImage] = useState(false);
   const [confirmDiscardGenerated, setConfirmDiscardGenerated] = useState(false);
   const [discardingGenerated, setDiscardingGenerated] = useState(false);
 
@@ -520,10 +514,7 @@ export default function RecipeGenerator() {
         enrichedRecipe.image?.url,
         enrichedRecipe.image
       );
-      const finalImageUrl = isTemporaryImageUrl(imageUrl) ? null : imageUrl;
-      const imageGenerationMetadata = finalImageUrl
-        ? { image_generation_status: "ready", image_generation_error: "" }
-        : {};
+      const finalImageUrl = imageUrl;
       const { error } = await supabase.from("recipes").insert({
         id: recipeId,
         user_id: user.id,
@@ -534,10 +525,7 @@ export default function RecipeGenerator() {
         servings,
         prep_time: enrichedRecipe.prep_time,
         image_url: finalImageUrl,
-        macros: {
-          ...macros,
-          ...imageGenerationMetadata,
-        },
+        macros,
         ingredients: recipeIngredients,
         steps: enrichedRecipe.steps ?? [],
         tags: Array.from(new Set([...(enrichedRecipe.tags ?? []), "Generador IA"])),
@@ -551,10 +539,7 @@ export default function RecipeGenerator() {
       const savedRecipe = {
         ...enrichedRecipe,
         image_url: finalImageUrl,
-        macros: {
-          ...macros,
-          ...imageGenerationMetadata,
-        },
+        macros,
         servings,
       };
       setResult(savedRecipe);
@@ -568,89 +553,6 @@ export default function RecipeGenerator() {
       return null;
     } finally {
       setSavingRecipe(false);
-    }
-  };
-
-  const generateImageForGeneratedRecipe = async () => {
-    if (!result) return;
-    if (!user) {
-      toast.error("No hay sesión activa. Vuelve a iniciar sesión para generar la imagen.");
-      return;
-    }
-    if (!isAdmin) {
-      toast.error("Solo la administradora puede generar imágenes.");
-      return;
-    }
-    if (generatingResultImage || savingRecipe) return;
-
-    setGeneratingResultImage(true);
-    try {
-      let recipeId = savedRecipeId;
-      let recipeForImage = result;
-
-      if (!recipeId) {
-        const saved = await saveRecipe(result, {
-          navigateAfterSave: false,
-          successMessage: "Receta guardada. Generando imagen…",
-          quietAlreadySaved: true,
-        });
-        if (!saved?.id) {
-          throw new Error("No se pudo guardar la receta antes de generar la imagen.");
-        }
-        recipeId = saved.id;
-        recipeForImage = saved.recipe ?? result;
-      }
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (sessionError || !token) throw new Error("Vuelve a iniciar sesión para generar la imagen.");
-
-      const response = await fetch("/api/generate-recipe-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ recipe: recipeForImage }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(payload?.error || "No se pudo generar la imagen con Gemini.");
-      }
-
-      const imageUrl = firstUrl(payload?.image_url);
-      if (!imageUrl) {
-        throw new Error(payload?.storage_warning || "Gemini creó la imagen, pero no se pudo guardar de forma permanente.");
-      }
-
-      const { error: updateError } = await supabase
-        .from("recipes")
-        .update({
-          image_url: imageUrl,
-          macros: {
-            ...(recipeForImage.macros ?? {}),
-            image_generation_status: "ready",
-            image_generation_error: "",
-          },
-        } as any)
-        .eq("id", recipeId)
-        .eq("user_id", user.id);
-      if (updateError) throw updateError;
-
-      setResult((current: any) => ({
-        ...(current ?? recipeForImage),
-        image_url: imageUrl,
-        macros: {
-          ...((current ?? recipeForImage)?.macros ?? {}),
-          image_generation_status: "ready",
-          image_generation_error: "",
-        },
-      }));
-      toast.success("Imagen generada con Gemini y guardada correctamente.");
-    } catch (err: any) {
-      toast.error(err?.message || "No se pudo generar la imagen.");
-    } finally {
-      setGeneratingResultImage(false);
     }
   };
 
@@ -768,10 +670,7 @@ export default function RecipeGenerator() {
           categories={categories}
           saved={Boolean(savedRecipeId)}
           saving={savingRecipe}
-          isAdmin={isAdmin}
-          generatingImage={generatingResultImage}
           onSave={() => saveRecipe(result)}
-          onGenerateImage={generateImageForGeneratedRecipe}
           onRequestDiscard={() => setConfirmDiscardGenerated(true)}
         />
       )}
@@ -800,20 +699,14 @@ function RecipeCard({
   categories,
   saved,
   saving,
-  isAdmin,
-  generatingImage,
   onSave,
-  onGenerateImage,
   onRequestDiscard,
 }: {
   recipe: any;
   categories: RecipeGeneratorCategory[];
   saved: boolean;
   saving: boolean;
-  isAdmin: boolean;
-  generatingImage: boolean;
   onSave: () => void;
-  onGenerateImage: () => void;
   onRequestDiscard: () => void;
 }) {
   const perServing = recipe.macros ?? {};
@@ -840,19 +733,6 @@ function RecipeCard({
           alt={recipe.title}
           className="mt-4 h-56 w-full rounded-3xl object-cover"
         />
-      )}
-      {isAdmin && !recipeImageUrl && (
-        <button onClick={onGenerateImage} disabled={generatingImage || saving} className="btn-ghost w-full mt-4">
-          {generatingImage ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Generando imagen…
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" /> Generar imagen con Gemini
-            </>
-          )}
-        </button>
       )}
       <div className="flex flex-wrap gap-2 my-3">
         {(recipe.tags ?? []).map((t: string) => <span key={t} className="chip">{t}</span>)}
