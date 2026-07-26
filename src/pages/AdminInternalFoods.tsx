@@ -335,6 +335,7 @@ export default function AdminInternalFoods() {
   const [importing, setImporting] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [expandedFoodIds, setExpandedFoodIds] = useState<Record<string, boolean>>({});
 
   const loadFoods = async () => {
     setLoading(true);
@@ -892,7 +893,15 @@ export default function AdminInternalFoods() {
         subtitle="Base editable que el cálculo nutricional consulta antes de USDA y FatSecret."
       />
 
-      <form onSubmit={save} className="card-soft admin-internal-foods-container p-4 space-y-4 mb-5">
+      <details key={editingId ? `edit-${editingId}` : "new-food"} defaultOpen={Boolean(editingId)} className="card-soft admin-internal-foods-container mb-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+          <div>
+            <h2 className="font-serif text-lg">Nuevo alimento</h2>
+            <p className="mt-1 text-xs muted">{editingId ? "Edición en curso" : "Añadir un alimento a la base interna"}</p>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-primary">Abrir / cerrar</span>
+        </summary>
+        <form onSubmit={save} className="space-y-4 px-4 pb-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-serif text-lg">{editingId ? "Editar alimento" : "Nuevo alimento"}</h2>
@@ -980,7 +989,8 @@ export default function AdminInternalFoods() {
           {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear alimento"}
         </button>
-      </form>
+        </form>
+      </details>
 
       <section className="card-soft admin-internal-foods-container p-4 mb-5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1127,8 +1137,10 @@ export default function AdminInternalFoods() {
         </div>
 
         <div className="space-y-2">
-          {filtered.map(food => (
-            <div key={food.id} className={`admin-internal-food-row rounded-2xl border p-3 ${food.is_active ? "border-border" : "border-dashed opacity-60"}`}>
+          {filtered.map(food => {
+            const isFoodExpanded = Boolean(expandedFoodIds[food.id]);
+            return (
+              <div key={food.id} className={`admin-internal-food-row rounded-2xl border p-3 ${food.is_active ? "border-border" : "border-dashed opacity-60"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -1139,8 +1151,8 @@ export default function AdminInternalFoods() {
                   <p className="text-xs muted mt-1">
                     {displayFoodCategory(food.category)} · Base: {food.base_quantity} {food.base_unit === "serving" ? "ración" : food.base_unit} · Fuente: {food.source}
                   </p>
-                  {food.synonyms.length > 0 && <p className="text-xs muted mt-1">Sinónimos: {food.synonyms.join(", ")}</p>}
-                  <div className="grid grid-cols-2 min-[420px]:grid-cols-3 md:grid-cols-4 gap-1 text-center text-[11px] mt-2">
+                  {isFoodExpanded && food.synonyms.length > 0 && <p className="text-xs muted mt-1">Sinónimos: {food.synonyms.join(", ")}</p>}
+                  <div className={`${isFoodExpanded ? "grid" : "hidden"} grid-cols-2 min-[420px]:grid-cols-3 md:grid-cols-4 gap-1 text-center text-[11px] mt-2`}>
                     <span className="rounded-lg bg-secondary p-1">{food.calories} kcal</span>
                     <span className="rounded-lg bg-secondary p-1">{food.protein}g prot</span>
                     <span className="rounded-lg bg-secondary p-1">{food.carbs}g hidr</span>
@@ -1152,16 +1164,28 @@ export default function AdminInternalFoods() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">
-                  <button type="button" onClick={() => edit(food)} className="btn-ghost text-xs">
-                    <Edit3 className="h-3.5 w-3.5" /> Editar
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFoodIds(current => ({ ...current, [food.id]: !current[food.id] }))}
+                    className="btn-ghost text-xs"
+                  >
+                    {isFoodExpanded ? "Cerrar" : "Abrir"}
                   </button>
-                  <button type="button" onClick={() => remove(food)} className="btn-ghost text-xs text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                  </button>
+                  {isFoodExpanded && (
+                    <>
+                      <button type="button" onClick={() => edit(food)} className="btn-ghost text-xs">
+                        <Edit3 className="h-3.5 w-3.5" /> Editar
+                      </button>
+                      <button type="button" onClick={() => remove(food)} className="btn-ghost text-xs text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+              </div>
+            );
+          })}
           {!loading && filtered.length === 0 && <p className="text-sm muted text-center py-6">No hay alimentos que coincidan con la búsqueda.</p>}
         </div>
       </section>
