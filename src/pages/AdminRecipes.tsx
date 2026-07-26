@@ -332,6 +332,7 @@ export default function AdminRecipes() {
   const [availableDraft, setAvailableDraft] = useState<RecipeEditorDraft | null>(null);
   const [changingCategoryId, setChangingCategoryId] = useState<string | null>(null);
   const [changingQualityId, setChangingQualityId] = useState<string | null>(null);
+  const [expandedRecipeIds, setExpandedRecipeIds] = useState<Record<string, boolean>>({});
   const [savingGuidance, setSavingGuidance] = useState(false);
   const [uploadingGuidance, setUploadingGuidance] = useState<"lunch" | "snack" | "meal" | "dinner" | "breakfast" | null>(null);
 
@@ -956,13 +957,21 @@ export default function AdminRecipes() {
       <AdminPageHeader title="Recetas oficiales" subtitle="Edita, duplica, recalcula y revisa las recetas visibles en la Biblioteca oficial." />
 
       {guidanceRecipe && (
-        <section className="card-soft p-4 space-y-4 mb-5">
-          <div>
+        <details className="card-soft mb-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+            <div>
+              <div className="font-medium">Tarjetas de orientación nutricional</div>
+              <p className="mt-1 text-xs muted">Imágenes, calorías y proteínas de las tarjetas especiales.</p>
+            </div>
+            <span className="shrink-0 text-xs font-medium text-primary">Abrir / cerrar</span>
+          </summary>
+          <div className="space-y-4 px-4 pb-4">
+            <div>
             <div className="font-medium">Orientación de Snacks y Meriendas</div>
             <p className="text-xs muted mt-1">
               Cambia aquí la imagen de cada categoría y los valores que aparecen en sus tarjetas de primera posición.
             </p>
-          </div>
+            </div>
 
           <div className="grid grid-cols-2 gap-3">
             {([
@@ -1070,10 +1079,19 @@ export default function AdminRecipes() {
             <Save className="h-4 w-4" />
             {savingGuidance ? "Guardando…" : "Guardar orientación de Desayunos"}
           </button>
-        </section>
+          </div>
+        </details>
       )}
 
-      <form onSubmit={submit} className="card-soft p-4 space-y-3 mb-5">
+      <details key={editingId ? `edit-${editingId}` : "new-recipe"} defaultOpen={Boolean(editingId)} className="card-soft mb-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+          <div>
+            <div className="font-medium">Crear o editar una receta</div>
+            <p className="mt-1 text-xs muted">{editingId ? "Edición en curso" : "Formulario de recetas oficiales"}</p>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-primary">Abrir / cerrar</span>
+        </summary>
+        <form onSubmit={submit} className="space-y-3 px-4 pb-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="font-medium text-sm">{editingId ? "Editar receta oficial" : "Nueva receta oficial"}</div>
@@ -1232,36 +1250,46 @@ export default function AdminRecipes() {
         <button className="btn-primary w-full" disabled={uploading || calculating || saving}>
           <Save className="h-4 w-4" /> {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear receta oficial"}
         </button>
-      </form>
+        </form>
+      </details>
 
-      <div className="card-soft p-3 mb-3 space-y-2">
-        <input className="field" placeholder="Buscar receta oficial…" value={query} onChange={e => setQuery(e.target.value)} />
-        <select className="field" value={filterCat} onChange={e => {
-          setFilterCat(e.target.value);
-          if (e.target.value) rememberCategory(e.target.value);
-        }}>
-          <option value="">Todas las categorías</option>
-          {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
-        </select>
-        <select className="field" value={qualityFilter} onChange={e => setQualityFilter(e.target.value as QualityFilter)}>
-          <option value="all">Todas: completas e incompletas</option>
-          <option value="issues">Solo recetas con avisos</option>
-          <option value="complete">Solo recetas completas</option>
-        </select>
-        <div className="flex items-center justify-between gap-3 px-1 text-xs">
-          <span className="font-medium text-foreground">
-            {visible.length} {visible.length === 1 ? "receta encontrada" : "recetas encontradas"}
-          </span>
-          {visible.length > displayedRecipes.length && (
-            <span className="muted">Mostrando {displayedRecipes.length}</span>
-          )}
+      <details className="card-soft mb-3">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3">
+          <div>
+            <div className="font-medium">Buscar y filtrar recetas</div>
+            <p className="mt-1 text-xs muted">{visible.length} {visible.length === 1 ? "receta disponible" : "recetas disponibles"}</p>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-primary">Abrir / cerrar</span>
+        </summary>
+        <div className="space-y-2 px-3 pb-3">
+          <input className="field" placeholder="Buscar receta oficial…" value={query} onChange={e => setQuery(e.target.value)} />
+          <select className="field" value={filterCat} onChange={e => {
+            setFilterCat(e.target.value);
+            if (e.target.value) rememberCategory(e.target.value);
+          }}>
+            <option value="">Todas las categorías</option>
+            {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
+          </select>
+          <select className="field" value={qualityFilter} onChange={e => setQualityFilter(e.target.value as QualityFilter)}>
+            <option value="all">Todas: completas e incompletas</option>
+            <option value="issues">Solo recetas con avisos</option>
+            <option value="complete">Solo recetas completas</option>
+          </select>
+          <div className="flex items-center justify-between gap-3 px-1 text-xs">
+            <span className="font-medium text-foreground">
+              {visible.length} {visible.length === 1 ? "receta encontrada" : "recetas encontradas"}
+            </span>
+            {visible.length > displayedRecipes.length && (
+              <span className="muted">Mostrando {displayedRecipes.length}</span>
+            )}
+          </div>
+          <div className={`rounded-xl px-3 py-2 text-xs ${qualityIssueCount ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+            {qualityIssueCount
+              ? `${qualityIssueCount} ${qualityIssueCount === 1 ? "receta necesita" : "recetas necesitan"} revisión`
+              : "Todas las recetas han superado el control de calidad"}
+          </div>
         </div>
-        <div className={`rounded-xl px-3 py-2 text-xs ${qualityIssueCount ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
-          {qualityIssueCount
-            ? `${qualityIssueCount} ${qualityIssueCount === 1 ? "receta necesita" : "recetas necesitan"} revisión`
-            : "Todas las recetas han superado el control de calidad"}
-        </div>
-      </div>
+      </details>
 
       <div className="space-y-2">
         {displayedRecipes.map(recipe => {
@@ -1275,6 +1303,7 @@ export default function AdminRecipes() {
             : [];
           const categoryGroup = orderedRecipesInCategory(recipe.category);
           const categoryIndex = categoryGroup.findIndex(item => item.id === recipe.id);
+          const isRecipeCardExpanded = Boolean(expandedRecipeIds[recipe.id]);
           return (
             <div key={recipe.id} className="card-soft p-3 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -1288,7 +1317,20 @@ export default function AdminRecipes() {
                     {getCategoryLabel(recipe.category)} · {recipe.macros?.protein ?? 0}g prot · {recipe.macros?.calories ?? 0} kcal · {status === "hidden" ? "Oculta" : status === "featured" ? "Destacada" : "Visible"}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className="btn-ghost shrink-0 px-3 py-2 text-[11px]"
+                  onClick={() => setExpandedRecipeIds(current => ({ ...current, [recipe.id]: !current[recipe.id] }))}
+                >
+                  {isRecipeCardExpanded ? "Cerrar" : "Abrir"}
+                </button>
               </div>
+              {!isRecipeCardExpanded && (
+                <div className={`inline-flex w-fit rounded-full px-2 py-1 text-[10px] font-medium ${qualityIssues.length ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+                  {qualityIssues.length ? "Necesita revisión" : "Receta completa"}
+                </div>
+              )}
+              <div className={`space-y-3 ${!isRecipeCardExpanded ? "hidden" : ""}`}>
               {qualityIssues.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {qualityIssues.map(issue => (
@@ -1385,6 +1427,7 @@ export default function AdminRecipes() {
                 >
                   {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
                 </select>
+              </div>
               </div>
             </div>
           );
