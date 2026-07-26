@@ -99,20 +99,22 @@ export default function Favorites() {
       </div>
       <p className="text-sm muted mb-4">Todo lo que quieres volver a consultar.</p>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-        {filters.map(item => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setFilter(item.value)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
-              filter === item.value ? "bg-primary text-white" : "bg-muted"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {items.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+          {filters.map(item => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setFilter(item.value)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                filter === item.value ? "bg-primary text-white" : "bg-muted"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading || contentLoading ? (
         <div className="card-soft p-6 text-center muted">Cargando favoritos…</div>
