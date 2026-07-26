@@ -14,6 +14,7 @@ const ADMIN_RECIPE_DRAFT_KEY = "admin-recipes-editor-draft-v1";
 const RECIPES_PAGE_SIZE = 8;
 
 type OfficialStatus = "visible" | "hidden" | "featured";
+type QualityFilter = "all" | "issues" | "complete";
 
 type RecipeRow = {
   id: string;
@@ -156,6 +157,33 @@ const compareRecipesByManualOrder = (a: RecipeRow, b: RecipeRow) => {
   return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
 };
 
+const detectedRecipeQualityIssues = (recipe: RecipeRow) => {
+  const issues: string[] = [];
+  const ingredientLines = ingredientsToText(recipe.ingredients).split("\n").map(line => line.trim()).filter(Boolean);
+  const macros = recipe.macros ?? {};
+  if (!normalizeRecipeImageUrl(recipe.image_url)) issues.push("Imagen pendiente");
+  if (!ingredientLines.length || ingredientLines.some(line => !QTY_RE.test(line))) issues.push("Cantidades incompletas");
+  if (
+    macros.nutrition_status === "pending_review" ||
+    !Number(macros.calories) ||
+    !Number(macros.protein)
+  ) issues.push("Macros pendientes");
+  if (!String(recipe.description ?? "").trim()) issues.push("Descripción vacía");
+  if (!String(recipe.video_url ?? "").trim()) issues.push("Sin vídeo");
+  if (!stepsToText(recipe.steps).trim()) issues.push("Sin pasos");
+  return issues;
+};
+
+const ignoredRecipeQualityIssues = (recipe: RecipeRow) =>
+  Array.isArray(recipe.macros?.quality_ignored)
+    ? recipe.macros.quality_ignored.map(String)
+    : [];
+
+const recipeQualityIssues = (recipe: RecipeRow) => {
+  const ignored = new Set(ignoredRecipeQualityIssues(recipe));
+  return detectedRecipeQualityIssues(recipe).filter(issue => !ignored.has(issue));
+};
+
 const macrosFromForm = (form: LibForm, existing: any = {}) => ({
   ...(existing ?? {}),
   calories: macroNumber(form.calories),
@@ -252,6 +280,7 @@ export default function AdminRecipes() {
   const [form, setForm] = useState<LibForm>(emptyForm);
   const [filterCat, setFilterCat] = useState(LIBRARY_CATEGORIES[0].id);
   const [query, setQuery] = useState("");
+  const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
   const [visibleLimit, setVisibleLimit] = useState(RECIPES_PAGE_SIZE);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -265,6 +294,7 @@ export default function AdminRecipes() {
   const [draftReady, setDraftReady] = useState(false);
   const [availableDraft, setAvailableDraft] = useState<RecipeEditorDraft | null>(null);
   const [changingCategoryId, setChangingCategoryId] = useState<string | null>(null);
+  const [changingQualityId, setChangingQualityId] = useState<string | null>(null);
 
   const editingRecipe = useMemo(() => items.find(item => item.id === editingId) ?? null, [items, editingId]);
 
@@ -285,6 +315,35 @@ export default function AdminRecipes() {
   useEffect(() => { load(); }, []);
 
   const updateForm = (patch: Partial<LibForm>) => setForm(prev => ({ ...prev, ...patch }));
+
+  const toggleQualityIssue = async (recipe: RecipeRow, issue: string) => {
+    const ignored = new Set(ignoredRecipeQualityIssues(recipe));
+    if (ignored.has(issue)) ignored.delete(issue);
+    else ignored.add(issue);
+
+    const nextMacros = {
+      ...(recipe.macros ?? {}),
+      quality_ignored: Array.from(ignored),
+    };
+
+    setChangingQualityId(`${recipe.id}:${issue}`);
+    const { error } = await supabase
+      .from("recipes")
+      .update({ macros: nextMacros })
+      .eq("id", recipe.id);
+    setChangingQualityId(null);
+
+    if (error) {
+      toast.error(error.message || "No se pudo actualizar el control de calidad");
+      return;
+    }
+
+    setItems(current => current.map(item =>
+      item.id === recipe.id ? { ...item, macros: nextMacros } : item
+    ));
+    toast.success(ignored.has(issue) ? "Aviso marcado como no aplicable" : "Aviso reactivado");
+  };
+
   const clearLocalDraft = () => {
     try {
       window.localStorage.removeItem(ADMIN_RECIPE_DRAFT_KEY);
@@ -689,14 +748,17 @@ export default function AdminRecipes() {
       const matchesCategory = !filterCat || item.category === filterCat;
       const matchesSearch = !term || [item.title, item.description, item.category, ...(item.tags ?? [])]
         .filter(Boolean).join(" ").toLowerCase().includes(term);
-      return matchesCategory && matchesSearch;
+      const issueCount = recipeQualityIssues(item).length;
+      const matchesQuality = qualityFilter === "all" || (qualityFilter === "issues" ? issueCount > 0 : issueCount === 0);
+      return matchesCategory && matchesSearch && matchesQuality;
     }).sort(compareRecipesByManualOrder);
-  }, [items, filterCat, query]);
+  }, [items, filterCat, query, qualityFilter]);
   const displayedRecipes = visible.slice(0, visibleLimit);
+  const qualityIssueCount = items.filter(item => recipeQualityIssues(item).length > 0).length;
 
   useEffect(() => {
     setVisibleLimit(RECIPES_PAGE_SIZE);
-  }, [filterCat, query]);
+  }, [filterCat, query, qualityFilter]);
 
   return (
     <div className="admin-recipes-page pb-28">
@@ -866,6 +928,11 @@ export default function AdminRecipes() {
           <option value="">Todas las categorías</option>
           {LIBRARY_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
+        <select className="field" value={qualityFilter} onChange={e => setQualityFilter(e.target.value as QualityFilter)}>
+          <option value="all">Todas: completas e incompletas</option>
+          <option value="issues">Solo recetas con avisos</option>
+          <option value="complete">Solo recetas completas</option>
+        </select>
         <div className="flex items-center justify-between gap-3 px-1 text-xs">
           <span className="font-medium text-foreground">
             {visible.length} {visible.length === 1 ? "receta encontrada" : "recetas encontradas"}
@@ -874,12 +941,22 @@ export default function AdminRecipes() {
             <span className="muted">Mostrando {displayedRecipes.length}</span>
           )}
         </div>
+        <div className={`rounded-xl px-3 py-2 text-xs ${qualityIssueCount ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+          {qualityIssueCount
+            ? `${qualityIssueCount} ${qualityIssueCount === 1 ? "receta necesita" : "recetas necesitan"} revisión`
+            : "Todas las recetas han superado el control de calidad"}
+        </div>
       </div>
 
       <div className="space-y-2">
         {displayedRecipes.map(recipe => {
           const status = recipeStatus(recipe);
           const imageUrl = normalizeRecipeImageUrl(recipe.image_url);
+          const detectedQualityIssues = detectedRecipeQualityIssues(recipe);
+          const qualityIssues = recipeQualityIssues(recipe);
+          const ignoredQualityIssues = detectedQualityIssues.filter(issue =>
+            ignoredRecipeQualityIssues(recipe).includes(issue)
+          );
           const categoryGroup = orderedRecipesInCategory(recipe.category);
           const categoryIndex = categoryGroup.findIndex(item => item.id === recipe.id);
           return (
@@ -896,6 +973,43 @@ export default function AdminRecipes() {
                   </div>
                 </div>
               </div>
+              {qualityIssues.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {qualityIssues.map(issue => (
+                    <button
+                      key={issue}
+                      type="button"
+                      onClick={() => toggleQualityIssue(recipe, issue)}
+                      disabled={changingQualityId === `${recipe.id}:${issue}`}
+                      title="Pulsar para marcar como no aplicable"
+                      className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+                    >
+                      {issue} · No aplica
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="inline-flex w-fit rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">
+                  Receta completa
+                </div>
+              )}
+              {ignoredQualityIssues.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span>Desactivados:</span>
+                  {ignoredQualityIssues.map(issue => (
+                    <button
+                      key={issue}
+                      type="button"
+                      onClick={() => toggleQualityIssue(recipe, issue)}
+                      disabled={changingQualityId === `${recipe.id}:${issue}`}
+                      title="Pulsar para reactivar este aviso"
+                      className="rounded-full border border-border bg-white/70 px-2 py-1 line-through transition hover:border-primary hover:text-primary disabled:opacity-50"
+                    >
+                      {issue}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-5 gap-1.5 text-center text-[11px]">
                 <MiniMacro label="Kcal" value={recipe.macros?.calories ?? 0} />
                 <MiniMacro label="Prot" value={`${recipe.macros?.protein ?? 0}g`} />
