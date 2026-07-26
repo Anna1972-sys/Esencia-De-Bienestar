@@ -283,9 +283,9 @@ export default function AdminUserTracking() {
         </>
       ) : (
         <>
-          <button onClick={() => setSelected(null)} className="text-xs muted mb-3 inline-flex items-center gap-1">
-            <ArrowLeft className="h-3 w-3" /> Cambiar de clienta
-          </button>
+          <Link to="/app/admin/usuarios#alertas-seguimiento" className="text-xs muted mb-3 inline-flex items-center gap-1">
+            <ArrowLeft className="h-3 w-3" /> Volver a alertas
+          </Link>
           <header className="card-elegant p-4 mb-3">
             <div className="flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-secondary grid place-items-center shrink-0"><UserIcon className="h-4 w-4" /></div>

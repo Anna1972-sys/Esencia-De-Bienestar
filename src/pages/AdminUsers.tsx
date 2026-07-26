@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X, BellRing, UserCheck, UserX, AlertTriangle } from "lucide-react";
+import { Shield, ShieldOff, Trash2, User, Search, Ban, RotateCcw, Activity, Clock, X, BellRing, BellPlus, UserCheck, UserX, AlertTriangle } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdvancedUserAlerts from "@/components/admin/AdvancedUserAlerts";
 import { toast } from "sonner";
@@ -98,6 +98,25 @@ export default function AdminUsers() {
   const [activityError, setActivityError] = useState("");
   const [favoriteEvents, setFavoriteEvents] = useState<FavoriteEvent[]>([]);
   const [allActivityRows, setAllActivityRows] = useState<ActivityRow[]>([]);
+  const [reminderBusy, setReminderBusy] = useState<string | null>(null);
+
+  const createInactiveReminder = async (client: Row, message: string) => {
+    setReminderBusy(client.id);
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 1);
+    dueDate.setHours(9, 0, 0, 0);
+    const { error } = await (supabase as any).from("follow_up_reminders").insert({
+      user_id: client.id,
+      note: `Contactar por inactividad: ${message}`,
+      due_at: dueDate.toISOString(),
+    });
+    setReminderBusy(null);
+    if (error) {
+      toast.error("No se pudo crear el recordatorio.");
+      return;
+    }
+    toast.success(`Recordatorio creado para ${client.display_name || client.email || "la clienta"}`);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -296,7 +315,7 @@ export default function AdminUsers() {
     <div className="pb-28">
       <AdminPageHeader title="Usuarias" subtitle={`${rows.length} usuario${rows.length === 1 ? "" : "s"} registrados.`} />
 
-      <section className="card-elegant p-4 mb-4" aria-label="Alertas de seguimiento">
+      <section id="alertas-seguimiento" className="card-elegant p-4 mb-4 scroll-mt-6" aria-label="Alertas de seguimiento">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <div className="flex items-center gap-2">
@@ -317,10 +336,9 @@ export default function AdminUsers() {
         ) : (
           <div className="space-y-1.5">
             {clientAlerts.filter(alert => alert.level !== "normal").slice(0, 5).map(alert => (
-              <Link
+              <div
                 key={alert.row.id}
-                to={`/app/admin/seguimiento/${alert.row.id}`}
-                className={`rounded-xl px-3 py-2 flex items-center gap-2 text-xs ${
+                className={`rounded-xl px-3 py-2 text-xs ${
                   alert.level === "urgent"
                     ? "bg-rose-50 text-rose-700"
                     : alert.level === "attention"
@@ -328,9 +346,30 @@ export default function AdminUsers() {
                       : "bg-emerald-50 text-emerald-700"
                 }`}
               >
-                <span className="font-semibold truncate flex-1">{alert.row.display_name || alert.row.email || "Clienta"}</span>
-                <span className="shrink-0">{alert.message}</span>
-              </Link>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold truncate flex-1">{alert.row.display_name || alert.row.email || "Clienta"}</span>
+                  <span className="shrink-0">{alert.message}</span>
+                </div>
+                {(alert.level === "urgent" || alert.level === "attention") && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <Link
+                      to={`/app/admin/seguimiento/${alert.row.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2 py-1 font-medium"
+                    >
+                      <Activity className="h-3.5 w-3.5" /> Ver seguimiento
+                    </Link>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2 py-1 font-medium disabled:opacity-50"
+                      onClick={() => createInactiveReminder(alert.row, alert.message)}
+                      disabled={reminderBusy === alert.row.id}
+                    >
+                      <BellPlus className="h-3.5 w-3.5" />
+                      {reminderBusy === alert.row.id ? "Creando…" : "Crear recordatorio"}
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
