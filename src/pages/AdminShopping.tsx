@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Package, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowUp, ArrowDown, Search, X, CheckSquare, Square, FolderInput, Package, ShoppingBag, ArrowLeft, ChevronDown } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
 import { numberInputValue, numberOrFallback, type AdminNumberValue } from "@/lib/adminNumberInput";
@@ -468,15 +468,24 @@ export default function AdminShopping() {
       </div>
 
       {/* Categories — horizontal quick filter */}
-      <section className="shopping-category-hero card-soft mb-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-serif text-2xl">Categorías</h2>
-              <p className="text-sm muted">Desliza la barra y pulsa una categoría para filtrar los ingredientes.</p>
-            </div>
+      <details className="shopping-category-hero card-soft mb-5 group">
+        <summary className="list-none cursor-pointer flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-2xl">Categorías</h2>
+            <p className="text-sm muted">Organiza y filtra los ingredientes.</p>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="rounded-full border border-primary/35 bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
               {activeVisibleCount} visible(s)
+            </div>
+            <ChevronDown className="h-5 w-5 text-primary transition-transform group-open:rotate-180" />
+          </div>
+        </summary>
+
+        <div className="flex flex-col gap-4 mt-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm muted">Desliza la barra y pulsa una categoría para filtrar los ingredientes.</p>
             </div>
           </div>
 
@@ -543,7 +552,7 @@ export default function AdminShopping() {
             )}
           </div>
         </div>
-      </section>
+      </details>
 
       {/* === CLIENT ITEMS TAB === */}
       {tab === "clients" && (
@@ -607,11 +616,14 @@ export default function AdminShopping() {
 
       {/* === TEMPLATES TAB === */}
       {tab === "templates" && (
-        <section>
-          <div className="flex items-baseline justify-between mb-2">
+        <details className="group" open={Boolean(itemForm.id) || undefined}>
+          <summary className="list-none cursor-pointer card-soft p-4 mb-3 flex items-center justify-between gap-3">
             <h2 className="font-serif text-xl">Ingredientes</h2>
-            <span className="text-xs muted">{items.length} en total</span>
-          </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs muted">{items.length} en total</span>
+              <ChevronDown className="h-5 w-5 text-primary transition-transform group-open:rotate-180" />
+            </div>
+          </summary>
 
           <form id="tpl-form" onSubmit={saveItem} className="card-soft p-4 space-y-3 mb-4">
             <div className="font-medium text-sm">{itemForm.id ? "Editar ingrediente" : "Nuevo ingrediente"}</div>
@@ -658,7 +670,7 @@ export default function AdminShopping() {
           </div>
 
           {templateItemsList}
-        </section>
+        </details>
       )}
     </div>
   );

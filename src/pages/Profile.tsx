@@ -32,24 +32,43 @@ export default function Profile() {
     if (error) toast.error(error.message); else toast.success("Guardado");
   };
 
+  const profileForm = (
+    <>
+      <div><label className="label">Nombre</label><input value={name} onChange={e => setName(e.target.value)} className="field" /></div>
+      <div><label className="label">Correo</label><input value={user?.email ?? ""} disabled className="field opacity-70" /></div>
+      <div><label className="label">Alergias / a evitar</label><input value={allergies} onChange={e => setAllergies(e.target.value)} className="field" placeholder="ej. lactosa" /></div>
+      <div><label className="label">Calorías objetivo</label><input type="number" value={calories} onChange={e => setCalories(e.target.value)} className="field" placeholder="ej. 1800" /></div>
+      <button onClick={save} className="btn-primary w-full">Guardar</button>
+    </>
+  );
+
   return (
     <div>
       <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
       <h1 className="heading-lg mb-4">Mi perfil</h1>
-      <div className="card-soft p-5 space-y-4">
-        <div><label className="label">Nombre</label><input value={name} onChange={e => setName(e.target.value)} className="field" /></div>
-        <div><label className="label">Correo</label><input value={user?.email ?? ""} disabled className="field opacity-70" /></div>
-        <div><label className="label">Alergias / a evitar</label><input value={allergies} onChange={e => setAllergies(e.target.value)} className="field" placeholder="ej. lactosa" /></div>
-        <div><label className="label">Calorías objetivo</label><input type="number" value={calories} onChange={e => setCalories(e.target.value)} className="field" placeholder="ej. 1800" /></div>
-        <button onClick={save} className="btn-primary w-full">Guardar</button>
-      </div>
 
       {isAdmin && (
-        <div className="card-soft p-5 mt-4">
+        <div className="card-soft p-5 mb-4">
           <div className="flex items-center gap-2 mb-3"><Crown className="h-4 w-4 text-primary" /><div className="font-medium text-sm">Panel admin</div></div>
           <Link to="/app/admin" className="btn-ghost w-full justify-between"><span>Abrir panel de administración</span><Settings className="h-4 w-4" /></Link>
+        </div>
+      )}
+
+      {isAdmin ? (
+        <details className="card-soft">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5">
+            <span className="font-medium">Datos de mi perfil</span>
+            <span className="text-xs font-medium text-primary">Abrir / cerrar</span>
+          </summary>
+          <div className="space-y-4 px-5 pb-5">
+            {profileForm}
+          </div>
+        </details>
+      ) : (
+        <div className="card-soft p-5 space-y-4">
+          {profileForm}
         </div>
       )}
 

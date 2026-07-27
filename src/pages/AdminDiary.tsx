@@ -9,6 +9,7 @@ export default function AdminDiary() {
       primaryField="question"
       secondaryField="hint"
       defaults={{ field_type: "text", is_active: true }}
+      collapsibleForm
       fields={[
         { key: "question", label: "Pregunta", required: true, placeholder: "¿Cómo te has sentido hoy?" },
         { key: "hint", label: "Pista o aclaración", type: "textarea" },

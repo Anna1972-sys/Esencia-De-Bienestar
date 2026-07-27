@@ -22,13 +22,15 @@ type Props = {
   primaryField: string;
   secondaryField?: string;
   defaults?: Record<string, any>;
+  collapsibleForm?: boolean;
 };
 
-export default function SimpleListAdmin({ table, title, subtitle, fields, primaryField, secondaryField, defaults = {} }: Props) {
+export default function SimpleListAdmin({ table, title, subtitle, fields, primaryField, secondaryField, defaults = {}, collapsibleForm = false }: Props) {
   const blank: Record<string, any> = { sort_order: 0, ...defaults, ...Object.fromEntries(fields.map((f) => [f.key, f.type === "checkbox" ? false : f.type === "number" ? 0 : ""])) };
   const [items, setItems] = useState<any[]>([]);
   const [f, setF] = useState<any>({ ...blank });
   const [busy, setBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(!collapsibleForm);
 
   const load = () =>
     (supabase as any)
@@ -40,7 +42,10 @@ export default function SimpleListAdmin({ table, title, subtitle, fields, primar
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [table]);
 
-  const reset = () => setF({ ...blank });
+  const reset = () => {
+    setF({ ...blank });
+    if (collapsibleForm) setFormOpen(false);
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,43 +81,69 @@ export default function SimpleListAdmin({ table, title, subtitle, fields, primar
     load();
   };
 
-  const edit = (it: any) => { setF({ ...blank, ...it }); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const edit = (it: any) => {
+    setF({ ...blank, ...it });
+    if (collapsibleForm) setFormOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const editorFields = (
+    <>
+      {fields.map((field) => (
+        <div key={field.key}>
+          <label className="text-xs muted">{field.label}</label>
+          {field.type === "textarea" ? (
+            <textarea className="field min-h-20" placeholder={field.placeholder} value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: e.target.value })} required={field.required} />
+          ) : field.type === "select" ? (
+            <select className="field" value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: e.target.value })}>
+              {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ) : field.type === "checkbox" ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input id={field.key} type="checkbox" checked={!!f[field.key]} onChange={(e) => setF({ ...f, [field.key]: e.target.checked })} />
+              <label htmlFor={field.key} className="text-sm">{field.placeholder ?? "Activado"}</label>
+            </div>
+          ) : (
+            <input className="field" type={field.type === "number" ? "number" : "text"} placeholder={field.placeholder} value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: field.type === "number" ? numberInputValue(e.target.value) : e.target.value })} required={field.required} />
+          )}
+        </div>
+      ))}
+      <div>
+        <label className="text-xs muted">Orden</label>
+        <input className="field" type="number" value={f.sort_order ?? 0} onChange={(e) => setF({ ...f, sort_order: numberInputValue(e.target.value) })} />
+      </div>
+      <div className="flex gap-2">
+        <button className="btn-primary flex-1" disabled={busy}><Plus className="h-4 w-4" /> {f.id ? "Guardar" : "Añadir"}</button>
+        {f.id && <button type="button" className="btn-secondary" onClick={reset}>Cancelar</button>}
+      </div>
+    </>
+  );
 
   return (
     <div className="pb-28 max-w-3xl mx-auto">
       <AdminPageHeader title={title} subtitle={subtitle} />
 
 
-      <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
-        <div className="font-medium">{f.id ? "Editar elemento" : "Nuevo elemento"}</div>
-        {fields.map((field) => (
-          <div key={field.key}>
-            <label className="text-xs muted">{field.label}</label>
-            {field.type === "textarea" ? (
-              <textarea className="field min-h-20" placeholder={field.placeholder} value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: e.target.value })} required={field.required} />
-            ) : field.type === "select" ? (
-              <select className="field" value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: e.target.value })}>
-                {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            ) : field.type === "checkbox" ? (
-              <div className="flex items-center gap-2 mt-1">
-                <input id={field.key} type="checkbox" checked={!!f[field.key]} onChange={(e) => setF({ ...f, [field.key]: e.target.checked })} />
-                <label htmlFor={field.key} className="text-sm">{field.placeholder ?? "Activado"}</label>
-              </div>
-            ) : (
-              <input className="field" type={field.type === "number" ? "number" : "text"} placeholder={field.placeholder} value={f[field.key] ?? ""} onChange={(e) => setF({ ...f, [field.key]: field.type === "number" ? numberInputValue(e.target.value) : e.target.value })} required={field.required} />
-            )}
-          </div>
-        ))}
-        <div>
-          <label className="text-xs muted">Orden</label>
-          <input className="field" type="number" value={f.sort_order ?? 0} onChange={(e) => setF({ ...f, sort_order: numberInputValue(e.target.value) })} />
-        </div>
-        <div className="flex gap-2">
-          <button className="btn-primary flex-1" disabled={busy}><Plus className="h-4 w-4" /> {f.id ? "Guardar" : "Añadir"}</button>
-          {f.id && <button type="button" className="btn-secondary" onClick={reset}>Cancelar</button>}
-        </div>
-      </form>
+      {collapsibleForm ? (
+        <details
+          open={formOpen}
+          onToggle={(event) => setFormOpen(event.currentTarget.open)}
+          className="card-soft mb-5"
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+            <span className="font-medium">{f.id ? "Editar elemento" : "Nuevo elemento"}</span>
+            <span className="text-xs font-medium text-primary">Abrir / cerrar</span>
+          </summary>
+          <form onSubmit={save} className="space-y-3 px-4 pb-4">
+            {editorFields}
+          </form>
+        </details>
+      ) : (
+        <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
+          <div className="font-medium">{f.id ? "Editar elemento" : "Nuevo elemento"}</div>
+          {editorFields}
+        </form>
+      )}
 
       <div className="space-y-2">
         {items.map((it) => (

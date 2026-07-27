@@ -9,6 +9,7 @@ export default function AdminProgress() {
       primaryField="name"
       secondaryField="description"
       defaults={{ is_active: true }}
+      collapsibleForm
       fields={[
         { key: "name", label: "Nombre de la métrica", required: true, placeholder: "Peso, pasos, agua…" },
         { key: "description", label: "Descripción", type: "textarea" },
