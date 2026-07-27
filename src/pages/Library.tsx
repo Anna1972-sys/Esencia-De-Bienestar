@@ -158,26 +158,38 @@ export default function Library() {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : fallback;
   };
+  const guidanceImage = (value: unknown, fallback: string, previous?: string) => {
+    const configured = normalizeRecipeImageUrl(value);
+    return !configured || configured === previous ? fallback : configured;
+  };
   const guidanceSettings = {
     caloriesMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_calories_min, 150),
     caloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_calories_max, 170),
     proteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_protein_min, 10),
     proteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_protein_max, 20),
-    lunchImage:
-      normalizeRecipeImageUrl(calorieGuidance?.image_url) ||
-      LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image,
-    snackImage:
-      normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_image_secondary) ||
-      LIBRARY_CATEGORIES.find(item => item.id === "meriendas")?.image,
-    mealImage:
-      normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_meal_image) ||
-      LIBRARY_CATEGORIES.find(item => item.id === "comidas")?.image,
+    lunchImage: guidanceImage(
+      calorieGuidance?.image_url,
+      "/guidance-snacks-final.jpg",
+      "https://vuvdnmessgwhlggzcfqb.supabase.co/storage/v1/object/public/recipe-images/670cdac7-e3c0-4415-bd26-9880fee2a4bd.jpg",
+    ),
+    snackImage: guidanceImage(
+      calorieGuidance?.macros?.guidance_image_secondary,
+      "/guidance-meriendas-square-test.png",
+      "/src/assets/cat-meriendas-premium.png",
+    ),
+    mealImage: guidanceImage(
+      calorieGuidance?.macros?.guidance_meal_image,
+      "/guidance-meals-square-test-v2.png",
+      "https://vuvdnmessgwhlggzcfqb.supabase.co/storage/v1/object/public/recipe-images/e9ad2e53-c9ad-42d4-bfae-38bb2576e397.jpg",
+    ),
     mealCaloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_meal_calories_max, 500),
     mealProteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_meal_protein_min, 20),
     mealProteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_meal_protein_max, 35),
-    dinnerImage:
-      normalizeRecipeImageUrl(calorieGuidance?.macros?.guidance_dinner_image) ||
-      LIBRARY_CATEGORIES.find(item => item.id === "cenas_sin_herbalife")?.image,
+    dinnerImage: guidanceImage(
+      calorieGuidance?.macros?.guidance_dinner_image,
+      "/guidance-dinner-square-test.png",
+      "/src/assets/cat-cena-sin.jpg",
+    ),
     dinnerCaloriesMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_dinner_calories_max, 300),
     dinnerProteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_dinner_protein_min, 20),
     dinnerProteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_dinner_protein_max, 30),
@@ -186,6 +198,16 @@ export default function Library() {
     breakfastProteinMin: positiveGuidanceValue(calorieGuidance?.macros?.guidance_breakfast_protein_min, 25),
     breakfastProteinMax: positiveGuidanceValue(calorieGuidance?.macros?.guidance_breakfast_protein_max, 30),
   };
+  const usesAlignedMacroLayout = Boolean(selectedCat && [
+    "desayunos_herbalife",
+    "desayunos_sin_herbalife",
+    "snacks",
+    "comidas",
+    "comidas_herbalife",
+    "meriendas",
+    "cenas_herbalife",
+    "cenas_sin_herbalife",
+  ].includes(selectedCat));
 
   useEffect(() => {
     if (returnContext?.scrollY == null || items.length === 0) return;
@@ -291,7 +313,7 @@ export default function Library() {
                 const proteinMin = isDinner ? guidanceSettings.dinnerProteinMin : guidanceSettings.mealProteinMin;
                 const proteinMax = isDinner ? guidanceSettings.dinnerProteinMax : guidanceSettings.mealProteinMax;
                 return (
-                  <div className="recipe-premium nutrition-guidance-card flex min-h-[10rem] w-full overflow-hidden rounded-[22px] bg-white text-left transition">
+                  <div className="recipe-premium nutrition-guidance-card flex h-[10rem] w-full overflow-hidden rounded-[22px] bg-white text-left transition">
                     {image && (
                       <div className="library-recipe-thumb h-auto min-h-[10rem] shrink-0 self-stretch bg-muted">
                         <img src={image} alt="" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" />
@@ -320,7 +342,7 @@ export default function Library() {
                 const isSnack = selectedCat === "snacks";
                 const image = isSnack ? guidanceSettings.lunchImage : guidanceSettings.snackImage;
                 return (
-                  <div className="recipe-premium nutrition-guidance-card flex min-h-[10rem] w-full overflow-hidden rounded-[22px] bg-white text-left transition">
+                  <div className="recipe-premium nutrition-guidance-card flex h-[10rem] w-full overflow-hidden rounded-[22px] bg-white text-left transition">
                     {image && (
                       <div className="library-recipe-thumb h-auto min-h-[10rem] shrink-0 self-stretch bg-muted">
                         <img src={image} alt="" className="app-photo-cover-image transition-transform duration-500 hover:scale-105" />
@@ -354,7 +376,7 @@ export default function Library() {
                 const category = normalizeCategory(r.category);
                 const cover = normalizeRecipeImageUrl(r.image_url);
                 if (isFormulaGuidance(r)) {
-                  const formulaCover = guidanceSettings.breakfastImage || cover;
+                  const formulaCover = "/guidance-breakfast-square-test-v3.png";
                   return (
                     <button
                       key={r.id}
@@ -460,12 +482,12 @@ export default function Library() {
                           />
                         </div>
                       )}
-                      <div className={selectedCat === "snacks" ? "min-w-0 flex-1 p-3" : "p-3 pr-11 flex-1 min-w-0"}>
-                        <div className={`flex items-center gap-1.5 ${selectedCat === "snacks" ? "pr-8" : ""}`}>
+                      <div className={usesAlignedMacroLayout ? "min-w-0 flex-1 p-3" : "p-3 pr-11 flex-1 min-w-0"}>
+                        <div className={`flex items-center gap-1.5 ${usesAlignedMacroLayout ? "pr-8" : ""}`}>
                           {r.is_featured && <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />}
                           <div className="font-medium truncate">{r.title}</div>
                         </div>
-                        <div className={`${selectedCat === "snacks" ? "mt-6" : "mt-1.5"} grid grid-cols-5 gap-1 text-[10px] text-center`}>
+                        <div className={`${usesAlignedMacroLayout ? "mt-6" : "mt-1.5"} grid grid-cols-5 gap-1 text-[10px] text-center`}>
                           <div className="nutrition-stat"><div className="font-semibold">{r.macros?.calories ?? 0}</div><div className="muted">Kcal</div></div>
                           <div className="nutrition-stat"><div className="font-semibold">{r.macros?.protein ?? 0}g</div><div className="muted">Prot</div></div>
                           <div className="nutrition-stat"><div className="font-semibold">{r.macros?.carbs ?? 0}g</div><div className="muted">Carb</div></div>

@@ -462,16 +462,21 @@ export default function AdminRecipes() {
         guidance_breakfast_protein_min: macroNumber(guidanceForm.breakfastProteinMin),
         guidance_breakfast_protein_max: macroNumber(guidanceForm.breakfastProteinMax),
       };
-      const { error } = await supabase
+      const { data: savedGuidance, error } = await supabase
         .from("recipes")
         .update({
           image_url: guidanceForm.lunchImage || guidanceRecipe.image_url,
           macros,
         })
-        .eq("id", guidanceRecipe.id);
+        .eq("id", guidanceRecipe.id)
+        .select("*")
+        .single();
       if (error) throw error;
-      await load();
-      toast.success("Orientación actualizada en Snacks y Meriendas");
+      if (!savedGuidance) throw new Error("Supabase no confirmó los nuevos valores");
+      setItems(current => current.map(item =>
+        item.id === guidanceRecipe.id ? savedGuidance as RecipeRow : item
+      ));
+      toast.success("Imágenes y valores nutricionales actualizados");
     } catch (error: any) {
       toast.error(error?.message || "No se pudo guardar la orientación");
     } finally {
@@ -1003,10 +1008,10 @@ export default function AdminRecipes() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <input className="field" aria-label="Calorías mínimas" placeholder="Kcal mínimas" value={guidanceForm.caloriesMin} onChange={event => setGuidanceForm(current => ({ ...current, caloriesMin: event.target.value }))} />
-            <input className="field" aria-label="Calorías máximas" placeholder="Kcal máximas" value={guidanceForm.caloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, caloriesMax: event.target.value }))} />
-            <input className="field" aria-label="Proteínas mínimas" placeholder="Proteína mínima" value={guidanceForm.proteinMin} onChange={event => setGuidanceForm(current => ({ ...current, proteinMin: event.target.value }))} />
-            <input className="field" aria-label="Proteínas máximas" placeholder="Proteína máxima" value={guidanceForm.proteinMax} onChange={event => setGuidanceForm(current => ({ ...current, proteinMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Calorías mínimas" placeholder="Kcal mínimas" value={guidanceForm.caloriesMin} onChange={event => setGuidanceForm(current => ({ ...current, caloriesMin: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Calorías máximas" placeholder="Kcal máximas" value={guidanceForm.caloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, caloriesMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas mínimas" placeholder="Proteína mínima" value={guidanceForm.proteinMin} onChange={event => setGuidanceForm(current => ({ ...current, proteinMin: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas máximas" placeholder="Proteína máxima" value={guidanceForm.proteinMax} onChange={event => setGuidanceForm(current => ({ ...current, proteinMax: event.target.value }))} />
           </div>
 
           <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
@@ -1029,9 +1034,9 @@ export default function AdminRecipes() {
             </label>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <input className="field" aria-label="Calorías máximas de Comidas" placeholder="Kcal máximas" value={guidanceForm.mealCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, mealCaloriesMax: event.target.value }))} />
-            <input className="field" aria-label="Proteínas mínimas de Comidas" placeholder="Proteína mínima" value={guidanceForm.mealProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, mealProteinMin: event.target.value }))} />
-            <input className="field" aria-label="Proteínas máximas de Comidas" placeholder="Proteína máxima" value={guidanceForm.mealProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, mealProteinMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Calorías máximas de Comidas" placeholder="Kcal máximas" value={guidanceForm.mealCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, mealCaloriesMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas mínimas de Comidas" placeholder="Proteína mínima" value={guidanceForm.mealProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, mealProteinMin: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas máximas de Comidas" placeholder="Proteína máxima" value={guidanceForm.mealProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, mealProteinMax: event.target.value }))} />
           </div>
 
           <div className="border-t border-border/70 pt-4">
@@ -1049,9 +1054,9 @@ export default function AdminRecipes() {
             </label>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <input className="field" aria-label="Calorías máximas de Cenas" placeholder="Kcal máximas" value={guidanceForm.dinnerCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, dinnerCaloriesMax: event.target.value }))} />
-            <input className="field" aria-label="Proteínas mínimas de Cenas" placeholder="Proteína mínima" value={guidanceForm.dinnerProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, dinnerProteinMin: event.target.value }))} />
-            <input className="field" aria-label="Proteínas máximas de Cenas" placeholder="Proteína máxima" value={guidanceForm.dinnerProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, dinnerProteinMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Calorías máximas de Cenas" placeholder="Kcal máximas" value={guidanceForm.dinnerCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, dinnerCaloriesMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas mínimas de Cenas" placeholder="Proteína mínima" value={guidanceForm.dinnerProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, dinnerProteinMin: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas máximas de Cenas" placeholder="Proteína máxima" value={guidanceForm.dinnerProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, dinnerProteinMax: event.target.value }))} />
           </div>
 
           <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
@@ -1074,9 +1079,9 @@ export default function AdminRecipes() {
             </label>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <input className="field" aria-label="Calorías máximas de Desayunos" placeholder="Kcal máximas" value={guidanceForm.breakfastCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, breakfastCaloriesMax: event.target.value }))} />
-            <input className="field" aria-label="Proteínas mínimas de Desayunos" placeholder="Proteína mínima" value={guidanceForm.breakfastProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, breakfastProteinMin: event.target.value }))} />
-            <input className="field" aria-label="Proteínas máximas de Desayunos" placeholder="Proteína máxima" value={guidanceForm.breakfastProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, breakfastProteinMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Calorías máximas de Desayunos" placeholder="Kcal máximas" value={guidanceForm.breakfastCaloriesMax} onChange={event => setGuidanceForm(current => ({ ...current, breakfastCaloriesMax: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas mínimas de Desayunos" placeholder="Proteína mínima" value={guidanceForm.breakfastProteinMin} onChange={event => setGuidanceForm(current => ({ ...current, breakfastProteinMin: event.target.value }))} />
+            <input type="number" min="0" step="0.1" inputMode="decimal" className="field" aria-label="Proteínas máximas de Desayunos" placeholder="Proteína máxima" value={guidanceForm.breakfastProteinMax} onChange={event => setGuidanceForm(current => ({ ...current, breakfastProteinMax: event.target.value }))} />
           </div>
 
           <button type="button" className="btn-primary w-full" onClick={saveGuidance} disabled={savingGuidance || Boolean(uploadingGuidance)}>
