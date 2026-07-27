@@ -70,7 +70,7 @@ function slugifySection(value: unknown) {
     .replace(/^-+|-+$/g, "");
 }
 
-const PRODUCT_CLIENT_SECTION_IDS = new Set(PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => section.id));
+const PRODUCT_CLIENT_SECTION_IDS = new Set<string>(PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => section.id));
 
 function productSectionId(product: Product, category: ProductCategory | null) {
   const lineSection = slugifySection(product.line);
