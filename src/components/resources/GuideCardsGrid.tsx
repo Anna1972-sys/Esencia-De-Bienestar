@@ -66,7 +66,7 @@ export const cards: GuideCard[] = [
   },
   {
     slug: "ebook-alimentos-ricos-en-proteina",
-    title: "Alimentos con proteína",
+    title: "Ebook: Alimentos ricos en proteína",
     description: "Más de 300 alimentos",
     image: imgProteinGuide,
   },
@@ -74,7 +74,7 @@ export const cards: GuideCard[] = [
 
 export const cleanGuideTitle = (title: string, slug: string) => {
   if (slug === "ebook-alimentos-ricos-en-proteina") {
-    return title.replace(/^eBook/i, "Ebook");
+    return "Ebook: Alimentos ricos en proteína";
   }
   return title;
 };
