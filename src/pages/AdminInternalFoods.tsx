@@ -329,6 +329,7 @@ export default function AdminInternalFoods() {
   const [query, setQuery] = useState("");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [foodFormOpen, setFoodFormOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [preparingImport, setPreparingImport] = useState(false);
@@ -394,10 +395,12 @@ export default function AdminInternalFoods() {
   const reset = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setFoodFormOpen(false);
   };
 
   const edit = (food: InternalFood) => {
     setEditingId(food.id);
+    setFoodFormOpen(true);
     setForm({
       name: food.name,
       synonyms: synonymsToText(food.synonyms),
@@ -893,8 +896,23 @@ export default function AdminInternalFoods() {
         subtitle="Base editable que el cálculo nutricional consulta antes de USDA y FatSecret."
       />
 
-      <details key={editingId ? `edit-${editingId}` : "new-food"} defaultOpen={Boolean(editingId)} className="card-soft admin-internal-foods-container mb-5">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+      <details
+        open={foodFormOpen}
+        className="card-soft admin-internal-foods-container mb-5"
+      >
+        <summary
+          className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 focus:outline-none focus-visible:outline-none focus-visible:text-primary"
+          onClick={(event) => {
+            event.preventDefault();
+            if (foodFormOpen) {
+              setFoodFormOpen(false);
+              return;
+            }
+            setEditingId(null);
+            setForm(emptyForm);
+            setFoodFormOpen(true);
+          }}
+        >
           <div>
             <h2 className="font-serif text-lg">Nuevo alimento</h2>
             <p className="mt-1 text-xs muted">{editingId ? "Edición en curso" : "Añadir un alimento a la base interna"}</p>
