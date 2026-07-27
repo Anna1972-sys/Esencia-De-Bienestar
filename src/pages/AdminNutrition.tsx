@@ -272,6 +272,7 @@ export default function AdminNutrition() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [contentForm, setContentForm] = useState<ContentForm>(emptyContent);
+  const [contentFormOpen, setContentFormOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const loadCategories = async () => {
@@ -344,6 +345,7 @@ export default function AdminNutrition() {
     const shouldOpen = activeCategory !== key;
     setActiveCategory(shouldOpen ? key : null);
     resetContent();
+    setContentFormOpen(false);
     if (shouldOpen) {
       window.setTimeout(() => {
         document.getElementById(`nutrition-panel-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -451,6 +453,7 @@ export default function AdminNutrition() {
     else {
       toast.success(contentForm.id ? "Contenido actualizado" : "Contenido publicado");
       resetContent();
+      setContentFormOpen(false);
       loadItems();
     }
   };
@@ -562,6 +565,7 @@ export default function AdminNutrition() {
                         onClick={() => {
                           setActiveCategory(null);
                           setContentForm(emptyContent);
+                          setContentFormOpen(false);
                         }}
                       >
                         <X className="h-3.5 w-3.5" /> Cerrar categoría
@@ -601,7 +605,15 @@ export default function AdminNutrition() {
                               <div className="font-medium text-sm truncate">{item.title || item.name || item.label || "Contenido"}</div>
                               <div className="text-xs muted truncate">{item.subtitle || "Contenido"}</div>
                             </div>
-                            <button type="button" className="text-primary" onClick={() => setContentForm(formFromItem(item))} aria-label="Editar contenido">
+                            <button
+                              type="button"
+                              className="text-primary"
+                              onClick={() => {
+                                setContentForm(formFromItem(item));
+                                setContentFormOpen(true);
+                              }}
+                              aria-label="Editar contenido"
+                            >
                               <Pencil className="h-4 w-4" />
                             </button>
                             <button type="button" className="admin-nutrition-delete-button" onClick={() => removeContent(item.id)} aria-label="Eliminar contenido">
@@ -616,7 +628,19 @@ export default function AdminNutrition() {
                       </div>
                     )}
                   </div>
-                  <h3 className="font-serif text-xl mb-2">Añadir contenido</h3>
+                  {!contentFormOpen && (
+                    <button type="button" className="btn-primary w-full" onClick={() => setContentFormOpen(true)}>
+                      <Plus className="h-4 w-4" /> Nueva publicación
+                    </button>
+                  )}
+                  {contentFormOpen && (
+                  <>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <h3 className="font-serif text-xl">{contentForm.id ? "Editar publicación" : "Nueva publicación"}</h3>
+                    <button type="button" className="admin-nutrition-category-action" onClick={() => setContentFormOpen(false)}>
+                      <X className="h-3.5 w-3.5" /> Cerrar
+                    </button>
+                  </div>
                   <p className="text-sm muted mb-3">Completa los campos que necesites y publica el contenido dentro de esta categoría.</p>
                   <form onSubmit={saveContent} className="admin-nutrition-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
                     <div>
@@ -984,6 +1008,8 @@ export default function AdminNutrition() {
 
                     <button className="btn-primary w-full" disabled={busy}>{contentForm.id ? "Guardar cambios" : "Publicar"}</button>
                   </form>
+                  </>
+                  )}
                 </section>
               )}
             </div>

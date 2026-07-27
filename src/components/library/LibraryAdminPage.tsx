@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Plus, Trash2, Image as ImageIcon, Video, FileText, Type,
   ArrowUp, ArrowDown, Upload, Pencil, Link as LinkIcon, MousePointerClick, Heading, Heading2,
+  X,
 } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ type Props = {
   showHeader?: boolean;
   categoryFilter?: string | null;
   headerImage?: string;
+  collapsibleEditor?: boolean;
 };
 
 async function uploadFile(file: File, folder: string, base: string) {
@@ -68,6 +70,7 @@ export default function LibraryAdminPage({
   showHeader = true,
   categoryFilter = null,
   headerImage,
+  collapsibleEditor = false,
 }: Props) {
   const empty: Form = {
     title: "",
@@ -82,6 +85,7 @@ export default function LibraryAdminPage({
   const [items, setItems] = useState<any[]>([]);
   const [f, setF] = useState<Form>(empty);
   const [busy, setBusy] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(!collapsibleEditor);
   const visibleItems = categoryFilter ? items.filter((item) => item.category === categoryFilter) : items;
 
   const load = () =>
@@ -119,7 +123,12 @@ export default function LibraryAdminPage({
       : await (supabase as any).from(table).insert(payload);
     setBusy(false);
     if (res.error) toast.error(res.error.message);
-    else { reset(); load(); toast.success("Guardado"); }
+    else {
+      reset();
+      if (collapsibleEditor) setEditorOpen(false);
+      load();
+      toast.success("Guardado");
+    }
   };
 
   const del = async (id: string) => {
@@ -152,6 +161,7 @@ export default function LibraryAdminPage({
       tags: Array.isArray(it.tags) ? it.tags : [],
       visible: it.visible !== false,
     });
+    setEditorOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -202,8 +212,26 @@ export default function LibraryAdminPage({
       )}
 
 
+      {collapsibleEditor && !editorOpen && (
+        <button
+          type="button"
+          className="btn-primary w-full mb-5"
+          onClick={() => setEditorOpen(true)}
+        >
+          <Plus className="h-4 w-4" /> Nueva publicación
+        </button>
+      )}
+
+      {editorOpen && (
       <form onSubmit={save} className="card-soft library-admin-container p-4 space-y-3 mb-5">
-        <div className="font-medium">{f.id ? "Editar publicación" : "Nueva publicación"}</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="font-medium">{f.id ? "Editar publicación" : "Nueva publicación"}</div>
+          {collapsibleEditor && (
+            <button type="button" className="btn-secondary" onClick={() => setEditorOpen(false)}>
+              <X className="h-4 w-4" /> Cerrar
+            </button>
+          )}
+        </div>
 
         <div>
           <label className="library-cover-label text-xs muted">Imagen principal de portada</label>
@@ -362,6 +390,7 @@ export default function LibraryAdminPage({
           {f.id && <button type="button" className="btn-secondary" onClick={reset}>Cancelar</button>}
         </div>
       </form>
+      )}
 
       <div className="space-y-2">{visibleItems.map(i => (
         <div key={i.id} className="card-soft library-admin-container p-3 flex items-center justify-between gap-2">

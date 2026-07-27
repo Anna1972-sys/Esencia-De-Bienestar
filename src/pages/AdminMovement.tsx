@@ -12,6 +12,7 @@ export default function AdminMovement() {
       categories={MOVEMENT_CATEGORIES}
       className="admin-movement-page"
       headerImage={movementCover}
+      collapsibleEditor
     />
   );
 }
