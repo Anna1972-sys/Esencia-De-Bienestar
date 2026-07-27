@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Image as ImageIcon, Video, FileText, Type, ArrowUp, ArrowDown, Upload, Pencil, Pin, FolderTree, GripVertical, Eye, EyeOff, CheckSquare, Square, X, Search, SlidersHorizontal, Link as LinkIcon } from "lucide-react";
@@ -122,6 +123,7 @@ export default function AdminResources() {
   const [showFilters, setShowFilters] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [selectedSection, setSelectedSection] = useState<AdminResourceSectionKey | "">("");
+  const [sectionContentHost, setSectionContentHost] = useState<HTMLDivElement | null>(null);
   const [guideSubcategoriesChecked, setGuideSubcategoriesChecked] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(ADMIN_RESOURCE_PAGE_SIZE);
 
@@ -559,45 +561,7 @@ export default function AdminResources() {
   return (
     <div className="admin-resources-page pb-28">
       <section className="mb-5">
-        {isGuideSubcategoryOverview ? (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedSection("");
-                setFilterCat("");
-                setFilterSub("");
-                setSearchQ("");
-                clearSelection();
-              }}
-              className="text-sm muted inline-flex items-center gap-1 mb-3"
-            >
-              <ArrowLeft className="h-4 w-4" /> Categorías
-            </button>
-            <h1 className="heading-lg mb-1">Guías y recursos</h1>
-            <p className="text-sm muted mb-4">Elige una guía para gestionar sus publicaciones.</p>
-
-            <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
-              <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
-              <div className="flex-1 text-sm text-left">
-                <div className="font-medium">Editar tarjetas de guías</div>
-                <div className="text-xs muted">Cambiar imagen, título, subtítulo y orden</div>
-              </div>
-            </Link>
-
-            <GuideCardsGrid
-              categories={guideSubcategoryCandidates}
-              onOpenCategory={(categoryId) => {
-                setSelectedSection("");
-                setFilterCat(categoryId);
-                setFilterSub("");
-                setShowEditor(false);
-                clearSelection();
-                setF({ ...empty, category_id: categoryId });
-              }}
-            />
-          </>
-        ) : isGuideSubcategoryView ? (
+        {isGuideSubcategoryView ? (
           <>
             <button
               type="button"
@@ -696,21 +660,38 @@ export default function AdminResources() {
                 const displaySubtitle = category?.subtitle || card.subtitle;
                 const displayImage = resolveCategoryCoverImage(category, card.image);
                 return (
-                  <div key={card.key} className="home-card-unified">
-                    <WellnessCategoryTile
-                      image={displayImage}
-                      title={displayTitle}
-                      subtitle={displaySubtitle}
-                      onClick={() => {
-                        setSelectedSection(card.key);
-                        setFilterCat(category?.id ?? "");
-                        setFilterSub("");
-                        setShowEditor(false);
-                        clearSelection();
-                        setF({ ...empty, category_id: category?.id ?? "" });
-                      }}
-                    />
-                  </div>
+                  <Fragment key={card.key}>
+                    <div className="home-card-unified">
+                      <WellnessCategoryTile
+                        image={displayImage}
+                        title={displayTitle}
+                        subtitle={displaySubtitle}
+                        onClick={() => {
+                          if (selectedSection === card.key) {
+                            setSelectedSection("");
+                            setFilterCat("");
+                            setFilterSub("");
+                            setSearchQ("");
+                            setShowEditor(false);
+                            clearSelection();
+                            return;
+                          }
+                          setSelectedSection(card.key);
+                          setFilterCat(category?.id ?? "");
+                          setFilterSub("");
+                          setShowEditor(false);
+                          clearSelection();
+                          setF({ ...empty, category_id: category?.id ?? "" });
+                        }}
+                      />
+                    </div>
+                    {selectedSection === card.key && (
+                      <div
+                        ref={setSectionContentHost}
+                        className="col-span-2 min-w-0"
+                      />
+                    )}
+                  </Fragment>
                 );
               })}
             </div>
@@ -718,8 +699,34 @@ export default function AdminResources() {
         )}
       </section>
 
-      {sectionIsOpen && !isGuideSubcategoryOverview && (
-        <>
+      {isGuideSubcategoryOverview && sectionContentHost && createPortal(
+        <div className="space-y-4">
+          <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 hover:shadow-glow transition">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
+            <div className="flex-1 text-sm text-left">
+              <div className="font-medium">Editar tarjetas de guías</div>
+              <div className="text-xs muted">Cambiar imagen, título, subtítulo y orden</div>
+            </div>
+          </Link>
+          <GuideCardsGrid
+            categories={guideSubcategoryCandidates}
+            onOpenCategory={(categoryId) => {
+              setSelectedSection("");
+              setFilterCat(categoryId);
+              setFilterSub("");
+              setShowEditor(false);
+              clearSelection();
+              setF({ ...empty, category_id: categoryId });
+            }}
+          />
+        </div>,
+        sectionContentHost
+      )}
+      {sectionIsOpen &&
+        !isGuideSubcategoryOverview &&
+        sectionContentHost &&
+        createPortal(
+        <div>
           {!isGuideSubcategoryView && (
             <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
               <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
@@ -1129,7 +1136,8 @@ export default function AdminResources() {
           </button>
         )}
       </div>
-        </>
+        </div>,
+        sectionContentHost
       )}
     </div>
   );
