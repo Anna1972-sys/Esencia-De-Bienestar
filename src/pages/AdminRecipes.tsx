@@ -108,6 +108,15 @@ const isCalorieGuidanceRecipe = (recipe: Pick<RecipeRow, "title" | "description"
   );
 };
 
+const isOrientationRecipe = (recipe: Pick<RecipeRow, "title" | "description">) => {
+  if (isCalorieGuidanceRecipe(recipe)) return true;
+  return String(recipe.title ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .includes("formula");
+};
+
 const rememberedRecipeCategory = () => {
   if (typeof window === "undefined") return LIBRARY_CATEGORIES[0].id;
   const saved = window.localStorage.getItem(ADMIN_RECIPE_CATEGORY_KEY);
@@ -319,6 +328,7 @@ export default function AdminRecipes() {
   const [filterCat, setFilterCat] = useState(rememberedRecipeCategory);
   const [query, setQuery] = useState("");
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
+  const [alphabeticalOrder, setAlphabeticalOrder] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(RECIPES_PAGE_SIZE);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -952,8 +962,14 @@ export default function AdminRecipes() {
       const issueCount = recipeQualityIssues(item).length;
       const matchesQuality = qualityFilter === "all" || (qualityFilter === "issues" ? issueCount > 0 : issueCount === 0);
       return matchesCategory && matchesSearch && matchesQuality;
-    }).sort(compareRecipesByManualOrder);
-  }, [items, filterCat, query, qualityFilter]);
+    }).sort(alphabeticalOrder
+      ? (a, b) => {
+          const orientationDiff = Number(isOrientationRecipe(b)) - Number(isOrientationRecipe(a));
+          if (orientationDiff !== 0) return orientationDiff;
+          return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
+        }
+      : compareRecipesByManualOrder);
+  }, [items, filterCat, query, qualityFilter, alphabeticalOrder]);
   const displayedRecipes = visible.slice(0, visibleLimit);
   const qualityIssueCount = items.filter(item => recipeQualityIssues(item).length > 0).length;
 
@@ -1290,6 +1306,18 @@ export default function AdminRecipes() {
             <option value="issues">Solo recetas con avisos</option>
             <option value="complete">Solo recetas completas</option>
           </select>
+          <button
+            type="button"
+            aria-pressed={alphabeticalOrder}
+            onClick={() => setAlphabeticalOrder(current => !current)}
+            className={`w-full rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+              alphabeticalOrder
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-primary/30 bg-white text-foreground"
+            }`}
+          >
+            Orden alfabético A–Z
+          </button>
           <div className="flex items-center justify-between gap-3 px-1 text-xs">
             <span className="font-medium text-foreground">
               {visible.length} {visible.length === 1 ? "receta encontrada" : "recetas encontradas"}
