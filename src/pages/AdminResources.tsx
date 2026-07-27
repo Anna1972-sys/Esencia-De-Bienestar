@@ -562,7 +562,46 @@ export default function AdminResources() {
   return (
     <div className="admin-resources-page pb-28">
       <section className="mb-5">
-        {isGuideSubcategoryView ? (
+        {isGuideSubcategoryOverview ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSection("");
+                setFilterCat("");
+                setFilterSub("");
+                setSearchQ("");
+                setShowEditor(false);
+                clearSelection();
+              }}
+              className="text-sm muted inline-flex items-center gap-1 mb-3"
+            >
+              <ArrowLeft className="h-4 w-4" /> Guías y recursos
+            </button>
+            <h1 className="heading-lg mb-1">Guías y recursos</h1>
+            <p className="text-sm muted mb-4">Elige una categoría para gestionar sus publicaciones.</p>
+
+            <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 mb-4 hover:shadow-glow transition">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
+              <div className="flex-1 text-sm text-left">
+                <div className="font-medium">Editar tarjetas de guías</div>
+                <div className="text-xs muted">Cambiar imagen, título, subtítulo y orden</div>
+              </div>
+            </Link>
+
+            <GuideCardsGrid
+              categories={guideSubcategoryCandidates}
+              onOpenCategory={(categoryId) => {
+                setSelectedSection("");
+                setFilterCat(categoryId);
+                setFilterSub("");
+                setShowEditor(false);
+                clearSelection();
+                setF({ ...empty, category_id: categoryId });
+              }}
+            />
+          </>
+        ) : isGuideSubcategoryView ? (
           <>
             <button
               type="button"
@@ -577,7 +616,7 @@ export default function AdminResources() {
               }}
               className="text-sm muted inline-flex items-center gap-1 mb-3"
             >
-              <ArrowLeft className="h-4 w-4" /> Guías y alimentos
+              <ArrowLeft className="h-4 w-4" /> Guías y recursos
             </button>
             <h1 className="heading-lg mb-1">
               {selectedFilterCategory?.icon ?? ""} {selectedFilterCategory?.name ?? "Guía"}
@@ -700,29 +739,6 @@ export default function AdminResources() {
         )}
       </section>
 
-      {isGuideSubcategoryOverview && sectionContentHost && createPortal(
-        <div className="space-y-4">
-          <Link to="/app/admin/recursos/categorias" className="card-soft p-3 flex items-center gap-2 hover:shadow-glow transition">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><FolderTree className="h-4 w-4" /></div>
-            <div className="flex-1 text-sm text-left">
-              <div className="font-medium">Editar tarjetas de guías</div>
-              <div className="text-xs muted">Cambiar imagen, título, subtítulo y orden</div>
-            </div>
-          </Link>
-          <GuideCardsGrid
-            categories={guideSubcategoryCandidates}
-            onOpenCategory={(categoryId) => {
-              setSelectedSection("");
-              setFilterCat(categoryId);
-              setFilterSub("");
-              setShowEditor(false);
-              clearSelection();
-              setF({ ...empty, category_id: categoryId });
-            }}
-          />
-        </div>,
-        sectionContentHost
-      )}
       {sectionIsOpen &&
         !isGuideSubcategoryOverview &&
         sectionContentHost &&
