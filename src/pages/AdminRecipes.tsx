@@ -328,7 +328,7 @@ export default function AdminRecipes() {
   const [filterCat, setFilterCat] = useState(rememberedRecipeCategory);
   const [query, setQuery] = useState("");
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
-  const [alphabeticalOrder, setAlphabeticalOrder] = useState(false);
+  const [savingAlphabeticalOrder, setSavingAlphabeticalOrder] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(RECIPES_PAGE_SIZE);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -953,6 +953,53 @@ export default function AdminRecipes() {
     }
   };
 
+  const saveAlphabeticalRecipeOrder = async () => {
+    if (savingAlphabeticalOrder) return;
+    setSavingAlphabeticalOrder(true);
+    try {
+      const recipesByCategory = new Map<string, RecipeRow[]>();
+      items.forEach(recipe => {
+        const category = String(recipe.category ?? "");
+        const group = recipesByCategory.get(category) ?? [];
+        group.push(recipe);
+        recipesByCategory.set(category, group);
+      });
+
+      const updates = Array.from(recipesByCategory.values()).flatMap(group =>
+        [...group]
+          .sort((a, b) => {
+            const orientationDiff = Number(isOrientationRecipe(b)) - Number(isOrientationRecipe(a));
+            if (orientationDiff !== 0) return orientationDiff;
+            return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
+          })
+          .map((recipe, index) => ({ id: recipe.id, sort_order: (index + 1) * 10 })),
+      );
+
+      for (let index = 0; index < updates.length; index += 20) {
+        const batch = updates.slice(index, index + 20);
+        const results = await Promise.all(batch.map(update =>
+          supabase
+            .from("recipes")
+            .update({ sort_order: update.sort_order } as any)
+            .eq("id", update.id),
+        ));
+        const failed = results.find(result => result.error);
+        if (failed?.error) throw failed.error;
+      }
+
+      setItems(current => current.map(recipe => {
+        const update = updates.find(item => item.id === recipe.id);
+        return update ? { ...recipe, sort_order: update.sort_order } : recipe;
+      }));
+      toast.success("Orden alfabético guardado en todas las categorías");
+    } catch (error: any) {
+      await load();
+      toast.error(error?.message || "No se pudo guardar el orden alfabético");
+    } finally {
+      setSavingAlphabeticalOrder(false);
+    }
+  };
+
   const visible = useMemo(() => {
     const term = String(query ?? "").trim().toLowerCase();
     return items.filter(item => {
@@ -962,14 +1009,8 @@ export default function AdminRecipes() {
       const issueCount = recipeQualityIssues(item).length;
       const matchesQuality = qualityFilter === "all" || (qualityFilter === "issues" ? issueCount > 0 : issueCount === 0);
       return matchesCategory && matchesSearch && matchesQuality;
-    }).sort(alphabeticalOrder
-      ? (a, b) => {
-          const orientationDiff = Number(isOrientationRecipe(b)) - Number(isOrientationRecipe(a));
-          if (orientationDiff !== 0) return orientationDiff;
-          return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
-        }
-      : compareRecipesByManualOrder);
-  }, [items, filterCat, query, qualityFilter, alphabeticalOrder]);
+    }).sort(compareRecipesByManualOrder);
+  }, [items, filterCat, query, qualityFilter]);
   const displayedRecipes = visible.slice(0, visibleLimit);
   const qualityIssueCount = items.filter(item => recipeQualityIssues(item).length > 0).length;
 
@@ -1308,15 +1349,11 @@ export default function AdminRecipes() {
           </select>
           <button
             type="button"
-            aria-pressed={alphabeticalOrder}
-            onClick={() => setAlphabeticalOrder(current => !current)}
-            className={`w-full rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-              alphabeticalOrder
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-primary/30 bg-white text-foreground"
-            }`}
+            onClick={saveAlphabeticalRecipeOrder}
+            disabled={savingAlphabeticalOrder}
+            className="w-full rounded-xl border border-primary/30 bg-white px-3 py-2.5 text-sm font-medium text-foreground transition hover:border-primary disabled:cursor-wait disabled:opacity-60"
           >
-            Orden alfabético A–Z
+            {savingAlphabeticalOrder ? "Guardando orden…" : "Guardar orden alfabético A–Z"}
           </button>
           <div className="flex items-center justify-between gap-3 px-1 text-xs">
             <span className="font-medium text-foreground">
