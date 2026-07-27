@@ -117,6 +117,14 @@ const isOrientationRecipe = (recipe: Pick<RecipeRow, "title" | "description">) =
     .includes("formula");
 };
 
+const alphabeticalRecipeTitle = (recipe: Pick<RecipeRow, "title">) =>
+  String(recipe.title ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
 const rememberedRecipeCategory = () => {
   if (typeof window === "undefined") return LIBRARY_CATEGORIES[0].id;
   const saved = window.localStorage.getItem(ADMIN_RECIPE_CATEGORY_KEY);
@@ -970,7 +978,7 @@ export default function AdminRecipes() {
           .sort((a, b) => {
             const orientationDiff = Number(isOrientationRecipe(b)) - Number(isOrientationRecipe(a));
             if (orientationDiff !== 0) return orientationDiff;
-            return String(a.title ?? "").localeCompare(String(b.title ?? ""), "es", { sensitivity: "base" });
+            return alphabeticalRecipeTitle(a).localeCompare(alphabeticalRecipeTitle(b), "es", { sensitivity: "base" });
           })
           .map((recipe, index) => ({ id: recipe.id, sort_order: (index + 1) * 10 })),
       );
