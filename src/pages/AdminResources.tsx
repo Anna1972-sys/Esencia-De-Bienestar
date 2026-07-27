@@ -237,6 +237,7 @@ export default function AdminResources() {
     !f.id
   );
   const sectionIsOpen = Boolean(filterCat || selectedSection);
+  const foldsNewPublication = selectedSection === "imprescindibles" || selectedSection === "videos";
   const selectedCategoryId = filterSub || filterCat || f.category_id;
   const selectedFilterCategory = filterCat ? catById.get(filterCat) ?? null : null;
   const isGuideSubcategoryView = isGuideLeafCategory(selectedFilterCategory);
@@ -576,7 +577,7 @@ export default function AdminResources() {
               }}
               className="text-sm muted inline-flex items-center gap-1 mb-3"
             >
-              <ArrowLeft className="h-4 w-4" /> Guías y recursos
+              <ArrowLeft className="h-4 w-4" /> Guías y alimentos
             </button>
             <h1 className="heading-lg mb-1">
               {selectedFilterCategory?.icon ?? ""} {selectedFilterCategory?.name ?? "Guía"}
@@ -743,16 +744,31 @@ export default function AdminResources() {
           type="button"
           className="btn-primary w-full mb-4"
           onClick={() => {
+            if (foldsNewPublication && hasDraft) {
+              setShowEditor(true);
+              return;
+            }
             setF(current => ({ ...empty, category_id: selectedCategoryId || current.category_id }));
             setShowEditor(true);
           }}
         >
-          <Plus className="h-4 w-4" /> Añadir contenido
+          <Plus className="h-4 w-4" /> {foldsNewPublication && hasDraft ? "Continuar publicación" : "Añadir contenido"}
         </button>
       )}
 
-      {(showEditor || f.id || hasDraft) && <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
-        <div className="font-medium">{f.id ? "Editar publicación" : "Nueva publicación"}</div>
+      {(showEditor || f.id || (hasDraft && !foldsNewPublication)) && <form onSubmit={save} className="card-soft p-4 space-y-3 mb-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="font-medium">{f.id ? "Editar publicación" : "Nueva publicación"}</div>
+          {foldsNewPublication && !f.id && (
+            <button
+              type="button"
+              className="btn-ghost px-3 py-1.5 text-sm"
+              onClick={() => setShowEditor(false)}
+            >
+              <X className="h-4 w-4" /> Cerrar
+            </button>
+          )}
+        </div>
 
         <div>
           <label className="text-xs muted">Imagen principal de portada</label>
