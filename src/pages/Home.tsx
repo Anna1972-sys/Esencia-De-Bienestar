@@ -17,7 +17,6 @@ import imgCompra from "@/assets/home-compra.png";
 import imgMovimiento from "@/assets/home-movimiento.png";
 import imgDiario from "@/assets/home-diario.png";
 import imgProgreso from "@/assets/home-progreso.png";
-import imgAdmin from "@/assets/home-admin.png";
 import imgRecipeGenerator from "@/assets/home-recipe-generator.png";
 import imgNutritionPremium from "@/assets/nutrition/home-tortitas-h24.png";
 import imgProducts from "@/assets/home-productos-te-jardin.png";
@@ -32,7 +31,6 @@ type HomeTileItem = {
   subtitle: string;
   scale?: string;
   variant?: "default" | "dark";
-  adminOnly?: boolean;
 };
 
 const HOME_TILES: HomeTileItem[] = [
@@ -47,10 +45,30 @@ const HOME_TILES: HomeTileItem[] = [
   { key: "nutricion", to: "/app/nutricion", image: imgNutritionPremium, title: "Nutrición deportiva", subtitle: "Rendimiento y energía", variant: "dark" },
   { key: "movimiento", to: "/app/movimiento", image: imgMovimiento, title: "Movimiento y ejercicio", subtitle: "Actívate cada día", variant: "dark" },
   { key: "favoritos", to: "/app/favoritos", image: imgRecetario, title: "Mis favoritos", subtitle: "Todo lo que te encanta" },
-  { key: "admin", to: "/app/admin", image: imgAdmin, title: "Administración", subtitle: "Gestiona tu app", adminOnly: true },
 ];
 
 const DEFAULT_HOME_CARD_ORDER = HOME_TILES.map(tile => tile.key);
+
+const HOME_SECTIONS = [
+  {
+    key: "alimentacion",
+    title: "Alimentación",
+    subtitle: "Tus recetas, bienestar y planificación",
+    tiles: ["mis-recetas", "biblioteca", "productos", "lista-compra"],
+  },
+  {
+    key: "actividad",
+    title: "Muévete y aprende",
+    subtitle: "Retos, recursos y actividad para cuidarte",
+    tiles: ["retos", "recursos", "nutricion", "movimiento"],
+  },
+  {
+    key: "seguimiento",
+    title: "Tu seguimiento",
+    subtitle: "Tu evolución y todo lo que quieres conservar",
+    tiles: ["diario", "progreso", "favoritos"],
+  },
+] as const;
 
 export default function Home() {
   const { user, isAdmin } = useAuth();
@@ -110,7 +128,7 @@ export default function Home() {
       });
   }, []);
 
-  const visibleTiles = HOME_TILES.filter(tile => !tile.adminOnly || isAdmin);
+  const visibleTiles = HOME_TILES;
   const orderedTiles = orderCards(visibleTiles, cardOrder);
   const orderedKeys = orderedTiles.map(tile => tile.key);
   const displayedWelcomeTitle = welcomeTitle || `Hola, ${name || "ANNA MARI"}`;
@@ -141,7 +159,6 @@ export default function Home() {
     <div className="space-y-8" onClickCapture={rememberHomePosition}>
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary mb-1">Bienestar</p>
           <h1 className="heading-lg">{displayedWelcomeTitle}</h1>
           <p className="muted text-sm mt-2 leading-relaxed pr-2">{displayedWelcomeMessage}</p>
         </div>
@@ -165,16 +182,14 @@ export default function Home() {
         </div>
       </Link>
 
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-sans font-bold text-xl">Tu espacio</h3>
-          {isAdmin && (
-            <button type="button" className="btn-secondary compact" onClick={() => setOrderingCards(value => !value)}>
+      <section style={{ marginTop: "0.5rem" }}>
+        {isAdmin && (
+          <div className="flex justify-end mb-2">
+            <button type="button" className="btn-secondary compact !min-h-0 !px-2.5 !py-1 text-[11px]" onClick={() => setOrderingCards(value => !value)}>
               {orderingCards ? "Terminar" : "Ordenar"}
             </button>
-          )}
-        </div>
-        <div className="divider-soft mb-5" />
+          </div>
+        )}
 
         {isAdmin && orderingCards && (
           <div className="card-soft p-3 mb-4 flex flex-wrap items-center gap-2 text-xs">
@@ -188,10 +203,10 @@ export default function Home() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-5">
-          {orderedTiles.map((tile, index) => (
-            <div key={tile.key} className="home-card-unified relative">
-              {isAdmin && orderingCards && (
+        {isAdmin && orderingCards ? (
+          <div className="grid grid-cols-2 gap-5">
+            {orderedTiles.map((tile, index) => (
+              <div key={tile.key} className="home-card-unified relative">
                 <div className="absolute right-2 top-2 z-20 flex gap-1">
                   <button type="button" className="h-8 w-8 rounded-full bg-white/95 border border-primary/30 text-primary grid place-items-center disabled:opacity-35" disabled={index === 0} onClick={() => moveHomeTile(tile.key, -1)} aria-label={`Subir ${tile.title}`}>
                     <ArrowUp className="h-4 w-4" />
@@ -200,11 +215,33 @@ export default function Home() {
                     <ArrowDown className="h-4 w-4" />
                   </button>
                 </div>
-              )}
-              <Tile {...tile} disabled={isAdmin && orderingCards} />
-            </div>
-          ))}
-        </div>
+                <Tile {...tile} disabled />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {HOME_SECTIONS.map((section) => {
+              const sectionTiles = orderedTiles.filter((tile) => section.tiles.some((key) => key === tile.key));
+              if (!sectionTiles.length) return null;
+              return (
+                <section key={section.key}>
+                  <div className="mb-4">
+                    <h3 className="font-sans font-bold text-lg">{section.title}</h3>
+                    <p className="muted text-xs mt-1">{section.subtitle}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-5">
+                    {sectionTiles.map((tile) => (
+                      <div key={tile.key} className="home-card-unified relative">
+                        <Tile {...tile} />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );
