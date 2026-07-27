@@ -314,6 +314,7 @@ const completeRecipeQuantities = async (payload: {
 export default function AdminRecipes() {
   const [items, setItems] = useState<RecipeRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [recipeFormOpen, setRecipeFormOpen] = useState(false);
   const [form, setForm] = useState<LibForm>(() => ({ ...emptyForm, category: rememberedRecipeCategory() }));
   const [filterCat, setFilterCat] = useState(rememberedRecipeCategory);
   const [query, setQuery] = useState("");
@@ -549,6 +550,7 @@ export default function AdminRecipes() {
     setMacroDebug([]);
     setLastMacroWarning("");
     setQuantityNotice("");
+    setRecipeFormOpen(false);
   };
 
   useEffect(() => {
@@ -587,6 +589,7 @@ export default function AdminRecipes() {
     if (!availableDraft) return;
     setEditingId(availableDraft.editingId);
     setForm(availableDraft.form);
+    setRecipeFormOpen(true);
     setMacroDebug([]);
     setLastMacroWarning("");
     setQuantityNotice("Borrador recuperado. No se guardará en la receta hasta que pulses “Guardar”.");
@@ -778,6 +781,7 @@ export default function AdminRecipes() {
   const startEdit = (recipe: RecipeRow) => {
     setEditingId(recipe.id);
     setForm(formFromRecipe(recipe));
+    setRecipeFormOpen(true);
     setMacroDebug([]);
     setLastMacroWarning("");
     setQuantityNotice("");
@@ -1083,8 +1087,14 @@ export default function AdminRecipes() {
         </details>
       )}
 
-      <details key={editingId ? `edit-${editingId}` : "new-recipe"} defaultOpen={Boolean(editingId)} className="card-soft mb-5">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+      <details open={recipeFormOpen} className="card-soft mb-5">
+        <summary
+          className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 focus:outline-none focus-visible:outline-none focus-visible:text-primary"
+          onClick={event => {
+            event.preventDefault();
+            setRecipeFormOpen(current => !current);
+          }}
+        >
           <div>
             <div className="font-medium">Crear o editar una receta</div>
             <p className="mt-1 text-xs muted">{editingId ? "Edición en curso" : "Formulario de recetas oficiales"}</p>
@@ -1098,7 +1108,7 @@ export default function AdminRecipes() {
             <p className="text-xs muted mt-0.5">Guardar no recalcula macros automáticamente. Usa el botón “Recalcular macros” cuando quieras actualizar valores nutricionales.</p>
           </div>
           {editingId && (
-            <button type="button" onClick={resetForm} className="text-xs muted inline-flex items-center gap-1 shrink-0">
+            <button type="button" onClick={() => resetForm()} className="text-xs muted inline-flex items-center gap-1 shrink-0">
               <X className="h-3 w-3" /> Cancelar
             </button>
           )}
