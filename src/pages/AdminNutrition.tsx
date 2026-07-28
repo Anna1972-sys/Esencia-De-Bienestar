@@ -118,6 +118,20 @@ function contentHasDraft(form: ContentForm) {
   );
 }
 
+function uploadedFileLabel(url: string, kind: "Vídeo" | "PDF", index: number) {
+  try {
+    const pathname = new URL(url).pathname;
+    const rawName = decodeURIComponent(pathname.split("/").filter(Boolean).pop() ?? "");
+    const cleanName = rawName
+      .replace(/^\d{10,}[-_]?/, "")
+      .replace(/[_-]+/g, " ")
+      .trim();
+    return cleanName || `${kind} ${index + 1}`;
+  } catch {
+    return `${kind} ${index + 1}`;
+  }
+}
+
 const categoryImages: Record<string, string> = {
   nutricion: nutricionCardImage,
   proteinas: nutricionCardImage,
@@ -1026,7 +1040,8 @@ export default function AdminNutrition() {
                       </label>
                       {contentForm.video_urls.map((url, index) => (
                         <div key={`${url}-${index}`} className="rounded-xl border border-primary/30 bg-white p-2 flex items-center gap-2 text-xs">
-                          <span className="truncate flex-1">{url}</span>
+                          <Video className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="truncate flex-1 font-medium">{uploadedFileLabel(url, "Vídeo", index)}</span>
                           <button type="button" className="admin-nutrition-delete-icon" aria-label="Borrar vídeo" onClick={() => setContentForm((current) => ({ ...current, video_urls: current.video_urls.filter((_, itemIndex) => itemIndex !== index) }))}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1069,7 +1084,8 @@ export default function AdminNutrition() {
                       </label>
                       {contentForm.pdf_urls.map((url, index) => (
                         <div key={`${url}-${index}`} className="rounded-xl border border-primary/30 bg-white p-2 flex items-center gap-2 text-xs">
-                          <span className="truncate flex-1">{url}</span>
+                          <FileText className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="truncate flex-1 font-medium">{uploadedFileLabel(url, "PDF", index)}</span>
                           <button type="button" className="admin-nutrition-delete-icon" aria-label="Borrar PDF" onClick={() => setContentForm((current) => ({ ...current, pdf_urls: current.pdf_urls.filter((_, itemIndex) => itemIndex !== index) }))}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
