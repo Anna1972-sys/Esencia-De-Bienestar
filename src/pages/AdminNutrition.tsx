@@ -16,8 +16,11 @@ import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
 import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
 import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
+import DraftBanner from "@/components/DraftBanner";
 
 const SIGNED_TTL = 60 * 60 * 24 * 7;
+const ADMIN_NUTRITION_DRAFT_KEY = "admin-nutrition-content-draft-v1";
+const nutritionDraftKey = (category: string) => `${ADMIN_NUTRITION_DRAFT_KEY}:${category}`;
 
 type Category = {
   id: string;
@@ -93,6 +96,27 @@ const emptyContent: ContentForm = {
   sections: [],
   visible: true,
 };
+
+function contentHasDraft(form: ContentForm) {
+  return Boolean(
+    form.title.trim()
+    || form.subtitle.trim()
+    || form.cover_image
+    || form.description.trim()
+    || form.benefits.trim()
+    || form.usage.trim()
+    || form.ingredients.trim()
+    || form.observations.trim()
+    || form.free_text.trim()
+    || form.gallery.length
+    || form.video_urls.length
+    || form.pdf_urls.length
+    || form.video_url.trim()
+    || form.pdf_url.trim()
+    || form.external_url.trim()
+    || form.sections.length
+  );
+}
 
 const categoryImages: Record<string, string> = {
   nutricion: nutricionCardImage,
@@ -273,6 +297,7 @@ export default function AdminNutrition() {
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [contentForm, setContentForm] = useState<ContentForm>(emptyContent);
   const [contentFormOpen, setContentFormOpen] = useState(false);
+  const [draftRecovered, setDraftRecovered] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const loadCategories = async () => {
@@ -321,6 +346,38 @@ export default function AdminNutrition() {
     loadItems();
   }, []);
 
+  useEffect(() => {
+    if (contentForm.id || !activeCategory || !contentHasDraft(contentForm)) return;
+    const persistDraft = () => {
+      try {
+        window.localStorage.setItem(nutritionDraftKey(activeCategory), JSON.stringify({
+          category: activeCategory,
+          form: contentForm,
+          savedAt: new Date().toISOString(),
+        }));
+      } catch {
+        // El borrador es una ayuda local y nunca debe bloquear la edición.
+      }
+    };
+    const timer = window.setTimeout(() => {
+      persistDraft();
+    }, 400);
+    return () => {
+      window.clearTimeout(timer);
+      persistDraft();
+    };
+  }, [activeCategory, contentForm]);
+
+  useEffect(() => {
+    if (contentForm.id || !contentHasDraft(contentForm)) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [contentForm]);
+
   const activeCategoryData = useMemo(
     () => categories.find((category) => category.key === activeCategory) ?? null,
     [activeCategory, categories]
@@ -339,13 +396,52 @@ export default function AdminNutrition() {
     return next;
   }, [categories, items]);
 
-  const resetContent = () => setContentForm(emptyContent);
+  const clearContentDraft = (category = activeCategory) => {
+    if (!category) return;
+    try {
+      window.localStorage.removeItem(nutritionDraftKey(category));
+    } catch {
+      // No bloquea el formulario si el navegador impide usar almacenamiento local.
+    }
+    setDraftRecovered(false);
+  };
+
+  const readContentDraft = (category: string) => {
+    try {
+      const raw = window.localStorage.getItem(nutritionDraftKey(category));
+      if (!raw) return null;
+      const saved = JSON.parse(raw);
+      if (saved?.category !== category || !saved?.form || !contentHasDraft(saved.form)) return null;
+      return { ...emptyContent, ...saved.form, id: undefined } as ContentForm;
+    } catch {
+      return null;
+    }
+  };
+
+  const resetContent = () => {
+    setContentForm(emptyContent);
+    setDraftRecovered(false);
+  };
+
+  const openNewContent = (category: string) => {
+    const draft = readContentDraft(category);
+    setContentForm(draft ?? emptyContent);
+    setDraftRecovered(Boolean(draft));
+    setContentFormOpen(true);
+  };
 
   const openCategory = (key: string) => {
     const shouldOpen = activeCategory !== key;
     setActiveCategory(shouldOpen ? key : null);
-    resetContent();
-    setContentFormOpen(false);
+    if (shouldOpen) {
+      const draft = readContentDraft(key);
+      setContentForm(draft ?? emptyContent);
+      setDraftRecovered(Boolean(draft));
+      setContentFormOpen(Boolean(draft));
+    } else {
+      resetContent();
+      setContentFormOpen(false);
+    }
     if (shouldOpen) {
       window.setTimeout(() => {
         document.getElementById(`nutrition-panel-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -452,6 +548,7 @@ export default function AdminNutrition() {
     if (result.error) toast.error(result.error.message);
     else {
       toast.success(contentForm.id ? "Contenido actualizado" : "Contenido publicado");
+      if (!contentForm.id) clearContentDraft();
       resetContent();
       setContentFormOpen(false);
       loadItems();
@@ -610,6 +707,7 @@ export default function AdminNutrition() {
                               className="text-primary"
                               onClick={() => {
                                 setContentForm(formFromItem(item));
+                                setDraftRecovered(false);
                                 setContentFormOpen(true);
                               }}
                               aria-label="Editar contenido"
@@ -629,7 +727,7 @@ export default function AdminNutrition() {
                     )}
                   </div>
                   {!contentFormOpen && (
-                    <button type="button" className="btn-primary w-full" onClick={() => setContentFormOpen(true)}>
+                    <button type="button" className="btn-primary w-full" onClick={() => openNewContent(activeCategoryData.key)}>
                       <Plus className="h-4 w-4" /> Nueva publicación
                     </button>
                   )}
@@ -642,6 +740,14 @@ export default function AdminNutrition() {
                     </button>
                   </div>
                   <p className="text-sm muted mb-3">Completa los campos que necesites y publica el contenido dentro de esta categoría.</p>
+                  {draftRecovered && !contentForm.id && (
+                    <DraftBanner
+                      onDiscard={() => {
+                        clearContentDraft();
+                        setContentForm(emptyContent);
+                      }}
+                    />
+                  )}
                   <form onSubmit={saveContent} className="admin-nutrition-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
                     <div>
                       <label className="text-xs muted">Imagen principal</label>
