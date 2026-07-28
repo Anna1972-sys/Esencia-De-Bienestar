@@ -686,6 +686,56 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .5rem;
   }
+  .wellness-nutrition .nutrition-main-grid {
+    display: block;
+  }
+  .wellness-nutrition .nutrition-category-card.nutrition-main-card {
+    position: relative;
+    width: 100%;
+    height: 158px;
+    padding: 0;
+    display: block;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .wellness-nutrition .nutrition-main-card .nutrition-category-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    border-radius: 0;
+    z-index: -2;
+  }
+  .wellness-nutrition .nutrition-main-card .nutrition-category-image::after {
+    content: "";
+    position: absolute;
+    inset: 32% 0 0;
+    background: linear-gradient(to bottom, transparent, rgb(0 0 0 / .9));
+  }
+  .wellness-nutrition .nutrition-main-card .font-medium {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 12px;
+    color: #FF2D95;
+    font-size: 1rem;
+    text-align: left;
+    text-shadow: 0 1px 4px rgb(0 0 0 / .9);
+  }
+  .wellness-nutrition .nutrition-main-card-action {
+    position: absolute;
+    right: 14px;
+    bottom: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    color: hsl(0 0% 90% / .82);
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 4px rgb(0 0 0 / .9);
+  }
   .wellness-nutrition .nutrition-category-image {
     flex: 1 1 auto;
     min-height: 0;

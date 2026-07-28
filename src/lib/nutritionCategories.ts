@@ -7,10 +7,49 @@ export const NUTRITION_CATEGORIES = [
   { key: "perdida-grasa", label: "Pérdida de grasa", emoji: "🔥", subtitle: "Define con equilibrio." },
   { key: "resistencia", label: "Resistencia", emoji: "🏃", subtitle: "Energía sostenida y fondo físico." },
   { key: "hidratacion", label: "Hidratación", emoji: "💧", subtitle: "Agua, sales y equilibrio diario." },
-  { key: "suplementacion", label: "Suplementación deportiva", emoji: "💊", subtitle: "Productos y guías de uso." },
+  { key: "suplementacion", label: "Suplementación deportiva", emoji: "💊", subtitle: "Guía esencial para comenzar" },
   { key: "recetas", label: "Recetas deportivas", emoji: "🍓", subtitle: "Ideas prácticas para entrenar mejor." },
   { key: "planes", label: "Guías y vídeos", emoji: "🎥", subtitle: "Aprende con recursos visuales." },
   { key: "protocolos", label: "Protocolos", emoji: "📋", subtitle: "Pautas para objetivos concretos." },
+] as const;
+
+export const NUTRITION_CATEGORY_SECTIONS = [
+  {
+    key: "introduccion",
+    label: "Guía de introducción",
+    categoryKeys: ["suplementacion", "suplementacion-deportiva"],
+  },
+  {
+    key: "objetivos",
+    label: "Objetivos principales",
+    categoryKeys: ["perdida-grasa", "ganancia-masa-muscular"],
+  },
+  {
+    key: "rendimiento",
+    label: "Momento del entrenamiento y rendimiento",
+    categoryKeys: [
+      "hidratacion",
+      "pre-entreno",
+      "preentrenamiento",
+      "entrenamiento",
+      "post-entreno",
+      "recuperacion-postentrenamiento",
+      "resistencia",
+    ],
+  },
+  {
+    key: "recursos",
+    label: "Información y recursos",
+    categoryKeys: [
+      "proteinas",
+      "nutricion",
+      "protocolos",
+      "recetas",
+      "recetas-deportivas",
+      "planes",
+      "guias-videos",
+    ],
+  },
 ] as const;
 
 export type NutritionCategoryKey = (typeof NUTRITION_CATEGORIES)[number]["key"];

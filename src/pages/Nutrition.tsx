@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
-import { NUTRITION_CATEGORIES } from "@/lib/nutritionCategories";
+import { NUTRITION_CATEGORIES, NUTRITION_CATEGORY_SECTIONS } from "@/lib/nutritionCategories";
 import nutricionCardImage from "@/assets/nutrition/sport-cards/nutricion.jpg";
 import preentrenamientoCardImage from "@/assets/nutrition/sport-cards/preentrenamiento.jpg";
 import entrenamientoCardImage from "@/assets/nutrition/sport-cards/entrenamiento.jpg";
@@ -15,7 +15,6 @@ import suplementacionCardImage from "@/assets/nutrition/sport-cards/suplementaci
 import recetasCardImage from "@/assets/nutrition/sport-cards/recetas-deportivas.jpg";
 import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
 import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
-import nutritionHeroImage from "@/assets/nutrition/home-tortitas-h24.png";
 import { mediaUrl } from "@/lib/mediaStorage";
 import { ArrowLeft, BookOpen, FileText, Search, X } from "lucide-react";
 
@@ -210,6 +209,11 @@ export default function Nutrition() {
     return next;
   }, [categories, items]);
 
+  const categorySections = useMemo(() => NUTRITION_CATEGORY_SECTIONS.map((section) => ({
+    ...section,
+    categories: categories.filter((category) => section.categoryKeys.includes(category.key as never)),
+  })).filter((section) => section.categories.length > 0), [categories]);
+
   const term = String(query ?? "").trim().toLowerCase();
   const visibleItems = useMemo(() => {
     if (!activeCategory) return [];
@@ -308,41 +312,46 @@ export default function Nutrition() {
             <ArrowLeft className="h-4 w-4" /> Volver
           </BackButton>
 
-          <div className="nutrition-hero rounded-[28px] p-5 mb-5 flex items-center justify-between overflow-hidden relative">
-            <img src={nutritionHeroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/25" />
-            <div className="relative z-10">
-              <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#FF8BC7]">Rendimiento consciente</p>
-              <p className="text-white font-bold text-lg mt-1 drop-shadow">Nutrición para sentirte bien</p>
-              <p className="text-white/85 text-xs mt-1 drop-shadow">Proteína, energía y recuperación.</p>
-            </div>
-          </div>
-
           <h1 className="heading-lg mb-1">Nutrición deportiva</h1>
-          <p className="text-sm muted mb-4">Rendimiento, hidratación y energía. Explora por categoría.</p>
 
-          <div className="nutrition-category-grid">
-            {categories.map((category) => (
-              <button
-                key={category.id || category.key}
-                onClick={() => openCategory(category)}
-                className="nutrition-category-card text-left hover:shadow-glow transition"
-              >
-                {category.image ? (
-                  <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
-                    <img src={category.image} alt={category.label} loading="lazy" />
-                  </div>
-                ) : (
-                  <div className="text-2xl mb-1">{category.emoji}</div>
+          <div className="space-y-6 mt-4">
+            {categorySections.map((section) => (
+              <section key={section.key}>
+                {section.key !== "introduccion" && (
+                  <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#FF2D95] mb-3">
+                    {section.label}
+                  </h2>
                 )}
-                <div className="font-medium text-sm">{category.label}</div>
-                {category.subtitle && <div className="text-xs mt-1 nutrition-category-subtitle">{category.subtitle}</div>}
-                {(counts[category.key] ?? 0) > 0 && (
-                  <div className="text-xs muted mt-1 inline-flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" /> {counts[category.key]}
-                  </div>
-                )}
-              </button>
+                <div className={section.key === "introduccion" ? "nutrition-main-grid" : "nutrition-category-grid"}>
+                  {section.categories.map((category) => (
+                    <button
+                      key={category.id || category.key}
+                      onClick={() => openCategory(category)}
+                      className={`nutrition-category-card text-left hover:shadow-glow transition ${section.key === "introduccion" ? "nutrition-main-card" : ""}`}
+                    >
+                      {category.image ? (
+                        <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
+                          <img src={category.image} alt={category.label} loading="lazy" />
+                        </div>
+                      ) : (
+                        <div className="text-2xl mb-1">{category.emoji}</div>
+                      )}
+                      <div className="font-medium text-sm">{category.label}</div>
+                      {section.key !== "introduccion" && category.subtitle && <div className="text-xs mt-1 nutrition-category-subtitle">{category.subtitle}</div>}
+                      {section.key === "introduccion" && (
+                        <span className="nutrition-main-card-action">
+                          <FileText className="h-3.5 w-3.5" /> Abrir guía
+                        </span>
+                      )}
+                      {section.key !== "introduccion" && (counts[category.key] ?? 0) > 0 && (
+                        <div className="text-xs muted mt-1 inline-flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" /> {counts[category.key]}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         </>

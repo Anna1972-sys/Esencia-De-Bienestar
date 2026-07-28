@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { NUTRITION_CATEGORIES } from "@/lib/nutritionCategories";
+import { NUTRITION_CATEGORIES, NUTRITION_CATEGORY_SECTIONS } from "@/lib/nutritionCategories";
 import nutricionCardImage from "@/assets/nutrition/sport-cards/nutricion.jpg";
 import preentrenamientoCardImage from "@/assets/nutrition/sport-cards/preentrenamiento.jpg";
 import entrenamientoCardImage from "@/assets/nutrition/sport-cards/entrenamiento.jpg";
@@ -14,7 +14,7 @@ import suplementacionCardImage from "@/assets/nutrition/sport-cards/suplementaci
 import recetasCardImage from "@/assets/nutrition/sport-cards/recetas-deportivas.jpg";
 import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
 import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
-import { Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import DraftBanner from "@/components/DraftBanner";
 
@@ -311,6 +311,7 @@ export default function AdminNutrition() {
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [contentForm, setContentForm] = useState<ContentForm>(emptyContent);
   const [contentFormOpen, setContentFormOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [draftRecovered, setDraftRecovered] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -338,7 +339,30 @@ export default function AdminNutrition() {
       return;
     }
     setSchemaError("");
-    setCategories(data ?? []);
+    const loadedCategories = data ?? [];
+    const supplementation = loadedCategories.find((category: Category) => (
+      category.key === "suplementacion" || category.key === "suplementacion-deportiva"
+    ));
+    if (
+      supplementation
+      && (
+        supplementation.label !== "Suplementación deportiva"
+        || supplementation.subtitle !== "Guía esencial para comenzar"
+      )
+    ) {
+      const { error: copyError } = await (supabase as any)
+        .from("nutrition_categories")
+        .update({
+          label: "Suplementación deportiva",
+          subtitle: "Guía esencial para comenzar",
+        })
+        .eq("id", supplementation.id);
+      if (!copyError) {
+        supplementation.label = "Suplementación deportiva";
+        supplementation.subtitle = "Guía esencial para comenzar";
+      }
+    }
+    setCategories(loadedCategories);
   };
 
   const loadItems = async () => {
@@ -408,6 +432,41 @@ export default function AdminNutrition() {
     });
     return next;
   }, [categories, items]);
+
+  const categorySections = useMemo(() => NUTRITION_CATEGORY_SECTIONS.map((section) => ({
+    ...section,
+    categories: categories.filter((category) => section.categoryKeys.includes(category.key as never)),
+  })).filter((section) => section.categories.length > 0), [categories]);
+
+  const moveCategory = async (category: Category, direction: -1 | 1) => {
+    const section = categorySections.find((candidate) => candidate.categories.some((item) => item.id === category.id));
+    if (!section) return;
+    const index = section.categories.findIndex((item) => item.id === category.id);
+    const target = section.categories[index + direction];
+    if (!target) return;
+
+    const currentOrder = category.sort_order ?? categories.findIndex((item) => item.id === category.id) + 1;
+    const targetOrder = target.sort_order ?? categories.findIndex((item) => item.id === target.id) + 1;
+    setBusy(true);
+    const [{ error: currentError }, { error: targetError }] = await Promise.all([
+      (supabase as any).from("nutrition_categories").update({ sort_order: targetOrder }).eq("id", category.id),
+      (supabase as any).from("nutrition_categories").update({ sort_order: currentOrder }).eq("id", target.id),
+    ]);
+    setBusy(false);
+    if (currentError || targetError) {
+      toast.error((currentError || targetError).message);
+      await loadCategories();
+      return;
+    }
+    setCategories((current) => current
+      .map((item) => item.id === category.id
+        ? { ...item, sort_order: targetOrder }
+        : item.id === target.id
+          ? { ...item, sort_order: currentOrder }
+          : item)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
+    toast.success("Orden guardado");
+  };
 
   const clearContentDraft = (category = activeCategory) => {
     if (!category) return;
@@ -614,9 +673,6 @@ export default function AdminNutrition() {
     }
   };
 
-  const rows: Category[][] = [];
-  for (let i = 0; i < categories.length; i += 3) rows.push(categories.slice(i, i + 3));
-
   return (
     <div className="pb-28 admin-nutrition-page">
       <AdminPageHeader title="Nutrición deportiva" backTo="/app/admin" />
@@ -637,10 +693,23 @@ export default function AdminNutrition() {
         <p className="text-sm muted mb-4">Pulsa una categoría para gestionar su contenido.</p>
 
         <div className="space-y-3">
-          {rows.map((row) => (
-            <div key={row.map((category) => category.key).join("-")} className="space-y-3">
+          {categorySections.map((section) => {
+            const isOpen = openSections[section.key] === true;
+            return (
+            <section key={section.key} className="rounded-2xl border border-[#FF2D95]/45 bg-white overflow-hidden">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between gap-3 p-3 text-left"
+                onClick={() => setOpenSections((current) => ({ ...current, [section.key]: !isOpen }))}
+              >
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#FF2D95]">{section.label}</span>
+                {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+
+              {isOpen && (
+              <div className="px-3 pb-3 space-y-3">
               <div className="grid grid-cols-3 gap-2">
-                {row.map((category) => {
+                {section.categories.map((category, categoryIndex) => {
                   const image = category.image_url || categoryImages[category.key];
                   const selected = activeCategory === category.key;
                   return (
@@ -664,12 +733,30 @@ export default function AdminNutrition() {
                           <div className="text-[10px] muted leading-tight line-clamp-2 mt-1">{category.subtitle || "Contenido"}</div>
                         </div>
                       </button>
+                      <div className="grid grid-cols-2 gap-1 p-1.5 bg-white">
+                        <button
+                          type="button"
+                          className="admin-nutrition-category-action justify-center px-1"
+                          disabled={busy || categoryIndex === 0}
+                          onClick={() => moveCategory(category, -1)}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" /> Subir
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-nutrition-category-action justify-center px-1"
+                          disabled={busy || categoryIndex === section.categories.length - 1}
+                          onClick={() => moveCategory(category, 1)}
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" /> Bajar
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
               </div>
 
-              {activeCategoryData && row.some((category) => category.key === activeCategory) && (
+              {activeCategoryData && section.categories.some((category) => category.key === activeCategory) && (
                 <section id={`nutrition-panel-${activeCategoryData.key}`} className="card-soft admin-nutrition-panel admin-nutrition-content-panel p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                     <div>
@@ -1141,8 +1228,10 @@ export default function AdminNutrition() {
                   )}
                 </section>
               )}
-            </div>
-          ))}
+              </div>
+              )}
+            </section>
+          )})}
         </div>
       </div>
 
