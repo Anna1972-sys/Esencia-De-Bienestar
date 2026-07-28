@@ -149,6 +149,7 @@ const PRODUCT_IMPORTANT_PDF_KEY = "__product_important_pdf_url";
 const PRODUCT_SHORT_DESCRIPTION_KEY = "__product_short_description";
 const DELETE_ELEMENT_CONFIRMATION = "¿Seguro que deseas eliminar este elemento?";
 const IMAGE_FILE_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif";
+const SPOON_MEDIA_ACCEPT = `${IMAGE_FILE_ACCEPT},image/heic,image/heif,.heic,.heif,application/pdf,.pdf`;
 const INTERNAL_PRODUCT_META_KEYS = new Set([
   PRODUCT_BLOCK_ORDER_KEY,
   PRODUCT_BENEFITS_PDF_KEY,
@@ -531,6 +532,20 @@ async function uploadProductFile(file: File, folder: string) {
   if (error) throw error;
   const { data } = supabase.storage.from("product-media").getPublicUrl(path);
   return data.publicUrl;
+}
+
+function isHeicImage(file: File) {
+  const lowerName = file.name.toLowerCase();
+  return file.type === "image/heic" || file.type === "image/heif" || lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
+}
+
+async function prepareSpoonMedia(file: File) {
+  if (!isHeicImage(file)) return file;
+  const { default: heic2any } = await import("heic2any");
+  const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+  const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+  const jpegName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
+  return new File([jpegBlob], jpegName, { type: "image/jpeg", lastModified: file.lastModified });
 }
 
 function fileToDataUrl(file: Blob) {
@@ -1122,7 +1137,8 @@ export default function AdminProducts() {
   const uploadInto = async (file: File, kind: "main" | "gallery" | "video" | "pdf" | "spoon") => {
     try {
       setSaving(true);
-      const url = await uploadProductFile(file, kind);
+      const uploadFile = kind === "spoon" ? await prepareSpoonMedia(file) : file;
+      const url = await uploadProductFile(uploadFile, kind);
       const patch: Partial<Product> = {};
       if (kind === "main") {
         patch.image_url = url;
@@ -2009,7 +2025,7 @@ export default function AdminProducts() {
               <MediaUploader
                 title="Imagen cuchara oficial Herbalife"
                 url={form.spoon_image_url ?? ""}
-                accept={IMAGE_FILE_ACCEPT}
+                accept={SPOON_MEDIA_ACCEPT}
                 icon={<ImageIcon className="h-4 w-4" />}
                 onUpload={file => uploadInto(file, "spoon")}
                 onUrl={url => setForm(prev => ({ ...prev, spoon_image_url: url }))}
@@ -2669,13 +2685,28 @@ function MediaUploader({
       </div>
       {url && (
         <div className="admin-product-media-preview mb-2">
-          <img src={url} alt="" />
+          {url.toLowerCase().split("?")[0].endsWith(".pdf") ? (
+            <a href={url} target="_blank" rel="noreferrer" className="btn-secondary w-full justify-center">
+              <FileText className="h-4 w-4" /> Abrir PDF guardado
+            </a>
+          ) : (
+            <img src={url} alt="" />
+          )}
         </div>
       )}
       <div className="flex flex-col sm:flex-row gap-2">
         <label className="btn-primary cursor-pointer justify-center">
           <Upload className="h-4 w-4" /> Subir
-          <input type="file" className="hidden" accept={accept} onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
+          <input
+            type="file"
+            className="hidden"
+            accept={accept}
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+              e.currentTarget.value = "";
+            }}
+          />
         </label>
         <input className="field flex-1" placeholder="O pegar URL" value={url} onChange={e => onUrl(e.target.value)} />
       </div>

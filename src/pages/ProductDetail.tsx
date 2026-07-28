@@ -454,7 +454,7 @@ export default function ProductDetail() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-rosa text-white grid place-items-center"><FileText className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate">Abrir PDF {index + 1}</div>
-                  <div className="text-xs muted truncate">{url}</div>
+                  <div className="text-xs muted">Documento disponible</div>
                 </div>
               </a>
             ))}
@@ -609,6 +609,8 @@ function DescriptionBlock({ shortValue, fullValue, open, onToggle }: { shortValu
 }
 
 function SpoonImageBlock({ imageUrl, open, onToggle }: { imageUrl: string; open: boolean; onToggle: () => void }) {
+  const isPdf = imageUrl.toLowerCase().split("?")[0].endsWith(".pdf");
+
   return (
     <CollapsibleProductBlock title="Cuchara oficial Herbalife" open={open} onToggle={onToggle}>
       {open && (
@@ -618,7 +620,13 @@ function SpoonImageBlock({ imageUrl, open, onToggle }: { imageUrl: string; open:
             <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
           </div>
           <a href={imageUrl} target="_blank" rel="noreferrer" className="block">
-            <img src={imageUrl} alt="Equivalencia cuchara Herbalife" className="w-full max-h-[60vh] object-contain rounded-2xl" />
+            {isPdf ? (
+              <span className="btn-secondary w-full justify-center">
+                <FileText className="h-4 w-4" /> Abrir documento de la cuchara oficial
+              </span>
+            ) : (
+              <img src={imageUrl} alt="Equivalencia cuchara Herbalife" className="w-full max-h-[60vh] object-contain rounded-2xl" />
+            )}
           </a>
         </div>
       )}
