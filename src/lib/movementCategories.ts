@@ -1,11 +1,11 @@
 export const MOVEMENT_CATEGORIES = [
-  { key: "casa", label: "Ejercicio en casa", emoji: "🏡" },
+  { key: "casa", label: "Antes de empezar ⭐", emoji: "" },
+  { key: "rutinas", label: "Rutinas semanales", emoji: "📅" },
   { key: "caminar", label: "Caminar y pasos", emoji: "🚶" },
   { key: "fuerza", label: "Fuerza y tonificación", emoji: "💪" },
   { key: "movilidad", label: "Movilidad y estiramientos", emoji: "🧘" },
   { key: "cardio", label: "Cardio y salud cardiovascular", emoji: "❤️" },
   { key: "videos", label: "Vídeos de entrenamiento", emoji: "🎥" },
-  { key: "rutinas", label: "Rutinas semanales", emoji: "📅" },
 ] as const;
 
 export type MovementCategoryKey = (typeof MOVEMENT_CATEGORIES)[number]["key"];
@@ -25,4 +25,3 @@ export type MovementBlock =
 
 // Shared content block type (used by Movimiento y ejercicio and Nutrición deportiva)
 export type ContentBlock = MovementBlock;
-
