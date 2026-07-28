@@ -308,8 +308,8 @@ export default function Nutrition() {
         </>
       ) : (
         <>
-          <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
-            <ArrowLeft className="h-4 w-4" /> Volver
+          <BackButton fallbackTo="/app" className="text-xs muted inline-flex items-center gap-1 mb-3">
+            <ArrowLeft className="h-3 w-3" /> Volver
           </BackButton>
 
           <h1 className="heading-lg mb-1">Nutrición deportiva</h1>
