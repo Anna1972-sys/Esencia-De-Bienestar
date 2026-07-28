@@ -157,42 +157,76 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
     const cardTitle = it.title || it.name || "Publicación sin título";
     const cardDescription = shortText(it.subtitle || it.description || firstTextFromBlocks(it.blocks) || "Abre la publicación para ver todo el contenido.");
     const date = it.created_at ? new Date(it.created_at).toLocaleDateString("es-ES") : "";
+    const introPdfBlock = Array.isArray(it.blocks)
+      ? it.blocks.find((block: any) => block?.type === "pdf" && block.url)
+        ?? it.blocks.find((block: any) => block?.type === "section" && block.pdf_url)
+      : null;
+    const introPdfUrl = introPdfBlock?.url || introPdfBlock?.pdf_url || "";
+    const isMovementIntro = variant === "movement" && current?.key === "casa" && Boolean(introPdfUrl);
+    const cardBody = (
+      <>
+        {cover ? (
+          <img
+            src={mediaUrl(cover)}
+            alt=""
+            className={`w-full object-cover ${isMovementIntro ? "h-44 object-[center_65%]" : "h-40"}`}
+          />
+        ) : (
+          <div className={`w-full bg-gradient-to-br from-[#FFF7FA] to-[#F7D8EA] grid place-items-center text-primary text-sm font-medium ${isMovementIntro ? "h-44" : "h-40"}`}>
+            Sin imagen
+          </div>
+        )}
+        <div className={`p-4 flex items-start justify-between gap-3 ${variant === "movement" ? "pr-12" : ""}`}>
+          <div className="min-w-0">
+            <div className="font-medium leading-tight">{cardTitle}</div>
+            {!isMovementIntro && (
+              <div className="text-xs muted mt-1">{label ?? visibleCategories.find((c) => categoryMatches(it, c))?.label}</div>
+            )}
+            {cardDescription && <p className="text-sm muted mt-2 line-clamp-2">{cardDescription}</p>}
+            {!isMovementIntro && date && <div className="text-[11px] muted mt-2">{date}</div>}
+            {Array.isArray(it.tags) && it.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {it.tags.slice(0, 4).map((t: string) => (
+                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            {isMovementIntro ? (
+              <a
+                href={mediaUrl(introPdfUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary mt-3 inline-flex text-xs px-3 py-[5px]"
+              >
+                Abrir publicación
+              </a>
+            ) : (
+              <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Abrir publicación</span>
+            )}
+          </div>
+          {!isMovementIntro && <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />}
+        </div>
+      </>
+    );
     return (
       <div className="relative">
         {variant === "movement" && (
           <FavoriteButton contentType="exercise" contentId={it.id} className="absolute right-2 top-2 z-10" />
         )}
-        <Link
-          to={`${basePath}/${it.id}`}
-          className="card-soft overflow-hidden block hover:shadow-glow transition"
-        >
-          {cover ? (
-            <img src={mediaUrl(cover)} alt="" className="w-full h-40 object-cover" />
-          ) : (
-            <div className="w-full h-40 bg-gradient-to-br from-[#FFF7FA] to-[#F7D8EA] grid place-items-center text-primary text-sm font-medium">
-              Sin imagen
-            </div>
-          )}
-          <div className={`p-4 flex items-start justify-between gap-3 ${variant === "movement" ? "pr-12" : ""}`}>
-            <div className="min-w-0">
-              <div className="font-medium leading-tight">{cardTitle}</div>
-              <div className="text-xs muted mt-1">{label ?? visibleCategories.find((c) => categoryMatches(it, c))?.label}</div>
-              {cardDescription && <p className="text-sm muted mt-2 line-clamp-2">{cardDescription}</p>}
-              {date && <div className="text-[11px] muted mt-2">{date}</div>}
-              {Array.isArray(it.tags) && it.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {it.tags.slice(0, 4).map((t: string) => (
-                    <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <span className="btn-secondary mt-3 inline-flex text-xs px-3 py-1.5">Abrir publicación</span>
-            </div>
-            <ChevronRight className="h-4 w-4 muted shrink-0 mt-1" />
+        {isMovementIntro ? (
+          <div className="card-soft overflow-hidden block hover:shadow-glow transition">
+            {cardBody}
           </div>
-        </Link>
+        ) : (
+          <Link
+            to={`${basePath}/${it.id}`}
+            className="card-soft overflow-hidden block hover:shadow-glow transition"
+          >
+            {cardBody}
+          </Link>
+        )}
       </div>
     );
   };
@@ -254,11 +288,29 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                     variant === "nutrition"
                       ? "nutrition-category-card text-left hover:shadow-glow transition"
                       : `card-soft p-4 text-left hover:shadow-glow transition ${
-                          variant === "movement" ? "movement-card-unified" : ""
+                          variant === "movement"
+                            ? `movement-card-unified ${c.key === "casa" ? "movement-intro-card" : ""}`
+                            : ""
                         }`
                   }
                 >
-                  {(variant === "nutrition" || variant === "movement") && c.image ? (
+                  {variant === "movement" && c.key === "casa" && c.image ? (
+                    <>
+                      <img
+                        src={mediaUrl(c.image)}
+                        alt=""
+                        loading="lazy"
+                        className="movement-intro-image"
+                      />
+                      <div className="movement-intro-gradient" aria-hidden="true" />
+                      <div className="movement-intro-copy">
+                        <div className="movement-intro-title">Antes de empezar.</div>
+                        <div className="movement-intro-subtitle">
+                          Guía esencial para comenzar
+                        </div>
+                      </div>
+                    </>
+                  ) : (variant === "nutrition" || variant === "movement") && c.image ? (
                     <div className="nutrition-category-image mb-3 overflow-hidden rounded-2xl">
                       <img
                         src={mediaUrl(c.image)}
@@ -270,9 +322,13 @@ export default function LibraryPage({ table, basePath, title, subtitle, categori
                   ) : (
                     <div className="text-2xl mb-1">{c.emoji}</div>
                   )}
-                  <div className="font-medium text-sm">{c.label}</div>
-                  {c.subtitle && <div className="text-xs mt-1 nutrition-category-subtitle">{c.subtitle}</div>}
-                  {(counts[c.key] ?? 0) > 0 && (
+                  {!(variant === "movement" && c.key === "casa") && (
+                    <div className="font-medium text-sm">{c.label}</div>
+                  )}
+                  {!(variant === "movement" && c.key === "casa") && c.subtitle && (
+                    <div className="text-xs mt-1 nutrition-category-subtitle">{c.subtitle}</div>
+                  )}
+                  {!(variant === "movement" && c.key === "casa") && (counts[c.key] ?? 0) > 0 && (
                     <div className="text-xs muted mt-1 inline-flex items-center gap-1">
                       <BookOpen className="h-3 w-3" /> {counts[c.key]}
                     </div>
