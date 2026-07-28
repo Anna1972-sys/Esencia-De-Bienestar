@@ -148,13 +148,6 @@ export default function Products() {
     }, 80);
   }, [activeProductSection]);
 
-  const orderedAccessSections = activeProductSection && activeProductSection !== INTERNAL_NUTRITION_SECTION_ID
-    ? [
-        ...PRODUCT_CLIENT_ACCESS_SECTIONS.filter(section => section.id === activeProductSection),
-        ...PRODUCT_CLIENT_ACCESS_SECTIONS.filter(section => section.id !== activeProductSection),
-      ]
-    : PRODUCT_CLIENT_ACCESS_SECTIONS;
-
   const renderProductPanel = () => (
     <>
       <div className="products-client-search-card">
@@ -250,60 +243,69 @@ export default function Products() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-5 mb-5" aria-label="Secciones de productos">
-        {orderedAccessSections.map(section => {
-          const isActive = activeProductSection === section.id;
-          return (
-            <div key={section.id} className="contents">
-              <div
-                className={`home-card-unified ${
-                  (isActive && section.id !== INTERNAL_NUTRITION_SECTION_ID) ||
-                  (section.id === "nutricion-externa" && !activeProductSection) ||
-                  (section.id === INTERNAL_NUTRITION_SECTION_ID && showingInternalSubcategories)
-                    ? "col-span-2 w-[calc(50%_-_0.625rem)] justify-self-center"
-                    : ""
-                }`}
-              >
+      {showingInternalSubcategories ? (
+        <>
+          <button
+            type="button"
+            className="text-sm muted inline-flex items-center gap-1 mb-3"
+            onClick={() => {
+              setActiveProductSection("");
+              setActiveCategory("");
+              setQuery("");
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" /> Volver a categorías
+          </button>
+          <section className="grid grid-cols-2 gap-5 mb-5" aria-label="Opciones de Nutrición interna">
+            {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
+              <div key={subcategory.id} className="home-card-unified product-card-tall-prototype">
                 <WellnessCategoryTile
-                  image={section.image}
-                  title={section.title}
-                  subtitle={isActive ? "Cerrar categoría" : "Abrir categoría"}
+                  image={subcategory.image}
+                  title={subcategory.title}
+                  subtitle="Abrir categoría"
                   onClick={() => {
-                    setActiveProductSection(isActive ? "" : section.id);
-                    setActiveCategory("");
-                    setActiveInternalSubcategory("");
+                    setActiveInternalSubcategory(subcategory.id);
                     setQuery("");
                   }}
                 />
               </div>
-
-              {section.id === INTERNAL_NUTRITION_SECTION_ID && showingInternalSubcategories && (
-                <div className="col-span-2 grid grid-cols-2 gap-5" aria-label="Opciones de Nutrición interna">
-                  {INTERNAL_NUTRITION_SUBCATEGORIES.map(subcategory => (
-                    <div key={subcategory.id} className="home-card-unified product-card-tall-prototype">
-                      <WellnessCategoryTile
-                        image={subcategory.image}
-                        title={subcategory.title}
-                        subtitle="Abrir categoría"
-                        onClick={() => {
-                          setActiveInternalSubcategory(subcategory.id);
-                          setQuery("");
-                        }}
-                      />
-                    </div>
-                  ))}
+            ))}
+          </section>
+        </>
+      ) : activeProductSection && activeProductSection !== INTERNAL_NUTRITION_SECTION_ID ? (
+        renderProductPanel()
+      ) : !activeInternalSubcategory ? (
+        <section className="grid grid-cols-2 gap-5 mb-5" aria-label="Secciones de productos">
+          {PRODUCT_CLIENT_ACCESS_SECTIONS.map(section => {
+            const isActive = activeProductSection === section.id;
+            return (
+              <div key={section.id} className="contents">
+                <div
+                  className={`home-card-unified ${
+                    (isActive && section.id !== INTERNAL_NUTRITION_SECTION_ID) ||
+                    (section.id === "nutricion-externa" && !activeProductSection)
+                      ? "col-span-2 w-[calc(50%_-_0.625rem)] justify-self-center"
+                      : ""
+                  }`}
+                >
+                  <WellnessCategoryTile
+                    image={section.image}
+                    title={section.title}
+                    subtitle={isActive ? "Cerrar categoría" : "Abrir categoría"}
+                    onClick={() => {
+                      setActiveProductSection(isActive ? "" : section.id);
+                      setActiveCategory("");
+                      setActiveInternalSubcategory("");
+                      setQuery("");
+                    }}
+                  />
                 </div>
-              )}
 
-              {isActive && section.id !== INTERNAL_NUTRITION_SECTION_ID && (
-                <div className="col-span-2">
-                  {renderProductPanel()}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </section>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
 
       {activeProductSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory && renderProductPanel()}
     </div>
