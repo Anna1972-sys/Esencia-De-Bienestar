@@ -308,7 +308,7 @@ export default function Nutrition() {
         </>
       ) : (
         <>
-          <BackButton fallbackTo="/app" className="text-xs muted inline-flex items-center gap-1 mb-3">
+          <BackButton fallbackTo="/app" className="nutrition-back-button muted inline-flex items-center gap-1 mb-3">
             <ArrowLeft className="h-3 w-3" /> Volver
           </BackButton>
 

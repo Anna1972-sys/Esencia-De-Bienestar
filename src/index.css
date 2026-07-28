@@ -654,6 +654,14 @@
     background: hsl(0 0% 98%);
     color: hsl(0 0% 10%);
   }
+  .wellness-nutrition .back-button.nutrition-back-button {
+    font-size: .72rem !important;
+  }
+  .wellness-nutrition .back-button.nutrition-back-button svg {
+    width: .8rem !important;
+    height: .8rem !important;
+    stroke-width: 2.5 !important;
+  }
   .wellness-nutrition .nutrition-category-card {
     height: 205px;
     padding: .35rem;
