@@ -378,7 +378,6 @@ export default function AdminNutrition() {
     }, 400);
     return () => {
       window.clearTimeout(timer);
-      persistDraft();
     };
   }, [activeCategory, contentForm]);
 
@@ -426,6 +425,15 @@ export default function AdminNutrition() {
       if (!raw) return null;
       const saved = JSON.parse(raw);
       if (saved?.category !== category || !saved?.form || !contentHasDraft(saved.form)) return null;
+      const categoryData = categories.find((item) => item.key === category);
+      const alreadyPublished = items.some((item) => (
+        itemBelongsToCategory(item, categoryData)
+        && normalizeCategoryKey(item.title) === normalizeCategoryKey(saved.form.title)
+      ));
+      if (alreadyPublished) {
+        window.localStorage.removeItem(nutritionDraftKey(category));
+        return null;
+      }
       return { ...emptyContent, ...saved.form, id: undefined } as ContentForm;
     } catch {
       return null;
