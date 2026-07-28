@@ -548,7 +548,6 @@ export default function AdminNutrition() {
       title: contentForm.title.trim(),
       subtitle: contentForm.subtitle.trim() || null,
       category: activeCategory,
-      category_id: activeCategoryData?.id || null,
       cover_image: contentForm.cover_image || null,
       blocks: buildBlocks(contentForm),
       visible: contentForm.visible,
