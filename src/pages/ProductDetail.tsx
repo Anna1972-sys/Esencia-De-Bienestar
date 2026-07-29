@@ -426,7 +426,7 @@ export default function ProductDetail() {
       case "spoon_image":
         return product.spoon_image_url ? <SpoonImageBlock imageUrl={product.spoon_image_url} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} /> : null;
       case "gallery":
-        return product.gallery_urls.length > 0 ? <GalleryBlock urls={product.gallery_urls} open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)} /> : null;
+        return product.gallery_urls.length > 0 ? <GalleryBlock urls={product.gallery_urls} /> : null;
       case "videos":
         return product.video_urls.length > 0 ? (
           <CollapsibleProductBlock title="Vídeos" open={openAdditionalBlock === blockId} onToggle={() => toggleAdditionalBlock(blockId)}>
@@ -634,17 +634,29 @@ function SpoonImageBlock({ imageUrl, open, onToggle }: { imageUrl: string; open:
   );
 }
 
-function GalleryBlock({ urls, open, onToggle }: { urls: string[]; open: boolean; onToggle: () => void }) {
+function GalleryBlock({ urls }: { urls: string[] }) {
+  const [openImage, setOpenImage] = useState<number | null>(null);
+
   return (
-    <CollapsibleProductBlock title="Galería" open={open} onToggle={onToggle}>
-      {open && (
-        <div className="grid grid-cols-2 gap-3 mt-3 pb-4">
-          {urls.map((url, index) => (
-            <img key={`${url}-${index}`} src={url} alt="" className="w-full h-40 object-cover rounded-2xl shadow-sm" />
-          ))}
-        </div>
-      )}
-    </CollapsibleProductBlock>
+    <div className="space-y-3">
+      {urls.map((url, index) => {
+        const isOpen = openImage === index;
+        return (
+          <CollapsibleProductBlock
+            key={`${url}-${index}`}
+            title={`Imagen ${index + 1}`}
+            open={isOpen}
+            onToggle={() => setOpenImage(isOpen ? null : index)}
+          >
+            {isOpen && (
+              <a href={url} target="_blank" rel="noreferrer" className="block mt-3" aria-label={`Ver imagen ${index + 1} en grande`}>
+                <img src={url} alt="" className="w-full max-h-[70vh] object-contain rounded-2xl bg-white shadow-sm" />
+              </a>
+            )}
+          </CollapsibleProductBlock>
+        );
+      })}
+    </div>
   );
 }
 
