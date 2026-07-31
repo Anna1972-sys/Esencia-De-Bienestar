@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import WellnessCategoryTile from "@/components/WellnessCategoryTile";
 import { supabase } from "@/integrations/supabase/client";
@@ -88,12 +88,20 @@ function productInternalSubcategoryId(product: Product) {
 }
 
 export default function Products() {
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("");
-  const [activeProductSection, setActiveProductSection] = useState<string>("");
-  const [activeInternalSubcategory, setActiveInternalSubcategory] = useState<string>("");
-  const [query, setQuery] = useState("");
+  const [activeProductSection, setActiveProductSection] = useState<string>(() => {
+    const section = searchParams.get("section") ?? "";
+    return PRODUCT_CLIENT_ACCESS_SECTIONS.some(item => item.id === section) ? section : "";
+  });
+  const [activeInternalSubcategory, setActiveInternalSubcategory] = useState<string>(() => {
+    const subcategory = searchParams.get("subcategory") ?? "";
+    return INTERNAL_NUTRITION_SUBCATEGORIES.some(item => item.id === subcategory) ? subcategory : "";
+  });
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const openedSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -114,6 +122,16 @@ export default function Products() {
       .order("name", { ascending: true })
       .then(({ data }: any) => setProducts((data ?? []) as Product[]));
   }, []);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (activeProductSection) next.set("section", activeProductSection);
+    if (activeProductSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory) {
+      next.set("subcategory", activeInternalSubcategory);
+    }
+    if (query.trim()) next.set("q", query);
+    setSearchParams(next, { replace: true });
+  }, [activeProductSection, activeInternalSubcategory, query, setSearchParams]);
 
   const categoryById = useMemo(() => new Map(categories.map(category => [category.id, category])), [categories]);
   const q = String(query ?? "").trim().toLowerCase();
@@ -193,7 +211,7 @@ export default function Products() {
             {filtered.map(product => (
               <Link
                 key={product.id}
-                to={`/app/productos/${product.id}`}
+                to={`/app/productos/${product.id}?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}
                 className="product-client-list-card group overflow-hidden rounded-[28px] p-0 transition-all duration-300 hover:-translate-y-1 text-left"
               >
                 <div className="product-client-list-image">
@@ -225,7 +243,22 @@ export default function Products() {
 
   return (
     <div className="pb-8">
-      <BackButton fallbackTo="/app" className="text-sm muted inline-flex items-center gap-1 mb-3">
+      <BackButton
+        fallbackTo="/app"
+        className="text-sm muted inline-flex items-center gap-1 mb-3"
+        onClick={event => {
+          if (activeInternalSubcategory) {
+            event.preventDefault();
+            setActiveInternalSubcategory("");
+            setQuery("");
+          } else if (activeProductSection) {
+            event.preventDefault();
+            setActiveProductSection("");
+            setActiveCategory("");
+            setQuery("");
+          }
+        }}
+      >
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
 

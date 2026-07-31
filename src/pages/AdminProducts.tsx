@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { roundedNutritionInputValue, selectInitialZero, stableNutritionInputValue, type AdminNumberValue } from "@/lib/adminNumberInput";
@@ -583,6 +584,7 @@ function isOfficialLabelFile(file: File) {
 }
 
 export default function AdminProducts() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryName, setCategoryName] = useState("");
@@ -590,10 +592,16 @@ export default function AdminProducts() {
   const [categoryImageUrl, setCategoryImageUrl] = useState("");
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyProduct);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [filterCategory, setFilterCategory] = useState("");
-  const [openAccessSection, setOpenAccessSection] = useState<string | null>(null);
-  const [activeInternalSubcategory, setActiveInternalSubcategory] = useState("");
+  const [openAccessSection, setOpenAccessSection] = useState<string | null>(() => {
+    const section = searchParams.get("section");
+    return PRODUCT_ADMIN_ACCESS_SECTIONS.some(item => item.id === section) ? section : null;
+  });
+  const [activeInternalSubcategory, setActiveInternalSubcategory] = useState(() => {
+    const subcategory = searchParams.get("subcategory") ?? "";
+    return INTERNAL_NUTRITION_SUBCATEGORIES.some(item => item.id === subcategory) ? subcategory : "";
+  });
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInstanceKey, setEditorInstanceKey] = useState(0);
   const [openEditorBlock, setOpenEditorBlock] = useState("Información general");
@@ -608,6 +616,16 @@ export default function AdminProducts() {
   const productSearchInputRef = useRef<HTMLInputElement | null>(null);
   const descriptionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const descriptionShortTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (openAccessSection) next.set("section", openAccessSection);
+    if (openAccessSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory) {
+      next.set("subcategory", activeInternalSubcategory);
+    }
+    if (query.trim()) next.set("q", query);
+    setSearchParams(next, { replace: true });
+  }, [openAccessSection, activeInternalSubcategory, query, setSearchParams]);
 
   const load = async () => {
     setLoading(true);
@@ -1053,7 +1071,15 @@ export default function AdminProducts() {
 
   const previewProduct = (productId?: string | null) => {
     if (!productId) return toast.error("Guarda el producto antes de abrir la vista previa");
-    window.open(`/app/productos/${productId}`, "_blank", "noopener,noreferrer");
+    const context = new URLSearchParams();
+    if (openAccessSection) context.set("section", openAccessSection);
+    if (openAccessSection === INTERNAL_NUTRITION_SECTION_ID && activeInternalSubcategory) {
+      context.set("subcategory", activeInternalSubcategory);
+    }
+    if (query.trim()) context.set("q", query);
+    const contextQuery = context.toString();
+    const returnTo = `/app/admin/productos${contextQuery ? `?${contextQuery}` : ""}`;
+    window.open(`/app/productos/${productId}?returnTo=${encodeURIComponent(returnTo)}`, "_blank", "noopener,noreferrer");
   };
 
   const duplicateCurrentProduct = () => {

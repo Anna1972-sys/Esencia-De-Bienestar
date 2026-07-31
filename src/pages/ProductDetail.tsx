@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ExternalLink, FileText, MousePointerClick } from "lucide-react";
@@ -280,10 +280,19 @@ function mergeImportantText(freeText?: string | null, observations?: string | nu
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const location = useLocation();
   const [product, setProduct] = useState<Product | null>(null);
   const [category, setCategory] = useState<{ name: string; slug?: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [openAdditionalBlock, setOpenAdditionalBlock] = useState<ProductDetailOpenBlock | null>(null);
+  const requestedReturnTo = new URLSearchParams(location.search).get("returnTo");
+  const productReturnTo =
+    requestedReturnTo === "/app/admin/productos" ||
+    requestedReturnTo?.startsWith("/app/admin/productos?") ||
+    requestedReturnTo === "/app/productos" ||
+    requestedReturnTo?.startsWith("/app/productos?")
+      ? requestedReturnTo
+      : "/app/productos";
 
   useEffect(() => {
     if (!id) return;
@@ -479,7 +488,7 @@ export default function ProductDetail() {
 
   return (
     <article className="product-detail-page pb-8 space-y-5">
-      <BackButton fallbackTo="/app/productos" className="text-sm muted inline-flex items-center gap-1">
+      <BackButton fallbackTo={productReturnTo} forceFallback className="text-sm muted inline-flex items-center gap-1">
         <ArrowLeft className="h-4 w-4" /> Volver
       </BackButton>
 
