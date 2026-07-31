@@ -2104,9 +2104,31 @@
     line-height: 1.2;
   }
 
+  .admin-products-accordion-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 240ms ease,
+      opacity 180ms ease;
+  }
+
+  .admin-products-accordion-content.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
   .admin-products-accordion-body {
+    min-height: 0;
+    overflow: hidden;
     border-top: 1px solid #FF2D95;
     padding: 1rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .admin-products-accordion-content {
+      transition: none;
+    }
   }
 
   .admin-products-floating-new {

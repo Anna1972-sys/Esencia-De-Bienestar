@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
@@ -2366,6 +2366,30 @@ function ProductAccordion({
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = controlledOpen ?? uncontrolledOpen;
+  const [renderBody, setRenderBody] = useState(open);
+  const [expandedBody, setExpandedBody] = useState(open);
+  const accordionId = useId();
+  const triggerId = `${accordionId}-trigger`;
+  const bodyId = `${accordionId}-body`;
+
+  useEffect(() => {
+    let animationFrame: number | undefined;
+    let unmountTimer: number | undefined;
+
+    if (open) {
+      setRenderBody(true);
+      animationFrame = window.requestAnimationFrame(() => setExpandedBody(true));
+    } else {
+      setExpandedBody(false);
+      unmountTimer = window.setTimeout(() => setRenderBody(false), 240);
+    }
+
+    return () => {
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
+      if (unmountTimer !== undefined) window.clearTimeout(unmountTimer);
+    };
+  }, [open]);
+
   const toggleOpen = () => {
     if (onOpenChange) {
       onOpenChange(!open);
@@ -2374,15 +2398,35 @@ function ProductAccordion({
     setUncontrolledOpen(current => !current);
   };
   return (
-    <section className={`card-soft admin-products-panel admin-products-accordion ${className}`}>
-      <button type="button" className="admin-products-accordion-trigger" onClick={toggleOpen} aria-expanded={open}>
+    <section
+      className={`card-soft admin-products-panel admin-products-accordion ${className}`}
+      data-accordion-section={title}
+    >
+      <button
+        id={triggerId}
+        type="button"
+        className="admin-products-accordion-trigger"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        aria-controls={bodyId}
+      >
         <span>
           <span className="admin-products-accordion-title">{title}</span>
           {subtitle && <span className="admin-products-accordion-subtitle">{subtitle}</span>}
         </span>
         <ArrowDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="admin-products-accordion-body">{children}</div>}
+      {renderBody && (
+        <div
+          id={bodyId}
+          className={`admin-products-accordion-content ${expandedBody ? "is-open" : ""}`}
+          role="region"
+          aria-labelledby={triggerId}
+          aria-hidden={!open}
+        >
+          <div className="admin-products-accordion-body">{children}</div>
+        </div>
+      )}
     </section>
   );
 }
