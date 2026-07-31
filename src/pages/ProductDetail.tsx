@@ -339,7 +339,7 @@ export default function ProductDetail() {
             <div className="product-detail-hero-copy">
               {category?.name && <div className="product-detail-category">{displayProductCategoryName(category)}</div>}
               <h1>{product.name}</h1>
-              <div className="flex flex-wrap gap-2 mt-5">
+              <div className="product-detail-hero-actions">
                 {product.label_file_url && (
                   <a href={product.label_file_url} target="_blank" rel="noreferrer" className="product-detail-label-link">
                     <FileText className="h-3.5 w-3.5" /> Ver etiqueta oficial

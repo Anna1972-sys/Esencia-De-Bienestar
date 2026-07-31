@@ -1388,26 +1388,24 @@
 
   .product-detail-hero {
     width: min(100%, 260px);
-    min-height: 23.25rem;
-    height: 23.25rem;
+    min-height: 21.25rem;
+    height: auto;
     margin-inline: auto;
     display: flex;
     flex-direction: column;
-    gap: .5rem;
+    gap: .18rem;
     align-items: center;
     padding: .75rem;
     border-radius: 28px;
     border: 1px solid #FF2D95;
     background: #FFF7FA;
-    overflow: hidden;
-    clip-path: inset(0 round 28px);
     box-shadow: 0 16px 32px -26px hsl(325 38% 24% / .28);
   }
 
   .product-detail-hero-image {
     width: 100%;
-    height: 16rem;
-    min-height: 16rem;
+    height: 15.25rem;
+    min-height: 15.25rem;
     align-self: center;
     border-radius: 28px;
     overflow: hidden;
@@ -1437,7 +1435,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding: .05rem .2rem .25rem;
+    padding: 0 .2rem .25rem;
   }
 
   .product-detail-category {
@@ -1446,7 +1444,7 @@
     text-transform: uppercase;
     letter-spacing: .14em;
     font-weight: 900;
-    margin-bottom: .28rem;
+    margin-bottom: .16rem;
   }
 
   .product-detail-hero-copy h1 {
@@ -1454,6 +1452,15 @@
     font-size: clamp(.95rem, 4.2vw, 1.18rem);
     line-height: 1.05;
     color: hsl(var(--foreground));
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .product-detail-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .72rem;
   }
 
   .product-detail-status-chip {
@@ -2190,17 +2197,17 @@
     }
 
     .product-detail-hero {
-      gap: .5rem;
+      gap: .18rem;
       padding: .72rem;
       width: min(100%, 260px);
-      min-height: 23.25rem;
-      height: 23.25rem;
+      min-height: 21.25rem;
+      height: auto;
     }
 
     .product-detail-hero-image {
       width: 100%;
-      height: 15.5rem;
-      min-height: 15.5rem;
+      height: 15.25rem;
+      min-height: 15.25rem;
       align-self: center;
     }
 
