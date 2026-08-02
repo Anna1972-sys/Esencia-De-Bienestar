@@ -172,7 +172,6 @@ function formatMeasureName(measure: ProductMeasure, product: Product) {
   const servingSize = String(product.serving_size ?? "").trim();
   const servingLabel = /raci[oó]n|serving/i.test(servingSize) ? servingSize : "1 ración";
 
-  if (measure.is_default && isGenericGramMeasure(measureName)) return servingLabel;
   return measureName || servingLabel;
 }
 
