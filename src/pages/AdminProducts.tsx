@@ -604,7 +604,9 @@ export default function AdminProducts() {
   });
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInstanceKey, setEditorInstanceKey] = useState(0);
-  const [openEditorBlock, setOpenEditorBlock] = useState("Información general");
+  const [openEditorBlocks, setOpenEditorBlocks] = useState<Set<string>>(
+    () => new Set(["Información general"]),
+  );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingLabel, setUploadingLabel] = useState(false);
@@ -739,7 +741,7 @@ export default function AdminProducts() {
     setForm({ ...emptyProduct, category_id: categoryId, line: internalLine });
     if (categoryId) setFilterCategory(categoryId);
     setEditorInstanceKey(key => key + 1);
-    setOpenEditorBlock("Información general");
+    setOpenEditorBlocks(new Set(["Información general"]));
     setEditorOpen(true);
     if (scrollToEditor) scrollToProductEditor();
   };
@@ -967,7 +969,7 @@ export default function AdminProducts() {
       const nextLine = isInternalProduct && activeInternalSubcategoryData ? activeInternalSubcategoryData.title : "";
       setForm({ ...emptyProduct, category_id: nextProductCategoryId, line: nextLine });
       setEditorInstanceKey(key => key + 1);
-      setOpenEditorBlock("Información general");
+      setOpenEditorBlocks(new Set(["Información general"]));
       setEditorOpen(true);
     } else {
       resetProduct();
@@ -1030,7 +1032,7 @@ export default function AdminProducts() {
       measures: measures.length ? limitProductMeasures(measures.map(normalizeMeasure)) : [emptyMeasure],
     });
     setEditorInstanceKey(key => key + 1);
-    setOpenEditorBlock("Información general");
+    setOpenEditorBlocks(new Set(["Información general"]));
     setEditorOpen(true);
     scrollToProductEditor();
   };
@@ -1668,8 +1670,15 @@ export default function AdminProducts() {
     }));
   };
   const editorAccordionProps = (title: string) => ({
-    open: openEditorBlock === title,
-    onOpenChange: (nextOpen: boolean) => setOpenEditorBlock(nextOpen ? title : ""),
+    open: openEditorBlocks.has(title),
+    onOpenChange: (nextOpen: boolean) => {
+      setOpenEditorBlocks(current => {
+        const next = new Set(current);
+        if (nextOpen) next.add(title);
+        else next.delete(title);
+        return next;
+      });
+    },
   });
 
   return (
