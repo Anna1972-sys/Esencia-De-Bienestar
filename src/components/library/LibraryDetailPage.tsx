@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileText, ExternalLink, Image as ImageIcon, Video } from "lucide-react";
+import { ArrowLeft, FileText, ExternalLink, Image as ImageIcon, MousePointerClick, Video } from "lucide-react";
 import type { ContentBlock } from "@/lib/movementCategories";
 import type { LibraryCategory } from "./LibraryPage";
 import BackButton from "@/components/BackButton";
@@ -29,6 +29,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
   const { id } = useParams();
   const [it, setIt] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [spoonOpen, setSpoonOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -90,11 +91,19 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         })
         .filter(Boolean) as ContentBlock[]
     : blocks;
+  const officialLabelUrl = table === "nutrition_items"
+    ? String(blocks.find((block: any) => block?.type === "official_label")?.url ?? "")
+    : "";
+  const officialSpoonUrl = table === "nutrition_items"
+    ? String(blocks.find((block: any) => block?.type === "official_spoon")?.url ?? "")
+    : "";
   const attachmentBlocks = blocks.filter((b: any) =>
     ["image", "video", "pdf", "link", "button"].includes(b?.type) && (b.url || b.label)
   );
   const textBlocks = blocks.filter((b: any) => !["image", "video", "pdf", "link", "button"].includes(b?.type));
-  const orderedBlocks = table === "nutrition_items" ? nutritionBlocks : textBlocks;
+  const orderedBlocks = table === "nutrition_items"
+    ? nutritionBlocks.filter((block: any) => !["official_label", "official_spoon"].includes(block?.type))
+    : textBlocks;
   const description = it.description || it.subtitle || "";
   const title = it.title || it.name || it.label || it.subtitle || "Contenido";
 
@@ -244,10 +253,42 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         </div>
       )}
       <h1 className="heading-lg mb-4">{title}</h1>
+      {officialLabelUrl && (
+        <a href={mediaUrl(officialLabelUrl)} target="_blank" rel="noreferrer" className="product-detail-label-link mb-4">
+          <FileText className="h-3.5 w-3.5" /> Ver etiqueta oficial
+        </a>
+      )}
       {description && <p className="mb-5 leading-relaxed muted">{description}</p>}
 
       <div className="space-y-4">
         {orderedBlocks.map(renderBlock)}
+        {officialSpoonUrl && (
+          <section className="card-soft p-4">
+            <button type="button" className="w-full flex items-center justify-between gap-3 text-left" onClick={() => setSpoonOpen((open) => !open)}>
+              <h2 className="font-serif text-xl">Cuchara oficial Herbalife</h2>
+              <span className="h-8 w-8 rounded-full border border-primary/30 grid place-items-center text-primary font-semibold">
+                {spoonOpen ? "−" : "+"}
+              </span>
+            </button>
+            {spoonOpen && (
+              <div className="mt-3">
+                <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
+                  <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
+                  <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
+                </div>
+                <a href={mediaUrl(officialSpoonUrl)} target="_blank" rel="noreferrer" className="block">
+                  {officialSpoonUrl.toLowerCase().split("?")[0].endsWith(".pdf") ? (
+                    <span className="btn-secondary w-full justify-center">
+                      <FileText className="h-4 w-4" /> Abrir documento de la cuchara oficial
+                    </span>
+                  ) : (
+                    <img src={mediaUrl(officialSpoonUrl)} alt="Equivalencia cuchara Herbalife" className="w-full max-h-[60vh] object-contain rounded-2xl" />
+                  )}
+                </a>
+              </div>
+            )}
+          </section>
+        )}
         {table !== "nutrition_items" && attachmentBlocks.length > 0 && (
           <section className="card-soft p-4">
             <h2 className="font-medium text-sm flex items-center gap-2 mb-3">

@@ -21,6 +21,8 @@ import DraftBanner from "@/components/DraftBanner";
 const SIGNED_TTL = 60 * 60 * 24 * 7;
 const ADMIN_NUTRITION_DRAFT_KEY = "admin-nutrition-content-draft-v1";
 const nutritionDraftKey = (category: string) => `${ADMIN_NUTRITION_DRAFT_KEY}:${category}`;
+const OFFICIAL_LABEL_ACCEPT = "application/pdf,image/jpeg,image/jpg,image/png,image/webp";
+const SPOON_MEDIA_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,application/pdf,.pdf";
 
 type Category = {
   id: string;
@@ -66,6 +68,8 @@ type ContentForm = {
   video_url: string;
   pdf_url: string;
   external_url: string;
+  label_file_url: string;
+  spoon_image_url: string;
   sections: ManagedSection[];
   visible: boolean;
 };
@@ -93,6 +97,8 @@ const emptyContent: ContentForm = {
   video_url: "",
   pdf_url: "",
   external_url: "",
+  label_file_url: "",
+  spoon_image_url: "",
   sections: [],
   visible: true,
 };
@@ -114,6 +120,8 @@ function contentHasDraft(form: ContentForm) {
     || form.video_url.trim()
     || form.pdf_url.trim()
     || form.external_url.trim()
+    || form.label_file_url
+    || form.spoon_image_url
     || form.sections.length
   );
 }
@@ -196,6 +204,26 @@ async function uploadFile(file: File, folder: string) {
   return data.signedUrl;
 }
 
+async function prepareOfficialProductMedia(file: File) {
+  const lowerName = file.name.toLowerCase();
+  const isHeic = file.type === "image/heic" || file.type === "image/heif" || lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
+  if (!isHeic) return file;
+  const { default: heic2any } = await import("heic2any");
+  const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+  const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+  return new File([jpegBlob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg", lastModified: file.lastModified });
+}
+
+async function uploadOfficialProductMedia(file: File, folder: "labels" | "spoon") {
+  const preparedFile = folder === "spoon" ? await prepareOfficialProductMedia(file) : file;
+  const safeName = preparedFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${folder}/${crypto.randomUUID()}-${safeName}`;
+  const { error } = await supabase.storage.from("product-media").upload(path, preparedFile, { upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from("product-media").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 function buildBlocks(form: ContentForm) {
   const blocks: any[] = [];
   const addSection = (title: string, value: string) => {
@@ -210,6 +238,8 @@ function buildBlocks(form: ContentForm) {
   addSection("Ingredientes", form.ingredients);
   addSection("Observaciones", form.observations);
   addSection("Texto libre", form.free_text);
+  if (form.label_file_url) blocks.push({ type: "official_label", url: form.label_file_url });
+  if (form.spoon_image_url) blocks.push({ type: "official_spoon", url: form.spoon_image_url });
   form.gallery.forEach((url) => url && blocks.push({ type: "image", url }));
   form.video_urls.forEach((url) => url && blocks.push({ type: "video", url }));
   form.pdf_urls.forEach((url) => url && blocks.push({ type: "pdf", url, name: "Documento" }));
@@ -265,6 +295,8 @@ function formFromItem(item: any): ContentForm {
     if (block?.type === "video" && block.url) next.video_urls.push(block.url);
     if (block?.type === "pdf" && block.url) next.pdf_urls.push(block.url);
     if (block?.type === "link" && block.url) next.external_url = block.url;
+    if (block?.type === "official_label" && block.url) next.label_file_url = block.url;
+    if (block?.type === "official_spoon" && block.url) next.spoon_image_url = block.url;
     if (block?.type === "section") {
       next.sections.push({
         id: block.id || `section-${Date.now()}-${i}`,
@@ -673,6 +705,19 @@ export default function AdminNutrition() {
     }
   };
 
+  const onOfficialMediaUpload = async (file: File, folder: "labels" | "spoon", key: "label_file_url" | "spoon_image_url") => {
+    try {
+      setBusy(true);
+      const url = await uploadOfficialProductMedia(file, folder);
+      setContentForm((current) => ({ ...current, [key]: url }));
+      toast.success("Archivo subido. Guarda los cambios para publicarlo.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo subir el archivo");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="pb-28 admin-nutrition-page">
       <AdminPageHeader title="Nutrición deportiva" backTo="/app/admin" />
@@ -894,6 +939,71 @@ export default function AdminNutrition() {
                       <span className="text-xs muted">Subtítulo</span>
                       <input className="field mt-1" placeholder="Subtítulo" value={contentForm.subtitle} onChange={(event) => setContentForm({ ...contentForm, subtitle: event.target.value })} />
                     </label>
+
+                    <div className="rounded-[22px] bg-secondary/70 p-3">
+                      <div className="space-y-2 mb-2">
+                        <div className="flex items-center gap-2 text-sm font-medium leading-tight"><FileText className="h-4 w-4" />Etiqueta nutricional oficial</div>
+                        {contentForm.label_file_url && (
+                          <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setContentForm((current) => ({ ...current, label_file_url: "" }))}>
+                            <Trash2 className="h-3.5 w-3.5" /> Eliminar etiqueta
+                          </button>
+                        )}
+                      </div>
+                      {contentForm.label_file_url && (
+                        <div className="admin-product-media-preview mb-2">
+                          <a href={contentForm.label_file_url} target="_blank" rel="noreferrer" className="btn-secondary w-full justify-center">
+                            <FileText className="h-4 w-4" /> Abrir etiqueta guardada
+                          </a>
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <label className="btn-primary cursor-pointer justify-center">
+                          <Upload className="h-4 w-4" /> Subir
+                          <input type="file" className="hidden" accept={OFFICIAL_LABEL_ACCEPT} onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void onOfficialMediaUpload(file, "labels", "label_file_url");
+                            event.currentTarget.value = "";
+                          }} />
+                        </label>
+                        <input className="field flex-1" placeholder="O pegar URL" value={contentForm.label_file_url} onChange={(event) => setContentForm((current) => ({ ...current, label_file_url: event.target.value }))} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[22px] bg-secondary/70 p-3">
+                      <div className="space-y-2 mb-2">
+                        <div className="flex items-center gap-2 text-sm font-medium leading-tight"><ImageIcon className="h-4 w-4" />Imagen cuchara oficial Herbalife</div>
+                        {contentForm.spoon_image_url && (
+                          <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setContentForm((current) => ({ ...current, spoon_image_url: "" }))}>
+                            <Trash2 className="h-3.5 w-3.5" /> Eliminar cuchara
+                          </button>
+                        )}
+                      </div>
+                      {contentForm.spoon_image_url && (
+                        <div className="admin-product-media-preview mb-2">
+                          {contentForm.spoon_image_url.toLowerCase().split("?")[0].endsWith(".pdf") ? (
+                            <a href={contentForm.spoon_image_url} target="_blank" rel="noreferrer" className="btn-secondary w-full justify-center">
+                              <FileText className="h-4 w-4" /> Abrir PDF guardado
+                            </a>
+                          ) : (
+                            <img src={contentForm.spoon_image_url} alt="" />
+                          )}
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <label className="btn-primary cursor-pointer justify-center">
+                          <Upload className="h-4 w-4" /> Subir
+                          <input type="file" className="hidden" accept={SPOON_MEDIA_ACCEPT} onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void onOfficialMediaUpload(file, "spoon", "spoon_image_url");
+                            event.currentTarget.value = "";
+                          }} />
+                        </label>
+                        <input className="field flex-1" placeholder="O pegar URL" value={contentForm.spoon_image_url} onChange={(event) => setContentForm((current) => ({ ...current, spoon_image_url: event.target.value }))} />
+                      </div>
+                      <p className="mt-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
+                        Pulsa aquí para comprobar la medida de la cuchara oficial.
+                      </p>
+                    </div>
                     <label className="block">
                       <span className="text-xs muted">Descripción</span>
                       <textarea className="field min-h-24 mt-1" placeholder="Descripción" value={contentForm.description} onChange={(event) => setContentForm({ ...contentForm, description: event.target.value })} />
