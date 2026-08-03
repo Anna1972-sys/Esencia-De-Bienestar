@@ -17,4 +17,5 @@ export type ResourceBlock =
   | { type: "text"; value: string }
   | { type: "image"; url: string; caption?: string }
   | { type: "video"; url: string; caption?: string }
-  | { type: "pdf"; url: string; name?: string };
+  | { type: "pdf"; url: string; name?: string }
+  | { type: "link"; url: string; label?: string };

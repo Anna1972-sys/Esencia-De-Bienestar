@@ -85,6 +85,12 @@ export default function ResourceDetail() {
               </div>
             </a>
           );
+          if (b.type === "link") return (
+            <a key={i} href={b.url} target="_blank" rel="noreferrer" className="card-soft p-4 flex items-center gap-3 hover:shadow-glow transition">
+              <PlayCircle className="h-5 w-5 text-primary shrink-0" />
+              <span className="font-medium text-sm">{b.label || "Abrir enlace"}</span>
+            </a>
+          );
           return null;
         })}
 

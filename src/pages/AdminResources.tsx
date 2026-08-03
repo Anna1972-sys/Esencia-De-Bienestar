@@ -28,6 +28,7 @@ const ADMIN_RESOURCE_ENTRY_CARDS = [
 ] as const;
 
 type AdminResourceSectionKey = (typeof ADMIN_RESOURCE_ENTRY_CARDS)[number]["key"];
+type GuideContentToolKey = "videos" | "pdfs" | "images" | "gallery" | "documents" | "links" | "manual";
 
 const GUIDE_RESOURCE_SUBCATEGORY_CARDS = [
   {
@@ -126,6 +127,7 @@ export default function AdminResources() {
   const [sectionContentHost, setSectionContentHost] = useState<HTMLDivElement | null>(null);
   const [guideSubcategoriesChecked, setGuideSubcategoriesChecked] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(ADMIN_RESOURCE_PAGE_SIZE);
+  const [activeGuideTool, setActiveGuideTool] = useState<GuideContentToolKey | null>(null);
 
   const loadCats = () => supabase.from("resource_categories").select("*").order("sort_order").then(({ data }) => setCats((data ?? []) as Category[]));
   const load = () => supabase.from("resources")
@@ -262,15 +264,32 @@ export default function AdminResources() {
   const activeGuideEntry = isGuideSubcategoryView
     ? guideSubcategoryEntries.find(entry => entry.category?.id === selectedFilterCategory?.id) ?? null
     : null;
-  const guideContentTools = [
-    { label: "Vídeos", icon: Video },
-    { label: "PDFs", icon: FileText },
-    { label: "Imágenes", icon: ImageIcon },
-    { label: "Galería", icon: ImageIcon },
-    { label: "Documentos", icon: FileText },
-    { label: "Enlaces", icon: LinkIcon },
-    { label: "Orden manual", icon: GripVertical },
+  const guideContentTools: Array<{ key: GuideContentToolKey; label: string; icon: typeof Video }> = [
+    { key: "videos", label: "Vídeos", icon: Video },
+    { key: "pdfs", label: "PDFs", icon: FileText },
+    { key: "images", label: "Imágenes", icon: ImageIcon },
+    { key: "gallery", label: "Galería", icon: ImageIcon },
+    { key: "documents", label: "Documentos", icon: FileText },
+    { key: "links", label: "Enlaces", icon: LinkIcon },
+    { key: "manual", label: "Orden manual", icon: GripVertical },
   ] as const;
+
+  const openGuideTool = (tool: GuideContentToolKey) => {
+    setActiveGuideTool(tool);
+    clearSelection();
+    if (tool === "manual") {
+      setSortBy("manual");
+      setShowEditor(false);
+      return;
+    }
+    if (!f.id) {
+      setF(current => ({
+        ...empty,
+        category_id: selectedFilterCategory?.id || current.category_id,
+      }));
+    }
+    setShowEditor(true);
+  };
 
   useEffect(() => {
     if (!selectedSection) return;
@@ -596,6 +615,7 @@ export default function AdminResources() {
                 setFilterCat(categoryId);
                 setFilterSub("");
                 setShowEditor(false);
+                setActiveGuideTool(null);
                 clearSelection();
                 setF({ ...empty, category_id: categoryId });
               }}
@@ -643,15 +663,21 @@ export default function AdminResources() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {guideContentTools.map(({ label, icon: Icon }) => (
-                    <div key={label} className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-2 py-2 text-xs">
+                  {guideContentTools.map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => openGuideTool(key)}
+                      className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-2 py-2 text-xs text-left"
+                    >
                       <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
                       <span>{label}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
             )}
+            <div ref={setSectionContentHost} className="min-w-0" />
           </>
         ) : (
           <>
@@ -852,25 +878,40 @@ export default function AdminResources() {
                 {b.type === "pdf" && (
                   <div className="text-sm truncate"><a className="text-primary underline" href={(b as any).url} target="_blank" rel="noreferrer">{(b as any).name ?? "PDF"}</a></div>
                 )}
+                {b.type === "link" && (
+                  <>
+                    <input className="field" placeholder="Texto del enlace" value={(b as any).label ?? ""} onChange={e => updateBlock(i, { label: e.target.value })} />
+                    <input className="field mt-2" type="url" placeholder="https://…" value={(b as any).url ?? ""} onChange={e => updateBlock(i, { url: e.target.value })} />
+                  </>
+                )}
               </div>
             ))}
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "text", value: "" })}><Type className="h-4 w-4" /> Texto</button>
-            <label className="btn-secondary cursor-pointer">
+            {(!isGuideSubcategoryView || activeGuideTool === null) && (
+              <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "text", value: "" })}><Type className="h-4 w-4" /> Texto</button>
+            )}
+            {(!isGuideSubcategoryView || activeGuideTool === "images") && <label className="btn-secondary cursor-pointer">
               <ImageIcon className="h-4 w-4" /> Imágenes
+              <input type="file" accept="image/*" className="hidden" onChange={e => void uploadBlocks("image", e.target.files)} />
+            </label>}
+            {isGuideSubcategoryView && activeGuideTool === "gallery" && <label className="btn-secondary cursor-pointer">
+              <ImageIcon className="h-4 w-4" /> Galería
               <input type="file" accept="image/*" multiple className="hidden" onChange={e => void uploadBlocks("image", e.target.files)} />
-            </label>
-            <label className="btn-secondary cursor-pointer">
+            </label>}
+            {(!isGuideSubcategoryView || activeGuideTool === "videos") && <label className="btn-secondary cursor-pointer">
               <Video className="h-4 w-4" /> Vídeos (archivo)
               <input type="file" accept="video/*" multiple className="hidden" onChange={e => void uploadBlocks("video", e.target.files)} />
-            </label>
-            <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "video", url: "" })}><Video className="h-4 w-4" /> Vídeo (URL)</button>
-            <label className="btn-secondary cursor-pointer col-span-2">
-              <FileText className="h-4 w-4" /> PDFs
+            </label>}
+            {(!isGuideSubcategoryView || activeGuideTool === "videos") && <button type="button" className="btn-secondary" onClick={() => addBlock({ type: "video", url: "" })}><Video className="h-4 w-4" /> Vídeo (URL)</button>}
+            {(!isGuideSubcategoryView || activeGuideTool === "pdfs" || activeGuideTool === "documents") && <label className="btn-secondary cursor-pointer col-span-2">
+              <FileText className="h-4 w-4" /> {activeGuideTool === "documents" ? "Documentos" : "PDFs"}
               <input type="file" accept="application/pdf" multiple className="hidden" onChange={e => void uploadBlocks("pdf", e.target.files)} />
-            </label>
+            </label>}
+            {isGuideSubcategoryView && activeGuideTool === "links" && (
+              <button type="button" className="btn-secondary col-span-2" onClick={() => addBlock({ type: "link", url: "", label: "" })}><LinkIcon className="h-4 w-4" /> Añadir enlace</button>
+            )}
           </div>
         </div>
 
