@@ -130,6 +130,13 @@ type ProductForm = Omit<Product, "id" | "slug" | "product_measures" | "calories"
   measures: ProductMeasure[];
 };
 
+type NutritionTableCandidate = {
+  id: string;
+  title: string;
+  context: string;
+  data: Record<string, unknown>;
+};
+
 type ProductBlockId =
   | "main_image"
   | "spoon_image"
@@ -641,6 +648,7 @@ export default function AdminProducts() {
   const [readingDescriptionPdf, setReadingDescriptionPdf] = useState(false);
   const [readingIngredientsLabel, setReadingIngredientsLabel] = useState(false);
   const [hasProductDraft, setHasProductDraft] = useState(false);
+  const [nutritionTableCandidates, setNutritionTableCandidates] = useState<NutritionTableCandidate[]>([]);
   const keepEditingAfterSave = useRef(false);
   const productDraftRef = useRef<{ key: string; baseline: string }>({ key: "", baseline: "" });
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null);
@@ -1434,6 +1442,7 @@ export default function AdminProducts() {
 
   const markNutritionLabelPending = async (labelUrl: string, fileName: string) => {
     const pendingSource = `Pendiente de analizar: ${fileName}`;
+    setNutritionTableCandidates([]);
     setForm(prev => ({
       ...prev,
       label_file_url: labelUrl,
@@ -1501,7 +1510,22 @@ export default function AdminProducts() {
       const detail = payload?.detail ? ` · ${payload.detail}` : "";
       throw new Error(`${payload?.error || "No se pudo leer la etiqueta"}${detail}`);
     }
+    if (payload?.requires_admin_selection === true) {
+      const candidates = Array.isArray(payload?.nutrition_tables) ? payload.nutrition_tables : [];
+      if (candidates.length < 2) throw new Error("No se pudieron separar las tablas nutricionales de la etiqueta");
+      setNutritionTableCandidates(candidates);
+      return "selection-required" as const;
+    }
     await applyNutritionLabelPayload(payload, labelUrl, fileName);
+    return "applied" as const;
+  };
+
+  const applySelectedNutritionTable = async (candidate: NutritionTableCandidate) => {
+    if (!form.label_file_url) return;
+    const fileName = fileNameFromUrl(form.label_file_url);
+    await applyNutritionLabelPayload(candidate.data, form.label_file_url, fileName);
+    setNutritionTableCandidates([]);
+    toast.success(`${candidate.title} aplicada. Revisa los datos y pulsa Guardar cuando termines.`);
   };
 
   const uploadOfficialNutritionLabel = async (file: File) => {
@@ -1528,8 +1552,12 @@ export default function AdminProducts() {
     try {
       setReadingLabel(true);
       await markNutritionLabelPending(form.label_file_url, fileName);
-      await analyzeNutritionLabelData(fileName, mimeTypeFromFileName(fileName), form.label_file_url);
-      toast.success("Etiqueta nutricional verificada. Revisa y ajusta cualquier dato antes de guardar.");
+      const result = await analyzeNutritionLabelData(fileName, mimeTypeFromFileName(fileName), form.label_file_url);
+      if (result === "selection-required") {
+        toast.message("Se han detectado varias tablas. Elige cuál corresponde al producto.");
+      } else {
+        toast.success("Etiqueta nutricional verificada. Revisa y ajusta cualquier dato antes de guardar.");
+      }
     } catch (err: any) {
       toast.error(`${err?.message || "No se pudo leer la etiqueta nutricional"}. La etiqueta queda guardada y el producto queda Pendiente de analizar.`);
     } finally {
@@ -2006,6 +2034,38 @@ export default function AdminProducts() {
                   <a href={form.label_file_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-primary font-bold underline">
                     Ver etiqueta guardada
                   </a>
+                </div>
+              )}
+              {nutritionTableCandidates.length > 1 && (
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex flex-col gap-1">
+                    <h4 className="font-serif text-lg">Hemos encontrado varias tablas nutricionales</h4>
+                    <p className="text-xs muted">Elige la que corresponde al producto. No se rellenará ningún dato hasta que selecciones una.</p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {nutritionTableCandidates.map((candidate, index) => {
+                      const values = candidate.data;
+                      return (
+                        <button
+                          key={candidate.id || index}
+                          type="button"
+                          className="rounded-xl border border-primary/25 bg-white p-3 text-left transition hover:border-primary hover:bg-primary/5"
+                          onClick={() => applySelectedNutritionTable(candidate)}
+                        >
+                          <span className="block text-xs font-black uppercase tracking-[0.16em] text-primary">Tabla {index + 1}</span>
+                          <span className="mt-1 block font-semibold">{candidate.title || `Tabla ${index + 1}`}</span>
+                          {candidate.context && <span className="mt-1 block text-xs muted">{candidate.context}</span>}
+                          <span className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                            <span>Calorías: <strong>{String(values.calories ?? values.serving_calories ?? "—")}</strong></span>
+                            <span>Proteínas: <strong>{String(values.protein ?? values.serving_protein ?? "—")} g</strong></span>
+                            <span>Hidratos: <strong>{String(values.carbs ?? values.serving_carbs ?? "—")} g</strong></span>
+                            <span>Grasas: <strong>{String(values.fat ?? values.serving_fat ?? "—")} g</strong></span>
+                          </span>
+                          <span className="mt-3 inline-flex text-sm font-bold text-primary">Usar esta tabla</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
