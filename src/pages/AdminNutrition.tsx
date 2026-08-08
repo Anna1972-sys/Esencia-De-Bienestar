@@ -658,27 +658,6 @@ export default function AdminNutrition() {
     }
   };
 
-  const removeCategory = async (category: Category) => {
-    if (!confirm("¿Seguro que deseas eliminar esta categoría?")) return;
-    setBusy(true);
-    const itemDelete = await (supabase as any).from("nutrition_items").delete().eq("category", category.key);
-    if (itemDelete.error) {
-      setBusy(false);
-      toast.error(itemDelete.error.message);
-      return;
-    }
-    const categoryDelete = await (supabase as any).from("nutrition_categories").delete().eq("id", category.id);
-    setBusy(false);
-    if (categoryDelete.error) toast.error(categoryDelete.error.message);
-    else {
-      toast.success("Categoría eliminada");
-      if (activeCategory === category.key) setActiveCategory(null);
-      if (editingCategory?.id === category.id) clearCategoryEdit();
-      loadCategories();
-      loadItems();
-    }
-  };
-
   const saveContent = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!activeCategory || !contentForm.title.trim()) return;
@@ -708,12 +687,16 @@ export default function AdminNutrition() {
   };
 
   const removeContent = async (id: string) => {
-    if (!confirm("¿Seguro que deseas eliminar este contenido?")) return;
+    if (!confirm("¿Seguro que deseas eliminar este producto? La categoría no se eliminará.")) return;
     const { error } = await (supabase as any).from("nutrition_items").delete().eq("id", id);
     if (error) toast.error(error.message);
     else {
       setItems((current) => current.filter((item) => item.id !== id));
-      toast.success("Contenido eliminado");
+      if (contentForm.id === id) {
+        resetContent();
+        setContentFormOpen(false);
+      }
+      toast.success("Producto eliminado. La categoría se conserva.");
       loadItems();
     }
   };
@@ -908,9 +891,11 @@ export default function AdminNutrition() {
                       <button type="button" className="admin-nutrition-category-action" onClick={() => editCategory(activeCategoryData)}>
                         <Upload className="h-3.5 w-3.5" /> Imagen
                       </button>
-                      <button type="button" className="admin-nutrition-category-action is-delete" onClick={() => removeCategory(activeCategoryData)}>
-                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                      </button>
+                      {contentFormOpen && contentForm.id && (
+                        <button type="button" className="admin-nutrition-category-action is-delete" onClick={() => removeContent(contentForm.id!)}>
+                          <Trash2 className="h-3.5 w-3.5" /> Eliminar producto
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="mb-4 rounded-2xl border border-[#FF2D95] bg-white p-3">
