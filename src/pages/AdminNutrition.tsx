@@ -658,6 +658,25 @@ export default function AdminNutrition() {
     }
   };
 
+  const removeCategory = async (category: Category) => {
+    if (!confirm(`¿Seguro que deseas eliminar la categoría "${category.label}"? Los productos que contiene se conservarán.`)) return;
+    setBusy(true);
+    const { error } = await (supabase as any).from("nutrition_categories").delete().eq("id", category.id);
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Categoría eliminada. Sus productos se han conservado.");
+    if (activeCategory === category.key) {
+      setActiveCategory(null);
+      resetContent();
+      setContentFormOpen(false);
+    }
+    clearCategoryEdit();
+    loadCategories();
+  };
+
   const saveContent = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!activeCategory || !contentForm.title.trim()) return;
@@ -1491,7 +1510,7 @@ export default function AdminNutrition() {
                 className="admin-nutrition-delete-button absolute right-2 top-2"
                 onClick={() => setCategoryForm((current) => ({ ...current, image_url: "" }))}
               >
-                <Trash2 className="h-3.5 w-3.5" /> Borrar
+                <Trash2 className="h-3.5 w-3.5" /> Borrar imagen
               </button>
             </div>
           )}
@@ -1506,7 +1525,7 @@ export default function AdminNutrition() {
               disabled={!categoryForm.image_url}
               onClick={() => setCategoryForm((current) => ({ ...current, image_url: "" }))}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Borrar
+              <Trash2 className="h-3.5 w-3.5" /> Borrar imagen
             </button>
           </div>
           <input className="field" placeholder="Nombre" value={categoryForm.label} onChange={(event) => setCategoryForm({ ...categoryForm, label: event.target.value })} required />
@@ -1516,6 +1535,16 @@ export default function AdminNutrition() {
             <input type="checkbox" checked={categoryForm.visible} onChange={(event) => setCategoryForm({ ...categoryForm, visible: event.target.checked })} />
           </label>
           <button className="btn-primary w-full" disabled={busy}>{editingCategory ? "Guardar categoría" : "Crear categoría"}</button>
+          {editingCategory && (
+            <button
+              type="button"
+              className="admin-nutrition-delete-button w-full justify-center"
+              disabled={busy}
+              onClick={() => removeCategory(editingCategory)}
+            >
+              <Trash2 className="h-4 w-4" /> Eliminar categoría
+            </button>
+          )}
         </form>
       </div>
     </div>
