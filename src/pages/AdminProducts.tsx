@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import DraftBanner from "@/components/DraftBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { roundedNutritionInputValue, selectInitialZero, stableNutritionInputValue, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Pencil, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
@@ -328,6 +329,32 @@ const emptyProduct: ProductForm = {
   measures: [emptyMeasure],
 };
 
+const ADMIN_PRODUCT_DRAFT_PREFIX = "admin-products-editor-draft-v1";
+
+type ProductEditorDraft = {
+  form: ProductForm;
+  baselineForm: ProductForm;
+  openEditorBlocks: string[];
+  savedAt: string;
+};
+
+function productDraftStorageKey(product: ProductForm) {
+  if (product.id) return `${ADMIN_PRODUCT_DRAFT_PREFIX}:product:${product.id}`;
+  return `${ADMIN_PRODUCT_DRAFT_PREFIX}:new:${product.category_id || "none"}:${sectionSlug(product.line) || "none"}`;
+}
+
+function readProductEditorDraft(key: string): ProductEditorDraft | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ProductEditorDraft;
+    if (!parsed?.form || !parsed?.baselineForm || !Array.isArray(parsed.openEditorBlocks)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 const slugify = (value: unknown) =>
   String(value ?? "")
     .toLowerCase()
@@ -613,7 +640,9 @@ export default function AdminProducts() {
   const [readingLabel, setReadingLabel] = useState(false);
   const [readingDescriptionPdf, setReadingDescriptionPdf] = useState(false);
   const [readingIngredientsLabel, setReadingIngredientsLabel] = useState(false);
+  const [hasProductDraft, setHasProductDraft] = useState(false);
   const keepEditingAfterSave = useRef(false);
+  const productDraftRef = useRef<{ key: string; baseline: string }>({ key: "", baseline: "" });
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const productSearchInputRef = useRef<HTMLInputElement | null>(null);
   const descriptionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -723,9 +752,93 @@ export default function AdminProducts() {
     });
   }, [products, query, filterCategory, openAccessSection, activeInternalSubcategory, categoryById]);
 
+  const setProductEditorBaseline = (nextForm: ProductForm, openBlocks = ["Información general"]) => {
+    const key = productDraftStorageKey(nextForm);
+    const savedDraft = readProductEditorDraft(key);
+    const formToUse = savedDraft?.form ?? nextForm;
+    productDraftRef.current = {
+      key,
+      baseline: JSON.stringify(savedDraft?.baselineForm ?? nextForm),
+    };
+    setHasProductDraft(Boolean(savedDraft));
+    setForm(formToUse);
+    setOpenEditorBlocks(new Set(savedDraft?.openEditorBlocks ?? openBlocks));
+    return Boolean(savedDraft);
+  };
+
+  const clearProductDraft = (key = productDraftRef.current.key || productDraftStorageKey(form)) => {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // El editor sigue funcionando aunque el navegador bloquee el almacenamiento local.
+    }
+    productDraftRef.current = { key: "", baseline: "" };
+    setHasProductDraft(false);
+  };
+
+  useEffect(() => {
+    if (!productDraftRef.current.key) return;
+    const nextKey = productDraftStorageKey(form);
+    const previousKey = productDraftRef.current.key;
+    if (previousKey !== nextKey) {
+      try {
+        window.localStorage.removeItem(previousKey);
+      } catch {
+        // No interrumpe la edición si el navegador no permite borrar el almacenamiento local.
+      }
+      productDraftRef.current.key = nextKey;
+    }
+
+    const baseline = productDraftRef.current.baseline;
+    const isDirty = Boolean(baseline) && JSON.stringify(form) !== baseline;
+    if (!isDirty) {
+      try {
+        window.localStorage.removeItem(nextKey);
+      } catch {
+        // Sin efecto funcional: solo se pierde la recuperación automática en ese navegador.
+      }
+      setHasProductDraft(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      try {
+        const baselineForm = JSON.parse(productDraftRef.current.baseline) as ProductForm;
+        const draft: ProductEditorDraft = {
+          form,
+          baselineForm,
+          openEditorBlocks: Array.from(openEditorBlocks),
+          savedAt: new Date().toISOString(),
+        };
+        window.localStorage.setItem(nextKey, JSON.stringify(draft));
+        setHasProductDraft(true);
+      } catch {
+        // No bloqueamos el trabajo si el almacenamiento local está lleno o desactivado.
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [form, openEditorBlocks]);
+
   const resetProduct = () => {
+    clearProductDraft();
     setForm(emptyProduct);
     setEditorOpen(false);
+  };
+  const discardProductDraft = () => {
+    if (!window.confirm("¿Descartar los cambios sin guardar? El producto publicado no se modificará.")) return;
+    let baseline: ProductForm | null = null;
+    try {
+      baseline = productDraftRef.current.baseline ? JSON.parse(productDraftRef.current.baseline) as ProductForm : null;
+    } catch {
+      baseline = null;
+    }
+    const wasNewProduct = !baseline?.id;
+    clearProductDraft();
+    setForm(baseline ?? emptyProduct);
+    setOpenEditorBlocks(new Set(["Información general"]));
+    setEditorOpen(!wasNewProduct);
+    toast.success(wasNewProduct ? "Borrador descartado. No se ha publicado ningún producto." : "Cambios descartados.");
   };
   const scrollToProductEditor = () => {
     window.setTimeout(() => {
@@ -738,10 +851,10 @@ export default function AdminProducts() {
   };
   const startNewProduct = (categoryId = activeAccessCategory?.id ?? "", scrollToEditor = true) => {
     const internalLine = isInternalNutritionCategoryId(categoryId) && activeInternalSubcategoryData ? activeInternalSubcategoryData.title : "";
-    setForm({ ...emptyProduct, category_id: categoryId, line: internalLine });
+    const nextForm = { ...emptyProduct, category_id: categoryId, line: internalLine };
+    setProductEditorBaseline(nextForm);
     if (categoryId) setFilterCategory(categoryId);
     setEditorInstanceKey(key => key + 1);
-    setOpenEditorBlocks(new Set(["Información general"]));
     setEditorOpen(true);
     if (scrollToEditor) scrollToProductEditor();
   };
@@ -961,15 +1074,15 @@ export default function AdminProducts() {
     const keepEditorOpen = keepEditingAfterSave.current;
     keepEditingAfterSave.current = false;
     setSaving(false);
+    clearProductDraft();
     toast.success(form.id ? "Producto actualizado" : "Producto creado");
     if (keepEditorOpen) {
-      setForm(prev => ({ ...prev, id: productId }));
+      setProductEditorBaseline({ ...preparedForm, id: productId });
       setEditorOpen(true);
     } else if (!wasEditingProduct) {
       const nextLine = isInternalProduct && activeInternalSubcategoryData ? activeInternalSubcategoryData.title : "";
-      setForm({ ...emptyProduct, category_id: nextProductCategoryId, line: nextLine });
+      setProductEditorBaseline({ ...emptyProduct, category_id: nextProductCategoryId, line: nextLine });
       setEditorInstanceKey(key => key + 1);
-      setOpenEditorBlocks(new Set(["Información general"]));
       setEditorOpen(true);
     } else {
       resetProduct();
@@ -982,7 +1095,7 @@ export default function AdminProducts() {
     if (isInternalNutritionCategoryId(product.category_id)) {
       setActiveInternalSubcategory(isInternalNutritionLine(product.line) ? sectionSlug(product.line) : "");
     }
-    setForm({
+    const nextForm: ProductForm = {
       ...product,
       category_id: product.category_id ?? "",
       aliasesText: (product.aliases ?? []).join(", "),
@@ -1030,9 +1143,9 @@ export default function AdminProducts() {
       nutrition_effective_from: product.nutrition_effective_from ?? null,
       nutrition_verified_at: product.nutrition_verified_at ?? null,
       measures: measures.length ? limitProductMeasures(measures.map(normalizeMeasure)) : [emptyMeasure],
-    });
+    };
+    setProductEditorBaseline(nextForm);
     setEditorInstanceKey(key => key + 1);
-    setOpenEditorBlocks(new Set(["Información general"]));
     setEditorOpen(true);
     scrollToProductEditor();
   };
@@ -1099,25 +1212,8 @@ export default function AdminProducts() {
   const confirmElementDelete = () => window.confirm(DELETE_ELEMENT_CONFIRMATION);
 
   const persistProductFields = async (patch: Record<string, unknown>, successMessage = "Elemento eliminado") => {
-    if (!form.id) {
-      toast.success(successMessage);
-      return true;
-    }
-
-    const { error } = await (supabase as any)
-      .from("products")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", form.id);
-
-    if (error) {
-      toast.error(error.message);
-      return false;
-    }
-
-    setProducts(prev => prev.map(product => (
-      product.id === form.id ? ({ ...product, ...patch } as Product) : product
-    )));
-    toast.success(successMessage);
+    void patch;
+    toast.success(`${successMessage}. Pulsa Guardar para aplicar los cambios.`);
     return true;
   };
 
@@ -1191,17 +1287,8 @@ export default function AdminProducts() {
         patch.spoon_image_url = url;
         setForm(prev => ({ ...prev, spoon_image_url: url }));
       }
-      if (form.id) {
-        const { error } = await (supabase as any)
-          .from("products")
-          .update({ ...patch, updated_at: new Date().toISOString() })
-          .eq("id", form.id);
-        if (error) throw error;
-        toast.success("Archivo subido y guardado en el producto");
-        load();
-      } else {
-        toast.success("Archivo subido. Pulsa Guardar producto para publicarlo.");
-      }
+      void patch;
+      toast.success("Archivo subido. Pulsa Guardar producto para aplicar los cambios.");
     } catch (err: any) {
       toast.error(err?.message || "No se pudo subir el archivo");
     } finally {
@@ -1220,14 +1307,7 @@ export default function AdminProducts() {
       const nextUrls = [...form[key], ...uploadedUrls];
       setForm(prev => ({ ...prev, [key]: [...prev[key], ...uploadedUrls] }));
 
-      if (form.id) {
-        const { error } = await (supabase as any)
-          .from("products")
-          .update({ [key]: nextUrls, updated_at: new Date().toISOString() })
-          .eq("id", form.id);
-        if (error) throw error;
-      }
-      toast.success(`${files.length} ${files.length === 1 ? "archivo añadido" : "archivos añadidos"}`);
+      toast.success(`${files.length} ${files.length === 1 ? "archivo añadido" : "archivos añadidos"}. Pulsa Guardar para aplicar los cambios.`);
     } catch (e: any) {
       toast.error(e.message || "No se pudieron subir los archivos");
     } finally {
@@ -1240,16 +1320,7 @@ export default function AdminProducts() {
     if (!clean) return;
     const nextUrls = [...form[key], clean];
     setForm(prev => ({ ...prev, [key]: [...prev[key], clean] }));
-    if (form.id) {
-      (supabase as any)
-        .from("products")
-        .update({ [key]: nextUrls, updated_at: new Date().toISOString() })
-        .eq("id", form.id)
-        .then(({ error }: any) => {
-          if (error) toast.error(error.message);
-          else toast.success("Contenido guardado en el producto");
-        });
-    }
+    toast.success("Contenido añadido. Pulsa Guardar para aplicar los cambios.");
   };
 
   const updateUrl = async (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", index: number, value: string) => {
@@ -1257,29 +1328,19 @@ export default function AdminProducts() {
     if (!clean) return toast.error("La URL no puede quedar vacía");
     const nextUrls = form[key].map((url, i) => i === index ? clean : url);
     setForm(prev => ({ ...prev, [key]: prev[key].map((url, i) => i === index ? clean : url) }));
-    if (form.id) await persistProductFields({ [key]: nextUrls }, "Elemento actualizado");
+    void nextUrls;
   };
 
   const removeUrl = async (key: "external_urls" | "video_urls" | "pdf_urls" | "gallery_urls", index: number) => {
     if (!confirmElementDelete()) return;
     const nextUrls = form[key].filter((_, i) => i !== index);
     setForm(prev => ({ ...prev, [key]: prev[key].filter((_, i) => i !== index) }));
-    if (form.id) await persistProductFields({ [key]: nextUrls }, "Elemento eliminado");
+    void nextUrls;
   };
 
   const persistProductMeta = async (nextMicronutrients: Record<string, unknown>, successMessage: string) => {
     setForm(prev => ({ ...prev, micronutrients: nextMicronutrients }));
-    if (form.id) {
-      const { error } = await (supabase as any)
-        .from("products")
-        .update({ micronutrients: { ...nextMicronutrients, [PRODUCT_BLOCK_ORDER_KEY]: form.blockOrder }, updated_at: new Date().toISOString() })
-        .eq("id", form.id);
-      if (error) throw error;
-      toast.success(successMessage);
-      setProducts(prev => prev.map(product => (
-        product.id === form.id ? ({ ...product, micronutrients: nextMicronutrients } as Product) : product
-      )));
-    }
+    toast.success(`${successMessage}. Pulsa Guardar para aplicar los cambios.`);
   };
 
   const uploadSectionPdf = async (file: File, key: typeof PRODUCT_BENEFITS_PDF_KEY | typeof PRODUCT_IMPORTANT_PDF_KEY) => {
@@ -1371,45 +1432,6 @@ export default function AdminProducts() {
     }));
   };
 
-  const persistProductPatch = async (patch: Record<string, unknown>) => {
-    if (!form.id) return;
-    const { error } = await (supabase as any)
-      .from("products")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", form.id);
-    if (error) throw error;
-  };
-
-  const persistProductMeasures = async (productId: string, productMeasures: ProductMeasure[], fallbackSource?: string) => {
-    const { error: deleteError } = await (supabase as any).from("product_measures").delete().eq("product_id", productId);
-    if (deleteError) throw deleteError;
-
-    const measures = limitProductMeasures(productMeasures)
-      .filter(measure => measure.name.trim())
-      .map((measure, index) => ({
-        product_id: productId,
-        name: measure.name.trim(),
-        grams: toNullableNumber(measure.grams),
-        calories: toNullableNumber(measure.calories),
-        protein: toNullableNumber(measure.protein),
-        carbs: toNullableNumber(measure.carbs),
-        fat: toNullableNumber(measure.fat),
-        saturated_fat: toNullableNumber(measure.saturated_fat),
-        fiber: toNullableNumber(measure.fiber),
-        sugars: toNullableNumber(measure.sugars),
-        salt: toNullableNumber(measure.salt),
-        source: measure.source || fallbackSource || "Etiqueta nutricional verificada",
-        verification_status: measure.verification_status,
-        is_default: Boolean(measure.is_default),
-        sort_order: index,
-      }));
-
-    if (measures.length) {
-      const { error } = await (supabase as any).from("product_measures").insert(measures);
-      if (error) throw error;
-    }
-  };
-
   const markNutritionLabelPending = async (labelUrl: string, fileName: string) => {
     const pendingSource = `Pendiente de analizar: ${fileName}`;
     setForm(prev => ({
@@ -1419,12 +1441,6 @@ export default function AdminProducts() {
       verification_status: "pendiente",
       nutrition_verified_at: null,
     }));
-    await persistProductPatch({
-      label_file_url: labelUrl,
-      source: pendingSource,
-      verification_status: "pendiente",
-      nutrition_verified_at: null,
-    });
   };
 
   const applyNutritionLabelPayload = async (payload: any, labelUrl: string, fileName: string) => {
@@ -1467,41 +1483,7 @@ export default function AdminProducts() {
 
     const next = nextFormForSave;
     if (!next) return;
-    await persistProductPatch({
-      label_file_url: labelUrl,
-      micronutrients: next.micronutrients,
-      description: next.description || null,
-      ingredients_text: next.ingredients_text || null,
-      serving_size: next.serving_size || null,
-      serving_grams: toNullableNumber(next.serving_grams),
-      serving_calories: toNullableNumber(next.serving_calories),
-      serving_protein: toNullableNumber(next.serving_protein),
-      serving_carbs: toNullableNumber(next.serving_carbs),
-      serving_sugars: toNullableNumber(next.serving_sugars),
-      serving_fat: toNullableNumber(next.serving_fat),
-      serving_saturated_fat: toNullableNumber(next.serving_saturated_fat),
-      serving_fiber: toNullableNumber(next.serving_fiber),
-      serving_salt: toNullableNumber(next.serving_salt),
-      calories: toNullableNumber(next.calories),
-      protein: toNullableNumber(next.protein),
-      carbs: toNullableNumber(next.carbs),
-      sugars: toNullableNumber(next.sugars),
-      fat: toNullableNumber(next.fat),
-      saturated_fat: toNullableNumber(next.saturated_fat),
-      fiber: toNullableNumber(next.fiber),
-      salt: toNullableNumber(next.salt),
-      kcal_per_gram: toNullableNumber(perGram(next.calories, next.serving_calories, next.serving_grams)),
-      protein_per_gram: toNullableNumber(perGram(next.protein, next.serving_protein, next.serving_grams)),
-      carbs_per_gram: toNullableNumber(perGram(next.carbs, next.serving_carbs, next.serving_grams)),
-      fat_per_gram: toNullableNumber(perGram(next.fat, next.serving_fat, next.serving_grams)),
-      fiber_per_gram: toNullableNumber(perGram(next.fiber, next.serving_fiber, next.serving_grams)),
-      source: next.source,
-      verification_status: "verificado",
-      nutrition_verified_at: verifiedAt,
-    });
-    if (form.id) {
-      await persistProductMeasures(form.id, next.measures, next.source);
-    }
+    void next;
   };
 
   const analyzeNutritionLabelData = async (fileName: string, mimeType: string, labelUrl: string, dataUrl?: string) => {
@@ -1584,8 +1566,6 @@ export default function AdminProducts() {
       const description = String(payload?.description ?? "").trim();
       if (!description) throw new Error("El PDF no contiene una descripción clara");
       const shortDescription = String(payload?.short_description ?? "").trim() || buildShortDescription(description);
-      const nextMicronutrients = setProductMetaText(form.micronutrients, PRODUCT_SHORT_DESCRIPTION_KEY, shortDescription);
-
       const nextPdfUrls = form.pdf_urls.includes(pdfUrl) ? form.pdf_urls : [...form.pdf_urls, pdfUrl];
       setForm(prev => ({
         ...prev,
@@ -1594,22 +1574,8 @@ export default function AdminProducts() {
         pdf_urls: prev.pdf_urls.includes(pdfUrl) ? prev.pdf_urls : [...prev.pdf_urls, pdfUrl],
       }));
 
-      if (form.id) {
-        const { error } = await (supabase as any)
-          .from("products")
-          .update({
-            description,
-            micronutrients: nextMicronutrients,
-            pdf_urls: nextPdfUrls,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", form.id);
-        if (error) throw error;
-        load();
-        toast.success("PDF leído y descripción guardada");
-      } else {
-        toast.success("PDF leído. Pulsa Guardar producto para publicarlo.");
-      }
+      void nextPdfUrls;
+      toast.success("PDF leído. Pulsa Guardar para aplicar los cambios.");
     } catch (err: any) {
       toast.error(err?.message || "No se pudo leer la descripción del PDF");
     } finally {
@@ -1642,20 +1608,7 @@ export default function AdminProducts() {
 
       setForm(prev => ({ ...prev, ingredients_text: ingredientsText }));
 
-      if (form.id) {
-        const { error } = await (supabase as any)
-          .from("products")
-          .update({
-            ingredients_text: ingredientsText,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", form.id);
-        if (error) throw error;
-        load();
-        toast.success("Ingredientes leídos y guardados");
-      } else {
-        toast.success("Ingredientes leídos. Pulsa Guardar producto para publicarlo.");
-      }
+      toast.success("Ingredientes leídos. Pulsa Guardar para aplicar los cambios.");
     } catch (err: any) {
       toast.error(err?.message || "No se pudo leer la etiqueta de ingredientes");
     } finally {
@@ -1887,6 +1840,13 @@ export default function AdminProducts() {
               </button>
             </div>
           </div>
+
+          {hasProductDraft && (
+            <DraftBanner
+              onDiscard={discardProductDraft}
+              message="Borrador local activo. Tus cambios no se publicarán hasta que pulses Guardar."
+            />
+          )}
 
           <ProductAccordion title="Información general" {...editorAccordionProps("Información general")}>
             <div className="space-y-4">
