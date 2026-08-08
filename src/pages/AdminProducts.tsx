@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import DraftBanner from "@/components/DraftBanner";
@@ -337,12 +337,17 @@ const emptyProduct: ProductForm = {
 };
 
 const ADMIN_PRODUCT_DRAFT_PREFIX = "admin-products-editor-draft-v1";
+const ADMIN_PRODUCT_ACTIVE_DRAFT_KEY = `${ADMIN_PRODUCT_DRAFT_PREFIX}:active`;
 
 type ProductEditorDraft = {
   form: ProductForm;
   baselineForm: ProductForm;
   openEditorBlocks: string[];
   savedAt: string;
+};
+
+type ProductEditorDraftPointer = {
+  key: string;
 };
 
 function productDraftStorageKey(product: ProductForm) {
@@ -357,6 +362,19 @@ function readProductEditorDraft(key: string): ProductEditorDraft | null {
     const parsed = JSON.parse(raw) as ProductEditorDraft;
     if (!parsed?.form || !parsed?.baselineForm || !Array.isArray(parsed.openEditorBlocks)) return null;
     return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readActiveProductEditorDraft() {
+  try {
+    const rawPointer = window.localStorage.getItem(ADMIN_PRODUCT_ACTIVE_DRAFT_KEY);
+    if (!rawPointer) return null;
+    const pointer = JSON.parse(rawPointer) as ProductEditorDraftPointer;
+    if (!pointer?.key) return null;
+    const draft = readProductEditorDraft(pointer.key);
+    return draft ? { key: pointer.key, draft } : null;
   } catch {
     return null;
   }
@@ -762,10 +780,13 @@ export default function AdminProducts() {
 
   const setProductEditorBaseline = (nextForm: ProductForm, openBlocks = ["Información general"]) => {
     const key = productDraftStorageKey(nextForm);
-    const savedDraft = readProductEditorDraft(key);
+    const activeDraft = readActiveProductEditorDraft();
+    const savedDraft = readProductEditorDraft(key)
+      ?? (!nextForm.id && !activeDraft?.draft.form.id ? activeDraft?.draft ?? null : null);
+    const savedKey = savedDraft === activeDraft?.draft ? activeDraft.key : key;
     const formToUse = savedDraft?.form ?? nextForm;
     productDraftRef.current = {
-      key,
+      key: savedKey,
       baseline: JSON.stringify(savedDraft?.baselineForm ?? nextForm),
     };
     setHasProductDraft(Boolean(savedDraft));
@@ -777,6 +798,9 @@ export default function AdminProducts() {
   const clearProductDraft = (key = productDraftRef.current.key || productDraftStorageKey(form)) => {
     try {
       window.localStorage.removeItem(key);
+      const rawPointer = window.localStorage.getItem(ADMIN_PRODUCT_ACTIVE_DRAFT_KEY);
+      const pointer = rawPointer ? JSON.parse(rawPointer) as ProductEditorDraftPointer : null;
+      if (pointer?.key === key) window.localStorage.removeItem(ADMIN_PRODUCT_ACTIVE_DRAFT_KEY);
     } catch {
       // El editor sigue funcionando aunque el navegador bloquee el almacenamiento local.
     }
@@ -784,7 +808,7 @@ export default function AdminProducts() {
     setHasProductDraft(false);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!productDraftRef.current.key) return;
     const nextKey = productDraftStorageKey(form);
     const previousKey = productDraftRef.current.key;
@@ -802,6 +826,9 @@ export default function AdminProducts() {
     if (!isDirty) {
       try {
         window.localStorage.removeItem(nextKey);
+        const rawPointer = window.localStorage.getItem(ADMIN_PRODUCT_ACTIVE_DRAFT_KEY);
+        const pointer = rawPointer ? JSON.parse(rawPointer) as ProductEditorDraftPointer : null;
+        if (pointer?.key === nextKey) window.localStorage.removeItem(ADMIN_PRODUCT_ACTIVE_DRAFT_KEY);
       } catch {
         // Sin efecto funcional: solo se pierde la recuperación automática en ese navegador.
       }
@@ -809,24 +836,32 @@ export default function AdminProducts() {
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      try {
-        const baselineForm = JSON.parse(productDraftRef.current.baseline) as ProductForm;
-        const draft: ProductEditorDraft = {
-          form,
-          baselineForm,
-          openEditorBlocks: Array.from(openEditorBlocks),
-          savedAt: new Date().toISOString(),
-        };
-        window.localStorage.setItem(nextKey, JSON.stringify(draft));
-        setHasProductDraft(true);
-      } catch {
-        // No bloqueamos el trabajo si el almacenamiento local está lleno o desactivado.
-      }
-    }, 350);
-
-    return () => window.clearTimeout(timer);
+    try {
+      const baselineForm = JSON.parse(productDraftRef.current.baseline) as ProductForm;
+      const draft: ProductEditorDraft = {
+        form,
+        baselineForm,
+        openEditorBlocks: Array.from(openEditorBlocks),
+        savedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem(nextKey, JSON.stringify(draft));
+      window.localStorage.setItem(ADMIN_PRODUCT_ACTIVE_DRAFT_KEY, JSON.stringify({ key: nextKey } satisfies ProductEditorDraftPointer));
+      setHasProductDraft(true);
+    } catch {
+      // No bloqueamos el trabajo si el almacenamiento local está lleno o desactivado.
+    }
   }, [form, openEditorBlocks]);
+
+  useEffect(() => {
+    if (editorOpen || loading) return;
+    const activeDraft = readActiveProductEditorDraft();
+    if (!activeDraft) return;
+    const productStillExists = !activeDraft.draft.form.id || products.some(product => product.id === activeDraft.draft.form.id);
+    if (!productStillExists) return;
+    setProductEditorBaseline(activeDraft.draft.form, activeDraft.draft.openEditorBlocks);
+    setEditorInstanceKey(key => key + 1);
+    setEditorOpen(true);
+  }, [products, editorOpen, loading]);
 
   const resetProduct = () => {
     clearProductDraft();
