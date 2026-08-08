@@ -55,6 +55,7 @@ type ManagedSection = {
 
 type ContentForm = {
   id?: string;
+  category: string;
   title: string;
   subtitle: string;
   cover_image: string;
@@ -85,6 +86,7 @@ const emptyCategory: CategoryForm = {
 };
 
 const emptyContent: ContentForm = {
+  category: "",
   title: "",
   subtitle: "",
   cover_image: "",
@@ -295,6 +297,7 @@ function buildBlocks(form: ContentForm) {
 function formFromItem(item: any): ContentForm {
   const next = { ...emptyContent };
   next.id = item.id;
+  next.category = item.category ?? "";
   next.title = item.title ?? item.name ?? item.label ?? "";
   next.subtitle = item.subtitle ?? "";
   next.cover_image = item.cover_image ?? item.cover_image_url ?? item.image_url ?? "";
@@ -577,7 +580,7 @@ export default function AdminNutrition() {
 
   const openNewContent = (category: string) => {
     const draft = readContentDraft(category);
-    setContentForm(draft ?? emptyContent);
+    setContentForm({ ...(draft ?? emptyContent), category: draft?.category || category });
     setDraftRecovered(Boolean(draft));
     setOpenEditorBlocks(new Set());
     setContentFormOpen(true);
@@ -588,7 +591,7 @@ export default function AdminNutrition() {
     setActiveCategory(shouldOpen ? key : null);
     if (shouldOpen) {
       const draft = readContentDraft(key);
-      setContentForm(draft ?? emptyContent);
+      setContentForm({ ...(draft ?? emptyContent), category: draft?.category || key });
       setDraftRecovered(Boolean(draft));
       setContentFormOpen(Boolean(draft));
     } else {
@@ -680,11 +683,12 @@ export default function AdminNutrition() {
   const saveContent = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!activeCategory || !contentForm.title.trim()) return;
+    const targetCategory = contentForm.category || activeCategory;
     setBusy(true);
     const payload: any = {
       title: contentForm.title.trim(),
       subtitle: contentForm.subtitle.trim() || null,
-      category: activeCategory,
+      category: targetCategory,
       cover_image: contentForm.cover_image || null,
       blocks: buildBlocks(contentForm),
       visible: contentForm.visible,
@@ -941,7 +945,11 @@ export default function AdminNutrition() {
                               type="button"
                               className="text-primary"
                               onClick={() => {
-                                setContentForm(formFromItem(item));
+                                const currentItemCategory = categories.find((category) => itemBelongsToCategory(item, category));
+                                setContentForm({
+                                  ...formFromItem(item),
+                                  category: currentItemCategory?.key ?? activeCategoryData.key,
+                                });
                                 setDraftRecovered(false);
                                 setOpenEditorBlocks(new Set());
                                 setContentFormOpen(true);
@@ -1031,6 +1039,20 @@ export default function AdminNutrition() {
                     <label className="block">
                       <span className="text-xs muted">Subtítulo</span>
                       <input className="field mt-1" placeholder="Subtítulo" value={contentForm.subtitle} onChange={(event) => setContentForm({ ...contentForm, subtitle: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Categoría del producto</span>
+                      <select
+                        className="field mt-1"
+                        value={contentForm.category || activeCategory || ""}
+                        onChange={(event) => setContentForm((current) => ({ ...current, category: event.target.value }))}
+                        required
+                      >
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.key}>{category.label}</option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] muted mt-1">Cambia esta opción para mover el producto sin perder su contenido.</p>
                     </label>
                     </div>
                     </ProductAccordion>
