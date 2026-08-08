@@ -18,6 +18,7 @@ import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import DraftBanner from "@/components/DraftBanner";
+import ProductAccordion from "@/components/admin/ProductAccordion";
 
 const SIGNED_TTL = 60 * 60 * 24 * 7;
 const ADMIN_NUTRITION_DRAFT_KEY = "admin-nutrition-content-draft-v1";
@@ -366,10 +367,24 @@ export default function AdminNutrition() {
   const [contentForm, setContentForm] = useState<ContentForm>(emptyContent);
   const [contentFormOpen, setContentFormOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [openEditorBlocks, setOpenEditorBlocks] = useState<Set<string>>(() => new Set());
   const [draftRecovered, setDraftRecovered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [readingLabel, setReadingLabel] = useState(false);
   const [nutritionTableCandidates, setNutritionTableCandidates] = useState<NutritionLabelTableCandidate[]>([]);
+
+  const editorAccordionProps = (title: string) => ({
+    indicator: "plus" as const,
+    open: openEditorBlocks.has(title),
+    onOpenChange: (nextOpen: boolean) => {
+      setOpenEditorBlocks(current => {
+        const next = new Set(current);
+        if (nextOpen) next.add(title);
+        else next.delete(title);
+        return next;
+      });
+    },
+  });
 
   const loadCategories = async () => {
     const { data, error } = await (supabase as any)
@@ -564,6 +579,7 @@ export default function AdminNutrition() {
     const draft = readContentDraft(category);
     setContentForm(draft ?? emptyContent);
     setDraftRecovered(Boolean(draft));
+    setOpenEditorBlocks(new Set());
     setContentFormOpen(true);
   };
 
@@ -923,6 +939,7 @@ export default function AdminNutrition() {
                               onClick={() => {
                                 setContentForm(formFromItem(item));
                                 setDraftRecovered(false);
+                                setOpenEditorBlocks(new Set());
                                 setContentFormOpen(true);
                               }}
                               aria-label="Editar contenido"
@@ -964,6 +981,16 @@ export default function AdminNutrition() {
                     />
                   )}
                   <form onSubmit={saveContent} className="admin-nutrition-form rounded-2xl border border-[#FF2D95] p-3 space-y-3">
+                    <div className="sticky top-2 z-10 rounded-2xl border border-[#FF2D95]/40 bg-white/95 p-3 shadow-sm backdrop-blur space-y-2">
+                      <label className="flex items-center justify-between rounded-xl border border-[#FF2D95]/40 bg-white px-3 py-2 text-sm">
+                        <span>Visible para clientes</span>
+                        <input type="checkbox" checked={contentForm.visible} onChange={(event) => setContentForm({ ...contentForm, visible: event.target.checked })} />
+                      </label>
+                      <button className="btn-primary w-full" disabled={busy}>{contentForm.id ? "Guardar cambios" : "Publicar"}</button>
+                    </div>
+
+                    <ProductAccordion title="Imagen principal y datos básicos" {...editorAccordionProps("Imagen principal y datos básicos")}>
+                    <div className="space-y-3">
                     <div>
                       <label className="text-xs muted">Imagen principal</label>
                       {contentForm.cover_image && (
@@ -1001,7 +1028,10 @@ export default function AdminNutrition() {
                       <span className="text-xs muted">Subtítulo</span>
                       <input className="field mt-1" placeholder="Subtítulo" value={contentForm.subtitle} onChange={(event) => setContentForm({ ...contentForm, subtitle: event.target.value })} />
                     </label>
+                    </div>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="Etiqueta nutricional oficial" {...editorAccordionProps("Etiqueta nutricional oficial")}>
                     <div className="rounded-[22px] bg-secondary/70 p-3">
                       <div className="space-y-2 mb-2">
                         <div className="flex items-center gap-2 text-sm font-medium leading-tight"><FileText className="h-4 w-4" />Etiqueta nutricional oficial</div>
@@ -1061,7 +1091,9 @@ export default function AdminNutrition() {
                         </div>
                       )}
                     </div>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="Cuchara oficial Herbalife" {...editorAccordionProps("Cuchara oficial Herbalife")}>
                     <div className="rounded-[22px] bg-secondary/70 p-3">
                       <div className="space-y-2 mb-2">
                         <div className="flex items-center gap-2 text-sm font-medium leading-tight"><ImageIcon className="h-4 w-4" />Imagen cuchara oficial Herbalife</div>
@@ -1097,31 +1129,45 @@ export default function AdminNutrition() {
                         Pulsa aquí para comprobar la medida de la cuchara oficial.
                       </p>
                     </div>
+                    </ProductAccordion>
+                    <ProductAccordion title="Descripción" {...editorAccordionProps("Descripción")}>
                     <label className="block">
                       <span className="text-xs muted">Descripción</span>
                       <textarea className="field min-h-24 mt-1" placeholder="Descripción" value={contentForm.description} onChange={(event) => setContentForm({ ...contentForm, description: event.target.value })} />
                     </label>
+                    </ProductAccordion>
+                    <ProductAccordion title="Beneficios" {...editorAccordionProps("Beneficios")}>
                     <label className="block">
                       <span className="text-xs muted">Beneficios</span>
                       <textarea className="field min-h-20 mt-1" placeholder="Beneficios" value={contentForm.benefits} onChange={(event) => setContentForm({ ...contentForm, benefits: event.target.value })} />
                     </label>
+                    </ProductAccordion>
+                    <ProductAccordion title="Modo de uso" {...editorAccordionProps("Modo de uso")}>
                     <label className="block">
                       <span className="text-xs muted">Modo de uso</span>
                       <textarea className="field min-h-20 mt-1" placeholder="Modo de uso" value={contentForm.usage} onChange={(event) => setContentForm({ ...contentForm, usage: event.target.value })} />
                     </label>
+                    </ProductAccordion>
+                    <ProductAccordion title="Ingredientes" {...editorAccordionProps("Ingredientes")}>
                     <label className="block">
                       <span className="text-xs muted">Ingredientes (opcional)</span>
                       <textarea className="field min-h-20 mt-1" placeholder="Ingredientes (opcional)" value={contentForm.ingredients} onChange={(event) => setContentForm({ ...contentForm, ingredients: event.target.value })} />
                     </label>
+                    </ProductAccordion>
+                    <ProductAccordion title="Observaciones" {...editorAccordionProps("Observaciones")}>
                     <label className="block">
                       <span className="text-xs muted">Observaciones</span>
                       <textarea className="field min-h-20 mt-1" placeholder="Observaciones" value={contentForm.observations} onChange={(event) => setContentForm({ ...contentForm, observations: event.target.value })} />
                     </label>
+                    </ProductAccordion>
+                    <ProductAccordion title="Texto libre" {...editorAccordionProps("Texto libre")}>
                     <label className="block">
                       <span className="text-xs muted">Texto libre</span>
                       <textarea className="field min-h-24 mt-1" placeholder="Texto libre" value={contentForm.free_text} onChange={(event) => setContentForm({ ...contentForm, free_text: event.target.value })} />
                     </label>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="Secciones personalizadas" {...editorAccordionProps("Secciones personalizadas")}>
                     <div className="rounded-2xl border border-[#FF2D95] bg-white p-3 space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1280,7 +1326,9 @@ export default function AdminNutrition() {
                         </div>
                       )}
                     </div>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="Galería de imágenes" {...editorAccordionProps("Galería de imágenes")}>
                     <div className="rounded-2xl border border-[#FF2D95] bg-white p-3">
                       <div className="font-medium text-sm mb-2">Galería de imágenes</div>
                       {contentForm.gallery.length > 0 && (
@@ -1315,7 +1363,9 @@ export default function AdminNutrition() {
                         </button>
                       </div>
                     </div>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="Vídeos" {...editorAccordionProps("Vídeos")}>
                     <div className="grid gap-2">
                       <label className="block">
                         <span className="text-xs muted">Añadir vídeo mediante URL</span>
@@ -1359,7 +1409,9 @@ export default function AdminNutrition() {
                         </button>
                       </div>
                     </div>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="PDFs" {...editorAccordionProps("PDFs")}>
                     <div className="grid gap-2">
                       <label className="block">
                         <span className="text-xs muted">Añadir PDF mediante URL</span>
@@ -1403,7 +1455,10 @@ export default function AdminNutrition() {
                         </button>
                       </div>
                     </div>
+                    </ProductAccordion>
 
+                    <ProductAccordion title="Enlaces/URLs" {...editorAccordionProps("Enlaces/URLs")}>
+                    <div className="space-y-2">
                     <label className="block">
                       <span className="text-xs muted">Enlace externo</span>
                       <div className="relative mt-1">
@@ -1419,13 +1474,8 @@ export default function AdminNutrition() {
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Borrar enlace
                     </button>
-
-                    <label className="flex items-center justify-between rounded-xl border border-[#FF2D95]/40 bg-white px-3 py-2 text-sm">
-                      <span>Visible para clientes</span>
-                      <input type="checkbox" checked={contentForm.visible} onChange={(event) => setContentForm({ ...contentForm, visible: event.target.checked })} />
-                    </label>
-
-                    <button className="btn-primary w-full" disabled={busy}>{contentForm.id ? "Guardar cambios" : "Publicar"}</button>
+                    </div>
+                    </ProductAccordion>
                   </form>
                   </>
                   )}
