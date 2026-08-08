@@ -136,6 +136,32 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
           {b.value}
         </p>
       );
+    if (b.type === "nutrition_label") {
+      const data = b.data && typeof b.data === "object" ? b.data : {};
+      const values = [
+        ["Kcal", data.calories ?? data.serving_calories],
+        ["Proteínas", data.protein ?? data.serving_protein, "g"],
+        ["Hidratos", data.carbs ?? data.serving_carbs, "g"],
+        ["Grasas", data.fat ?? data.serving_fat, "g"],
+        ["Fibra", data.fiber ?? data.serving_fiber, "g"],
+      ].filter(([, value]) => value !== null && value !== undefined && value !== "");
+      return (
+        <section key={i} className="card-soft p-4 space-y-3">
+          <h2 className="font-serif text-xl">Información nutricional</h2>
+          {data.serving_size && <p className="text-sm muted">Por {String(data.serving_size)}</p>}
+          {values.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {values.map(([label, value, unit]) => (
+                <div key={String(label)} className="rounded-xl bg-secondary/70 p-3 text-center">
+                  <div className="font-semibold">{String(value)}{unit || ""}</div>
+                  <div className="text-xs muted">{String(label)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    }
     if (b.type === "image")
       return (
         <figure key={i}>

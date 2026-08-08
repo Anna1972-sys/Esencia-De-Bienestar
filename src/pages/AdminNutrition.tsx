@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { readNutritionLabel, type NutritionLabelData, type NutritionLabelTableCandidate } from "@/lib/nutritionLabelReader";
 import { NUTRITION_CATEGORIES, NUTRITION_CATEGORY_SECTIONS } from "@/lib/nutritionCategories";
 import nutricionCardImage from "@/assets/nutrition/sport-cards/nutricion.jpg";
 import preentrenamientoCardImage from "@/assets/nutrition/sport-cards/preentrenamiento.jpg";
@@ -70,6 +71,7 @@ type ContentForm = {
   external_url: string;
   label_file_url: string;
   spoon_image_url: string;
+  nutrition_label: NutritionLabelData | null;
   sections: ManagedSection[];
   visible: boolean;
 };
@@ -99,6 +101,7 @@ const emptyContent: ContentForm = {
   external_url: "",
   label_file_url: "",
   spoon_image_url: "",
+  nutrition_label: null,
   sections: [],
   visible: true,
 };
@@ -122,6 +125,7 @@ function contentHasDraft(form: ContentForm) {
     || form.external_url.trim()
     || form.label_file_url
     || form.spoon_image_url
+    || form.nutrition_label
     || form.sections.length
   );
 }
@@ -138,6 +142,22 @@ function uploadedFileLabel(url: string, kind: "Vídeo" | "PDF", index: number) {
   } catch {
     return `${kind} ${index + 1}`;
   }
+}
+
+function labelFileName(url: string) {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() || "etiqueta");
+  } catch {
+    return "etiqueta";
+  }
+}
+
+function labelMimeType(url: string) {
+  const cleanUrl = url.toLowerCase().split("?")[0];
+  if (cleanUrl.endsWith(".pdf")) return "application/pdf";
+  if (cleanUrl.endsWith(".png")) return "image/png";
+  if (cleanUrl.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
 }
 
 const categoryImages: Record<string, string> = {
@@ -239,6 +259,7 @@ function buildBlocks(form: ContentForm) {
   addSection("Observaciones", form.observations);
   addSection("Texto libre", form.free_text);
   if (form.label_file_url) blocks.push({ type: "official_label", url: form.label_file_url });
+  if (form.nutrition_label) blocks.push({ type: "nutrition_label", data: form.nutrition_label });
   if (form.spoon_image_url) blocks.push({ type: "official_spoon", url: form.spoon_image_url });
   form.gallery.forEach((url) => url && blocks.push({ type: "image", url }));
   form.video_urls.forEach((url) => url && blocks.push({ type: "video", url }));
@@ -296,6 +317,7 @@ function formFromItem(item: any): ContentForm {
     if (block?.type === "pdf" && block.url) next.pdf_urls.push(block.url);
     if (block?.type === "link" && block.url) next.external_url = block.url;
     if (block?.type === "official_label" && block.url) next.label_file_url = block.url;
+    if (block?.type === "nutrition_label" && block.data && typeof block.data === "object") next.nutrition_label = block.data;
     if (block?.type === "official_spoon" && block.url) next.spoon_image_url = block.url;
     if (block?.type === "section") {
       next.sections.push({
@@ -346,6 +368,8 @@ export default function AdminNutrition() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [draftRecovered, setDraftRecovered] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [readingLabel, setReadingLabel] = useState(false);
+  const [nutritionTableCandidates, setNutritionTableCandidates] = useState<NutritionLabelTableCandidate[]>([]);
 
   const loadCategories = async () => {
     const { data, error } = await (supabase as any)
@@ -709,12 +733,50 @@ export default function AdminNutrition() {
     try {
       setBusy(true);
       const url = await uploadOfficialProductMedia(file, folder);
-      setContentForm((current) => ({ ...current, [key]: url }));
+      if (key === "label_file_url") setNutritionTableCandidates([]);
+      setContentForm((current) => ({ ...current, [key]: url, ...(key === "label_file_url" ? { nutrition_label: null } : {}) }));
       toast.success("Archivo subido. Guarda los cambios para publicarlo.");
     } catch (error: any) {
       toast.error(error?.message || "No se pudo subir el archivo");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const applyNutritionLabel = (data: NutritionLabelData) => {
+    setContentForm((current) => ({
+      ...current,
+      description: typeof data.description === "string" && data.description.trim() ? data.description : current.description,
+      ingredients: typeof data.ingredients_text === "string" && data.ingredients_text.trim() ? data.ingredients_text : current.ingredients,
+      nutrition_label: data,
+    }));
+    setNutritionTableCandidates([]);
+  };
+
+  const readSavedNutritionLabel = async () => {
+    if (!contentForm.label_file_url) {
+      toast.error("Primero sube la etiqueta oficial del producto");
+      return;
+    }
+    try {
+      setReadingLabel(true);
+      const payload = await readNutritionLabel(
+        labelFileName(contentForm.label_file_url),
+        labelMimeType(contentForm.label_file_url),
+        contentForm.label_file_url,
+      );
+      const candidates = Array.isArray(payload.nutrition_tables) ? payload.nutrition_tables : [];
+      if (payload.requires_admin_selection && candidates.length > 1) {
+        setNutritionTableCandidates(candidates);
+        toast.message("Se han detectado varias tablas. Elige cuál corresponde al producto.");
+        return;
+      }
+      applyNutritionLabel(payload);
+      toast.success("Etiqueta nutricional leída. Revisa los datos y pulsa Publicar para guardarlos.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo leer la etiqueta nutricional");
+    } finally {
+      setReadingLabel(false);
     }
   };
 
@@ -944,7 +1006,10 @@ export default function AdminNutrition() {
                       <div className="space-y-2 mb-2">
                         <div className="flex items-center gap-2 text-sm font-medium leading-tight"><FileText className="h-4 w-4" />Etiqueta nutricional oficial</div>
                         {contentForm.label_file_url && (
-                          <button type="button" className="btn-primary admin-product-clear-button" onClick={() => setContentForm((current) => ({ ...current, label_file_url: "" }))}>
+                          <button type="button" className="btn-primary admin-product-clear-button" onClick={() => {
+                            setNutritionTableCandidates([]);
+                            setContentForm((current) => ({ ...current, label_file_url: "", nutrition_label: null }));
+                          }}>
                             <Trash2 className="h-3.5 w-3.5" /> Eliminar etiqueta
                           </button>
                         )}
@@ -967,6 +1032,34 @@ export default function AdminNutrition() {
                         </label>
                         <input className="field flex-1" placeholder="O pegar URL" value={contentForm.label_file_url} onChange={(event) => setContentForm((current) => ({ ...current, label_file_url: event.target.value }))} />
                       </div>
+                      {contentForm.label_file_url && (
+                        <button type="button" className="btn-primary mt-2" disabled={readingLabel} onClick={readSavedNutritionLabel}>
+                          <FileText className="h-4 w-4" /> {readingLabel ? "Leyendo…" : "Leer etiqueta nutricional"}
+                        </button>
+                      )}
+                      {nutritionTableCandidates.length > 1 && (
+                        <div className="mt-3 rounded-2xl border border-primary/30 bg-white/90 p-3">
+                          <p className="font-medium text-sm">Hemos encontrado varias tablas nutricionales</p>
+                          <p className="mt-1 text-xs muted">Elige la tabla que corresponde a este producto antes de rellenar los datos.</p>
+                          <div className="mt-3 grid gap-2">
+                            {nutritionTableCandidates.map((candidate, index) => (
+                              <button
+                                key={candidate.id || index}
+                                type="button"
+                                className="rounded-xl border border-primary/25 bg-white p-3 text-left hover:border-primary"
+                                onClick={() => {
+                                  applyNutritionLabel(candidate.data);
+                                  toast.success(`${candidate.title || `Tabla ${index + 1}`} aplicada. Pulsa Publicar para guardarla.`);
+                                }}
+                              >
+                                <span className="block text-xs font-bold uppercase tracking-wide text-primary">Tabla {index + 1}</span>
+                                <span className="block font-medium">{candidate.title || `Tabla ${index + 1}`}</span>
+                                {candidate.context && <span className="block text-xs muted mt-1">{candidate.context}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="rounded-[22px] bg-secondary/70 p-3">

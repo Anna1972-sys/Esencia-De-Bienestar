@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import DraftBanner from "@/components/DraftBanner";
 import { supabase } from "@/integrations/supabase/client";
+import { readNutritionLabel } from "@/lib/nutritionLabelReader";
 import { roundedNutritionInputValue, selectInitialZero, stableNutritionInputValue, type AdminNumberValue } from "@/lib/adminNumberInput";
 import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Pencil, Plus, Save, Search, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
@@ -1531,20 +1532,7 @@ export default function AdminProducts() {
   };
 
   const analyzeNutritionLabelData = async (fileName: string, mimeType: string, labelUrl: string, dataUrl?: string) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const response = await fetch("/api/read-nutrition-label", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
-      },
-      body: JSON.stringify({ fileName, mimeType, dataUrl, fileUrl: labelUrl }),
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      const detail = payload?.detail ? ` · ${payload.detail}` : "";
-      throw new Error(`${payload?.error || "No se pudo leer la etiqueta"}${detail}`);
-    }
+    const payload = await readNutritionLabel(fileName, mimeType, labelUrl, dataUrl);
     if (payload?.requires_admin_selection === true) {
       const candidates = Array.isArray(payload?.nutrition_tables) ? payload.nutrition_tables : [];
       if (candidates.length < 2) throw new Error("No se pudieron separar las tablas nutricionales de la etiqueta");
