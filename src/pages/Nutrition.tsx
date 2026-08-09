@@ -101,15 +101,6 @@ function firstTextFromBlocks(blocks: any) {
   return section?.text ?? "";
 }
 
-function hasPdfResource(item: NutritionItem) {
-  const blocks = Array.isArray(item.blocks) ? item.blocks : [];
-  return Boolean(
-    blocks.some((block) => block?.type === "pdf" && block.url) ||
-    (item as any).pdf_url ||
-    (item as any).pdf
-  );
-}
-
 function itemMatchesCategory(item: NutritionItem, category: NutritionCategory) {
   const itemCategoryId = item.category_id ? String(item.category_id) : "";
   const itemCategory = normalizeKey(item.category);
@@ -273,7 +264,6 @@ export default function Nutrition() {
               {visibleItems.map((item) => {
                 const cover = item.cover_image || item.cover_image_url || item.image_url || firstMediaFromBlocks(item.blocks);
                 const title = itemTitle(item);
-                const hasPdf = hasPdfResource(item);
 
                 return (
                   <Link
@@ -292,12 +282,6 @@ export default function Nutrition() {
                     )}
                     <div className="nutrition-publication-summary">
                       <div className="font-medium leading-tight">{title}</div>
-                      {hasPdf && (
-                        <div className="nutrition-publication-pdf">
-                          <FileText className="h-3.5 w-3.5" />
-                          PDF
-                        </div>
-                      )}
                       <span className="btn-secondary nutrition-publication-button">Ver contenido</span>
                     </div>
                   </Link>
