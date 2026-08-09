@@ -29,7 +29,6 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
   const { id } = useParams();
   const [it, setIt] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [spoonOpen, setSpoonOpen] = useState(false);
   const [openNutritionSections, setOpenNutritionSections] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -93,17 +92,14 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         .filter(Boolean) as ContentBlock[]
     : blocks;
   const officialLabelUrl = table === "nutrition_items"
-    ? String(blocks.find((block: any) => block?.type === "official_label")?.url ?? "")
-    : "";
-  const officialSpoonUrl = table === "nutrition_items"
-    ? String(blocks.find((block: any) => block?.type === "official_spoon")?.url ?? "")
+    ? String((blocks.find((block: any) => block?.type === "official_label") as any)?.url ?? "")
     : "";
   const attachmentBlocks = blocks.filter((b: any) =>
     ["image", "video", "pdf", "link", "button"].includes(b?.type) && (b.url || b.label)
   );
   const textBlocks = blocks.filter((b: any) => !["image", "video", "pdf", "link", "button"].includes(b?.type));
   const orderedBlocks = table === "nutrition_items"
-    ? nutritionBlocks.filter((block: any) => !["official_label", "official_spoon"].includes(block?.type))
+    ? nutritionBlocks.filter((block: any) => block?.type !== "official_label")
     : textBlocks;
   const description = it.description || it.subtitle || "";
   const title = it.title || it.name || it.label || it.subtitle || "Contenido";
@@ -128,7 +124,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
     return <ExternalLink className="h-4 w-4" />;
   };
 
-  const renderBlock = (b: any, i: number) => {
+  const renderBlock = (b: any, i: number, insideAccordion = false) => {
     if (b.type === "title") return <h2 key={i} className="heading-md mt-2">{b.value}</h2>;
     if (b.type === "subtitle") return <h3 key={i} className="font-serif text-lg" style={{ color: "hsl(var(--plum))" }}>{b.value}</h3>;
     if (b.type === "text")
@@ -148,7 +144,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
       ].filter(([, value]) => value !== null && value !== undefined && value !== "");
       return (
         <section key={i} className="card-soft p-4 space-y-3">
-          <h2 className="font-serif text-xl">Información nutricional</h2>
+          {!insideAccordion && <h2 className="font-serif text-xl">Información nutricional</h2>}
           {data.serving_size && <p className="text-sm muted">Por {String(data.serving_size)}</p>}
           {values.length > 0 && (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -161,6 +157,27 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
             </div>
           )}
         </section>
+      );
+    }
+    if (b.type === "official_spoon") {
+      if (!b.url) return null;
+      const spoonUrl = String(b.url);
+      return (
+        <div key={i}>
+          <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
+            <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
+            <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
+          </div>
+          <a href={mediaUrl(spoonUrl)} target="_blank" rel="noreferrer" className="block">
+            {spoonUrl.toLowerCase().split("?")[0].endsWith(".pdf") ? (
+              <span className="btn-secondary w-full justify-center">
+                <FileText className="h-4 w-4" /> Abrir documento de la cuchara oficial
+              </span>
+            ) : (
+              <img src={mediaUrl(spoonUrl)} alt="Equivalencia cuchara Herbalife" className="w-full max-h-[60vh] object-contain rounded-2xl" />
+            )}
+          </a>
+        </div>
       );
     }
     if (b.type === "image")
@@ -225,7 +242,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
       const hasMedia = b.image_url || b.video_url || b.pdf_url || b.external_url;
       return (
         <section key={i} className="card-soft p-5 space-y-4">
-          {b.title && <h2 className="heading-md">{b.title}</h2>}
+          {!insideAccordion && b.title && <h2 className="heading-md">{b.title}</h2>}
           {b.text && <p className="whitespace-pre-wrap leading-relaxed">{b.text}</p>}
           {b.image_url && <img src={mediaUrl(b.image_url)} alt={b.title ?? ""} className="w-full rounded-xl" />}
           {b.video_url && (
@@ -280,9 +297,17 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         nutritionDisplayGroups.push({ id: `nutrition-${index}`, title: "Información nutricional", entries: [{ block, index }] });
         continue;
       }
+      if (block?.type === "official_spoon") {
+        nutritionDisplayGroups.push({ id: `spoon-${index}`, title: "Cuchara oficial Herbalife", entries: [{ block, index }] });
+        continue;
+      }
       if (block?.type === "image") {
         imageNumber += 1;
         nutritionDisplayGroups.push({ id: `image-${index}`, title: `Imagen ${imageNumber}`, entries: [{ block, index }] });
+        continue;
+      }
+      if (block?.type === "pdf" && String(block.name ?? "").toLowerCase() === "beneficios") {
+        nutritionDisplayGroups.push({ id: `benefits-pdf-${index}`, title: "Beneficios", entries: [{ block, index }] });
         continue;
       }
       if (["video", "pdf", "link", "button"].includes(block?.type)) {
@@ -352,39 +377,12 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
               return (
                 <NutritionClientAccordion key={group.id} title={group.title} open={open} onToggle={() => toggleNutritionSection(group.id)}>
                   <div className="mt-3 space-y-4">
-                    {group.entries.map(({ block, index }) => renderBlock(block, index))}
+                    {group.entries.map(({ block, index }) => renderBlock(block, index, true))}
                   </div>
                 </NutritionClientAccordion>
               );
             })
-          : orderedBlocks.map(renderBlock)}
-        {officialSpoonUrl && (
-          <section className="card-soft p-4">
-            <button type="button" className="w-full flex items-center justify-between gap-3 text-left" onClick={() => setSpoonOpen((open) => !open)}>
-              <h2 className="font-serif text-xl">Cuchara oficial Herbalife</h2>
-              <span className="h-8 w-8 rounded-full border border-primary/30 grid place-items-center text-primary font-semibold">
-                {spoonOpen ? "−" : "+"}
-              </span>
-            </button>
-            {spoonOpen && (
-              <div className="mt-3">
-                <div className="mb-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
-                  <MousePointerClick className="h-4 w-4 text-primary shrink-0" />
-                  <span>Pulsa aquí para comprobar la medida de la cuchara oficial.</span>
-                </div>
-                <a href={mediaUrl(officialSpoonUrl)} target="_blank" rel="noreferrer" className="block">
-                  {officialSpoonUrl.toLowerCase().split("?")[0].endsWith(".pdf") ? (
-                    <span className="btn-secondary w-full justify-center">
-                      <FileText className="h-4 w-4" /> Abrir documento de la cuchara oficial
-                    </span>
-                  ) : (
-                    <img src={mediaUrl(officialSpoonUrl)} alt="Equivalencia cuchara Herbalife" className="w-full max-h-[60vh] object-contain rounded-2xl" />
-                  )}
-                </a>
-              </div>
-            )}
-          </section>
-        )}
+          : orderedBlocks.map((block, index) => renderBlock(block, index))}
         {table !== "nutrition_items" && attachmentBlocks.length > 0 && (
           <section className="card-soft p-4">
             <h2 className="font-medium text-sm flex items-center gap-2 mb-3">
@@ -411,7 +409,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
             <div className="mt-4 space-y-4">
               {attachmentBlocks
                 .filter((b: any) => b.type === "image" || b.type === "video")
-                .map(renderBlock)}
+                .map((block, index) => renderBlock(block, index))}
             </div>
           </section>
         )}

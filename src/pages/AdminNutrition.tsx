@@ -15,7 +15,7 @@ import suplementacionCardImage from "@/assets/nutrition/sport-cards/suplementaci
 import recetasCardImage from "@/assets/nutrition/sport-cards/recetas-deportivas.jpg";
 import guiasCardImage from "@/assets/nutrition/sport-cards/guias-videos.jpg";
 import protocolosCardImage from "@/assets/nutrition/sport-cards/protocolos.jpg";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileText, Image as ImageIcon, Link as LinkIcon, MousePointerClick, Pencil, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import DraftBanner from "@/components/DraftBanner";
 import ProductAccordion from "@/components/admin/ProductAccordion";
@@ -53,6 +53,53 @@ type ManagedSection = {
   external_url: string;
 };
 
+type NutritionBlockId =
+  | "description"
+  | "nutrition"
+  | "benefits"
+  | "usage"
+  | "ingredients"
+  | "observations"
+  | "free_text"
+  | "spoon_image"
+  | "custom_sections"
+  | "gallery"
+  | "videos"
+  | "pdfs"
+  | "external_urls";
+
+const DEFAULT_NUTRITION_BLOCK_ORDER: NutritionBlockId[] = [
+  "description",
+  "nutrition",
+  "benefits",
+  "usage",
+  "ingredients",
+  "observations",
+  "free_text",
+  "spoon_image",
+  "custom_sections",
+  "gallery",
+  "videos",
+  "pdfs",
+  "external_urls",
+];
+
+const NUTRITION_BLOCK_LABELS: Record<NutritionBlockId, string> = {
+  description: "Descripción",
+  nutrition: "Información nutricional",
+  benefits: "Beneficios",
+  usage: "Modo de uso",
+  ingredients: "Ingredientes",
+  observations: "Observaciones",
+  free_text: "Texto libre",
+  spoon_image: "Cuchara oficial Herbalife",
+  custom_sections: "Secciones personalizadas",
+  gallery: "Galería de imágenes",
+  videos: "Vídeos",
+  pdfs: "PDFs",
+  external_urls: "Enlaces/URLs",
+};
+
 type ContentForm = {
   id?: string;
   category: string;
@@ -72,10 +119,13 @@ type ContentForm = {
   video_url: string;
   pdf_url: string;
   external_url: string;
+  external_urls: string[];
   label_file_url: string;
   spoon_image_url: string;
   nutrition_label: NutritionLabelData | null;
   sections: ManagedSection[];
+  blockOrder: NutritionBlockId[];
+  sort_order: number;
   visible: boolean;
 };
 
@@ -104,12 +154,27 @@ const emptyContent: ContentForm = {
   video_url: "",
   pdf_url: "",
   external_url: "",
+  external_urls: [],
   label_file_url: "",
   spoon_image_url: "",
   nutrition_label: null,
   sections: [],
+  blockOrder: [...DEFAULT_NUTRITION_BLOCK_ORDER],
+  sort_order: 0,
   visible: true,
 };
+
+function createEmptyContent(): ContentForm {
+  return {
+    ...emptyContent,
+    gallery: [],
+    video_urls: [],
+    pdf_urls: [],
+    external_urls: [],
+    sections: [],
+    blockOrder: [...DEFAULT_NUTRITION_BLOCK_ORDER],
+  };
+}
 
 function contentHasDraft(form: ContentForm) {
   return Boolean(
@@ -129,11 +194,31 @@ function contentHasDraft(form: ContentForm) {
     || form.video_url.trim()
     || form.pdf_url.trim()
     || form.external_url.trim()
+    || form.external_urls.length
     || form.label_file_url
     || form.spoon_image_url
     || form.nutrition_label
     || form.sections.length
+    || form.sort_order !== 0
+    || form.blockOrder.some((blockId, index) => blockId !== DEFAULT_NUTRITION_BLOCK_ORDER[index])
   );
+}
+
+function normalizeNutritionBlockOrder(order: unknown): NutritionBlockId[] {
+  const validIds = new Set(DEFAULT_NUTRITION_BLOCK_ORDER);
+  const saved = Array.isArray(order)
+    ? order.filter((id): id is NutritionBlockId => typeof id === "string" && validIds.has(id as NutritionBlockId))
+    : [];
+  return [...saved, ...DEFAULT_NUTRITION_BLOCK_ORDER.filter((id) => !saved.includes(id))];
+}
+
+function moveNutritionBlock(order: NutritionBlockId[], blockId: NutritionBlockId, direction: -1 | 1) {
+  const index = order.indexOf(blockId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= order.length) return order;
+  const next = [...order];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
 }
 
 function uploadedFileLabel(url: string, kind: "Vídeo" | "PDF", index: number) {
@@ -251,30 +336,12 @@ async function uploadOfficialProductMedia(file: File, folder: "labels" | "spoon"
 }
 
 function buildBlocks(form: ContentForm) {
-  const blocks: any[] = [];
-  const addSection = (title: string, value: string) => {
-    if (!value.trim()) return;
-    blocks.push({ type: "title", value: title });
-    blocks.push({ type: "text", value: value.trim() });
+  const sectionBlocks = (title: string, value: string) => {
+    if (!value.trim()) return [];
+    return [{ type: "title", value: title }, { type: "text", value: value.trim() }];
   };
 
-  addSection("Descripción", form.description);
-  addSection("Beneficios", form.benefits);
-  if (form.benefits_pdf_url) blocks.push({ type: "pdf", url: form.benefits_pdf_url, name: "Beneficios" });
-  addSection("Modo de uso", form.usage);
-  addSection("Ingredientes", form.ingredients);
-  addSection("Observaciones", form.observations);
-  addSection("Texto libre", form.free_text);
-  if (form.label_file_url) blocks.push({ type: "official_label", url: form.label_file_url });
-  if (form.nutrition_label) blocks.push({ type: "nutrition_label", data: form.nutrition_label });
-  if (form.spoon_image_url) blocks.push({ type: "official_spoon", url: form.spoon_image_url });
-  form.gallery.forEach((url) => url && blocks.push({ type: "image", url }));
-  form.video_urls.forEach((url) => url && blocks.push({ type: "video", url }));
-  form.pdf_urls.forEach((url) => url && blocks.push({ type: "pdf", url, name: "Documento" }));
-  if (form.video_url.trim()) blocks.push({ type: "video", url: form.video_url.trim() });
-  if (form.pdf_url.trim()) blocks.push({ type: "pdf", url: form.pdf_url.trim(), name: "Documento" });
-  if (form.external_url.trim()) blocks.push({ type: "link", label: "Enlace externo", url: form.external_url.trim() });
-  form.sections.forEach((section) => {
+  const customSectionBlocks = form.sections.flatMap((section) => {
     const hasContent = [
       section.title,
       section.text,
@@ -283,8 +350,8 @@ function buildBlocks(form: ContentForm) {
       section.pdf_url,
       section.external_url,
     ].some((value) => value.trim());
-    if (!hasContent) return;
-    blocks.push({
+    if (!hasContent) return [];
+    return [{
       type: "section",
       id: section.id,
       title: section.title.trim(),
@@ -293,44 +360,75 @@ function buildBlocks(form: ContentForm) {
       video_url: section.video_url.trim(),
       pdf_url: section.pdf_url.trim(),
       external_url: section.external_url.trim(),
-    });
+    }];
   });
+
+  const pendingVideo = form.video_url.trim();
+  const pendingPdf = form.pdf_url.trim();
+  const allExternalUrls = [...form.external_urls, form.external_url.trim()].filter((url, index, urls) => url && urls.indexOf(url) === index);
+  const groups: Record<NutritionBlockId, any[]> = {
+    description: sectionBlocks("Descripción", form.description),
+    nutrition: form.nutrition_label ? [{ type: "nutrition_label", data: form.nutrition_label }] : [],
+    benefits: [
+      ...sectionBlocks("Beneficios", form.benefits),
+      ...(form.benefits_pdf_url ? [{ type: "pdf", url: form.benefits_pdf_url, name: "Beneficios" }] : []),
+    ],
+    usage: sectionBlocks("Modo de uso", form.usage),
+    ingredients: sectionBlocks("Ingredientes", form.ingredients),
+    observations: sectionBlocks("Observaciones", form.observations),
+    free_text: sectionBlocks("Texto libre", form.free_text),
+    spoon_image: form.spoon_image_url ? [{ type: "official_spoon", url: form.spoon_image_url }] : [],
+    custom_sections: customSectionBlocks,
+    gallery: form.gallery.filter(Boolean).map((url) => ({ type: "image", url })),
+    videos: [...form.video_urls, ...(pendingVideo ? [pendingVideo] : [])].filter(Boolean).map((url) => ({ type: "video", url })),
+    pdfs: [...form.pdf_urls, ...(pendingPdf ? [pendingPdf] : [])].filter(Boolean).map((url) => ({ type: "pdf", url, name: "Documento" })),
+    external_urls: allExternalUrls.map((url, index) => ({ type: "link", label: `Enlace externo ${index + 1}`, url })),
+  };
+
+  const blocks: any[] = form.label_file_url ? [{ type: "official_label", url: form.label_file_url }] : [];
+  normalizeNutritionBlockOrder(form.blockOrder).forEach((blockId) => blocks.push(...groups[blockId]));
   return blocks;
 }
 
 function formFromItem(item: any): ContentForm {
-  const next = { ...emptyContent };
+  const next = createEmptyContent();
   next.id = item.id;
   next.category = item.category ?? "";
   next.title = item.title ?? item.name ?? item.label ?? "";
   next.subtitle = item.subtitle ?? "";
   next.cover_image = item.cover_image ?? item.cover_image_url ?? item.image_url ?? "";
   next.visible = item.visible !== false;
+  next.sort_order = Number(item.sort_order) || 0;
 
   const blocks = Array.isArray(item.blocks) ? item.blocks : [];
+  const detectedOrder: NutritionBlockId[] = [];
+  const markOrder = (blockId: NutritionBlockId) => {
+    if (!detectedOrder.includes(blockId)) detectedOrder.push(blockId);
+  };
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i];
     const following = blocks[i + 1];
     if (block?.type === "title" && following?.type === "text") {
       const title = String(block.value ?? "").toLowerCase();
-      if (title.includes("descripción")) next.description = following.value ?? "";
-      else if (title.includes("beneficios")) next.benefits = following.value ?? "";
-      else if (title.includes("modo")) next.usage = following.value ?? "";
-      else if (title.includes("ingredientes")) next.ingredients = following.value ?? "";
-      else if (title.includes("observaciones")) next.observations = following.value ?? "";
-      else if (title.includes("texto")) next.free_text = following.value ?? "";
+      if (title.includes("descripción")) { next.description = following.value ?? ""; markOrder("description"); }
+      else if (title.includes("beneficios")) { next.benefits = following.value ?? ""; markOrder("benefits"); }
+      else if (title.includes("modo")) { next.usage = following.value ?? ""; markOrder("usage"); }
+      else if (title.includes("ingredientes")) { next.ingredients = following.value ?? ""; markOrder("ingredients"); }
+      else if (title.includes("observaciones")) { next.observations = following.value ?? ""; markOrder("observations"); }
+      else if (title.includes("texto")) { next.free_text = following.value ?? ""; markOrder("free_text"); }
     }
-    if (block?.type === "image" && block.url) next.gallery.push(block.url);
-    if (block?.type === "video" && block.url) next.video_urls.push(block.url);
+    if (block?.type === "image" && block.url) { next.gallery.push(block.url); markOrder("gallery"); }
+    if (block?.type === "video" && block.url) { next.video_urls.push(block.url); markOrder("videos"); }
     if (block?.type === "pdf" && block.url) {
-      if (String(block.name ?? "").toLowerCase() === "beneficios") next.benefits_pdf_url = block.url;
-      else next.pdf_urls.push(block.url);
+      if (String(block.name ?? "").toLowerCase() === "beneficios") { next.benefits_pdf_url = block.url; markOrder("benefits"); }
+      else { next.pdf_urls.push(block.url); markOrder("pdfs"); }
     }
-    if (block?.type === "link" && block.url) next.external_url = block.url;
+    if (block?.type === "link" && block.url) { next.external_urls.push(block.url); markOrder("external_urls"); }
     if (block?.type === "official_label" && block.url) next.label_file_url = block.url;
-    if (block?.type === "nutrition_label" && block.data && typeof block.data === "object") next.nutrition_label = block.data;
-    if (block?.type === "official_spoon" && block.url) next.spoon_image_url = block.url;
+    if (block?.type === "nutrition_label" && block.data && typeof block.data === "object") { next.nutrition_label = block.data; markOrder("nutrition"); }
+    if (block?.type === "official_spoon" && block.url) { next.spoon_image_url = block.url; markOrder("spoon_image"); }
     if (block?.type === "section") {
+      markOrder("custom_sections");
       next.sections.push({
         id: block.id || `section-${Date.now()}-${i}`,
         title: block.title ?? "",
@@ -342,6 +440,7 @@ function formFromItem(item: any): ContentForm {
       });
     }
   }
+  next.blockOrder = normalizeNutritionBlockOrder(detectedOrder);
   return next;
 }
 
@@ -374,7 +473,7 @@ export default function AdminNutrition() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
-  const [contentForm, setContentForm] = useState<ContentForm>(emptyContent);
+  const [contentForm, setContentForm] = useState<ContentForm>(() => createEmptyContent());
   const [contentFormOpen, setContentFormOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [openEditorBlocks, setOpenEditorBlocks] = useState<Set<string>>(() => new Set());
@@ -574,20 +673,26 @@ export default function AdminNutrition() {
         window.localStorage.removeItem(nutritionDraftKey(category));
         return null;
       }
-      return { ...emptyContent, ...saved.form, id: undefined } as ContentForm;
+      return {
+        ...createEmptyContent(),
+        ...saved.form,
+        external_urls: Array.isArray(saved.form.external_urls) ? saved.form.external_urls : [],
+        blockOrder: normalizeNutritionBlockOrder(saved.form.blockOrder),
+        id: undefined,
+      } as ContentForm;
     } catch {
       return null;
     }
   };
 
   const resetContent = () => {
-    setContentForm(emptyContent);
+    setContentForm(createEmptyContent());
     setDraftRecovered(false);
   };
 
   const openNewContent = (category: string) => {
     const draft = readContentDraft(category);
-    setContentForm({ ...(draft ?? emptyContent), category: draft?.category || category });
+    setContentForm({ ...(draft ?? createEmptyContent()), category: draft?.category || category });
     setDraftRecovered(Boolean(draft));
     setOpenEditorBlocks(new Set());
     setContentFormOpen(true);
@@ -598,7 +703,7 @@ export default function AdminNutrition() {
     setActiveCategory(shouldOpen ? key : null);
     if (shouldOpen) {
       const draft = readContentDraft(key);
-      setContentForm({ ...(draft ?? emptyContent), category: draft?.category || key });
+      setContentForm({ ...(draft ?? createEmptyContent()), category: draft?.category || key });
       setDraftRecovered(Boolean(draft));
       setContentFormOpen(Boolean(draft));
     } else {
@@ -691,6 +796,9 @@ export default function AdminNutrition() {
     event.preventDefault();
     if (!activeCategory || !contentForm.title.trim()) return;
     const targetCategory = contentForm.category || activeCategory;
+    const nextCategoryOrder = items
+      .filter((item) => itemBelongsToCategory(item, categories.find((category) => category.key === targetCategory)))
+      .reduce((highest, item) => Math.max(highest, Number(item.sort_order) || 0), 0) + 10;
     setBusy(true);
     const payload: any = {
       title: contentForm.title.trim(),
@@ -700,7 +808,7 @@ export default function AdminNutrition() {
       blocks: buildBlocks(contentForm),
       visible: contentForm.visible,
       tags: [],
-      sort_order: 0,
+      sort_order: contentForm.id ? contentForm.sort_order : (contentForm.sort_order || nextCategoryOrder),
     };
     const result = contentForm.id
       ? await (supabase as any).from("nutrition_items").update(payload).eq("id", contentForm.id)
@@ -905,7 +1013,7 @@ export default function AdminNutrition() {
                         className="admin-nutrition-category-action"
                         onClick={() => {
                           setActiveCategory(null);
-                          setContentForm(emptyContent);
+                          setContentForm(createEmptyContent());
                           setContentFormOpen(false);
                         }}
                       >
@@ -995,7 +1103,7 @@ export default function AdminNutrition() {
                     <DraftBanner
                       onDiscard={() => {
                         clearContentDraft();
-                        setContentForm(emptyContent);
+                        setContentForm(createEmptyContent());
                       }}
                     />
                   )}
@@ -1060,6 +1168,18 @@ export default function AdminNutrition() {
                         ))}
                       </select>
                       <p className="text-[11px] muted mt-1">Cambia esta opción para mover el producto sin perder su contenido.</p>
+                    </label>
+                    <label className="block">
+                      <span className="text-xs muted">Orden dentro de la categoría</span>
+                      <input
+                        className="field mt-1"
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={contentForm.sort_order}
+                        onChange={(event) => setContentForm((current) => ({ ...current, sort_order: Number(event.target.value) || 0 }))}
+                      />
+                      <p className="text-[11px] muted mt-1">Los números más bajos aparecen primero.</p>
                     </label>
                     </div>
                     </ProductAccordion>
@@ -1195,6 +1315,50 @@ export default function AdminNutrition() {
                       <p className="mt-3 rounded-2xl border border-primary bg-white/90 p-3 text-sm font-medium text-foreground flex items-center gap-2">
                         Pulsa aquí para comprobar la medida de la cuchara oficial.
                       </p>
+                    </div>
+                    </ProductAccordion>
+                    <ProductAccordion title="Orden visual de la ficha" {...editorAccordionProps("Orden visual de la ficha")}>
+                    <div>
+                      <div className="flex items-start gap-2 mb-3">
+                        <MousePointerClick className="h-4 w-4 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <h3 className="font-serif text-xl leading-none">Orden visual de la ficha</h3>
+                          <p className="text-xs muted mt-1">Mueve cada apartado para decidir en qué orden lo verá el cliente.</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-primary text-xs py-2"
+                          onClick={() => setContentForm((current) => ({ ...current, blockOrder: [...DEFAULT_NUTRITION_BLOCK_ORDER] }))}
+                        >
+                          Restablecer
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {contentForm.blockOrder.map((blockId, index) => (
+                          <div key={blockId} className="rounded-2xl bg-white/90 border border-primary/20 p-2 flex items-center gap-2">
+                            <span className="admin-product-order-index h-7 w-7 rounded-full text-xs font-bold grid place-items-center">{index + 1}</span>
+                            <span className="text-sm font-medium flex-1">{NUTRITION_BLOCK_LABELS[blockId]}</span>
+                            <button
+                              type="button"
+                              className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35"
+                              disabled={index === 0}
+                              onClick={() => setContentForm((current) => ({ ...current, blockOrder: moveNutritionBlock(current.blockOrder, blockId, -1) }))}
+                              aria-label={`Subir ${NUTRITION_BLOCK_LABELS[blockId]}`}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-product-order-button p-2 rounded-xl border disabled:opacity-35"
+                              disabled={index === contentForm.blockOrder.length - 1}
+                              onClick={() => setContentForm((current) => ({ ...current, blockOrder: moveNutritionBlock(current.blockOrder, blockId, 1) }))}
+                              aria-label={`Bajar ${NUTRITION_BLOCK_LABELS[blockId]}`}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     </ProductAccordion>
                     <ProductAccordion title="Descripción" {...editorAccordionProps("Descripción")}>
@@ -1557,19 +1721,47 @@ export default function AdminNutrition() {
                     <ProductAccordion title="Enlaces/URLs" {...editorAccordionProps("Enlaces/URLs")}>
                     <div className="space-y-2">
                     <label className="block">
-                      <span className="text-xs muted">Enlace externo</span>
-                      <div className="relative mt-1">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 muted" />
-                        <input className="field pl-9" placeholder="Enlace externo" value={contentForm.external_url} onChange={(event) => setContentForm({ ...contentForm, external_url: event.target.value })} />
+                      <span className="text-xs muted">Añadir enlace externo</span>
+                      <div className="flex gap-2 mt-1">
+                        <div className="relative flex-1">
+                          <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 muted" />
+                          <input className="field pl-9" placeholder="https://..." value={contentForm.external_url} onChange={(event) => setContentForm({ ...contentForm, external_url: event.target.value })} />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-secondary shrink-0"
+                          disabled={!contentForm.external_url.trim()}
+                          onClick={() => setContentForm((current) => ({
+                            ...current,
+                            external_urls: [...current.external_urls, current.external_url.trim()],
+                            external_url: "",
+                          }))}
+                        >
+                          <Plus className="h-4 w-4" /> Añadir
+                        </button>
                       </div>
                     </label>
+                    {contentForm.external_urls.map((url, index) => (
+                      <div key={`${url}-${index}`} className="rounded-xl border border-primary/30 bg-white p-2 flex items-center gap-2 text-xs">
+                        <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="truncate flex-1 font-medium">{url}</span>
+                        <button
+                          type="button"
+                          className="admin-nutrition-delete-icon"
+                          aria-label="Borrar enlace"
+                          onClick={() => setContentForm((current) => ({ ...current, external_urls: current.external_urls.filter((_, itemIndex) => itemIndex !== index) }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
                     <button
                       type="button"
                       className="admin-nutrition-delete-button w-max"
-                      disabled={!contentForm.external_url}
-                      onClick={() => setContentForm((current) => ({ ...current, external_url: "" }))}
+                      disabled={!contentForm.external_url && contentForm.external_urls.length === 0}
+                      onClick={() => setContentForm((current) => ({ ...current, external_url: "", external_urls: [] }))}
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Borrar enlace
+                      <Trash2 className="h-3.5 w-3.5" /> Borrar enlaces
                     </button>
                     </div>
                     </ProductAccordion>
