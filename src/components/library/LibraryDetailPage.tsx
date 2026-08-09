@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileText, ExternalLink, Image as ImageIcon, MousePointerClick, Video } from "lucide-react";
@@ -30,6 +30,7 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
   const [it, setIt] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [spoonOpen, setSpoonOpen] = useState(false);
+  const [openNutritionSections, setOpenNutritionSections] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!id) return;
@@ -258,6 +259,64 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
     return null;
   };
 
+  const nutritionDisplayGroups: Array<{ id: string; title: string; entries: Array<{ block: any; index: number }> }> = [];
+  if (table === "nutrition_items") {
+    let imageNumber = 0;
+    for (let index = 0; index < orderedBlocks.length; index += 1) {
+      const block: any = orderedBlocks[index];
+      const next: any = orderedBlocks[index + 1];
+      if (block?.type === "title" && next?.type === "text") {
+        const entries = [{ block: next, index: index + 1 }];
+        const possiblePdf: any = orderedBlocks[index + 2];
+        if (possiblePdf?.type === "pdf" && String(possiblePdf.name ?? "").toLowerCase() === String(block.value ?? "").toLowerCase()) {
+          entries.push({ block: possiblePdf, index: index + 2 });
+          index += 1;
+        }
+        nutritionDisplayGroups.push({ id: `text-${index}`, title: String(block.value || "Información"), entries });
+        index += 1;
+        continue;
+      }
+      if (block?.type === "nutrition_label") {
+        nutritionDisplayGroups.push({ id: `nutrition-${index}`, title: "Información nutricional", entries: [{ block, index }] });
+        continue;
+      }
+      if (block?.type === "image") {
+        imageNumber += 1;
+        nutritionDisplayGroups.push({ id: `image-${index}`, title: `Imagen ${imageNumber}`, entries: [{ block, index }] });
+        continue;
+      }
+      if (["video", "pdf", "link", "button"].includes(block?.type)) {
+        const type = block.type;
+        const entries = [{ block, index }];
+        while (orderedBlocks[index + 1]?.type === type) {
+          index += 1;
+          entries.push({ block: orderedBlocks[index], index });
+        }
+        const title = type === "video" ? "Vídeos" : type === "pdf" ? "PDFs" : "Enlaces externos";
+        nutritionDisplayGroups.push({ id: `${type}-${index}`, title, entries });
+        continue;
+      }
+      if (block?.type === "section") {
+        nutritionDisplayGroups.push({
+          id: `section-${block.id || index}`,
+          title: String(block.title || `Sección ${nutritionDisplayGroups.length + 1}`),
+          entries: [{ block, index }],
+        });
+        continue;
+      }
+      nutritionDisplayGroups.push({ id: `content-${index}`, title: "Información", entries: [{ block, index }] });
+    }
+  }
+
+  const toggleNutritionSection = (id: string) => {
+    setOpenNutritionSections((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <article className={`pb-8 ${table === "nutrition_items" ? "nutrition-detail-page" : ""}`}>
       <BackButton fallbackTo={basePath} className="text-sm muted inline-flex items-center gap-1 mb-3">
@@ -287,7 +346,18 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
       {description && <p className="mb-5 leading-relaxed muted">{description}</p>}
 
       <div className="space-y-4">
-        {orderedBlocks.map(renderBlock)}
+        {table === "nutrition_items"
+          ? nutritionDisplayGroups.map((group) => {
+              const open = openNutritionSections.has(group.id);
+              return (
+                <NutritionClientAccordion key={group.id} title={group.title} open={open} onToggle={() => toggleNutritionSection(group.id)}>
+                  <div className="mt-3 space-y-4">
+                    {group.entries.map(({ block, index }) => renderBlock(block, index))}
+                  </div>
+                </NutritionClientAccordion>
+              );
+            })
+          : orderedBlocks.map(renderBlock)}
         {officialSpoonUrl && (
           <section className="card-soft p-4">
             <button type="button" className="w-full flex items-center justify-between gap-3 text-left" onClick={() => setSpoonOpen((open) => !open)}>
@@ -350,5 +420,29 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         )}
       </div>
     </article>
+  );
+}
+
+function NutritionClientAccordion({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="card-soft p-4">
+      <button type="button" className="w-full flex items-center justify-between gap-3 text-left" onClick={onToggle} aria-expanded={open}>
+        <h2 className="font-serif text-xl">{title}</h2>
+        <span className="h-8 w-8 rounded-full border border-primary/30 grid place-items-center text-primary font-semibold" aria-hidden="true">
+          {open ? "−" : "+"}
+        </span>
+      </button>
+      {open && children}
+    </section>
   );
 }
