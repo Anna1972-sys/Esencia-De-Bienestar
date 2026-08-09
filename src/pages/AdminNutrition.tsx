@@ -61,6 +61,7 @@ type ContentForm = {
   cover_image: string;
   description: string;
   benefits: string;
+  benefits_pdf_url: string;
   usage: string;
   ingredients: string;
   observations: string;
@@ -92,6 +93,7 @@ const emptyContent: ContentForm = {
   cover_image: "",
   description: "",
   benefits: "",
+  benefits_pdf_url: "",
   usage: "",
   ingredients: "",
   observations: "",
@@ -116,6 +118,7 @@ function contentHasDraft(form: ContentForm) {
     || form.cover_image
     || form.description.trim()
     || form.benefits.trim()
+    || form.benefits_pdf_url
     || form.usage.trim()
     || form.ingredients.trim()
     || form.observations.trim()
@@ -257,6 +260,7 @@ function buildBlocks(form: ContentForm) {
 
   addSection("Descripción", form.description);
   addSection("Beneficios", form.benefits);
+  if (form.benefits_pdf_url) blocks.push({ type: "pdf", url: form.benefits_pdf_url, name: "Beneficios" });
   addSection("Modo de uso", form.usage);
   addSection("Ingredientes", form.ingredients);
   addSection("Observaciones", form.observations);
@@ -318,7 +322,10 @@ function formFromItem(item: any): ContentForm {
     }
     if (block?.type === "image" && block.url) next.gallery.push(block.url);
     if (block?.type === "video" && block.url) next.video_urls.push(block.url);
-    if (block?.type === "pdf" && block.url) next.pdf_urls.push(block.url);
+    if (block?.type === "pdf" && block.url) {
+      if (String(block.name ?? "").toLowerCase() === "beneficios") next.benefits_pdf_url = block.url;
+      else next.pdf_urls.push(block.url);
+    }
     if (block?.type === "link" && block.url) next.external_url = block.url;
     if (block?.type === "official_label" && block.url) next.label_file_url = block.url;
     if (block?.type === "nutrition_label" && block.data && typeof block.data === "object") next.nutrition_label = block.data;
@@ -1116,6 +1123,40 @@ export default function AdminNutrition() {
                           </div>
                         </div>
                       )}
+                      {contentForm.nutrition_label && (
+                        <div className="mt-3 rounded-2xl border border-primary/30 bg-white p-3 space-y-3">
+                          <div>
+                            <p className="font-medium text-sm">Cantidades detectadas</p>
+                            <p className="text-xs muted mt-1">Revisa y corrige cualquier valor antes de publicar.</p>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {[
+                              ["serving_size", "Tamaño de la ración", "serving_size"],
+                              ["serving_grams", "Gramos por ración", "serving_grams"],
+                              ["calories", "Calorías (kcal)", "serving_calories"],
+                              ["protein", "Proteínas (g)", "serving_protein"],
+                              ["carbs", "Hidratos (g)", "serving_carbs"],
+                              ["fat", "Grasas (g)", "serving_fat"],
+                              ["saturated_fat", "Grasas saturadas (g)", "serving_saturated_fat"],
+                              ["sugars", "Azúcares (g)", "serving_sugars"],
+                              ["fiber", "Fibra (g)", "serving_fiber"],
+                              ["salt", "Sal (g)", "serving_salt"],
+                            ].map(([key, label, fallbackKey]) => (
+                              <label key={key} className="block">
+                                <span className="text-xs muted">{label}</span>
+                                <input
+                                  className="field mt-1"
+                                  value={String(contentForm.nutrition_label?.[key] ?? contentForm.nutrition_label?.[fallbackKey] ?? "")}
+                                  onChange={(event) => setContentForm((current) => ({
+                                    ...current,
+                                    nutrition_label: { ...(current.nutrition_label ?? {}), [key]: event.target.value },
+                                  }))}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     </ProductAccordion>
 
@@ -1163,10 +1204,40 @@ export default function AdminNutrition() {
                     </label>
                     </ProductAccordion>
                     <ProductAccordion title="Beneficios" {...editorAccordionProps("Beneficios")}>
-                    <label className="block">
-                      <span className="text-xs muted">Beneficios</span>
-                      <textarea className="field min-h-20 mt-1" placeholder="Beneficios" value={contentForm.benefits} onChange={(event) => setContentForm({ ...contentForm, benefits: event.target.value })} />
-                    </label>
+                    <div className="space-y-3">
+                      <label className="block">
+                        <span className="text-xs muted">Beneficios</span>
+                        <textarea className="field min-h-20 mt-1" placeholder="Beneficios" value={contentForm.benefits} onChange={(event) => setContentForm({ ...contentForm, benefits: event.target.value })} />
+                      </label>
+                      {contentForm.benefits_pdf_url && (
+                        <a href={contentForm.benefits_pdf_url} target="_blank" rel="noreferrer" className="btn-secondary w-full justify-center">
+                          <FileText className="h-4 w-4" /> Ver PDF de beneficios
+                        </a>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <label className="btn-primary cursor-pointer">
+                          <FileText className="h-4 w-4" /> {contentForm.benefits_pdf_url ? "Sustituir PDF" : "Subir PDF"}
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            className="hidden"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) void onUpload(file, "benefits", (url) => setContentForm((current) => ({ ...current, benefits_pdf_url: url })));
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="admin-nutrition-delete-button"
+                          disabled={!contentForm.benefits_pdf_url}
+                          onClick={() => setContentForm((current) => ({ ...current, benefits_pdf_url: "" }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Borrar PDF
+                        </button>
+                      </div>
+                    </div>
                     </ProductAccordion>
                     <ProductAccordion title="Modo de uso" {...editorAccordionProps("Modo de uso")}>
                     <label className="block">
