@@ -54,6 +54,7 @@ type ManagedSection = {
 };
 
 type NutritionBlockId =
+  | "official_label"
   | "description"
   | "nutrition"
   | "benefits"
@@ -69,6 +70,7 @@ type NutritionBlockId =
   | "external_urls";
 
 const DEFAULT_NUTRITION_BLOCK_ORDER: NutritionBlockId[] = [
+  "official_label",
   "description",
   "nutrition",
   "benefits",
@@ -85,6 +87,7 @@ const DEFAULT_NUTRITION_BLOCK_ORDER: NutritionBlockId[] = [
 ];
 
 const NUTRITION_BLOCK_LABELS: Record<NutritionBlockId, string> = {
+  official_label: "Etiqueta nutricional oficial",
   description: "Descripción",
   nutrition: "Información nutricional",
   benefits: "Beneficios",
@@ -367,6 +370,7 @@ function buildBlocks(form: ContentForm) {
   const pendingPdf = form.pdf_url.trim();
   const allExternalUrls = [...form.external_urls, form.external_url.trim()].filter((url, index, urls) => url && urls.indexOf(url) === index);
   const groups: Record<NutritionBlockId, any[]> = {
+    official_label: form.label_file_url ? [{ type: "official_label", url: form.label_file_url }] : [],
     description: sectionBlocks("Descripción", form.description),
     nutrition: form.nutrition_label ? [{ type: "nutrition_label", data: form.nutrition_label }] : [],
     benefits: [
@@ -385,7 +389,7 @@ function buildBlocks(form: ContentForm) {
     external_urls: allExternalUrls.map((url, index) => ({ type: "link", label: `Enlace externo ${index + 1}`, url })),
   };
 
-  const blocks: any[] = form.label_file_url ? [{ type: "official_label", url: form.label_file_url }] : [];
+  const blocks: any[] = [];
   normalizeNutritionBlockOrder(form.blockOrder).forEach((blockId) => blocks.push(...groups[blockId]));
   return blocks;
 }
@@ -424,7 +428,7 @@ function formFromItem(item: any): ContentForm {
       else { next.pdf_urls.push(block.url); markOrder("pdfs"); }
     }
     if (block?.type === "link" && block.url) { next.external_urls.push(block.url); markOrder("external_urls"); }
-    if (block?.type === "official_label" && block.url) next.label_file_url = block.url;
+    if (block?.type === "official_label" && block.url) { next.label_file_url = block.url; markOrder("official_label"); }
     if (block?.type === "nutrition_label" && block.data && typeof block.data === "object") { next.nutrition_label = block.data; markOrder("nutrition"); }
     if (block?.type === "official_spoon" && block.url) { next.spoon_image_url = block.url; markOrder("spoon_image"); }
     if (block?.type === "section") {

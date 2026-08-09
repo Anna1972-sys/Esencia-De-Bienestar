@@ -91,15 +91,12 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         })
         .filter(Boolean) as ContentBlock[]
     : blocks;
-  const officialLabelUrl = table === "nutrition_items"
-    ? String((blocks.find((block: any) => block?.type === "official_label") as any)?.url ?? "")
-    : "";
   const attachmentBlocks = blocks.filter((b: any) =>
     ["image", "video", "pdf", "link", "button"].includes(b?.type) && (b.url || b.label)
   );
   const textBlocks = blocks.filter((b: any) => !["image", "video", "pdf", "link", "button"].includes(b?.type));
   const orderedBlocks = table === "nutrition_items"
-    ? nutritionBlocks.filter((block: any) => block?.type !== "official_label")
+    ? nutritionBlocks
     : textBlocks;
   const description = it.description || it.subtitle || "";
   const title = it.title || it.name || it.label || it.subtitle || "Contenido";
@@ -157,6 +154,14 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
             </div>
           )}
         </section>
+      );
+    }
+    if (b.type === "official_label") {
+      if (!b.url) return null;
+      return (
+        <a key={i} href={mediaUrl(b.url)} target="_blank" rel="noreferrer" className="btn-secondary w-full justify-center">
+          <FileText className="h-4 w-4" /> Ver etiqueta oficial
+        </a>
       );
     }
     if (b.type === "official_spoon") {
@@ -297,6 +302,10 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         nutritionDisplayGroups.push({ id: `nutrition-${index}`, title: "Información nutricional", entries: [{ block, index }] });
         continue;
       }
+      if (block?.type === "official_label") {
+        nutritionDisplayGroups.push({ id: `official-label-${index}`, title: "Etiqueta nutricional oficial", entries: [{ block, index }] });
+        continue;
+      }
       if (block?.type === "official_spoon") {
         nutritionDisplayGroups.push({ id: `spoon-${index}`, title: "Cuchara oficial Herbalife", entries: [{ block, index }] });
         continue;
@@ -363,11 +372,6 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
         </div>
       )}
       <h1 className="heading-lg mb-4">{title}</h1>
-      {officialLabelUrl && (
-        <a href={mediaUrl(officialLabelUrl)} target="_blank" rel="noreferrer" className="product-detail-label-link mb-4">
-          <FileText className="h-3.5 w-3.5" /> Ver etiqueta oficial
-        </a>
-      )}
       {description && <p className="mb-5 leading-relaxed muted">{description}</p>}
 
       <div className="space-y-4">
