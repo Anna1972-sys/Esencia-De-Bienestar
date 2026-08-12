@@ -207,7 +207,7 @@ export default function Products() {
         {filtered.length === 0 ? (
           <div className="card-soft p-6 text-center muted">No hay productos visibles en esta categoría.</div>
         ) : (
-          <div className="products-client-grid">
+          <div className="products-client-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
             {filtered.map(product => (
               <Link
                 key={product.id}
