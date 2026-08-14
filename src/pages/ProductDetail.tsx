@@ -700,9 +700,9 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="nutrition-stat">
-      <div className="font-semibold">{value ?? "—"}</div>
-      <div className="muted text-[9px] uppercase tracking-wide">{label}</div>
+    <div className="nutrition-stat min-w-0 h-auto">
+      <div className="max-w-full whitespace-normal break-words [overflow-wrap:anywhere] font-semibold leading-snug">{value ?? "—"}</div>
+      <div className="muted max-w-full whitespace-normal break-words [overflow-wrap:anywhere] text-[9px] uppercase tracking-wide leading-snug">{label}</div>
     </div>
   );
 }

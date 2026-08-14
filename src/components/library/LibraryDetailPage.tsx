@@ -144,11 +144,11 @@ export default function LibraryDetailPage({ table, basePath, categories, visible
           {!insideAccordion && <h2 className="font-serif text-xl">Información nutricional</h2>}
           {data.serving_size && <p className="text-sm muted">Por {String(data.serving_size)}</p>}
           {values.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
               {values.map(([label, value, unit]) => (
-                <div key={String(label)} className="rounded-xl bg-secondary/70 p-3 text-center">
-                  <div className="font-semibold">{String(value)}{unit || ""}</div>
-                  <div className="text-xs muted">{String(label)}</div>
+                <div key={String(label)} className="min-w-0 h-auto rounded-xl bg-secondary/70 p-3 text-center">
+                  <div className="max-w-full whitespace-normal break-words [overflow-wrap:anywhere] font-semibold leading-snug">{String(value)}{unit || ""}</div>
+                  <div className="muted max-w-full whitespace-normal break-words [overflow-wrap:anywhere] text-xs leading-snug">{String(label)}</div>
                 </div>
               ))}
             </div>
