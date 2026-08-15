@@ -15,13 +15,39 @@ function numberOrNull(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function gramsOrNull(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(/^([0-9]+(?:[.,][0-9]+)?)\s*(?:g|gr|gramo|gramos)?$/i);
+  return match ? numberOrNull(match[1]) : null;
+}
+
+export function normalizeServingFields(rawServingSize: unknown, rawServingGrams: unknown) {
+  let servingSize = typeof rawServingSize === "string" ? rawServingSize.trim() || null : null;
+  let servingGrams = gramsOrNull(rawServingGrams);
+
+  if (servingSize) {
+    const explicitServing = servingSize.match(/^(.*?)\s*(?:=|\/|\(|:)\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:g|gr|gramo|gramos)\s*\)?$/i);
+    if (explicitServing?.[1]?.trim()) {
+      servingSize = explicitServing[1]
+        .trim()
+        .replace(/^(?:tamaño\s+de\s+(?:la\s+)?ración|ración|porción|dosis)(?:\s+(?:diaria|recomendada|diaria\s+recomendada))?\s*[:=-]\s*/i, "")
+        .trim() || null;
+      if (servingGrams === null) servingGrams = numberOrNull(explicitServing[2]);
+    }
+  }
+
+  return { servingSize, servingGrams };
+}
+
 function cleanNutritionPayload(raw: any) {
+  const { servingSize, servingGrams } = normalizeServingFields(raw?.serving_size, raw?.serving_grams);
   return {
     short_description: typeof raw?.short_description === "string" ? raw.short_description.trim() : "",
     description: typeof raw?.description === "string" ? raw.description.trim() : "",
     ingredients_text: typeof raw?.ingredients_text === "string" ? raw.ingredients_text.trim() : "",
-    serving_size: typeof raw?.serving_size === "string" ? raw.serving_size.trim() || null : null,
-    serving_grams: numberOrNull(raw?.serving_grams),
+    serving_size: servingSize,
+    serving_grams: servingGrams,
     serving_calories: numberOrNull(raw?.serving_calories),
     serving_protein: numberOrNull(raw?.serving_protein),
     serving_carbs: numberOrNull(raw?.serving_carbs),
@@ -138,9 +164,13 @@ REGLA CRÍTICA SOBRE VARIAS TABLAS NUTRICIONALES:
 Si aparece una descripción oficial del producto, devuélvela en description. Si no aparece, pon "".
 Si aparece descripción oficial suficiente, crea short_description como resumen breve de 2 a 4 líneas usando solo esa información. Si no aparece, pon "".
 Si aparece una lista de ingredientes, devuélvela en ingredients_text. Si no aparece, pon "".
-Los valores por 100 g deben ir en: calories, protein, carbs, sugars, fat, saturated_fat, fiber, salt.
-Los valores por ración deben ir en: serving_calories, serving_protein, serving_carbs, serving_sugars, serving_fat, serving_saturated_fat, serving_fiber, serving_salt.
-El tamaño de ración textual va en serving_size y los gramos de ración en serving_grams.
+Los valores por 100 g o por 100 ml deben ir exclusivamente en: calories, protein, carbs, sugars, fat, saturated_fat, fiber, salt.
+Los valores por ración deben ir exclusivamente en: serving_calories, serving_protein, serving_carbs, serving_sugars, serving_fat, serving_saturated_fat, serving_fiber, serving_salt.
+No copies, mezcles ni calcules valores entre las columnas por 100 g/100 ml y las columnas por ración.
+Busca la declaración de ración en todo el documento, no solo dentro de la tabla nutricional.
+Cuando sea explícita, separa el nombre o cantidad de unidades de la ración y su peso: por ejemplo, "1 sobre = 3,7 g" debe producir serving_size "1 sobre" y serving_grams 3.7; "2 cápsulas = 4 g" debe producir serving_size "2 cápsulas" y serving_grams 4; "2 cucharadas = 26 g" debe producir serving_size "2 cucharadas" y serving_grams 26.
+serving_size debe contener únicamente la ración textual (por ejemplo, "1 sobre", "1 tableta", "2 cápsulas" o "2 cucharadas") y serving_grams únicamente su peso numérico en gramos, sin la letra g.
+Extrae ambos datos solo cuando la relación aparezca claramente indicada. Si falta el nombre de la ración o su peso, deja el campo correspondiente en null: no lo deduzcas ni lo calcules.
 Si el sodio aparece pero la sal no aparece, indica el dato en confidence_notes para revisión manual; no conviertas si no está claro.
 Incluye source y confidence_notes.
 Formato exacto:
